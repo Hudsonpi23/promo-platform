@@ -57,19 +57,26 @@ GET {{baseUrl}}/api/ml/connection
 # ✅ Se token expirou, renova automaticamente
 GET {{baseUrl}}/api/ml/me
 
-### (C) Buscar produtos no Mercado Livre
+### (C) Buscar produtos no Mercado Livre (API PÚBLICA)
+# ✅ ARQUITETURA CORRETA: API pública ML (sem OAuth)
 # ✅ Deve retornar: lista de produtos encontrados
-# ✅ Usar token válido (com renovação automática)
-GET {{baseUrl}}/api/ml/search?query=iphone
+# ✅ Não usa token - API pública do ML
+GET {{baseUrl}}/api/ml/public-search?query=iphone
 
 ### Buscar com paginação
-GET {{baseUrl}}/api/ml/search?query=notebook&limit=20&offset=0
+GET {{baseUrl}}/api/ml/public-search?query=notebook&limit=20&offset=0
 
 ### Buscar eletrônicos
-GET {{baseUrl}}/api/ml/search?query=smartphone samsung
+GET {{baseUrl}}/api/ml/public-search?query=smartphone samsung
+
+### Buscar com categoria
+GET {{baseUrl}}/api/ml/public-search?query=iphone&category=MLB1055
+
+### Buscar com ordenação
+GET {{baseUrl}}/api/ml/public-search?query=notebook&sort=price_asc
 
 ### Buscar sem query (deve retornar erro 400)
-GET {{baseUrl}}/api/ml/search
+GET {{baseUrl}}/api/ml/public-search
 
 ###############################################################################
 # 5. NICHES

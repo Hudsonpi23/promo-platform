@@ -124,45 +124,58 @@ export async function mlRoutes(fastify: FastifyInstance) {
   });
 
   /**
-   * GET /api/ml/search
-   * Busca produtos no Mercado Livre usando o token válido
+   * GET /api/ml/public-search
+   * Busca produtos no Mercado Livre usando API PÚBLICA (sem OAuth)
+   * 
+   * ⚠️ ARQUITETURA CORRETA:
+   * - API pública ML: buscar produtos (SEM token)
+   * - OAuth ML: apenas para links afiliados, tracking, identidade
+   * 
+   * 🚨 LIMITAÇÃO ATUAL:
+   * - ML bloqueia requisições de certos IPs/regiões (erro 403)
+   * - Solução: usar em ambiente com IP diferente (Render) ou scraping alternativo
    * 
    * Query params:
    * - query (required): Termo de busca
    * - limit (optional): Limite de resultados (padrão: 10, máx: 50)
    * - offset (optional): Offset para paginação (padrão: 0)
+   * - category (optional): ID da categoria
+   * - sort (optional): Ordenação (price_asc, price_desc, relevance)
    */
-  fastify.get('/search', async (request: FastifyRequest, reply: FastifyReply) => {
-    const { query, limit = 10, offset = 0 } = request.query as {
+  fastify.get('/public-search', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { query, limit = 10, offset = 0, category, sort } = request.query as {
       query?: string;
       limit?: number;
       offset?: number;
+      category?: string;
+      sort?: string;
     };
 
     if (!query || query.trim() === '') {
       return reply.status(400).send({
         success: false,
         error: 'Parâmetro "query" é obrigatório',
-        example: '/api/ml/search?query=iphone',
+        example: '/api/ml/public-search?query=iphone',
       });
     }
 
     try {
-      // Verificar se tem conexão (opcional, mas útil para tracking)
-      const connection = await getMlConnection();
+      // Buscar produtos via API PÚBLICA (sem token, sem bloqueio)
+      const params: any = {
+        q: query,
+        limit: Math.min(Number(limit), 50), // Máximo 50
+        offset: Number(offset),
+      };
 
-      // Buscar produtos (endpoint público com headers apropriados)
+      if (category) params.category = category;
+      if (sort) params.sort = sort;
+
       const searchResult = await axios.get('https://api.mercadolibre.com/sites/MLB/search', {
-        params: {
-          q: query,
-          limit: Math.min(Number(limit), 50), // Máximo 50
-          offset: Number(offset),
-        },
+        params,
         headers: {
           'Accept': 'application/json',
-          'User-Agent': 'Manu-Promocoes/1.0',
-          'X-Client-Id': process.env.ML_CLIENT_ID || '',
         },
+        timeout: 10000, // 10s timeout
       }).then((res: any) => res.data);
 
       // Normalizar resposta
@@ -194,33 +207,38 @@ export async function mlRoutes(fastify: FastifyInstance) {
         offset: searchResult.paging?.offset || offset,
         items,
         _meta: {
-          mlUserId: connection?.mlUserId || null,
           site_id: searchResult.site_id,
+          api_type: 'public',
+          note: 'API pública ML - não requer OAuth',
         },
       });
     } catch (error: any) {
-      console.error('Erro ao buscar produtos no ML:', error);
+      console.error('Erro ao buscar produtos no ML (API pública):', error.message);
 
-      if (error.message.includes('não conectado')) {
-        return reply.status(400).send({
+      // Timeout
+      if (error.code === 'ECONNABORTED') {
+        return reply.status(504).send({
           success: false,
-          error: 'Não conectado',
-          message: error.message,
+          error: 'Timeout',
+          message: 'ML demorou muito para responder. Tente novamente.',
         });
       }
 
-      if (error.message.includes('Falha ao renovar token')) {
-        return reply.status(401).send({
+      // Rate limit
+      if (error.response?.status === 429) {
+        return reply.status(429).send({
           success: false,
-          error: 'Token inválido',
-          message: 'Falha ao renovar token. Reconecte a conta.',
+          error: 'Rate limit',
+          message: 'Muitas requisições. Aguarde alguns segundos.',
         });
       }
 
+      // Erro genérico
       return reply.status(500).send({
         success: false,
         error: 'Erro ao buscar produtos',
-        message: error.message,
+        message: error.response?.data?.message || error.message,
+        hint: 'API pública do ML pode ter rate limits. Tente novamente em alguns segundos.',
       });
     }
   });
