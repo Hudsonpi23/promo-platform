@@ -18,12 +18,14 @@
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
+    "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^9.0.0",
     "@fastify/jwt": "^8.0.0",
     "@fastify/multipart": "^8.1.0",
     "@prisma/client": "^5.10.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.11.0",
+    "axios": "^1.13.2",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.1.0",
     "cloudinary": "^2.9.0",

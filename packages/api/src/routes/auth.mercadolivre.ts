@@ -10,8 +10,19 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
+import axios from 'axios';
 
 const prisma = new PrismaClient();
+
+// Helper para gerar base64url (PKCE)
+function base64url(input: Buffer): string {
+  return input
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
+}
 
 // Configuração do ML (vem das variáveis de ambiente)
 const ML_CONFIG = {
@@ -53,6 +64,57 @@ export async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
   });
 
   /**
+   * GET /api/auth/mercadolivre/login
+   * Redireciona o usuário para o ML com PKCE (mais seguro)
+   */
+  fastify.get('/login', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!ML_CONFIG.clientId || !ML_CONFIG.redirectUri) {
+      return reply.status(500).send({
+        success: false,
+        error: 'Mercado Livre não configurado. Defina ML_CLIENT_ID e ML_REDIRECT_URI.',
+      });
+    }
+
+    // PKCE - Gerar code_verifier e code_challenge
+    const codeVerifier = base64url(crypto.randomBytes(32));
+    const codeChallenge = base64url(
+      crypto.createHash('sha256').update(codeVerifier).digest()
+    );
+
+    // State para proteção CSRF
+    const state = base64url(crypto.randomBytes(16));
+
+    // Guardar state e verifier em cookies seguros
+    reply.setCookie('ml_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600, // 10 minutos
+    });
+    
+    reply.setCookie('ml_verifier', codeVerifier, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600, // 10 minutos
+    });
+
+    // Construir URL de autorização com PKCE
+    const authUrl = new URL(ML_CONFIG.authUrl);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', ML_CONFIG.clientId);
+    authUrl.searchParams.set('redirect_uri', ML_CONFIG.redirectUri);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+    authUrl.searchParams.set('state', state);
+
+    // Redirecionar para o ML
+    return reply.redirect(authUrl.toString());
+  });
+
+  /**
    * GET /api/auth/mercadolivre/callback
    * Callback após o usuário autorizar no Mercado Livre
    */
@@ -74,30 +136,46 @@ export async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
       });
     }
 
-    try {
-      // Trocar code por tokens
-      const tokenResponse = await fetch(ML_CONFIG.tokenUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: ML_CONFIG.clientId,
-          client_secret: ML_CONFIG.clientSecret,
-          code,
-          redirect_uri: ML_CONFIG.redirectUri,
-        }),
+    // Verificar state (CSRF protection) se vier dos cookies
+    const mlState = request.cookies.ml_state;
+    const mlVerifier = request.cookies.ml_verifier;
+    
+    if (mlState && state && mlState !== state) {
+      console.error('State inválido (CSRF)');
+      return reply.status(403).send({
+        success: false,
+        error: 'State inválido. Possível ataque CSRF.',
       });
+    }
 
-      if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json() as { message?: string };
-        console.error('Erro ao trocar code por token:', errorData);
-        throw new Error(errorData.message || 'Falha ao obter tokens');
+    try {
+      // Preparar body para trocar code por tokens
+      const tokenBody: any = {
+        grant_type: 'authorization_code',
+        client_id: ML_CONFIG.clientId,
+        client_secret: ML_CONFIG.clientSecret,
+        code,
+        redirect_uri: ML_CONFIG.redirectUri,
+      };
+
+      // Se tiver verifier (PKCE), adicionar
+      if (mlVerifier) {
+        tokenBody.code_verifier = mlVerifier;
       }
 
-      const tokenData = await tokenResponse.json() as {
+      // Trocar code por tokens usando axios
+      const tokenResponse = await axios.post(
+        ML_CONFIG.tokenUrl,
+        new URLSearchParams(tokenBody).toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      const tokenData = tokenResponse.data as {
         access_token: string;
         token_type: string;
         expires_in: number;
@@ -160,6 +238,10 @@ export async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
       });
 
       console.log(`✅ Conta ML conectada: ${account.mlNickname || account.mlUserId}`);
+
+      // Limpar cookies do PKCE
+      reply.clearCookie('ml_state');
+      reply.clearCookie('ml_verifier');
 
       // Redirecionar para frontend com sucesso
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';

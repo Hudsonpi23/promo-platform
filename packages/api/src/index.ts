@@ -2,6 +2,7 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
 import multipart from '@fastify/multipart';
+import cookie from '@fastify/cookie';
 
 // Serviços
 import { configureCloudinary } from './services/cloudinary';
@@ -39,6 +40,11 @@ async function main() {
   await server.register(cors, {
     origin: true,
     credentials: true,
+  });
+
+  // Cookies
+  await server.register(cookie, {
+    secret: process.env.JWT_SECRET || 'cookie-secret', // Para signed cookies
   });
 
   // JWT
