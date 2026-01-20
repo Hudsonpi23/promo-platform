@@ -18,8 +18,8 @@ import { publicationsRoutes } from './routes/publications';
 import { trackingRoutes, statsRoutes } from './routes/tracking';
 import { publicRoutes } from './routes/public';
 import { uploadRoutes } from './routes/upload';
-import mercadoLivreRoutes from './routes/sources.mercadolivre';
-import mercadoLivreAuthRoutes from './routes/auth.mercadolivre';
+import { mercadoLivreRoutes } from './routes/sources.mercadolivre';
+import { mercadoLivreAuthRoutes } from './routes/auth.mercadolivre';
 
 async function main() {
   const server = Fastify({
@@ -131,10 +131,17 @@ async function main() {
     console.log(`      POST /api/sources/mercadolivre/run → Coletar ML`);
     console.log('═══════════════════════════════════════════════════════');
     console.log('');
-  } catch (err) {
-    console.error('Erro ao iniciar servidor:', err);
+  } catch (err: any) {
+    console.error('❌ Erro ao iniciar servidor:');
+    console.error('   Mensagem:', err.message);
+    console.error('   Stack:', err.stack);
     process.exit(1);
   }
 }
 
-main();
+main().catch((err) => {
+  console.error('❌ Erro fatal na inicialização:');
+  console.error('   Mensagem:', err.message);
+  console.error('   Stack:', err.stack);
+  process.exit(1);
+});

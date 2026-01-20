@@ -39,7 +39,7 @@ const ConfigUpdateSchema = z.object({
 
 // ==================== ROUTES ====================
 
-export default async function mercadoLivreRoutes(fastify: FastifyInstance) {
+export async function mercadoLivreRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/sources/mercadolivre/run
    * Executa coleta de ofertas do Mercado Livre

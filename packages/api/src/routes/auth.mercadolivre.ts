@@ -25,7 +25,7 @@ const ML_CONFIG = {
 
 // ==================== ROUTES ====================
 
-export default async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
+export async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/auth/mercadolivre/connect
    * Redireciona o usuário para o Mercado Livre para autorização
