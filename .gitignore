@@ -1,0 +1,52 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build
+.next
+out
+dist
+build
+
+# Turbo
+.turbo
+
+# Env - SEGURANÇA MÁXIMA
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+*.real.env
+!.env.example
+
+# Secrets (nunca commitar)
+*secret*
+*token*
+*.key
+credentials.json
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Prisma
+packages/api/prisma/*.db
+packages/api/prisma/*.db-journal
+
+# Python
+__pycache__
+*.pyc
+.venv
+venv

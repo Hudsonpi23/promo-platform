@@ -1,0 +1,251 @@
+### Promo Platform API - VSCode REST Client
+### Documentação: packages/api/README.md
+
+@baseUrl = http://localhost:3001
+@contentType = application/json
+
+### ========== AUTH ==========
+
+### Login Admin
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "admin@local.dev",
+  "password": "admin123"
+}
+
+### Salvar token
+@token = {{login.response.body.$.data.accessToken}}
+@refreshToken = {{login.response.body.$.data.refreshToken}}
+
+### Me
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{token}}
+
+### Refresh Token
+POST {{baseUrl}}/auth/refresh
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
+
+{
+  "refreshToken": "{{refreshToken}}"
+}
+
+### ========== CONFIG ==========
+
+### Get Config
+GET {{baseUrl}}/api/config
+Authorization: Bearer {{token}}
+
+### Update Config
+PUT {{baseUrl}}/api/config
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "siteName": "Max Ofertas",
+  "defaultUtmSource": "maxofertas"
+}
+
+### Get Cargas Schedule
+GET {{baseUrl}}/api/config/cargas
+Authorization: Bearer {{token}}
+
+### ========== NICHES ==========
+
+### List Niches
+GET {{baseUrl}}/api/niches?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Create Niche
+POST {{baseUrl}}/api/niches
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Brinquedos",
+  "slug": "brinquedos",
+  "icon": "🧸"
+}
+
+### ========== STORES ==========
+
+### List Stores
+GET {{baseUrl}}/api/stores?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Create Store
+POST {{baseUrl}}/api/stores
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "name": "Ponto Frio",
+  "slug": "pontofrio"
+}
+
+### ========== OFFERS ==========
+
+### List Offers
+GET {{baseUrl}}/api/offers?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### List Offers with Filters
+GET {{baseUrl}}/api/offers?status=ACTIVE&minDiscount=20
+Authorization: Bearer {{token}}
+
+### Create Offer (substituir nicheId e storeId)
+POST {{baseUrl}}/api/offers
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "title": "Fone de Ouvido JBL Tune 510BT",
+  "description": "Fone bluetooth com 40h de bateria",
+  "originalPrice": 299.90,
+  "finalPrice": 149.90,
+  "discountPct": 50,
+  "affiliateUrl": "https://example.com/fone-jbl",
+  "nicheId": "SUBSTITUIR_PELO_ID_DO_NICHO",
+  "storeId": "SUBSTITUIR_PELO_ID_DA_LOJA",
+  "urgency": "HOJE"
+}
+
+### ========== BATCHES ==========
+
+### List Batches (hoje)
+GET {{baseUrl}}/api/batches
+Authorization: Bearer {{token}}
+
+### List Batches (data específica)
+GET {{baseUrl}}/api/batches?date=2024-01-20
+Authorization: Bearer {{token}}
+
+### Generate Batches
+POST {{baseUrl}}/api/batches/generate
+Authorization: Bearer {{token}}
+
+### Dispatch Approved
+POST {{baseUrl}}/api/batches/BATCH_ID_AQUI/dispatch-approved
+Authorization: Bearer {{token}}
+
+### ========== DRAFTS ==========
+
+### List Drafts
+GET {{baseUrl}}/api/drafts?page=1&limit=20
+Authorization: Bearer {{token}}
+
+### List Drafts by Batch
+GET {{baseUrl}}/api/drafts?batchId=BATCH_ID_AQUI
+Authorization: Bearer {{token}}
+
+### List Pending Drafts
+GET {{baseUrl}}/api/drafts?status=PENDING
+Authorization: Bearer {{token}}
+
+### Create Draft (substituir IDs)
+POST {{baseUrl}}/api/drafts
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "offerId": "SUBSTITUIR_PELO_ID_DA_OFERTA",
+  "batchId": "SUBSTITUIR_PELO_ID_DO_BATCH",
+  "copyText": "🔥 OFERTA IMPERDÍVEL!\n\nProduto X por apenas R$ 99!\n\n⚡ 50% de desconto!",
+  "channels": ["TELEGRAM", "SITE"],
+  "priority": "HIGH"
+}
+
+### Approve Draft
+POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/approve
+Authorization: Bearer {{token}}
+
+### Mark Approved (sem disparar)
+POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/mark-approved
+Authorization: Bearer {{token}}
+
+### Reject Draft
+POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/reject
+Authorization: Bearer {{token}}
+
+### Move to Error
+POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/error
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "message": "Erro manual para teste"
+}
+
+### Dispatch Draft
+POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/dispatch
+Authorization: Bearer {{token}}
+
+### ========== PUBLICATIONS ==========
+
+### List Publications
+GET {{baseUrl}}/api/publications?page=1&limit=10
+Authorization: Bearer {{token}}
+
+### Create Publication (substituir offerId)
+POST {{baseUrl}}/api/publications
+Authorization: Bearer {{token}}
+Content-Type: {{contentType}}
+
+{
+  "offerId": "SUBSTITUIR_PELO_ID_DA_OFERTA"
+}
+
+### Unpublish
+POST {{baseUrl}}/api/publications/PUB_ID_AQUI/unpublish
+Authorization: Bearer {{token}}
+
+### ========== STATS ==========
+
+### Overview
+GET {{baseUrl}}/api/stats/overview
+Authorization: Bearer {{token}}
+
+### By Channel
+GET {{baseUrl}}/api/stats/by-channel
+Authorization: Bearer {{token}}
+
+### By Niche
+GET {{baseUrl}}/api/stats/by-niche
+Authorization: Bearer {{token}}
+
+### Clicks
+GET {{baseUrl}}/api/stats/clicks?page=1&limit=20
+Authorization: Bearer {{token}}
+
+### ========== PUBLIC (sem auth) ==========
+
+### Feed Público
+GET {{baseUrl}}/public/feed?limit=10
+
+### Posts Públicos
+GET {{baseUrl}}/public/posts?limit=10
+
+### Niches Públicos
+GET {{baseUrl}}/public/niches
+
+### Posts por Nicho
+GET {{baseUrl}}/public/niches/eletronicos/posts
+
+### Highlights
+GET {{baseUrl}}/public/highlights
+
+### Click Tracking (substituir ID)
+POST {{baseUrl}}/public/posts/POST_ID_AQUI/click
+
+### Health Check
+GET {{baseUrl}}/health

@@ -1,0 +1,10 @@
+# Robots.txt para Max Ofertas
+User-agent: *
+Allow: /
+
+# Bloquear rotas internas
+Disallow: /api/
+Disallow: /go/
+
+# Sitemap
+Sitemap: https://maxofertas.com.br/sitemap.xml

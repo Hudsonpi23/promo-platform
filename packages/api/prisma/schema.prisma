@@ -1,0 +1,393 @@
+// Prisma Schema - Promo Platform
+// Sistema de Promoções para Afiliados
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+enum Role {
+  ADMIN
+  OPERATOR
+}
+
+enum OfferStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum DraftStatus {
+  PENDING
+  APPROVED
+  DISPATCHED
+  ERROR
+  REJECTED
+}
+
+enum BatchStatus {
+  PENDING
+  LOCKED
+  CLOSED
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  ERROR
+}
+
+enum Channel {
+  TELEGRAM
+  WHATSAPP
+  FACEBOOK
+  TWITTER
+  SITE
+}
+
+enum Urgency {
+  HOJE
+  ULTIMAS_UNIDADES
+  LIMITADO
+  NORMAL
+}
+
+enum Priority {
+  HIGH
+  NORMAL
+  LOW
+}
+
+// ==================== AUTH ====================
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(OPERATOR)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+  approvedDrafts PostDraft[] @relation("ApprovedBy")
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([tokenHash])
+}
+
+// ==================== CONFIG ====================
+
+model Config {
+  id              String   @id @default("singleton")
+  siteName        String   @default("Manu das Promoções")
+  siteBaseUrl     String   @default("https://manupromocoes.com.br")
+  defaultUtmSource String  @default("manupromocoes")
+  defaultUtmMedium String  @default("site")
+  telegramChannel String?  // @manupromocao
+  whatsappNumber  String?
+  twitterHandle   String?  // @manupromocao
+  facebookPage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model BatchSchedule {
+  id        String   @id @default(cuid())
+  time      String   // "08:00", "11:00", etc
+  enabled   Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([time])
+  @@index([order])
+}
+
+// ==================== ENTIDADES BASE ====================
+
+model Niche {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  icon      String?
+  color     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offers         Offer[]
+  publishedPosts PublishedPost[]
+
+  @@index([slug])
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offers         Offer[]
+  publishedPosts PublishedPost[]
+
+  @@index([slug])
+}
+
+// ==================== OFERTAS ====================
+
+model Offer {
+  id            String      @id @default(cuid())
+  title         String
+  description   String?
+  originalPrice Decimal     @db.Decimal(10, 2)
+  finalPrice    Decimal     @db.Decimal(10, 2)
+  discountPct   Int
+  affiliateUrl  String
+  imageUrl      String?
+  
+  nicheId String
+  niche   Niche  @relation(fields: [nicheId], references: [id])
+  
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+  
+  urgency   Urgency     @default(NORMAL)
+  status    OfferStatus @default(ACTIVE)
+  expiresAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  drafts         PostDraft[]
+  publishedPosts PublishedPost[]
+  clicks         Click[]
+
+  @@index([nicheId])
+  @@index([storeId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== SISTEMA DE CARGAS ====================
+
+model Batch {
+  id            String      @id @default(cuid())
+  date          DateTime    @db.Date
+  scheduledTime String      // "08:00", "11:00", "14:00", "18:00", "22:00"
+  status        BatchStatus @default(PENDING)
+  
+  // Contadores desnormalizados
+  pendingCount    Int @default(0)
+  approvedCount   Int @default(0)
+  dispatchedCount Int @default(0)
+  errorCount      Int @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  drafts PostDraft[]
+
+  @@unique([date, scheduledTime])
+  @@index([date])
+  @@index([status])
+}
+
+// ==================== POSTS ====================
+
+model PostDraft {
+  id String @id @default(cuid())
+  
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id])
+  
+  batchId String
+  batch   Batch  @relation(fields: [batchId], references: [id])
+  
+  copyText String   @db.Text
+  channels Channel[]
+  priority Priority @default(NORMAL)
+  
+  status     DraftStatus @default(PENDING)
+  approvedAt DateTime?
+  
+  approvedById String?
+  approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
+  
+  aiScore       Int?      // Score de confiança da IA (0-100)
+  errorMsg      String?   @db.Text
+  requiresImage Boolean   @default(false) // True se algum canal exige imagem (ex: Twitter)
+  
+  // Variantes de copy por canal (geradas pelo CopyEngine)
+  copyChannelVariants Json? // { "TELEGRAM": "...", "TWITTER": "...", ... }
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries PostDelivery[]
+
+  @@index([batchId])
+  @@index([offerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model PostDelivery {
+  id String @id @default(cuid())
+  
+  draftId String
+  draft   PostDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  
+  channel      Channel
+  status       DeliveryStatus @default(PENDING)
+  sentAt       DateTime?
+  externalId   String?
+  errorMessage String?        @db.Text
+  retries      Int            @default(0)
+  
+  // Copy gerado pelo CopyEngine para este canal
+  payload      Json?          // { text, headline?, subcopy?, link }
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([draftId, channel])
+  @@index([status])
+  @@index([channel])
+}
+
+// ==================== PUBLICAÇÕES (SITE) ====================
+
+model PublishedPost {
+  id String @id @default(cuid())
+  
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id])
+  
+  slug     String @unique
+  goCode   String @unique // Código curto para /go/:code
+  
+  // Snapshot dos dados
+  title       String
+  excerpt     String?  @db.Text
+  copyText    String   @db.Text
+  price       Decimal  @db.Decimal(10, 2)
+  originalPrice Decimal? @db.Decimal(10, 2)
+  discountPct Int
+  affiliateUrl String
+  imageUrl    String?
+  urgency     Urgency  @default(NORMAL)
+  
+  nicheId String
+  niche   Niche  @relation(fields: [nicheId], references: [id])
+  
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id])
+  
+  isActive    Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clicks Click[]
+
+  @@index([slug])
+  @@index([goCode])
+  @@index([nicheId])
+  @@index([storeId])
+  @@index([isActive])
+  @@index([publishedAt])
+}
+
+// ==================== TRACKING ====================
+
+model Click {
+  id String @id @default(cuid())
+  
+  goCode String
+  
+  publishedPostId String?
+  publishedPost   PublishedPost? @relation(fields: [publishedPostId], references: [id])
+  
+  offerId String?
+  offer   Offer?  @relation(fields: [offerId], references: [id])
+  
+  channel     Channel?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  userAgent   String?  @db.Text
+  ipHash      String?
+  referer     String?
+  
+  createdAt DateTime @default(now())
+
+  @@index([goCode])
+  @@index([publishedPostId])
+  @@index([offerId])
+  @@index([channel])
+  @@index([createdAt])
+}
+
+// ==================== IMPORTAÇÃO ====================
+
+model ImportJob {
+  id        String       @id @default(cuid())
+  type      String       // OFFERS_JSON, OFFERS_CSV
+  status    String       @default("PENDING") // PENDING, RUNNING, DONE, ERROR
+  filename  String?
+  totalRows Int?
+  processed Int          @default(0)
+  errors    Int          @default(0)
+  errorLog  String?      @db.Text
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ==================== LOGS ====================
+
+model ErrorLog {
+  id String @id @default(cuid())
+  
+  draftId    String?
+  deliveryId String?
+  
+  errorType  String
+  message    String  @db.Text
+  details    Json?
+  stack      String? @db.Text
+  
+  isResolved Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String?
+  
+  createdAt DateTime @default(now())
+
+  @@index([isResolved])
+  @@index([errorType])
+  @@index([createdAt])
+}
