@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { PostDraft, approveDraft, markAsApproved, rejectDraft, sendToError, updateDraft } from '@/lib/api';
 import { cn, formatCurrency, formatDiscount, getUrgencyLabel, getStatusColor, getStatusLabel, getChannelIcon } from '@/lib/utils';
 
+type CopyTab = 'TELEGRAM' | 'SITE' | 'X';
+
 interface CardProps {
   draft: PostDraft;
   onUpdate: () => void;
@@ -15,6 +17,7 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedCopy, setEditedCopy] = useState(draft.copyText);
   const [selectedChannels, setSelectedChannels] = useState<string[]>(draft.channels);
+  const [activeTab, setActiveTab] = useState<CopyTab>('TELEGRAM');
 
   const { offer } = draft;
   const urgencyLabel = getUrgencyLabel(offer.urgency);
@@ -91,6 +94,32 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
   };
 
   const isPending = draft.status === 'PENDING';
+  
+  // Obter source (Mercado Livre, Manual, etc)
+  const draftSource = (draft as any).source || (draft as any).offer?.source || 'MANUAL';
+  const isML = draftSource === 'MERCADO_LIVRE';
+  
+  // Score (preferir score do provider sobre aiScore)
+  const displayScore = (draft as any).score ?? draft.aiScore;
+  
+  // Copy por canal
+  const getCopyForTab = (tab: CopyTab): string => {
+    const draftAny = draft as any;
+    switch (tab) {
+      case 'TELEGRAM':
+        return draftAny.copyTextTelegram || draft.copyText;
+      case 'SITE':
+        return draftAny.copyTextSite || draft.copyText;
+      case 'X':
+        return draftAny.copyTextX || draft.copyText;
+      default:
+        return draft.copyText;
+    }
+  };
+  
+  // Verificar se tem imagem (necessário para X)
+  const hasImage = draft.offer?.imageUrl || (draft as any).imageUrl;
+  const requiresHumanForX = (draft as any).requiresHumanForX;
 
   return (
     <div className={cn(
@@ -100,28 +129,40 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
     )}>
       {/* Header - Tags */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-hover/50">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Badge Mercado Livre */}
+          {isML && (
+            <span className="px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-500 text-xs font-medium">
+              🛒 ML
+            </span>
+          )}
           <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
-            {offer.niche.name}
+            {offer.niche.icon} {offer.niche.name}
           </span>
           {draft.priority === 'HIGH' && (
             <span className="px-2 py-1 rounded-md bg-warning/20 text-warning text-xs font-medium">
-              🔥 Prioridade
+              🔥 Alta
             </span>
           )}
-          {/* AJUSTE 3 - Score de Confiança da IA */}
-          {draft.aiScore !== undefined && (
+          {/* Score */}
+          {displayScore !== undefined && (
             <span className={cn(
               'px-2 py-1 rounded-md text-xs font-medium',
-              draft.aiScore >= 90 ? 'bg-success/20 text-success' :
-              draft.aiScore >= 70 ? 'bg-primary/20 text-primary' :
+              displayScore >= 60 ? 'bg-success/20 text-success' :
+              displayScore >= 40 ? 'bg-primary/20 text-primary' :
               'bg-warning/20 text-warning'
             )}>
-              🔍 {draft.aiScore}%
+              📊 {displayScore}
+            </span>
+          )}
+          {/* Urgência */}
+          {urgencyLabel && (
+            <span className="px-2 py-1 rounded-md bg-orange-500/20 text-orange-500 text-xs font-medium">
+              ⏰ {urgencyLabel}
             </span>
           )}
         </div>
-        <span className="px-2 py-1 rounded-md bg-surface text-text-secondary text-xs">
+        <span className="px-2 py-1 rounded-md bg-surface text-text-secondary text-xs truncate max-w-[100px]">
           {offer.store.name}
         </span>
       </div>
@@ -146,27 +187,77 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
           </span>
         </div>
 
-        {/* Urgência */}
-        {urgencyLabel && (
-          <div className="text-warning font-medium text-sm">
-            {urgencyLabel}
+        {/* Imagem (se X estiver nos canais) */}
+        {hasImage && selectedChannels.includes('TWITTER') && (
+          <div className="relative h-24 rounded-lg overflow-hidden bg-surface-hover">
+            <img 
+              src={hasImage} 
+              alt={offer.title}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <div className="absolute bottom-1 right-1 px-2 py-0.5 rounded bg-black/60 text-white text-xs">
+              📷 Imagem para X
+            </div>
           </div>
         )}
 
-        {/* Preview do Copy */}
-        {!isEditing ? (
-          <div className="p-3 rounded-lg bg-background border border-border">
-            <p className="text-sm text-text-secondary whitespace-pre-wrap line-clamp-3">
-              {draft.copyText}
-            </p>
+        {/* Tabs de Preview por Canal */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-1 border-b border-border pb-1">
+            {(['TELEGRAM', 'SITE', 'X'] as CopyTab[]).map((tab) => {
+              const isActive = activeTab === tab;
+              const hasContent = tab === 'X' ? (draft as any).copyTextX : 
+                                tab === 'SITE' ? (draft as any).copyTextSite : true;
+              const isTwitter = tab === 'X';
+              const xDisabled = isTwitter && !hasImage;
+              
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  disabled={xDisabled}
+                  className={cn(
+                    'px-3 py-1.5 rounded-t-lg text-xs font-medium transition-all',
+                    isActive
+                      ? 'bg-surface border border-border border-b-surface text-text-primary'
+                      : 'text-text-muted hover:text-text-secondary',
+                    xDisabled && 'opacity-50 cursor-not-allowed'
+                  )}
+                >
+                  {tab === 'TELEGRAM' && '📱 Telegram'}
+                  {tab === 'SITE' && '🌐 Site'}
+                  {tab === 'X' && (
+                    <>
+                      🐦 X
+                      {requiresHumanForX && <span className="ml-1 text-warning">👁</span>}
+                    </>
+                  )}
+                </button>
+              );
+            })}
           </div>
-        ) : (
-          <textarea
-            value={editedCopy}
-            onChange={(e) => setEditedCopy(e.target.value)}
-            className="w-full h-32 p-3 rounded-lg bg-background border border-primary text-text-primary text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-        )}
+          
+          {/* Preview do Copy */}
+          {!isEditing ? (
+            <div className="p-3 rounded-lg bg-background border border-border min-h-[80px]">
+              <p className="text-sm text-text-secondary whitespace-pre-wrap line-clamp-5">
+                {getCopyForTab(activeTab)}
+              </p>
+              {activeTab === 'X' && !hasImage && (
+                <p className="text-xs text-error mt-2">⚠️ X requer imagem do produto</p>
+              )}
+            </div>
+          ) : (
+            <textarea
+              value={editedCopy}
+              onChange={(e) => setEditedCopy(e.target.value)}
+              className="w-full h-32 p-3 rounded-lg bg-background border border-primary text-text-primary text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          )}
+        </div>
 
         {/* AJUSTE 2 - Canais de Destino com Status Visual */}
         <div className="flex items-center justify-between">
@@ -221,43 +312,66 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
 
       {/* Ações */}
       {isPending && (
-        <div className="flex items-center gap-2 p-4 border-t border-border bg-surface-hover/30">
+        <div className="flex flex-col gap-2 p-4 border-t border-border bg-surface-hover/30">
           {!isEditing ? (
             <>
-              <button
-                onClick={handleApprove}
-                disabled={isLoading || selectedChannels.length === 0}
-                className={cn(
-                  'flex-1 py-2.5 rounded-lg font-medium text-sm transition-all',
-                  dispatchMode === 'rapido' 
-                    ? 'bg-success hover:bg-success/90 text-white'
-                    : 'bg-primary hover:bg-primary-hover text-white',
-                  'disabled:opacity-50 disabled:cursor-not-allowed',
-                  isLoading && 'animate-pulse'
+              <div className="flex items-center gap-2">
+                {/* Botão OK (Telegram + Site) */}
+                <button
+                  onClick={handleApprove}
+                  disabled={isLoading || selectedChannels.length === 0}
+                  className={cn(
+                    'flex-1 py-2.5 rounded-lg font-medium text-sm transition-all',
+                    dispatchMode === 'rapido' 
+                      ? 'bg-success hover:bg-success/90 text-white'
+                      : 'bg-primary hover:bg-primary-hover text-white',
+                    'disabled:opacity-50 disabled:cursor-not-allowed',
+                    isLoading && 'animate-pulse'
+                  )}
+                >
+                  {dispatchMode === 'rapido' ? '✅ OK (TG+Site)' : '👍 Aprovar'}
+                </button>
+                
+                {/* Botão OK p/ X (supervisionado) - só aparece se X está nos canais */}
+                {requiresHumanForX && selectedChannels.includes('TWITTER') && (
+                  <button
+                    onClick={handleApprove}
+                    disabled={isLoading || !hasImage}
+                    title={!hasImage ? 'X requer imagem do produto' : 'Aprovar para X (supervisionado)'}
+                    className={cn(
+                      'py-2.5 px-3 rounded-lg font-medium text-sm transition-all',
+                      'bg-blue-500 hover:bg-blue-600 text-white',
+                      'disabled:opacity-50 disabled:cursor-not-allowed',
+                      isLoading && 'animate-pulse'
+                    )}
+                  >
+                    🐦 OK p/ X
+                  </button>
                 )}
-              >
-                {dispatchMode === 'rapido' ? '✅ OK / Enviar' : '👍 Aprovar'}
-              </button>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2.5 rounded-lg bg-surface-hover hover:bg-border text-text-secondary text-sm transition-all"
-              >
-                ✏️
-              </button>
-              <button
-                onClick={handleReject}
-                disabled={isLoading}
-                className="px-4 py-2.5 rounded-lg bg-surface-hover hover:bg-error/20 text-text-secondary hover:text-error text-sm transition-all"
-              >
-                ❌
-              </button>
-              <button
-                onClick={handleSendToError}
-                disabled={isLoading}
-                className="px-4 py-2.5 rounded-lg bg-surface-hover hover:bg-warning/20 text-text-secondary hover:text-warning text-sm transition-all"
-              >
-                🧯
-              </button>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex-1 py-2 rounded-lg bg-surface-hover hover:bg-border text-text-secondary text-sm transition-all"
+                >
+                  ✏️ Editar
+                </button>
+                <button
+                  onClick={handleReject}
+                  disabled={isLoading}
+                  className="flex-1 py-2 rounded-lg bg-surface-hover hover:bg-error/20 text-text-secondary hover:text-error text-sm transition-all"
+                >
+                  ❌ Rejeitar
+                </button>
+                <button
+                  onClick={handleSendToError}
+                  disabled={isLoading}
+                  className="py-2 px-3 rounded-lg bg-surface-hover hover:bg-warning/20 text-text-secondary hover:text-warning text-sm transition-all"
+                >
+                  🧯
+                </button>
+              </div>
             </>
           ) : (
             <>

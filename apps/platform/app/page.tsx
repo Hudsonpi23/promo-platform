@@ -8,6 +8,9 @@ import { StatsBar } from '@/components/StatsBar';
 import { fetcher, Batch, PostDraft, dispatchBatch } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
+// Tipos de source
+type SourceFilter = 'all' | 'MANUAL' | 'MERCADO_LIVRE';
+
 // Dados fake para demonstração - Estilo "Manu" (natural e humano)
 const FAKE_DRAFTS: PostDraft[] = [
   {
@@ -108,6 +111,97 @@ const FAKE_DRAFTS: PostDraft[] = [
       { channel: 'SITE', status: 'SENT', sentAt: new Date().toISOString() },
     ],
   },
+  // === OFERTAS MERCADO LIVRE (com source) ===
+  {
+    id: 'ml-1',
+    offer: {
+      id: 'offer-ml-1',
+      title: 'iPhone 14 Pro Max 256GB Roxo Profundo',
+      description: 'iPhone com chip A17 Pro',
+      originalPrice: 8999,
+      finalPrice: 5999,
+      discount: 33,
+      affiliateUrl: 'https://mercadolivre.com.br/iphone14',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_iphone14.jpg',
+      niche: { id: 'n1', name: 'Eletrônicos', slug: 'eletronicos', icon: '📱' },
+      store: { id: 's-ml', name: 'TECHSTORE_OFICIAL', slug: 'techstore-oficial' },
+      urgency: 'HOJE',
+      source: 'MERCADO_LIVRE',
+    },
+    batch: { id: 'b3', scheduledTime: '14:00', date: new Date().toISOString(), status: 'PENDING', pendingCount: 4, approvedCount: 0, dispatchedCount: 0, errorCount: 0 },
+    copyText: 'Esse celular tá num preço que eu não via fazia tempo 👀\nEra R$ 8.999, agora tá R$ 5.999.',
+    copyTextTelegram: 'Esse celular tá num preço que eu não via fazia tempo 👀\nEra R$ 8.999, agora tá R$ 5.999.\n\nNão sei até quando fica assim.\n\nhttps://mercadolivre.com.br/iphone14',
+    copyTextSite: 'Esse celular tá num preço que eu não via fazia tempo 👀\nEra R$ 8.999, agora tá R$ 5.999.',
+    copyTextX: 'Esse celular tá num preço que eu não via fazia tempo 👀\nDe R$ 8.999 por R$ 5.999\n\nhttps://mercadolivre.com.br/iphone14',
+    channels: ['TELEGRAM', 'TWITTER', 'SITE'],
+    priority: 'HIGH',
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    aiScore: 50,
+    score: 50,
+    requiresHumanForX: true,
+    source: 'MERCADO_LIVRE',
+  },
+  {
+    id: 'ml-2',
+    offer: {
+      id: 'offer-ml-2',
+      title: 'Smart TV LG 55" 4K OLED C3 120Hz Gaming',
+      description: 'TV OLED com taxa de atualização de 120Hz',
+      originalPrice: 6999,
+      finalPrice: 4199,
+      discount: 40,
+      affiliateUrl: 'https://mercadolivre.com.br/lg-oled',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_lg_oled.jpg',
+      niche: { id: 'n1', name: 'Eletrônicos', slug: 'eletronicos', icon: '📱' },
+      store: { id: 's-lg', name: 'LG_STORE', slug: 'lg-store' },
+      urgency: 'ULTIMAS_UNIDADES',
+      source: 'MERCADO_LIVRE',
+    },
+    batch: { id: 'b3', scheduledTime: '14:00', date: new Date().toISOString(), status: 'PENDING', pendingCount: 4, approvedCount: 0, dispatchedCount: 0, errorCount: 0 },
+    copyText: 'Olha o que apareceu.\nCaiu de R$ 6.999 pra R$ 4.199.',
+    copyTextTelegram: 'Olha o que apareceu.\nCaiu de R$ 6.999 pra R$ 4.199.\n\nGeralmente some rápido.\n\nhttps://mercadolivre.com.br/lg-oled',
+    copyTextSite: 'Olha o que apareceu.\nCaiu de R$ 6.999 pra R$ 4.199.',
+    copyTextX: 'Olha o que apareceu.\nDe R$ 6.999 por R$ 4.199\n\nhttps://mercadolivre.com.br/lg-oled',
+    channels: ['TELEGRAM', 'TWITTER', 'SITE'],
+    priority: 'HIGH',
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    aiScore: 60,
+    score: 60,
+    requiresHumanForX: true,
+    source: 'MERCADO_LIVRE',
+  },
+  {
+    id: 'ml-3',
+    offer: {
+      id: 'offer-ml-3',
+      title: 'Robô Aspirador iRobot Roomba i7+ Mapeamento',
+      description: 'Robô com esvaziamento automático',
+      originalPrice: 4999,
+      finalPrice: 2999,
+      discount: 40,
+      affiliateUrl: 'https://mercadolivre.com.br/roomba-i7',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_roomba.jpg',
+      niche: { id: 'n3', name: 'Casa', slug: 'casa', icon: '🏠' },
+      store: { id: 's-irobot', name: 'IROBOT_BRASIL', slug: 'irobot-brasil' },
+      urgency: 'LIMITADO',
+      source: 'MERCADO_LIVRE',
+    },
+    batch: { id: 'b4', scheduledTime: '18:00', date: new Date().toISOString(), status: 'PENDING', pendingCount: 2, approvedCount: 0, dispatchedCount: 0, errorCount: 0 },
+    copyText: 'Fazia tempo que não via assim.\nSaiu de R$ 4.999 pra R$ 2.999.',
+    copyTextTelegram: 'Fazia tempo que não via assim.\nSaiu de R$ 4.999 pra R$ 2.999.\n\n👀\n\nhttps://mercadolivre.com.br/roomba-i7',
+    copyTextSite: 'Fazia tempo que não via assim.\nSaiu de R$ 4.999 pra R$ 2.999.',
+    copyTextX: 'Fazia tempo que não via assim.\nDe R$ 4.999 por R$ 2.999\n\nhttps://mercadolivre.com.br/roomba-i7',
+    channels: ['TELEGRAM', 'SITE'],
+    priority: 'NORMAL',
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    aiScore: 55,
+    score: 55,
+    requiresHumanForX: false,
+    source: 'MERCADO_LIVRE',
+  },
 ];
 
 const FAKE_BATCHES: Batch[] = [
@@ -121,6 +215,8 @@ const FAKE_BATCHES: Batch[] = [
 export default function Dashboard() {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'error'>('pending');
+  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [showOnlyX, setShowOnlyX] = useState(false);
   // AJUSTE 1 - Modo de operação: 'rapido' = OK dispara imediato, 'carga' = OK só aprova
   const [dispatchMode, setDispatchMode] = useState<'rapido' | 'carga'>('rapido');
 
@@ -172,10 +268,26 @@ export default function Dashboard() {
 
   // Filtrar drafts
   const filteredDrafts = displayDrafts.filter((draft) => {
-    if (filter === 'all') return true;
-    if (filter === 'pending') return draft.status === 'PENDING';
-    if (filter === 'approved') return draft.status === 'APPROVED';
-    if (filter === 'error') return draft.status === 'ERROR';
+    // Filtro por status
+    if (filter !== 'all') {
+      if (filter === 'pending' && draft.status !== 'PENDING') return false;
+      if (filter === 'approved' && draft.status !== 'APPROVED') return false;
+      if (filter === 'error' && draft.status !== 'ERROR') return false;
+    }
+    
+    // Filtro por source
+    if (sourceFilter !== 'all') {
+      const draftSource = (draft as any).source || draft.offer?.source || 'MANUAL';
+      if (draftSource !== sourceFilter) return false;
+    }
+    
+    // Filtro "somente X"
+    if (showOnlyX) {
+      const hasX = draft.channels?.includes('TWITTER');
+      const requiresHuman = (draft as any).requiresHumanForX;
+      if (!hasX && !requiresHuman) return false;
+    }
+    
     return true;
   });
 
@@ -283,26 +395,65 @@ export default function Dashboard() {
       />
 
       {/* Filtros */}
-      <div className="flex items-center gap-2">
-        {[
-          { key: 'all', label: 'Todos' },
-          { key: 'pending', label: 'Pendentes' },
-          { key: 'approved', label: 'Aprovados' },
-          { key: 'error', label: 'Erros' },
-        ].map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key as any)}
-            className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all',
-              filter === f.key
-                ? 'bg-primary text-white'
-                : 'bg-surface-hover text-text-secondary hover:text-text-primary'
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Filtro por Status */}
+        <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border">
+          {[
+            { key: 'all', label: 'Todos' },
+            { key: 'pending', label: 'Pendentes' },
+            { key: 'approved', label: 'Aprovados' },
+            { key: 'error', label: 'Erros' },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key as any)}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+                filter === f.key
+                  ? 'bg-primary text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              )}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        
+        {/* Filtro por Source */}
+        <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border">
+          {[
+            { key: 'all', label: '🌐 Todos', color: '' },
+            { key: 'MANUAL', label: '✏️ Manual', color: 'bg-gray-500' },
+            { key: 'MERCADO_LIVRE', label: '🛒 ML', color: 'bg-yellow-500' },
+          ].map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSourceFilter(s.key as SourceFilter)}
+              className={cn(
+                'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+                sourceFilter === s.key
+                  ? 'bg-amber-500 text-white'
+                  : 'text-text-secondary hover:text-text-primary'
+              )}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        
+        {/* Toggle "Somente X" */}
+        <button
+          onClick={() => setShowOnlyX(!showOnlyX)}
+          className={cn(
+            'px-3 py-1.5 rounded-lg text-sm font-medium transition-all border',
+            showOnlyX
+              ? 'bg-blue-500 text-white border-blue-500'
+              : 'bg-surface border-border text-text-secondary hover:text-text-primary'
+          )}
+        >
+          🐦 Somente X
+        </button>
+        
         <div className="flex-1" />
         <span className="text-sm text-text-muted">
           {filteredDrafts.length} cards

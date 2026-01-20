@@ -28,6 +28,7 @@ enum DraftStatus {
   DISPATCHED
   ERROR
   REJECTED
+  PENDING_X_QUOTA  // Aguardando quota do X
 }
 
 enum BatchStatus {
@@ -61,6 +62,15 @@ enum Priority {
   HIGH
   NORMAL
   LOW
+}
+
+// Source de onde veio a oferta
+enum OfferSource {
+  MANUAL           // Cadastro manual
+  MERCADO_LIVRE    // API Mercado Livre
+  AMAZON           // Amazon (futuro)
+  MAGALU           // Magazine Luiza (futuro)
+  LOMADEE          // Lomadee (futuro)
 }
 
 // ==================== AUTH ====================
@@ -122,6 +132,44 @@ model BatchSchedule {
   @@index([order])
 }
 
+// ==================== PROVIDER CONFIG ====================
+
+model ProviderConfig {
+  id              String      @id @default(cuid())
+  source          OfferSource @unique
+  enabled         Boolean     @default(true)
+  
+  // Configurações de busca
+  keywords        String[]    // Palavras-chave para busca
+  categories      String[]    // IDs ou slugs de categorias
+  
+  // Filtros
+  minDiscount     Int         @default(20)  // Desconto mínimo %
+  minPrice        Decimal     @default(50)  @db.Decimal(10, 2)
+  maxPrice        Decimal?    @db.Decimal(10, 2)
+  conditionFilter String[]    @default(["new"]) // "new", "used"
+  
+  // Limites
+  maxItemsPerRun  Int         @default(50)
+  
+  // X (Twitter) específico
+  enableX         Boolean     @default(true)
+  xDailyLimit     Int         @default(30)  // Máximo de posts X por dia
+  xMinScore       Int         @default(60)  // Score mínimo para sugerir X
+  
+  // Schedule
+  scheduleTimes   String[]    @default(["08:00", "11:00", "14:00", "18:00", "22:00"])
+  lastRunAt       DateTime?
+  
+  // Credenciais (criptografadas ou via env)
+  apiKey          String?
+  apiSecret       String?
+  accessToken     String?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
 // ==================== ENTIDADES BASE ====================
 
 model Niche {
@@ -177,6 +225,21 @@ model Offer {
   status    OfferStatus @default(ACTIVE)
   expiresAt DateTime?
   
+  // === CAMPOS PARA SOURCES EXTERNOS (ex: Mercado Livre) ===
+  source              OfferSource @default(MANUAL)
+  externalId          String?     // ID único da oferta no source (ex: MLB123456)
+  productUrl          String?     // URL original do produto (não afiliado)
+  sellerId            String?     // ID do vendedor
+  sellerName          String?     // Nome do vendedor
+  sellerReputation    String?     // Reputação do vendedor (ex: "5_green", "platinum")
+  availableQuantity   Int?        // Estoque disponível
+  condition           String?     // "new", "used", etc
+  categoryId          String?     // ID da categoria no source
+  categoryPath        String?     // Caminho completo da categoria
+  
+  // Hash para deduplicação (title+price+store)
+  dedupeHash          String?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -184,9 +247,13 @@ model Offer {
   publishedPosts PublishedPost[]
   clicks         Click[]
 
+  // Índice único por source + externalId
+  @@unique([source, externalId])
   @@index([nicheId])
   @@index([storeId])
   @@index([status])
+  @@index([source])
+  @@index([dedupeHash])
   @@index([createdAt])
 }
 
@@ -225,7 +292,14 @@ model PostDraft {
   batchId String
   batch   Batch  @relation(fields: [batchId], references: [id])
   
+  // Copy genérica (fallback)
   copyText String   @db.Text
+  
+  // === COPY POR CANAL (humana, sem "robô vibes") ===
+  copyTextTelegram  String?  @db.Text  // 2-3 linhas, link no final
+  copyTextSite      String?  @db.Text  // Similar ao Telegram
+  copyTextX         String?  @db.Text  // Curto ~240 chars, imagem obrigatória, link no final
+  
   channels Channel[]
   priority Priority @default(NORMAL)
   
@@ -235,12 +309,18 @@ model PostDraft {
   approvedById String?
   approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
   
-  aiScore       Int?      // Score de confiança da IA (0-100)
-  errorMsg      String?   @db.Text
-  requiresImage Boolean   @default(false) // True se algum canal exige imagem (ex: Twitter)
+  // === SCORE E VALIDAÇÃO ===
+  score             Int       @default(0)  // Score 0-100 baseado em regras
+  aiScore           Int?      // Score de confiança da IA (legado)
+  errorMsg          String?   @db.Text
   
-  // Variantes de copy por canal (geradas pelo CopyEngine)
-  copyChannelVariants Json? // { "TELEGRAM": "...", "TWITTER": "...", ... }
+  // === IMAGEM E REQUISITOS ===
+  imageUrl          String?   // URL da imagem para X
+  requiresImage     Boolean   @default(false)
+  requiresHumanForX Boolean   @default(true)  // X sempre exige aprovação humana
+  
+  // Variantes de copy por canal (JSON - legado, manter compatibilidade)
+  copyChannelVariants Json?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -250,6 +330,7 @@ model PostDraft {
   @@index([batchId])
   @@index([offerId])
   @@index([status])
+  @@index([score])
   @@index([createdAt])
 }
 

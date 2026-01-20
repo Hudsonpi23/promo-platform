@@ -18,6 +18,7 @@ import { publicationsRoutes } from './routes/publications.js';
 import { trackingRoutes, statsRoutes } from './routes/tracking.js';
 import { publicRoutes } from './routes/public.js';
 import { uploadRoutes } from './routes/upload.js';
+import mercadoLivreRoutes from './routes/sources.mercadolivre.js';
 
 const server = Fastify({
   logger: {
@@ -91,6 +92,9 @@ server.register(statsRoutes, { prefix: '/api/stats' });
 // Upload (Cloudinary)
 server.register(uploadRoutes, { prefix: '/api' });
 
+// Sources (Providers)
+server.register(mercadoLivreRoutes, { prefix: '/api/sources/mercadolivre' });
+
 // ==================== ROTAS PÚBLICAS ====================
 
 // Tracking /go/:code
@@ -120,6 +124,7 @@ const start = async () => {
     console.log(`      POST /api/upload/file      → Upload arquivo`);
     console.log(`      GET  /public/feed          → Feed público`);
     console.log(`      GET  /go/:code             → Redirect c/ tracking`);
+    console.log(`      POST /api/sources/mercadolivre/run → Coletar ML`);
     console.log('═══════════════════════════════════════════════════════');
     console.log('');
   } catch (err) {

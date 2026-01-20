@@ -4,6 +4,31 @@ import { nanoid } from 'nanoid';
 
 const prisma = new PrismaClient();
 
+// Helper para gerar copy humana (sem robô vibes)
+function generateHumanCopy(title: string, originalPrice: number, finalPrice: number): {
+  telegram: string;
+  site: string;
+  x: string;
+} {
+  const openings = [
+    'Achei isso agora.',
+    'Olha o que apareceu.',
+    'Esse preço chamou atenção.',
+    'Fazia tempo que não via assim.',
+    'Pra quem tava esperando baixar...',
+    'Tava olhando e vi isso.',
+  ];
+  
+  const opening = openings[Math.floor(Math.random() * openings.length)];
+  const priceLine = `Caiu de R$ ${originalPrice.toLocaleString('pt-BR')} pra R$ ${finalPrice.toLocaleString('pt-BR')}.`;
+  
+  const telegram = `${opening}\n${priceLine}\n\nNão sei até quando fica assim.\n\nhttps://link.exemplo.com`;
+  const site = `${opening}\n${priceLine}`;
+  const x = `${opening}\nDe R$ ${originalPrice.toLocaleString('pt-BR')} por R$ ${finalPrice.toLocaleString('pt-BR')}\n\nhttps://link.exemplo.com`;
+  
+  return { telegram, site, x };
+}
+
 async function main() {
   console.log('🌱 Iniciando seed do banco de dados...\n');
 
@@ -46,12 +71,37 @@ async function main() {
     update: {},
     create: {
       id: 'singleton',
-      siteName: 'Max Ofertas',
+      siteName: 'Manu das Promoções',
       siteBaseUrl: 'http://localhost:3003',
-      defaultUtmSource: 'maxofertas',
+      defaultUtmSource: 'manupromocoes',
       defaultUtmMedium: 'site',
+      twitterHandle: '@manupromocao',
+      telegramChannel: '@manupromocao',
     },
   });
+  
+  // ==================== PROVIDER CONFIG (Mercado Livre) ====================
+  console.log('\n🔧 Criando configuração do Mercado Livre...');
+  
+  await prisma.providerConfig.upsert({
+    where: { source: 'MERCADO_LIVRE' },
+    update: {},
+    create: {
+      source: 'MERCADO_LIVRE',
+      enabled: true,
+      keywords: ['iphone', 'samsung', 'notebook', 'tv 4k', 'air fryer', 'playstation', 'nike', 'adidas'],
+      categories: ['MLB1055', 'MLB1648', 'MLB1002', 'MLB1574', 'MLB1144', 'MLB3530'],
+      minDiscount: 20,
+      minPrice: 50,
+      conditionFilter: ['new'],
+      maxItemsPerRun: 50,
+      enableX: true,
+      xDailyLimit: 30,
+      xMinScore: 60,
+      scheduleTimes: ['08:00', '11:00', '14:00', '18:00', '22:00'],
+    },
+  });
+  console.log('   ✓ Mercado Livre configurado');
 
   // ==================== BATCH SCHEDULES ====================
   console.log('📅 Criando schedules de carga...');
@@ -236,6 +286,98 @@ async function main() {
     },
   ];
 
+  // Ofertas do Mercado Livre (com copy humana)
+  const mlOffersData = [
+    {
+      title: 'iPhone 14 Pro Max 256GB Roxo Profundo',
+      originalPrice: 8999,
+      finalPrice: 5999,
+      discountPct: 33,
+      affiliateUrl: 'https://mercadolivre.com.br/iphone14',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_iphone14.jpg',
+      nicheSlug: 'eletronicos',
+      sellerName: 'TECHSTORE_OFICIAL',
+      externalId: 'MLB1234567890',
+    },
+    {
+      title: 'Samsung Galaxy S24 Ultra 512GB Titanium Black',
+      originalPrice: 7499,
+      finalPrice: 4799,
+      discountPct: 36,
+      affiliateUrl: 'https://mercadolivre.com.br/samsung-s24',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_samsung_s24.jpg',
+      nicheSlug: 'eletronicos',
+      sellerName: 'SAMSUNG_STORE',
+      externalId: 'MLB1234567891',
+    },
+    {
+      title: 'Smart TV LG 55" 4K OLED C3 120Hz Gaming',
+      originalPrice: 6999,
+      finalPrice: 4199,
+      discountPct: 40,
+      affiliateUrl: 'https://mercadolivre.com.br/lg-oled',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_lg_oled.jpg',
+      nicheSlug: 'eletronicos',
+      sellerName: 'LG_STORE',
+      externalId: 'MLB1234567893',
+    },
+    {
+      title: 'Air Fryer Philips Walita 4.1L Digital XXL',
+      originalPrice: 699,
+      finalPrice: 349,
+      discountPct: 50,
+      affiliateUrl: 'https://mercadolivre.com.br/philips-airfryer',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_airfryer.jpg',
+      nicheSlug: 'casa',
+      sellerName: 'PHILIPS_OFICIAL',
+      externalId: 'MLB3234567890',
+    },
+    {
+      title: 'Tênis Nike Air Max 90 Essential Masculino',
+      originalPrice: 799,
+      finalPrice: 449,
+      discountPct: 44,
+      affiliateUrl: 'https://mercadolivre.com.br/nike-air-max',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_nike_airmax.jpg',
+      nicheSlug: 'moda',
+      sellerName: 'NIKE_OFICIAL',
+      externalId: 'MLB2234567890',
+    },
+    {
+      title: 'PlayStation 5 Slim Digital Edition 1TB',
+      originalPrice: 4499,
+      finalPrice: 3199,
+      discountPct: 29,
+      affiliateUrl: 'https://mercadolivre.com.br/ps5-slim',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_ps5_slim.jpg',
+      nicheSlug: 'games',
+      sellerName: 'PLAYSTATION_BR',
+      externalId: 'MLB4234567890',
+    },
+    {
+      title: 'Dyson Airwrap Complete Styler Multi-uso',
+      originalPrice: 4299,
+      finalPrice: 2999,
+      discountPct: 30,
+      affiliateUrl: 'https://mercadolivre.com.br/dyson-airwrap',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_dyson_airwrap.jpg',
+      nicheSlug: 'beleza',
+      sellerName: 'DYSON_BRASIL',
+      externalId: 'MLB5234567890',
+    },
+    {
+      title: 'Robô Aspirador iRobot Roomba i7+ Mapeamento',
+      originalPrice: 4999,
+      finalPrice: 2999,
+      discountPct: 40,
+      affiliateUrl: 'https://mercadolivre.com.br/roomba-i7',
+      imageUrl: 'https://http2.mlstatic.com/D_NQ_NP_roomba.jpg',
+      nicheSlug: 'casa',
+      sellerName: 'IROBOT_BRASIL',
+      externalId: 'MLB3234567891',
+    },
+  ];
+
   const offers: any[] = [];
   for (const o of offersData) {
     const offer = await prisma.offer.create({
@@ -254,7 +396,45 @@ async function main() {
     });
     offers.push(offer);
   }
-  console.log(`   ✓ ${offers.length} ofertas criadas`);
+  console.log(`   ✓ ${offers.length} ofertas manuais criadas`);
+
+  // ==================== OFERTAS MERCADO LIVRE ====================
+  console.log('\n🛒 Criando ofertas do Mercado Livre...');
+  
+  const mlOffers: any[] = [];
+  for (const o of mlOffersData) {
+    // Criar ou buscar store do seller
+    const sellerSlug = o.sellerName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    let sellerStore = await prisma.store.findFirst({ where: { slug: sellerSlug } });
+    if (!sellerStore) {
+      sellerStore = await prisma.store.create({
+        data: { name: o.sellerName, slug: sellerSlug }
+      });
+    }
+
+    const offer = await prisma.offer.create({
+      data: {
+        title: o.title,
+        originalPrice: o.originalPrice,
+        finalPrice: o.finalPrice,
+        discountPct: o.discountPct,
+        affiliateUrl: o.affiliateUrl,
+        imageUrl: o.imageUrl,
+        nicheId: niches[o.nicheSlug].id,
+        storeId: sellerStore.id,
+        source: 'MERCADO_LIVRE',
+        externalId: o.externalId,
+        productUrl: o.affiliateUrl,
+        sellerName: o.sellerName,
+        sellerReputation: '5_green',
+        condition: 'new',
+        urgency: o.discountPct >= 40 ? 'HOJE' : 'NORMAL',
+        status: 'ACTIVE',
+      },
+    });
+    mlOffers.push({ ...offer, originalPrice: o.originalPrice, finalPrice: o.finalPrice });
+  }
+  console.log(`   ✓ ${mlOffers.length} ofertas Mercado Livre criadas`);
 
   // ==================== BATCHES DO DIA ====================
   console.log('\n📦 Criando cargas do dia...');
@@ -310,7 +490,55 @@ async function main() {
     });
     draftCount++;
   }
-  console.log(`   ✓ ${draftCount} drafts criados`);
+  console.log(`   ✓ ${draftCount} drafts manuais criados`);
+
+  // ==================== DRAFTS MERCADO LIVRE (com copy humana) ====================
+  console.log('\n📝 Criando drafts Mercado Livre com copy humana...');
+  
+  let mlDraftCount = 0;
+  for (let i = 0; i < mlOffers.length; i++) {
+    const offer = mlOffers[i];
+    const batch = batches[i % batches.length];
+    
+    // Gerar copy humana (sem robô vibes!)
+    const copies = generateHumanCopy(offer.title, offer.originalPrice, offer.finalPrice);
+    
+    // Calcular score (40% desconto = +40 pontos)
+    const discount = offer.discountPct;
+    let score = 0;
+    if (discount >= 40) score += 40;
+    else if (discount >= 25) score += 20;
+    else score += 10;
+    score += 10; // boa reputação
+    if (offer.imageUrl) score += 0; else score -= 15;
+    
+    // Determinar canais (X só se score >= 60 e tem imagem)
+    const channels = ['TELEGRAM', 'SITE'];
+    const requiresHumanForX = score >= 60 && offer.imageUrl;
+    if (requiresHumanForX) {
+      channels.push('TWITTER');
+    }
+
+    await prisma.postDraft.create({
+      data: {
+        offerId: offer.id,
+        batchId: batch.id,
+        copyText: copies.telegram,
+        copyTextTelegram: copies.telegram,
+        copyTextSite: copies.site,
+        copyTextX: copies.x,
+        channels,
+        priority: score >= 50 ? 'HIGH' : 'NORMAL',
+        status: 'PENDING',
+        score,
+        imageUrl: offer.imageUrl,
+        requiresImage: channels.includes('TWITTER'),
+        requiresHumanForX,
+      },
+    });
+    mlDraftCount++;
+  }
+  console.log(`   ✓ ${mlDraftCount} drafts ML criados (copy humana)`);
 
   // Atualizar contadores dos batches
   for (const batch of batches) {
@@ -373,11 +601,18 @@ async function main() {
   console.log('');
   console.log('📌 Dados criados:');
   console.log(`   • ${Object.keys(niches).length} nichos`);
-  console.log(`   • ${Object.keys(stores).length} lojas`);
-  console.log(`   • ${offers.length} ofertas`);
+  console.log(`   • ${Object.keys(stores).length}+ lojas`);
+  console.log(`   • ${offers.length} ofertas manuais`);
+  console.log(`   • ${mlOffers.length} ofertas Mercado Livre`);
   console.log(`   • ${batches.length} cargas (hoje)`);
-  console.log(`   • ${draftCount} drafts`);
+  console.log(`   • ${draftCount} drafts manuais`);
+  console.log(`   • ${mlDraftCount} drafts ML (copy humana)`);
   console.log(`   • 5 posts publicados`);
+  console.log('');
+  console.log('📌 Mercado Livre:');
+  console.log('   • Provider configurado (keywords, categorias, filtros)');
+  console.log('   • X habilitado (limite 30/dia, score mín 60)');
+  console.log('   • Copy humana sem "robô vibes"');
   console.log('');
 }
 

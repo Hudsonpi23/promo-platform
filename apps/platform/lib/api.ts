@@ -40,6 +40,9 @@ export interface Store {
   logo?: string;
 }
 
+// Source de onde veio a oferta
+export type OfferSource = 'MANUAL' | 'MERCADO_LIVRE' | 'AMAZON' | 'MAGALU' | 'LOMADEE';
+
 export interface Offer {
   id: string;
   title: string;
@@ -53,6 +56,11 @@ export interface Offer {
   store: Store;
   urgency: 'HOJE' | 'ULTIMAS_UNIDADES' | 'LIMITADO' | 'NORMAL';
   expiresAt?: string;
+  // Campos do Mercado Livre
+  source?: OfferSource;
+  externalId?: string;
+  sellerName?: string;
+  sellerReputation?: string;
 }
 
 // Canais de divulgação disponíveis
@@ -73,13 +81,22 @@ export interface PostDraft {
   copyText: string;
   channels: Channel[];
   priority: 'HIGH' | 'NORMAL' | 'LOW';
-  status: 'PENDING' | 'APPROVED' | 'DISPATCHED' | 'REJECTED' | 'ERROR';
+  status: 'PENDING' | 'APPROVED' | 'DISPATCHED' | 'REJECTED' | 'ERROR' | 'PENDING_X_QUOTA';
   approvedAt?: string;
   createdAt: string;
   // AJUSTE 2 - Status por canal
   deliveries?: ChannelDelivery[];
   // AJUSTE 3 - Score de confiança da IA
   aiScore?: number;
+  // Campos do Mercado Livre / Copy por Canal
+  source?: OfferSource;
+  score?: number;
+  copyTextTelegram?: string;
+  copyTextSite?: string;
+  copyTextX?: string;
+  imageUrl?: string;
+  requiresImage?: boolean;
+  requiresHumanForX?: boolean;
 }
 
 export interface Batch {
@@ -140,5 +157,48 @@ export async function dispatchBatch(batchId: string) {
   const res = await fetch(`${API_URL}/api/batches/${batchId}/dispatch-approved`, {
     method: 'POST',
   });
+  return res.json();
+}
+
+// ==================== MERCADO LIVRE ====================
+
+export interface MLRunResult {
+  collected: number;
+  insertedOffers: number;
+  createdDrafts: number;
+  skipped: number;
+  errors: string[];
+}
+
+export async function runMercadoLivreCollection(options?: {
+  mode?: 'keywords' | 'categories' | 'both';
+  keywords?: string[];
+  categories?: string[];
+  maxItems?: number;
+}): Promise<{ success: boolean; data?: MLRunResult; error?: string }> {
+  const res = await fetch(`${API_URL}/api/sources/mercadolivre/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options || { mode: 'both' }),
+  });
+  return res.json();
+}
+
+export async function getMercadoLivreConfig(): Promise<any> {
+  const res = await fetch(`${API_URL}/api/sources/mercadolivre/config`);
+  return res.json();
+}
+
+export async function updateMercadoLivreConfig(config: any): Promise<any> {
+  const res = await fetch(`${API_URL}/api/sources/mercadolivre/config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return res.json();
+}
+
+export async function getMercadoLivreStats(): Promise<any> {
+  const res = await fetch(`${API_URL}/api/sources/mercadolivre/stats`);
   return res.json();
 }
