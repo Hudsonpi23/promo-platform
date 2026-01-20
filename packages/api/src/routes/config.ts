@@ -69,7 +69,7 @@ export async function configRoutes(app: FastifyInstance) {
         
         for (const schedule of schedules) {
           await tx.batchSchedule.create({
-            data: schedule,
+            data: schedule as any,
           });
         }
       });

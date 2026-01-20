@@ -73,7 +73,7 @@ export async function nichesRoutes(app: FastifyInstance) {
       }
 
       const niche = await prisma.niche.create({
-        data: body,
+        data: body as any,
       });
 
       return reply.status(201).send({ data: niche });

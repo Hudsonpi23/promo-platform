@@ -4,7 +4,7 @@
  * Orquestra coleta, validação, criação de ofertas e drafts.
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Channel } from '@prisma/client';
 import { MercadoLivreClient, mlClient } from './client';
 import { MLConfig, NormalizedOffer, RunMode, RunResult, MLProduct } from './types';
 import { validateProduct, normalizeProduct, isDuplicate, calculateScore } from './validator';
@@ -325,7 +325,7 @@ export class MercadoLivreProvider {
     const copies = generateHumanCopy(normalized, link);
 
     // Determinar canais
-    const channels: string[] = ['TELEGRAM', 'SITE'];
+    const channels: Channel[] = ['TELEGRAM', 'SITE'];
     
     // Verificar se pode adicionar X
     let requiresHumanForX = false;

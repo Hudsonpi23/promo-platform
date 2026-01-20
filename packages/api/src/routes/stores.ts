@@ -72,7 +72,7 @@ export async function storesRoutes(app: FastifyInstance) {
       }
 
       const store = await prisma.store.create({
-        data: body,
+        data: body as any,
       });
 
       return reply.status(201).send({ data: store });

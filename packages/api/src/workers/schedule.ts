@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { createMercadoLivreProvider } from '../providers/mercadolivre/index.js';
+import { MercadoLivreProvider } from '../providers/mercadolivre/provider';
 
 const prisma = new PrismaClient();
 
@@ -40,7 +40,7 @@ async function runCollection(): Promise<void> {
     }
 
     // Criar provider e executar
-    const provider = createMercadoLivreProvider(prisma);
+    const provider = new MercadoLivreProvider(prisma);
     const result = await provider.run({ mode: 'both' });
 
     console.log('[Scheduler] Coleta finalizada:', {
@@ -103,7 +103,7 @@ export async function runManualCollection(): Promise<any> {
   console.log('[Scheduler] Executando coleta manual...');
   
   try {
-    const provider = createMercadoLivreProvider(prisma);
+    const provider = new MercadoLivreProvider(prisma);
     const result = await provider.run({ mode: 'both' });
     return result;
   } catch (error: any) {

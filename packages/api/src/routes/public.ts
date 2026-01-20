@@ -117,7 +117,7 @@ export async function publicRoutes(app: FastifyInstance) {
     const nextCursor = hasMore ? data[data.length - 1].id : null;
 
     return {
-      items: data.map(item => ({
+      items: data.map((item: any) => ({
         id: item.id,
         slug: item.slug,
         title: item.title,
@@ -128,8 +128,8 @@ export async function publicRoutes(app: FastifyInstance) {
         affiliateUrl: item.affiliateUrl,
         imageUrl: item.imageUrl,
         urgency: item.urgency,
-        niche: item.niche.name,
-        store: item.store.name,
+        niche: item.niche?.name || 'Outros',
+        store: item.store?.name || 'Loja',
         publishedAt: item.publishedAt,
       })),
       nextCursor,

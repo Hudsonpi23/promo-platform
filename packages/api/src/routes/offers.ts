@@ -80,7 +80,7 @@ export async function offersRoutes(app: FastifyInstance) {
       }
 
       const offer = await prisma.offer.create({
-        data: body,
+        data: body as any,
         include: {
           niche: { select: { id: true, name: true, slug: true, icon: true } },
           store: { select: { id: true, name: true, slug: true } },

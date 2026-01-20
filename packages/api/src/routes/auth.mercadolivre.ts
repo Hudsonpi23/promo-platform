@@ -92,12 +92,19 @@ export default async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
       });
 
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
+        const errorData = await tokenResponse.json() as { message?: string };
         console.error('Erro ao trocar code por token:', errorData);
         throw new Error(errorData.message || 'Falha ao obter tokens');
       }
 
-      const tokenData = await tokenResponse.json();
+      const tokenData = await tokenResponse.json() as {
+        access_token: string;
+        token_type: string;
+        expires_in: number;
+        scope: string;
+        user_id: number;
+        refresh_token: string;
+      };
       
       // {
       //   access_token: "...",
@@ -204,7 +211,7 @@ export default async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
       });
 
       if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
+        const errorData = await tokenResponse.json() as { message?: string };
         console.error('Erro ao renovar token ML:', errorData);
         
         // Marcar conta como inativa se o refresh falhar
@@ -216,7 +223,11 @@ export default async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
         throw new Error(errorData.message || 'Falha ao renovar token');
       }
 
-      const tokenData = await tokenResponse.json();
+      const tokenData = await tokenResponse.json() as {
+        access_token: string;
+        refresh_token?: string;
+        expires_in?: number;
+      };
 
       // Calcular nova expiração
       const expiresAt = new Date();

@@ -98,7 +98,7 @@ export async function draftsRoutes(app: FastifyInstance) {
       }
 
       const draft = await prisma.postDraft.create({
-        data: body,
+        data: body as any,
         include: {
           offer: {
             include: {
