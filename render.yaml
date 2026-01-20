@@ -37,3 +37,6 @@ services:
       # Frontend URL (para redirect após OAuth)
       - key: FRONTEND_URL
         value: https://promo-platform-admin.vercel.app
+      # Proxy Residencial (opcional, para desbloquear ML search)
+      - key: PROXY_URL
+        sync: false # Formato: http://username:password@proxy.com:port

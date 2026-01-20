@@ -160,7 +160,7 @@ export async function mlRoutes(fastify: FastifyInstance) {
     }
 
     try {
-      // Buscar produtos via API PÚBLICA (sem token, sem bloqueio)
+      // Buscar produtos via API PÚBLICA
       const params: any = {
         q: query,
         limit: Math.min(Number(limit), 50), // Máximo 50
@@ -170,13 +170,31 @@ export async function mlRoutes(fastify: FastifyInstance) {
       if (category) params.category = category;
       if (sort) params.sort = sort;
 
-      const searchResult = await axios.get('https://api.mercadolibre.com/sites/MLB/search', {
+      // Configurar proxy residencial (se disponível)
+      const axiosConfig: any = {
         params,
         headers: {
           'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         },
-        timeout: 10000, // 10s timeout
-      }).then((res: any) => res.data);
+        timeout: 15000, // 15s timeout
+      };
+
+      // Suporte a proxy residencial (via env)
+      if (process.env.PROXY_URL) {
+        const proxyUrl = new URL(process.env.PROXY_URL);
+        axiosConfig.proxy = {
+          host: proxyUrl.hostname,
+          port: parseInt(proxyUrl.port || '80'),
+          auth: proxyUrl.username && proxyUrl.password ? {
+            username: proxyUrl.username,
+            password: proxyUrl.password,
+          } : undefined,
+        };
+        console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port}`);
+      }
+
+      const searchResult = await axios.get('https://api.mercadolibre.com/sites/MLB/search', axiosConfig).then((res: any) => res.data);
 
       // Normalizar resposta
       const items = (searchResult.results || []).map((item: any) => ({
