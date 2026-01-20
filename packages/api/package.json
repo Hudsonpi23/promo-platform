@@ -18,7 +18,7 @@
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
-    "@fastify/cookie": "^11.0.2",
+    "@fastify/cookie": "^8.3.0",
     "@fastify/cors": "^9.0.0",
     "@fastify/jwt": "^8.0.0",
     "@fastify/multipart": "^8.1.0",
