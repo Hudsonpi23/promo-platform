@@ -8,6 +8,7 @@
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import axios from 'axios';
 import { getMlConnection, mlApiRequest } from '../lib/mercadolivre';
 
 export async function mlRoutes(fastify: FastifyInstance) {
@@ -147,24 +148,19 @@ export async function mlRoutes(fastify: FastifyInstance) {
     }
 
     try {
+      // Verificar se tem conexão (opcional para busca, mas útil para tracking)
       const connection = await getMlConnection();
 
-      if (!connection) {
-        return reply.status(400).send({
-          success: false,
-          error: 'Mercado Livre não conectado',
-          message: 'Execute o fluxo OAuth primeiro: /api/auth/mercadolivre/login',
-        });
-      }
-
-      // Buscar produtos
-      const searchResult = await mlApiRequest('/sites/MLB/search', {
+      // Buscar produtos (endpoint público, não precisa de token)
+      const searchUrl = 'https://api.mercadolibre.com/sites/MLB/search';
+      
+      const searchResult = await axios.get(searchUrl, {
         params: {
           q: query,
           limit: Math.min(Number(limit), 50), // Máximo 50
           offset: Number(offset),
         },
-      });
+      }).then((res: any) => res.data);
 
       // Normalizar resposta
       const items = (searchResult.results || []).map((item: any) => ({
@@ -195,7 +191,7 @@ export async function mlRoutes(fastify: FastifyInstance) {
         offset: searchResult.paging?.offset || offset,
         items,
         _meta: {
-          mlUserId: connection.mlUserId,
+          mlUserId: connection?.mlUserId || null,
           site_id: searchResult.site_id,
         },
       });
