@@ -1,251 +1,218 @@
-### Promo Platform API - VSCode REST Client
-### Documentação: packages/api/README.md
+###############################################################################
+# API Manu das Promoções - Testes HTTP
+###############################################################################
+# Use a extensão REST Client no VSCode para executar estes requests
+# Ou cole no Postman/Insomnia
+###############################################################################
 
-@baseUrl = http://localhost:3001
-@contentType = application/json
+@baseUrl = https://promo-platform-api.onrender.com
+# @baseUrl = http://localhost:3001
 
-### ========== AUTH ==========
-
-### Login Admin
-# @name login
-POST {{baseUrl}}/auth/login
-Content-Type: {{contentType}}
-
-{
-  "email": "admin@local.dev",
-  "password": "admin123"
-}
-
-### Salvar token
-@token = {{login.response.body.$.data.accessToken}}
-@refreshToken = {{login.response.body.$.data.refreshToken}}
-
-### Me
-GET {{baseUrl}}/auth/me
-Authorization: Bearer {{token}}
-
-### Refresh Token
-POST {{baseUrl}}/auth/refresh
-Content-Type: {{contentType}}
-
-{
-  "refreshToken": "{{refreshToken}}"
-}
-
-### Logout
-POST {{baseUrl}}/auth/logout
-Content-Type: {{contentType}}
-
-{
-  "refreshToken": "{{refreshToken}}"
-}
-
-### ========== CONFIG ==========
-
-### Get Config
-GET {{baseUrl}}/api/config
-Authorization: Bearer {{token}}
-
-### Update Config
-PUT {{baseUrl}}/api/config
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "siteName": "Max Ofertas",
-  "defaultUtmSource": "maxofertas"
-}
-
-### Get Cargas Schedule
-GET {{baseUrl}}/api/config/cargas
-Authorization: Bearer {{token}}
-
-### ========== NICHES ==========
-
-### List Niches
-GET {{baseUrl}}/api/niches?page=1&limit=10
-Authorization: Bearer {{token}}
-
-### Create Niche
-POST {{baseUrl}}/api/niches
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "name": "Brinquedos",
-  "slug": "brinquedos",
-  "icon": "🧸"
-}
-
-### ========== STORES ==========
-
-### List Stores
-GET {{baseUrl}}/api/stores?page=1&limit=10
-Authorization: Bearer {{token}}
-
-### Create Store
-POST {{baseUrl}}/api/stores
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "name": "Ponto Frio",
-  "slug": "pontofrio"
-}
-
-### ========== OFFERS ==========
-
-### List Offers
-GET {{baseUrl}}/api/offers?page=1&limit=10
-Authorization: Bearer {{token}}
-
-### List Offers with Filters
-GET {{baseUrl}}/api/offers?status=ACTIVE&minDiscount=20
-Authorization: Bearer {{token}}
-
-### Create Offer (substituir nicheId e storeId)
-POST {{baseUrl}}/api/offers
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "title": "Fone de Ouvido JBL Tune 510BT",
-  "description": "Fone bluetooth com 40h de bateria",
-  "originalPrice": 299.90,
-  "finalPrice": 149.90,
-  "discountPct": 50,
-  "affiliateUrl": "https://example.com/fone-jbl",
-  "nicheId": "SUBSTITUIR_PELO_ID_DO_NICHO",
-  "storeId": "SUBSTITUIR_PELO_ID_DA_LOJA",
-  "urgency": "HOJE"
-}
-
-### ========== BATCHES ==========
-
-### List Batches (hoje)
-GET {{baseUrl}}/api/batches
-Authorization: Bearer {{token}}
-
-### List Batches (data específica)
-GET {{baseUrl}}/api/batches?date=2024-01-20
-Authorization: Bearer {{token}}
-
-### Generate Batches
-POST {{baseUrl}}/api/batches/generate
-Authorization: Bearer {{token}}
-
-### Dispatch Approved
-POST {{baseUrl}}/api/batches/BATCH_ID_AQUI/dispatch-approved
-Authorization: Bearer {{token}}
-
-### ========== DRAFTS ==========
-
-### List Drafts
-GET {{baseUrl}}/api/drafts?page=1&limit=20
-Authorization: Bearer {{token}}
-
-### List Drafts by Batch
-GET {{baseUrl}}/api/drafts?batchId=BATCH_ID_AQUI
-Authorization: Bearer {{token}}
-
-### List Pending Drafts
-GET {{baseUrl}}/api/drafts?status=PENDING
-Authorization: Bearer {{token}}
-
-### Create Draft (substituir IDs)
-POST {{baseUrl}}/api/drafts
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "offerId": "SUBSTITUIR_PELO_ID_DA_OFERTA",
-  "batchId": "SUBSTITUIR_PELO_ID_DO_BATCH",
-  "copyText": "🔥 OFERTA IMPERDÍVEL!\n\nProduto X por apenas R$ 99!\n\n⚡ 50% de desconto!",
-  "channels": ["TELEGRAM", "SITE"],
-  "priority": "HIGH"
-}
-
-### Approve Draft
-POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/approve
-Authorization: Bearer {{token}}
-
-### Mark Approved (sem disparar)
-POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/mark-approved
-Authorization: Bearer {{token}}
-
-### Reject Draft
-POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/reject
-Authorization: Bearer {{token}}
-
-### Move to Error
-POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/error
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "message": "Erro manual para teste"
-}
-
-### Dispatch Draft
-POST {{baseUrl}}/api/drafts/DRAFT_ID_AQUI/dispatch
-Authorization: Bearer {{token}}
-
-### ========== PUBLICATIONS ==========
-
-### List Publications
-GET {{baseUrl}}/api/publications?page=1&limit=10
-Authorization: Bearer {{token}}
-
-### Create Publication (substituir offerId)
-POST {{baseUrl}}/api/publications
-Authorization: Bearer {{token}}
-Content-Type: {{contentType}}
-
-{
-  "offerId": "SUBSTITUIR_PELO_ID_DA_OFERTA"
-}
-
-### Unpublish
-POST {{baseUrl}}/api/publications/PUB_ID_AQUI/unpublish
-Authorization: Bearer {{token}}
-
-### ========== STATS ==========
-
-### Overview
-GET {{baseUrl}}/api/stats/overview
-Authorization: Bearer {{token}}
-
-### By Channel
-GET {{baseUrl}}/api/stats/by-channel
-Authorization: Bearer {{token}}
-
-### By Niche
-GET {{baseUrl}}/api/stats/by-niche
-Authorization: Bearer {{token}}
-
-### Clicks
-GET {{baseUrl}}/api/stats/clicks?page=1&limit=20
-Authorization: Bearer {{token}}
-
-### ========== PUBLIC (sem auth) ==========
-
-### Feed Público
-GET {{baseUrl}}/public/feed?limit=10
-
-### Posts Públicos
-GET {{baseUrl}}/public/posts?limit=10
-
-### Niches Públicos
-GET {{baseUrl}}/public/niches
-
-### Posts por Nicho
-GET {{baseUrl}}/public/niches/eletronicos/posts
-
-### Highlights
-GET {{baseUrl}}/public/highlights
-
-### Click Tracking (substituir ID)
-POST {{baseUrl}}/public/posts/POST_ID_AQUI/click
+###############################################################################
+# 1. HEALTH CHECK
+###############################################################################
 
 ### Health Check
 GET {{baseUrl}}/health
+
+### Root
+GET {{baseUrl}}/
+
+###############################################################################
+# 2. AUTH - Login (obter JWT)
+###############################################################################
+
+### Login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@example.com",
+  "password": "admin123"
+}
+
+###############################################################################
+# 3. MERCADO LIVRE - OAuth
+###############################################################################
+
+### Iniciar fluxo OAuth (abrir no navegador)
+# GET {{baseUrl}}/api/auth/mercadolivre/login
+
+### Status da conta OAuth (requer autenticação)
+GET {{baseUrl}}/api/auth/mercadolivre/status
+
+### Desconectar conta
+# DELETE {{baseUrl}}/api/auth/mercadolivre/disconnect
+
+###############################################################################
+# 4. MERCADO LIVRE - TESTES E VALIDAÇÃO ✅
+###############################################################################
+
+### (A) Verificar status da conexão (SEM expor tokens)
+# ✅ Deve retornar: connected, mlUserId, expiresAt, expiresIn
+GET {{baseUrl}}/api/ml/connection
+
+### (B) Teste de vida - Buscar dados do usuário ML
+# ✅ Deve retornar: dados do usuário autenticado no ML
+# ✅ Se token expirou, renova automaticamente
+GET {{baseUrl}}/api/ml/me
+
+### (C) Buscar produtos no Mercado Livre
+# ✅ Deve retornar: lista de produtos encontrados
+# ✅ Usar token válido (com renovação automática)
+GET {{baseUrl}}/api/ml/search?query=iphone
+
+### Buscar com paginação
+GET {{baseUrl}}/api/ml/search?query=notebook&limit=20&offset=0
+
+### Buscar eletrônicos
+GET {{baseUrl}}/api/ml/search?query=smartphone samsung
+
+### Buscar sem query (deve retornar erro 400)
+GET {{baseUrl}}/api/ml/search
+
+###############################################################################
+# 5. NICHES
+###############################################################################
+
+### Listar nichos
+GET {{baseUrl}}/api/niches
+
+###############################################################################
+# 6. STORES
+###############################################################################
+
+### Listar lojas
+GET {{baseUrl}}/api/stores
+
+###############################################################################
+# 7. OFFERS
+###############################################################################
+
+### Listar ofertas
+GET {{baseUrl}}/api/offers
+
+### Criar oferta manual
+POST {{baseUrl}}/api/offers
+Content-Type: application/json
+
+{
+  "title": "Teste de Oferta",
+  "description": "Descrição teste",
+  "originalPrice": 999.90,
+  "finalPrice": 499.90,
+  "url": "https://example.com/produto",
+  "nicheId": "clxxx123",
+  "storeId": "clyyy456"
+}
+
+###############################################################################
+# 8. BATCHES (Cargas)
+###############################################################################
+
+### Listar cargas
+GET {{baseUrl}}/api/batches
+
+### Gerar carga para hoje
+POST {{baseUrl}}/api/batches/generate
+
+###############################################################################
+# 9. DRAFTS (Cards pendentes)
+###############################################################################
+
+### Listar drafts
+GET {{baseUrl}}/api/drafts
+
+### Filtrar por batch
+GET {{baseUrl}}/api/drafts?batchId=clxxx123
+
+### Aprovar um draft
+POST {{baseUrl}}/api/drafts/clxxx123/approve
+Content-Type: application/json
+
+{
+  "channels": ["TELEGRAM", "SITE"]
+}
+
+### Rejeitar um draft
+POST {{baseUrl}}/api/drafts/clxxx123/reject
+
+###############################################################################
+# 10. PUBLICATIONS (Posts publicados)
+###############################################################################
+
+### Listar publicações
+GET {{baseUrl}}/api/publications
+
+### Buscar por slug
+GET {{baseUrl}}/api/publications/smartphone-samsung-a55
+
+###############################################################################
+# 11. UPLOAD (Cloudinary)
+###############################################################################
+
+### Upload via URL
+POST {{baseUrl}}/api/upload/url
+Content-Type: application/json
+
+{
+  "url": "https://example.com/image.jpg"
+}
+
+###############################################################################
+# 12. PUBLIC ROUTES (para o site)
+###############################################################################
+
+### Feed público
+GET {{baseUrl}}/public/feed?limit=10
+
+### Feed por nicho
+GET {{baseUrl}}/public/nicho/eletronicos
+
+### Detalhes de uma oferta
+GET {{baseUrl}}/public/oferta/smartphone-samsung-a55
+
+### Redirect com tracking
+# GET {{baseUrl}}/go/abc123def
+
+###############################################################################
+# 13. STATS
+###############################################################################
+
+### Overview geral
+GET {{baseUrl}}/api/stats/overview
+
+### Stats por canal
+GET {{baseUrl}}/api/stats/by-channel
+
+### Stats por nicho
+GET {{baseUrl}}/api/stats/by-niche
+
+###############################################################################
+# ✅ CHECKLIST DE VALIDAÇÃO - MERCADO LIVRE
+###############################################################################
+
+# Passo a passo para validar a integração OAuth:
+
+# 1️⃣ Executar OAuth (abrir no navegador):
+#    https://promo-platform-api.onrender.com/api/auth/mercadolivre/login
+#    ✅ Deve redirecionar para ML → autorizar → voltar com sucesso
+
+# 2️⃣ Testar conexão:
+#    GET /api/ml/connection
+#    ✅ Deve retornar: connected: true, mlUserId, expiresAt, sem tokens
+
+# 3️⃣ Testar "me" (dados do usuário):
+#    GET /api/ml/me
+#    ✅ Deve retornar: nickname, email, país, reputação
+
+# 4️⃣ Testar busca:
+#    GET /api/ml/search?query=iphone
+#    ✅ Deve retornar: lista de produtos com preços, fotos, sellers
+
+# 5️⃣ Forçar expiração e testar renovação automática:
+#    - No banco, mude expiresAt para uma data passada
+#    - Execute /api/ml/me novamente
+#    ✅ Deve renovar automaticamente e continuar funcionando
+
+###############################################################################

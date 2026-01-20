@@ -138,6 +138,19 @@ npm run dev:site
 - `POST /api/offers` - Criar oferta
 - `POST /api/offers/:id/create-draft` - Criar draft de oferta
 
+### Mercado Livre - OAuth
+- `GET /api/auth/mercadolivre/login` - Iniciar fluxo OAuth (PKCE)
+- `GET /api/auth/mercadolivre/callback` - Callback OAuth
+- `GET /api/auth/mercadolivre/status` - Status da conta conectada
+- `DELETE /api/auth/mercadolivre/disconnect` - Desconectar conta
+
+### Mercado Livre - Testes e Validação ✅
+- `GET /api/ml/connection` - Ver status da conexão (sem expor tokens)
+- `GET /api/ml/me` - Buscar dados do usuário ML (teste de vida)
+- `GET /api/ml/search?query=X` - Buscar produtos no ML
+
+> **Renovação automática de tokens:** Os endpoints `/api/ml/*` renovam o `access_token` automaticamente quando ele expira, usando o `refresh_token` salvo no banco.
+
 ### Público (Site)
 - `GET /public/posts` - Posts publicados
 - `GET /public/niches` - Nichos ativos
@@ -206,3 +219,64 @@ python main.py pipeline
 # Executar com scheduler (produção)
 python main.py scheduler
 ```
+
+## 🧪 Testando Integração Mercado Livre
+
+### 1️⃣ Conectar conta ML (OAuth)
+
+Abra no navegador:
+```
+https://promo-platform-api.onrender.com/api/auth/mercadolivre/login
+```
+ou localmente:
+```
+http://localhost:3001/api/auth/mercadolivre/login
+```
+
+✅ Você será redirecionado para o ML → autorizar → voltar com sucesso
+
+### 2️⃣ Verificar conexão
+
+```bash
+GET /api/ml/connection
+```
+
+✅ Deve retornar: `connected: true`, `mlUserId`, `expiresAt`, sem expor tokens
+
+### 3️⃣ Teste de vida (dados do usuário)
+
+```bash
+GET /api/ml/me
+```
+
+✅ Deve retornar: `nickname`, `email`, `country_id`, `seller_reputation`
+
+### 4️⃣ Buscar produtos
+
+```bash
+GET /api/ml/search?query=iphone
+GET /api/ml/search?query=notebook&limit=20
+```
+
+✅ Deve retornar: lista de produtos com preços, fotos, sellers
+
+### 5️⃣ Testar renovação automática
+
+No banco, mude `expiresAt` da tabela `MercadoLivreAccount` para uma data passada:
+
+```sql
+UPDATE "MercadoLivreAccount" 
+SET "expiresAt" = NOW() - INTERVAL '1 hour' 
+WHERE "isActive" = true;
+```
+
+Execute novamente:
+```bash
+GET /api/ml/me
+```
+
+✅ O sistema deve renovar o token automaticamente e continuar funcionando
+
+### 📄 Arquivo de Testes
+
+Use o arquivo `packages/api/requests.http` para testar todos os endpoints rapidamente no VSCode (extensão REST Client).
