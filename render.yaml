@@ -1,0 +1,29 @@
+# Render Blueprint - promo-platform
+# Deploy automático: conecte o repositório ao Render
+
+services:
+  # API Backend (Fastify + Prisma)
+  - type: web
+    name: promo-platform-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: packages/api
+    buildCommand: npm install && npx prisma generate
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        sync: false # Configurar manualmente com Neon
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
