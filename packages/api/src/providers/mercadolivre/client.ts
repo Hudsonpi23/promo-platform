@@ -386,9 +386,29 @@ const MOCK_PRODUCTS: MLProduct[] = [
 export class MercadoLivreClient {
   private baseUrl = 'https://api.mercadolibre.com';
   private accessToken?: string;
+  private clientId?: string;
+  private clientSecret?: string;
 
-  constructor(accessToken?: string) {
-    this.accessToken = accessToken;
+  constructor(options?: { accessToken?: string; clientId?: string; clientSecret?: string }) {
+    // Tokens são obtidos do banco de dados (via getActiveToken)
+    // ClientId/Secret vêm das variáveis de ambiente (fixas)
+    this.accessToken = options?.accessToken;
+    this.clientId = options?.clientId || process.env.ML_CLIENT_ID;
+    this.clientSecret = options?.clientSecret || process.env.ML_CLIENT_SECRET;
+  }
+
+  /**
+   * Define o access token (obtido do banco)
+   */
+  setAccessToken(token: string) {
+    this.accessToken = token;
+  }
+
+  /**
+   * Verifica se está autenticado
+   */
+  isAuthenticated(): boolean {
+    return !!this.accessToken;
   }
 
   /**
@@ -466,5 +486,5 @@ export class MercadoLivreClient {
   }
 }
 
-// Exportar instância singleton
+// Exportar instância singleton (usa variáveis de ambiente automaticamente)
 export const mlClient = new MercadoLivreClient();

@@ -19,6 +19,7 @@ import { trackingRoutes, statsRoutes } from './routes/tracking.js';
 import { publicRoutes } from './routes/public.js';
 import { uploadRoutes } from './routes/upload.js';
 import mercadoLivreRoutes from './routes/sources.mercadolivre.js';
+import mercadoLivreAuthRoutes from './routes/auth.mercadolivre.js';
 
 const server = Fastify({
   logger: {
@@ -94,6 +95,9 @@ server.register(uploadRoutes, { prefix: '/api' });
 
 // Sources (Providers)
 server.register(mercadoLivreRoutes, { prefix: '/api/sources/mercadolivre' });
+
+// OAuth (Integrações externas)
+server.register(mercadoLivreAuthRoutes, { prefix: '/api/auth/mercadolivre' });
 
 // ==================== ROTAS PÚBLICAS ====================
 
