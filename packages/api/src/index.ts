@@ -59,6 +59,22 @@ async function main() {
     console.warn('⚠️  Cloudinary não configurado - uploads desabilitados');
   }
 
+  // Rota raiz - Boas-vindas
+  server.get('/', async () => {
+    return {
+      message: '🎉 Bem-vindo à API Manu das Promoções!',
+      version: '1.0.0',
+      status: 'online',
+      timestamp: new Date().toISOString(),
+      endpoints: {
+        health: '/health',
+        publicFeed: '/public/feed',
+        login: '/auth/login',
+        docs: 'https://github.com/Hudsonpi23/promo-platform'
+      }
+    };
+  });
+
   // Health check
   server.get('/health', async () => {
     return { 
