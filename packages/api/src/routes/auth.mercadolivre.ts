@@ -126,7 +126,7 @@ export async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
       console.error('Erro OAuth ML:', error, error_description);
       // Redirecionar para frontend com erro
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      return reply.redirect(`${frontendUrl}/settings/integrations?error=${encodeURIComponent(error_description || error)}`);
+      return reply.redirect(`${frontendUrl}/?ml=error&message=${encodeURIComponent(error_description || error)}`);
     }
 
     if (!code) {
@@ -245,12 +245,12 @@ export async function mercadoLivreAuthRoutes(fastify: FastifyInstance) {
 
       // Redirecionar para frontend com sucesso
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      return reply.redirect(`${frontendUrl}/settings/integrations?success=mercadolivre`);
+      return reply.redirect(`${frontendUrl}/?ml=connected&status=success`);
 
     } catch (error: any) {
       console.error('Erro no callback OAuth ML:', error);
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      return reply.redirect(`${frontendUrl}/settings/integrations?error=${encodeURIComponent(error.message)}`);
+      return reply.redirect(`${frontendUrl}/?ml=error&message=${encodeURIComponent(error.message)}`);
     }
   });
 
