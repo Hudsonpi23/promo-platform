@@ -6,12 +6,13 @@ import { Niche } from '@/lib/api';
 
 interface FiltersBarProps {
   niches: Niche[];
+  activeNiche?: string;
   totalCount?: number;
   showSearch?: boolean;
   showSort?: boolean;
 }
 
-export function FiltersBar({ niches, totalCount, showSearch = true, showSort = true }: FiltersBarProps) {
+export function FiltersBar({ niches, activeNiche, totalCount, showSearch = true, showSort = true }: FiltersBarProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [search, setSearch] = useState(searchParams.get('q') || '');
@@ -19,7 +20,7 @@ export function FiltersBar({ niches, totalCount, showSearch = true, showSort = t
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     if (search) {
       params.set('q', search);
     } else {
@@ -29,7 +30,7 @@ export function FiltersBar({ niches, totalCount, showSearch = true, showSort = t
   };
 
   const handleSortChange = (sort: string) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     params.set('sort', sort);
     router.push(`/?${params.toString()}`);
   };
@@ -56,7 +57,7 @@ export function FiltersBar({ niches, totalCount, showSearch = true, showSort = t
                   type="button"
                   onClick={() => {
                     setSearch('');
-                    const params = new URLSearchParams(searchParams);
+                    const params = new URLSearchParams(searchParams.toString());
                     params.delete('q');
                     router.push(`/?${params.toString()}`);
                   }}
@@ -104,16 +105,23 @@ export function FiltersBar({ niches, totalCount, showSearch = true, showSort = t
       {/* Chips de Nicho */}
       <div className="flex gap-2 flex-wrap">
         <span className="text-sm font-bold text-blue-600 self-center mr-1">Filtrar:</span>
-        {niches.map((niche) => (
-          <a
-            key={niche.id}
-            href={`/nicho/${niche.slug}`}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white border-2 border-blue-200 text-blue-700 text-sm font-bold hover:bg-blue-50 hover:border-blue-400 transition-all"
-          >
-            {niche.icon && <span>{niche.icon}</span>}
-            {niche.name}
-          </a>
-        ))}
+        {niches.map((niche) => {
+          const isActive = activeNiche === niche.slug;
+          return (
+            <a
+              key={niche.id}
+              href={`/nicho/${niche.slug}`}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                isActive
+                  ? 'bg-blue-600 text-white border-2 border-blue-600 shadow-md'
+                  : 'bg-white border-2 border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-400'
+              }`}
+            >
+              {niche.icon && <span>{niche.icon}</span>}
+              {niche.name}
+            </a>
+          );
+        })}
       </div>
 
       {/* Contador */}
