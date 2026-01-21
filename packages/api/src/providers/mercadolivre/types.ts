@@ -54,6 +54,11 @@ export interface MLConfig {
   xDailyLimit: number;
   xMinScore: number;
   scheduleTimes: string[];
+  
+  // 🔥 Configurações específicas para página de Ofertas do Dia
+  useDealsPageOnly?: boolean;  // Se true, busca APENAS da página /ofertas
+  dealsMaxPages?: number;      // Máximo de páginas a buscar (1 página = 57 produtos)
+  dealsItemsPerPage?: number;  // Itens por página (padrão 57)
 }
 
 export interface NormalizedOffer {
@@ -91,4 +96,9 @@ export interface RunResult {
   errors: string[];
 }
 
-export type RunMode = 'keywords' | 'categories' | 'both';
+// Modos de execução do provider
+// - 'deals': 🔥 RECOMENDADO! Busca APENAS da página de Ofertas do Dia (evita bloqueios)
+// - 'keywords': Busca por palavras-chave (pode causar bloqueios se excessivo)
+// - 'categories': Busca por categorias
+// - 'both': Busca por keywords E categories
+export type RunMode = 'deals' | 'keywords' | 'categories' | 'both';

@@ -206,6 +206,51 @@ export async function offersRoutes(app: FastifyInstance) {
     }
   });
 
+  // PATCH /offers/:id - Atualização parcial de oferta
+  app.patch('/:id', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        title?: string;
+        originalPrice?: number;
+        finalPrice?: number;
+        discountPct?: number;
+        description?: string;
+        affiliateUrl?: string;
+        imageUrl?: string;
+      };
+
+      // Verificar se oferta existe
+      const existingOffer = await prisma.offer.findUnique({ where: { id } });
+      if (!existingOffer) {
+        return sendError(reply, Errors.NOT_FOUND('Oferta'));
+      }
+
+      // Construir objeto de atualização apenas com campos fornecidos
+      const updateData: any = {};
+      if (body.title !== undefined) updateData.title = body.title;
+      if (body.originalPrice !== undefined) updateData.originalPrice = body.originalPrice;
+      if (body.finalPrice !== undefined) updateData.finalPrice = body.finalPrice;
+      if (body.discountPct !== undefined) updateData.discountPct = body.discountPct;
+      if (body.description !== undefined) updateData.description = body.description;
+      if (body.affiliateUrl !== undefined) updateData.affiliateUrl = body.affiliateUrl;
+      if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
+
+      const offer = await prisma.offer.update({
+        where: { id },
+        data: updateData,
+        include: {
+          niche: { select: { id: true, name: true, slug: true, icon: true } },
+          store: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      return { data: offer };
+    } catch (error: any) {
+      return sendError(reply, error);
+    }
+  });
+
   // PUT /offers/:id
   app.put('/:id', { preHandler: [authGuard] }, async (request, reply) => {
     try {

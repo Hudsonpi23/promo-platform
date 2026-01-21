@@ -16,10 +16,12 @@ const prisma = new PrismaClient();
 // ==================== SCHEMAS ====================
 
 const RunBodySchema = z.object({
-  mode: z.enum(['keywords', 'categories', 'both']).default('both'),
+  // 🔥 'deals' é o modo RECOMENDADO - busca apenas da página de Ofertas do Dia
+  mode: z.enum(['deals', 'keywords', 'categories', 'both']).default('deals'),
   keywords: z.array(z.string()).optional(),
   categories: z.array(z.string()).optional(),
-  maxItems: z.number().min(1).max(100).optional(),
+  maxItems: z.number().min(1).max(500).optional(),
+  maxPages: z.number().min(1).max(20).optional(),  // Para modo 'deals'
 });
 
 const ConfigUpdateSchema = z.object({
@@ -49,11 +51,15 @@ export async function mercadoLivreRoutes(fastify: FastifyInstance) {
       const body = RunBodySchema.parse(request.body);
       
       const provider = createMercadoLivreProvider(prisma);
+      
+      console.log(`[ML Route] Executando coleta no modo: ${body.mode}`);
+      
       const result = await provider.run({
         mode: body.mode as RunMode,
         keywords: body.keywords,
         categories: body.categories,
         maxItems: body.maxItems,
+        maxPages: body.maxPages,  // Para modo 'deals'
       });
       
       return reply.send({

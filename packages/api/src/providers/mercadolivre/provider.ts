@@ -5,10 +5,10 @@
  */
 
 import { PrismaClient, Channel } from '@prisma/client';
-import { MercadoLivreClient, mlClient } from './client';
-import { MLConfig, NormalizedOffer, RunMode, RunResult, MLProduct } from './types';
-import { validateProduct, normalizeProduct, isDuplicate, calculateScore } from './validator';
-import { generateHumanCopy } from './copyGenerator';
+import { MercadoLivreClient, mlClient } from './client.js';
+import { MLConfig, NormalizedOffer, RunMode, RunResult, MLProduct } from './types.js';
+import { validateProduct, normalizeProduct, isDuplicate, calculateScore } from './validator.js';
+import { generateHumanCopy } from './copyGenerator.js';
 
 // ==================== DEFAULTS ====================
 
@@ -24,6 +24,11 @@ const DEFAULT_CONFIG: MLConfig = {
   xDailyLimit: 30,
   xMinScore: 60,
   scheduleTimes: ['08:00', '11:00', '14:00', '18:00', '22:00'],
+  
+  // 🔥 NOVO: Configurações específicas para página de Ofertas
+  useDealsPageOnly: true,  // Se true, busca APENAS da página de ofertas (recomendado!)
+  dealsMaxPages: 5,        // Máximo de páginas de ofertas (5 páginas = ~285 produtos)
+  dealsItemsPerPage: 57,   // Itens por página do ML
 };
 
 // ==================== BATCH ALLOCATION ====================
@@ -121,6 +126,11 @@ export class MercadoLivreProvider {
         xDailyLimit: dbConfig.xDailyLimit || DEFAULT_CONFIG.xDailyLimit,
         xMinScore: dbConfig.xMinScore || DEFAULT_CONFIG.xMinScore,
         scheduleTimes: dbConfig.scheduleTimes || DEFAULT_CONFIG.scheduleTimes,
+        
+        // 🔥 Configurações da página de Ofertas
+        useDealsPageOnly: (dbConfig as any).useDealsPageOnly ?? DEFAULT_CONFIG.useDealsPageOnly,
+        dealsMaxPages: (dbConfig as any).dealsMaxPages ?? DEFAULT_CONFIG.dealsMaxPages,
+        dealsItemsPerPage: (dbConfig as any).dealsItemsPerPage ?? DEFAULT_CONFIG.dealsItemsPerPage,
       };
     }
 
@@ -129,12 +139,19 @@ export class MercadoLivreProvider {
 
   /**
    * Executa coleta de ofertas do Mercado Livre
+   * 
+   * 🔥 MODO RECOMENDADO: 'deals'
+   * Busca APENAS da página de Ofertas do Dia (https://www.mercadolivre.com.br/ofertas)
+   * - ~1140 produtos com desconto real
+   * - Evita bloqueios de IP
+   * - Produtos mais relevantes para promoções
    */
   async run(options: {
     mode: RunMode;
     keywords?: string[];
     categories?: string[];
     maxItems?: number;
+    maxPages?: number;  // Apenas para modo 'deals'
   }): Promise<RunResult> {
     await this.loadConfig();
     
@@ -146,14 +163,27 @@ export class MercadoLivreProvider {
       errors: [],
     };
 
-    const { mode, keywords, categories, maxItems } = options;
+    const { mode, keywords, categories, maxItems, maxPages } = options;
     const limit = maxItems || this.config.maxItemsPerRun;
     
     let products: MLProduct[] = [];
 
     try {
-      // Coletar produtos
-      if (mode === 'keywords' || mode === 'both') {
+      // 🔥 MODO DEALS: Busca apenas da página de Ofertas do Dia
+      if (mode === 'deals' || this.config.useDealsPageOnly) {
+        console.log('[ML Provider] 🔥 Modo DEALS: Buscando da página de Ofertas do Dia...');
+        
+        const dealsResponse = await this.client.searchAllDailyDeals({
+          maxPages: maxPages || this.config.dealsMaxPages || 5,
+          itemsPerPage: this.config.dealsItemsPerPage || 57,
+        });
+        
+        products = dealsResponse.results;
+        console.log(`[ML Provider] Coletadas ${products.length} ofertas do dia`);
+      }
+      // Modos antigos (keywords, categories, both) - usar com cuidado!
+      else if (mode === 'keywords' || mode === 'both') {
+        console.log('[ML Provider] ⚠️ Modo KEYWORDS: Pode causar bloqueios!');
         const kws = keywords || this.config.keywords;
         for (const kw of kws) {
           const response = await this.client.searchByKeyword(kw, { limit: Math.ceil(limit / kws.length) });
@@ -162,6 +192,7 @@ export class MercadoLivreProvider {
       }
 
       if (mode === 'categories' || mode === 'both') {
+        console.log('[ML Provider] ⚠️ Modo CATEGORIES: Pode causar bloqueios!');
         const cats = categories || this.config.categories;
         for (const cat of cats) {
           const response = await this.client.searchByCategory(cat, { limit: Math.ceil(limit / cats.length) });
@@ -171,11 +202,13 @@ export class MercadoLivreProvider {
 
       // Se não houver produtos, usar mock completo (desenvolvimento)
       if (products.length === 0) {
+        console.log('[ML Provider] Nenhum produto encontrado, usando mock...');
         const mockResponse = await this.client.getAllMock(limit);
         products = mockResponse.results;
       }
 
       result.collected = products.length;
+      console.log(`[ML Provider] Total coletado: ${result.collected} produtos`);
 
       // Processar cada produto
       for (const product of products) {

@@ -28,6 +28,11 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
     Array.isArray(safeDraft.channels) ? safeDraft.channels : []
   );
   const [activeTab, setActiveTab] = useState<CopyTab>('TELEGRAM');
+  
+  // Estados para edição de preços
+  const [editedOriginalPrice, setEditedOriginalPrice] = useState<string>('');
+  const [editedFinalPrice, setEditedFinalPrice] = useState<string>('');
+  const [editedTitle, setEditedTitle] = useState<string>('');
 
   // Proteção contra dados nulos usando useMemo para evitar re-cálculos
   const offer = useMemo(() => safeDraft.offer || {
@@ -96,18 +101,63 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
     }
   };
 
+  // Iniciar edição com valores atuais
+  const startEditing = () => {
+    setEditedCopy(safeDraft.copyText || '');
+    setEditedOriginalPrice(offer.originalPrice?.toString() || '');
+    setEditedFinalPrice(offer.finalPrice?.toString() || '');
+    setEditedTitle(offer.title || '');
+    setIsEditing(true);
+  };
+
   // Salvar edição
   const handleSaveEdit = async () => {
     setIsLoading(true);
     try {
+      // Calcular desconto automaticamente
+      const origPrice = parseFloat(editedOriginalPrice) || 0;
+      const finPrice = parseFloat(editedFinalPrice) || 0;
+      const discountPct = origPrice > 0 ? Math.round(((origPrice - finPrice) / origPrice) * 100) : 0;
+
+      // Atualizar draft (copy e canais)
       await updateDraft(draft.id, {
         copyText: editedCopy,
         channels: selectedChannels as any,
       });
+
+      // Atualizar oferta (preços e título) se tiver oferta associada
+      if (draft.offerId) {
+        // Buscar token de autenticação (mesmo nome usado em lib/auth.ts)
+        const token = localStorage.getItem('auth_token');
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        
+        const response = await fetch(`${API_URL}/api/offers/${draft.offerId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            title: editedTitle,
+            originalPrice: origPrice,
+            finalPrice: finPrice,
+            discountPct: discountPct > 0 ? discountPct : 0,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Erro ao atualizar oferta:', errorData);
+          throw new Error(errorData.message || 'Erro ao atualizar oferta');
+        }
+      }
+
       setIsEditing(false);
       onUpdate();
     } catch (error) {
       console.error('Erro ao salvar:', error);
+      alert('Erro ao salvar. Verifique os dados e tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -289,11 +339,63 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
               )}
             </div>
           ) : (
-            <textarea
-              value={editedCopy}
-              onChange={(e) => setEditedCopy(e.target.value)}
-              className="w-full h-32 p-3 rounded-lg bg-background border border-primary text-text-primary text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            <div className="space-y-3 p-3 rounded-lg bg-background border border-primary">
+              {/* Título */}
+              <div>
+                <label className="text-xs text-text-muted mb-1 block">Título</label>
+                <input
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  className="w-full p-2 rounded-lg bg-surface border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              
+              {/* Preços */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">Preço Original (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editedOriginalPrice}
+                    onChange={(e) => setEditedOriginalPrice(e.target.value)}
+                    placeholder="Ex: 7800.00"
+                    className="w-full p-2 rounded-lg bg-surface border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-text-muted mb-1 block">Preço Final (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editedFinalPrice}
+                    onChange={(e) => setEditedFinalPrice(e.target.value)}
+                    placeholder="Ex: 5048.00"
+                    className="w-full p-2 rounded-lg bg-surface border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+              
+              {/* Preview do desconto calculado */}
+              {editedOriginalPrice && editedFinalPrice && parseFloat(editedOriginalPrice) > 0 && (
+                <div className={`text-xs ${parseFloat(editedOriginalPrice) > parseFloat(editedFinalPrice) ? 'text-success' : 'text-warning'}`}>
+                  {parseFloat(editedOriginalPrice) > parseFloat(editedFinalPrice) 
+                    ? `Desconto calculado: ${Math.round(((parseFloat(editedOriginalPrice) - parseFloat(editedFinalPrice)) / parseFloat(editedOriginalPrice)) * 100)}%`
+                    : '⚠️ Preço original deve ser maior que o final'}
+                </div>
+              )}
+              
+              {/* Copy Text */}
+              <div>
+                <label className="text-xs text-text-muted mb-1 block">Texto do Post</label>
+                <textarea
+                  value={editedCopy}
+                  onChange={(e) => setEditedCopy(e.target.value)}
+                  className="w-full h-24 p-2 rounded-lg bg-surface border border-border text-text-primary text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
           )}
         </div>
 
@@ -391,7 +493,7 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
               
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setIsEditing(true)}
+                  onClick={startEditing}
                   className="flex-1 py-2 rounded-lg bg-surface-hover hover:bg-border text-text-secondary text-sm transition-all"
                 >
                   ✏️ Editar

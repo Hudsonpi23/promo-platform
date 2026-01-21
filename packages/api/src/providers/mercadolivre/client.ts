@@ -476,6 +476,109 @@ export class MercadoLivreClient {
   }
 
   /**
+   * 🔥 NOVO: Busca APENAS da página de Ofertas do Dia do Mercado Livre
+   * URL: https://www.mercadolivre.com.br/ofertas
+   * 
+   * A página de ofertas tem ~1140 produtos (20 páginas de 57 produtos)
+   * Isso evita varredura geral e bloqueios de IP
+   */
+  async searchDailyDeals(options: { 
+    page?: number; 
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<MLSearchResponse> {
+    const page = options.page || 1;
+    const limit = options.limit || 57; // 57 produtos por página no ML
+    const offset = options.offset || (page - 1) * limit;
+
+    try {
+      // Endpoint oficial de ofertas do Mercado Livre Brasil
+      // deal_ids=MLB1744 = Ofertas do Dia
+      // promotion_type=deal_of_the_day = Ofertas do Dia
+      const url = `${this.baseUrl}/sites/MLB/search?promotion_type=deal_of_the_day&limit=${limit}&offset=${offset}`;
+      
+      console.log(`[ML Client] Buscando ofertas do dia: ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'ManuPromocoes/1.0',
+        },
+      });
+
+      if (!response.ok) {
+        console.error(`[ML Client] Erro ao buscar ofertas: ${response.status}`);
+        // Fallback para mock em caso de erro
+        return this.getAllMock(limit);
+      }
+
+      const data = await response.json();
+      
+      console.log(`[ML Client] Encontradas ${data.paging?.total || 0} ofertas do dia`);
+
+      return {
+        results: data.results || [],
+        paging: data.paging || {
+          total: 0,
+          offset,
+          limit
+        }
+      };
+
+    } catch (error: any) {
+      console.error('[ML Client] Erro ao buscar ofertas do dia:', error.message);
+      // Fallback para mock em caso de erro de rede
+      return this.getAllMock(limit);
+    }
+  }
+
+  /**
+   * 🔥 NOVO: Busca TODAS as páginas de Ofertas do Dia (até maxPages)
+   * Útil para coletar volume maior mas controlado
+   */
+  async searchAllDailyDeals(options: {
+    maxPages?: number;  // Máximo de páginas a buscar (padrão: 5)
+    itemsPerPage?: number;  // Itens por página (padrão: 57)
+  } = {}): Promise<MLSearchResponse> {
+    const maxPages = options.maxPages || 5;  // 5 páginas = ~285 produtos
+    const itemsPerPage = options.itemsPerPage || 57;
+    
+    let allProducts: MLProduct[] = [];
+    let totalAvailable = 0;
+
+    for (let page = 1; page <= maxPages; page++) {
+      const response = await this.searchDailyDeals({ 
+        page, 
+        limit: itemsPerPage 
+      });
+      
+      allProducts.push(...response.results);
+      totalAvailable = response.paging.total;
+      
+      // Se não há mais produtos, parar
+      if (response.results.length < itemsPerPage) {
+        console.log(`[ML Client] Última página de ofertas: ${page}`);
+        break;
+      }
+      
+      // Pequeno delay entre páginas para evitar rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    console.log(`[ML Client] Total coletado: ${allProducts.length} ofertas de ${totalAvailable} disponíveis`);
+
+    return {
+      results: allProducts,
+      paging: {
+        total: totalAvailable,
+        offset: 0,
+        limit: allProducts.length
+      }
+    };
+  }
+
+  /**
    * Obtém detalhes de um produto específico
    */
   async getProduct(productId: string): Promise<MLProduct | null> {
