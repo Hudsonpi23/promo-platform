@@ -181,18 +181,37 @@ export async function mlRoutes(fastify: FastifyInstance) {
       };
 
       // Suporte a proxy residencial (via env)
+      console.log(`[DEBUG] PROXY_URL env: ${process.env.PROXY_URL ? 'EXISTE' : 'VAZIO'}`);
+      
       if (process.env.PROXY_URL) {
-        const proxyUrl = new URL(process.env.PROXY_URL);
-        axiosConfig.proxy = {
-          host: proxyUrl.hostname,
-          port: parseInt(proxyUrl.port || '80'),
-          auth: proxyUrl.username && proxyUrl.password ? {
-            username: proxyUrl.username,
-            password: proxyUrl.password,
-          } : undefined,
-        };
-        console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port}`);
+        try {
+          const proxyUrl = new URL(process.env.PROXY_URL);
+          axiosConfig.proxy = {
+            host: proxyUrl.hostname,
+            port: parseInt(proxyUrl.port || '80'),
+            auth: proxyUrl.username && proxyUrl.password ? {
+              username: proxyUrl.username,
+              password: proxyUrl.password,
+            } : undefined,
+          };
+          console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port} (user: ${proxyUrl.username})`);
+        } catch (proxyError: any) {
+          console.error(`❌ Erro ao configurar proxy: ${proxyError.message}`);
+          return reply.status(500).send({
+            success: false,
+            error: 'Erro ao configurar proxy',
+            message: proxyError.message,
+          });
+        }
+      } else {
+        console.log(`⚠️  PROXY_URL não configurado - fazendo requisição direta (pode dar 403)`);
       }
+
+      console.log(`[DEBUG] Fazendo requisição para ML com config:`, {
+        hasProxy: !!axiosConfig.proxy,
+        proxyHost: axiosConfig.proxy?.host,
+        timeout: axiosConfig.timeout,
+      });
 
       const searchResult = await axios.get('https://api.mercadolibre.com/sites/MLB/search', axiosConfig).then((res: any) => res.data);
 
@@ -231,14 +250,44 @@ export async function mlRoutes(fastify: FastifyInstance) {
         },
       });
     } catch (error: any) {
-      console.error('Erro ao buscar produtos no ML (API pública):', error.message);
+      console.error('❌ Erro ao buscar produtos no ML (API pública):', error.message);
+      console.error('[DEBUG] Error code:', error.code);
+      console.error('[DEBUG] Error response status:', error.response?.status);
+      console.error('[DEBUG] Error response data:', error.response?.data);
+      console.error('[DEBUG] Full error:', JSON.stringify({
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+      }, null, 2));
 
       // Timeout
-      if (error.code === 'ECONNABORTED') {
+      if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
         return reply.status(504).send({
           success: false,
           error: 'Timeout',
-          message: 'ML demorou muito para responder. Tente novamente.',
+          message: 'ML ou proxy demoraram muito para responder. Tente novamente.',
+          errorCode: error.code,
+        });
+      }
+
+      // Conexão recusada (proxy não acessível)
+      if (error.code === 'ECONNREFUSED') {
+        return reply.status(500).send({
+          success: false,
+          error: 'Proxy não acessível',
+          message: 'Não foi possível conectar ao proxy. Verifique as credenciais e URL.',
+          errorCode: error.code,
+        });
+      }
+
+      // Host não encontrado (DNS)
+      if (error.code === 'ENOTFOUND' || error.code === 'EAI_AGAIN') {
+        return reply.status(500).send({
+          success: false,
+          error: 'Host não encontrado',
+          message: 'Não foi possível resolver o host do proxy ou ML.',
+          errorCode: error.code,
         });
       }
 
@@ -251,12 +300,23 @@ export async function mlRoutes(fastify: FastifyInstance) {
         });
       }
 
+      // 403 Forbidden
+      if (error.response?.status === 403) {
+        return reply.status(403).send({
+          success: false,
+          error: 'Acesso bloqueado',
+          message: 'ML bloqueou a requisição. IP ou proxy detectado.',
+        });
+      }
+
       // Erro genérico
       return reply.status(500).send({
         success: false,
         error: 'Erro ao buscar produtos',
         message: error.response?.data?.message || error.message,
-        hint: 'API pública do ML pode ter rate limits. Tente novamente em alguns segundos.',
+        errorCode: error.code,
+        statusCode: error.response?.status,
+        hint: 'Verifique os logs do servidor para mais detalhes.',
       });
     }
   });
