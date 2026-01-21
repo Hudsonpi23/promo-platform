@@ -16,43 +16,19 @@ export function clearToken(): void {
   localStorage.removeItem('auth_token');
 }
 
-// Login automático
+// Verificar autenticação
 export async function ensureAuth(): Promise<string> {
-  // Verificar se já tem token válido
-  const existingToken = getToken();
-  if (existingToken) {
-    return existingToken;
-  }
-
-  // Fazer login automático com credenciais do admin
-  try {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'admin@example.com',
-        password: 'password',
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Falha no login automático');
+  const token = getToken();
+  
+  if (!token) {
+    // Redirecionar para login
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
-
-    const data = await response.json();
-    const token = data.data?.accessToken;
-    
-    if (!token) {
-      console.error('Resposta do login:', data);
-      throw new Error('Token não encontrado na resposta');
-    }
-
-    setToken(token);
-    return token;
-  } catch (error) {
-    console.error('Erro ao fazer login automático:', error);
-    throw error;
+    throw new Error('Não autenticado');
   }
+  
+  return token;
 }
 
 // Fazer requisição autenticada
