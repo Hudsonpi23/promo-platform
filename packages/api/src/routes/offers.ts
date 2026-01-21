@@ -109,7 +109,12 @@ export async function offersRoutes(app: FastifyInstance) {
 
       // Validar que temos nicho e loja
       if (!nicheId || !storeId) {
-        return sendError(reply, { statusCode: 400, message: 'Nicho e Loja são necessários. Execute /setup primeiro.' });
+        return reply.status(400).send({
+          error: {
+            code: 'SETUP_REQUIRED',
+            message: 'Nicho e Loja são necessários. Execute /setup primeiro.',
+          },
+        });
       }
 
       const offer = await prisma.offer.create({
