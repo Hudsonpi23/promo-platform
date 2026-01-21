@@ -92,6 +92,70 @@ async function main() {
     };
   });
 
+  // Setup/Seed - Criar usuário admin (endpoint público temporário)
+  server.get('/setup', async (request, reply) => {
+    const { PrismaClient } = await import('@prisma/client');
+    const bcrypt = await import('bcryptjs');
+    const prisma = new PrismaClient();
+
+    try {
+      // Verificar se já existe
+      const existing = await prisma.user.findUnique({
+        where: { email: 'admin@example.com' },
+      });
+
+      if (existing) {
+        await prisma.$disconnect();
+        return { success: true, message: 'Admin já existe', email: existing.email };
+      }
+
+      // Criar admin
+      const passwordHash = await bcrypt.hash('password', 10);
+      const admin = await prisma.user.create({
+        data: {
+          name: 'Admin',
+          email: 'admin@example.com',
+          passwordHash,
+          role: 'ADMIN',
+          isActive: true,
+        },
+      });
+
+      // Criar nichos básicos
+      await prisma.niche.createMany({
+        data: [
+          { name: 'Eletrônicos', slug: 'eletronicos', icon: '📱', isActive: true },
+          { name: 'Moda', slug: 'moda', icon: '👗', isActive: true },
+          { name: 'Casa', slug: 'casa', icon: '🏠', isActive: true },
+          { name: 'Beleza', slug: 'beleza', icon: '💄', isActive: true },
+          { name: 'Mercado', slug: 'mercado', icon: '🛒', isActive: true },
+        ],
+        skipDuplicates: true,
+      });
+
+      // Criar lojas básicas
+      await prisma.store.createMany({
+        data: [
+          { name: 'Mercado Livre', slug: 'mercado-livre', isActive: true },
+          { name: 'Amazon', slug: 'amazon', isActive: true },
+          { name: 'Magazine Luiza', slug: 'magazine-luiza', isActive: true },
+          { name: 'Casas Bahia', slug: 'casas-bahia', isActive: true },
+        ],
+        skipDuplicates: true,
+      });
+
+      await prisma.$disconnect();
+      return { 
+        success: true, 
+        message: 'Setup completo!',
+        admin: { email: admin.email, name: admin.name },
+      };
+    } catch (error: any) {
+      await prisma.$disconnect();
+      return reply.status(500).send({ success: false, error: error.message });
+    }
+  });
+
   // ==================== ROTAS PRIVADAS (API) ====================
 
   // Auth
