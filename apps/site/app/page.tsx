@@ -8,144 +8,16 @@ import Link from 'next/link';
 
 export const revalidate = 30;
 
-// Dados fake para modo demo - Estilo "Manu" (natural e humano)
-const DEMO_POSTS: PublicPost[] = [
-  {
-    id: 'demo-1',
-    goCode: 'demo1',
-    title: 'iPhone 15 Pro Max 256GB Titânio Natural',
-    headline: 'Esse preço chamou atenção',
-    copyText: 'Esse celular tá num preço que eu não via fazia tempo 👀\nEra R$ 9.999, agora tá R$ 7.499.',
-    price: 7499,
-    originalPrice: 9999,
-    discount: 25,
-    affiliateUrl: '#',
-    niche: 'Eletrônicos',
-    nicheIcon: '📱',
-    store: 'Amazon',
-    urgency: 'HOJE',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-2',
-    goCode: 'demo2',
-    title: 'Smart TV Samsung 65" 4K Neo QLED',
-    headline: 'Fazia tempo',
-    copyText: 'Fazia tempo que eu não via essa TV assim.\nDe R$ 5.499 por R$ 3.299.',
-    price: 3299,
-    originalPrice: 5499,
-    discount: 40,
-    affiliateUrl: '#',
-    niche: 'Eletrônicos',
-    nicheIcon: '📱',
-    store: 'Magazine Luiza',
-    urgency: 'ULTIMAS_UNIDADES',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-3',
-    goCode: 'demo3',
-    title: 'Air Fryer Philips Walita 4.1L Digital',
-    headline: 'Achei agora',
-    copyText: 'Pra quem tava esperando baixar...\nSaiu de R$ 599 pra R$ 299.',
-    price: 299,
-    originalPrice: 599,
-    discount: 50,
-    affiliateUrl: '#',
-    niche: 'Casa',
-    nicheIcon: '🏠',
-    store: 'Casas Bahia',
-    urgency: 'LIMITADO',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-4',
-    goCode: 'demo4',
-    title: 'Tênis Nike Air Max 90 Masculino',
-    headline: 'Achado do dia',
-    copyText: 'Achei isso agora pouco.\nEra R$ 799, agora tá R$ 449.',
-    price: 449,
-    originalPrice: 799,
-    discount: 44,
-    affiliateUrl: '#',
-    niche: 'Moda',
-    nicheIcon: '👗',
-    store: 'Netshoes',
-    urgency: 'HOJE',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-5',
-    goCode: 'demo5',
-    title: 'PlayStation 5 Slim Digital 1TB',
-    headline: 'Preço bom',
-    copyText: 'Se você tava precisando, vale olhar.\nTava R$ 3.999, agora R$ 3.199.',
-    price: 3199,
-    originalPrice: 3999,
-    discount: 20,
-    affiliateUrl: '#',
-    niche: 'Games',
-    nicheIcon: '🎮',
-    store: 'KaBuM!',
-    urgency: 'ULTIMAS_UNIDADES',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-6',
-    goCode: 'demo6',
-    title: 'Kit Maquiagem Ruby Rose 24 Peças',
-    headline: 'Olha isso aqui',
-    copyText: 'Quem tava de olho, agora é hora.\nEra R$ 199, agora tá R$ 89.',
-    price: 89,
-    originalPrice: 199,
-    discount: 55,
-    affiliateUrl: '#',
-    niche: 'Beleza',
-    nicheIcon: '💄',
-    store: 'Shopee',
-    urgency: 'LIMITADO',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-7',
-    goCode: 'demo7',
-    title: 'Notebook Lenovo IdeaPad 3i Core i5',
-    headline: 'Preço baixou',
-    copyText: 'Não sei até quando fica assim.\nDe R$ 3.299 por R$ 2.199.',
-    price: 2199,
-    originalPrice: 3299,
-    discount: 33,
-    affiliateUrl: '#',
-    niche: 'Eletrônicos',
-    nicheIcon: '📱',
-    store: 'Dell',
-    urgency: 'HOJE',
-    publishedAt: new Date().toISOString(),
-  },
-  {
-    id: 'demo-8',
-    goCode: 'demo8',
-    title: 'Whey Protein Isolado 900g Growth',
-    headline: 'Vale a pena olhar',
-    copyText: 'Tava olhando e apareceu isso.\nDe R$ 189 por R$ 119.',
-    price: 119,
-    originalPrice: 189,
-    discount: 37,
-    affiliateUrl: '#',
-    niche: 'Esportes',
-    nicheIcon: '⚽',
-    store: 'Growth',
-    urgency: 'NORMAL',
-    publishedAt: new Date().toISOString(),
-  },
-];
-
-const DEMO_NICHES: Niche[] = [
+// Nichos padrão (quando API não retorna)
+const DEFAULT_NICHES: Niche[] = [
   { id: '1', name: 'Eletrônicos', slug: 'eletronicos', icon: '📱' },
   { id: '2', name: 'Moda', slug: 'moda', icon: '👗' },
   { id: '3', name: 'Casa', slug: 'casa', icon: '🏠' },
   { id: '4', name: 'Beleza', slug: 'beleza', icon: '💄' },
-  { id: '5', name: 'Mercado', slug: 'mercado', icon: '🛒' },
+  { id: '5', name: 'Games', slug: 'games', icon: '🎮' },
+  { id: '6', name: 'Esportes', slug: 'esportes', icon: '⚽' },
+  { id: '7', name: 'Livros', slug: 'livros', icon: '📚' },
+  { id: '8', name: 'Mercado', slug: 'mercado', icon: '🛒' },
 ];
 
 interface PageProps {
@@ -163,18 +35,18 @@ export default async function Home({ searchParams }: PageProps) {
     getHighlights(),
   ]);
 
-  const posts = postsData.items.length > 0 ? postsData.items : DEMO_POSTS;
-  const displayNiches = niches.length > 0 ? niches : DEMO_NICHES;
+  const posts = postsData.items;
+  const displayNiches = niches.length > 0 ? niches : DEFAULT_NICHES;
   const hasMore = postsData.hasMore;
-  const isDemo = postsData.items.length === 0;
+  const isEmpty = postsData.items.length === 0;
   const searchQuery = searchParams.q;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Banner Demo */}
-      {isDemo && (
-        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white text-center py-2 text-sm font-bold">
-          🎭 Modo Demo — Exibindo ofertas de exemplo. Inicie a API para dados reais.
+      {/* Banner Sem Ofertas */}
+      {isEmpty && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-center py-2 text-sm font-bold">
+          🔄 Aguardando ofertas — Publique ofertas na plataforma para exibi-las aqui!
         </div>
       )}
 
@@ -195,8 +67,8 @@ export default async function Home({ searchParams }: PageProps) {
         <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-20 lg:py-24">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-sm font-bold mb-6 border border-white/30">
-              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-              Ao vivo • {posts.length}+ ofertas ativas
+              <span className={`w-2 h-2 rounded-full ${posts.length > 0 ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></span>
+              {posts.length > 0 ? `Ao vivo • ${posts.length}+ ofertas ativas` : 'Em breve • Aguardando ofertas'}
             </div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 leading-tight">
               As Melhores

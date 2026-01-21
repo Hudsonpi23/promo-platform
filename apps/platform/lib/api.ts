@@ -133,38 +133,44 @@ export interface Batch {
 
 // AJUSTE 1 - Aprovar E disparar imediatamente (Modo Rápido)
 export async function approveDraft(id: string) {
-  const res = await fetch(`${API_URL}/api/drafts/${id}/approve`, {
+  const res = await fetchWithAuth(`/api/drafts/${id}/approve`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   return res.json();
 }
 
 // AJUSTE 1 - Apenas marcar como aprovado, SEM disparar (Modo Carga)
 export async function markAsApproved(id: string) {
-  const res = await fetch(`${API_URL}/api/drafts/${id}/mark-approved`, {
+  const res = await fetchWithAuth(`/api/drafts/${id}/mark-approved`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   return res.json();
 }
 
 export async function rejectDraft(id: string) {
-  const res = await fetch(`${API_URL}/api/drafts/${id}/reject`, {
+  const res = await fetchWithAuth(`/api/drafts/${id}/reject`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   return res.json();
 }
 
 export async function sendToError(id: string, message?: string) {
-  const res = await fetch(`${API_URL}/api/drafts/${id}/error`, {
+  const res = await fetchWithAuth(`/api/drafts/${id}/error`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message: message || '' }),
   });
   return res.json();
 }
 
 export async function updateDraft(id: string, data: Partial<PostDraft>) {
-  const res = await fetch(`${API_URL}/api/drafts/${id}`, {
+  const res = await fetchWithAuth(`/api/drafts/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -173,8 +179,10 @@ export async function updateDraft(id: string, data: Partial<PostDraft>) {
 }
 
 export async function dispatchBatch(batchId: string) {
-  const res = await fetch(`${API_URL}/api/batches/${batchId}/dispatch-approved`, {
+  const res = await fetchWithAuth(`/api/batches/${batchId}/dispatch-approved`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
   });
   return res.json();
 }
@@ -220,4 +228,151 @@ export async function updateMercadoLivreConfig(config: any): Promise<any> {
 export async function getMercadoLivreStats(): Promise<any> {
   const res = await fetch(`${API_URL}/api/sources/mercadolivre/stats`);
   return res.json();
+}
+
+// ==================== TWITTER/X ====================
+
+export async function postToXNow(offerId: string): Promise<{ success: boolean; tweetUrl?: string; error?: string }> {
+  const res = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ offerId }),
+  });
+  return res.json();
+}
+
+export async function getTwitterStatus(): Promise<{ configured: boolean; username?: string }> {
+  const res = await fetchWithAuth('/api/twitter/status');
+  return res.json();
+}
+
+// Criar draft para X (sem carga fixa)
+export async function createDraftForX(offerId: string): Promise<{ success: boolean; data?: PostDraft; error?: string }> {
+  const res = await fetchWithAuth(`/api/offers/${offerId}/create-draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      channels: ['TWITTER'],
+      priority: 'HIGH',
+    }),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    return { success: false, error: json.message || json.error?.message || 'Erro ao criar draft' };
+  }
+  return { success: true, data: json.data };
+}
+
+// Publicar oferta no site
+export async function publishToSite(offerId: string): Promise<{ success: boolean; siteUrl?: string; error?: string }> {
+  const res = await fetchWithAuth(`/api/publications/from-offer/${offerId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    return { success: false, error: json.message || json.error?.message || 'Erro ao publicar no site' };
+  }
+  return { success: true, siteUrl: json.siteUrl };
+}
+
+// Publicar draft no site
+export async function publishDraftToSite(draftId: string): Promise<{ success: boolean; siteUrl?: string; error?: string }> {
+  const res = await fetchWithAuth(`/api/publications/from-draft/${draftId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    return { success: false, error: json.message || json.error?.message || 'Erro ao publicar no site' };
+  }
+  return { success: true, siteUrl: json.siteUrl };
+}
+
+// Disparar todos os posts pendentes para o X
+export interface DispatchAllToXResult {
+  success: boolean;
+  total: number;
+  sent: number;
+  failed: number;
+  results: Array<{
+    draftId: string;
+    offerId: string;
+    success: boolean;
+    tweetUrl?: string;
+    error?: string;
+  }>;
+}
+
+export async function dispatchAllPendingToX(draftIds: string[]): Promise<DispatchAllToXResult> {
+  const results: DispatchAllToXResult['results'] = [];
+  let sent = 0;
+  let failed = 0;
+
+  for (const draftId of draftIds) {
+    try {
+      // Buscar o draft para pegar o offerId
+      const draftRes = await fetchWithAuth(`/api/drafts/${draftId}`);
+      const draftData = await draftRes.json();
+      const draft = draftData?.data || draftData;
+      
+      if (!draft?.offerId) {
+        results.push({ draftId, offerId: '', success: false, error: 'Draft não encontrado' });
+        failed++;
+        continue;
+      }
+
+      // Postar no X
+      const result = await postToXNow(draft.offerId);
+      
+      if (result.success) {
+        // Atualizar status do draft para DISPATCHED
+        await fetchWithAuth(`/api/drafts/${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'DISPATCHED' }),
+        });
+        
+        results.push({ 
+          draftId, 
+          offerId: draft.offerId, 
+          success: true, 
+          tweetUrl: result.tweetUrl 
+        });
+        sent++;
+      } else {
+        // Marcar como erro
+        await fetchWithAuth(`/api/drafts/${draftId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ERROR', errorMsg: result.error }),
+        });
+        
+        results.push({ 
+          draftId, 
+          offerId: draft.offerId, 
+          success: false, 
+          error: result.error 
+        });
+        failed++;
+      }
+
+      // Delay entre posts para evitar rate limit do X (2 segundos)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+    } catch (error: any) {
+      results.push({ draftId, offerId: '', success: false, error: error.message });
+      failed++;
+    }
+  }
+
+  return {
+    success: failed === 0,
+    total: draftIds.length,
+    sent,
+    failed,
+    results,
+  };
 }

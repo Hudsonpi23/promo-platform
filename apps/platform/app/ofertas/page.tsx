@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { fetcher, Offer } from '@/lib/api';
+import { fetcher, Offer, publishToSite } from '@/lib/api';
 import { fetchWithAuth } from '@/lib/auth';
 import { cn, formatCurrency, getUrgencyLabel } from '@/lib/utils';
 
@@ -89,6 +89,32 @@ export default function OfertasPage() {
 
   // Estado de loading para X
   const [postingToX, setPostingToX] = useState<string | null>(null);
+  
+  // Estado de loading para Site
+  const [publishingToSite, setPublishingToSite] = useState<string | null>(null);
+
+  // Publicar no site
+  const handlePublishToSite = async (offerId: string) => {
+    if (publishingToSite) return;
+    
+    setPublishingToSite(offerId);
+    
+    try {
+      const result = await publishToSite(offerId);
+      
+      if (result.success) {
+        alert(`✅ Publicado no site com sucesso!\n\n🔗 ${result.siteUrl || 'Publicação criada!'}`);
+        mutate();
+      } else {
+        alert(`❌ Erro ao publicar no site:\n${result.error}`);
+      }
+    } catch (error: any) {
+      console.error('Erro ao publicar no site:', error);
+      alert(`❌ Erro ao publicar no site:\n${error.message}`);
+    } finally {
+      setPublishingToSite(null);
+    }
+  };
 
   // Postar diretamente no X (Twitter)
   const handlePostToX = async (offerId: string) => {
@@ -349,23 +375,35 @@ export default function OfertasPage() {
 
             {/* Ações */}
             <div className="flex flex-col gap-2 pt-3 border-t border-border">
+              {/* Linha 1: Criar Post */}
+              <button
+                onClick={() => handleCreateDraft(offer.id)}
+                disabled={creatingDraft === offer.id}
+                className="w-full py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creatingDraft === offer.id ? '⏳ Criando...' : '📝 Criar Post (Dashboard)'}
+              </button>
+              
+              {/* Linha 2: Enviar direto */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => handleCreateDraft(offer.id)}
-                  disabled={creatingDraft === offer.id}
-                  className="flex-1 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => handlePublishToSite(offer.id)}
+                  disabled={publishingToSite === offer.id}
+                  className="flex-1 py-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Publicar diretamente no site"
                 >
-                  {creatingDraft === offer.id ? '⏳ Criando...' : '📝 Criar Post'}
+                  {publishingToSite === offer.id ? '⏳' : '🌐'} Site
                 </button>
                 <button
                   onClick={() => handlePostToX(offer.id)}
                   disabled={postingToX === offer.id}
-                  className="px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Postar diretamente no X (Twitter)"
                 >
                   {postingToX === offer.id ? '⏳' : '🐦'} X
                 </button>
               </div>
+              
               <span className="text-xs text-text-muted text-center">
                 {offer._count?.drafts || 0} posts criados
               </span>

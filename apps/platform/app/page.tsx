@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { Card } from '@/components/Card';
 import { BatchTabs } from '@/components/BatchTabs';
 import { StatsBar } from '@/components/StatsBar';
-import { fetcher, Batch, PostDraft, dispatchBatch } from '@/lib/api';
+import { fetcher, Batch, PostDraft, dispatchBatch, dispatchAllPendingToX, getTwitterStatus } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 // Tipos de source
@@ -23,6 +23,12 @@ export default function Dashboard() {
   const [showOnlyX, setShowOnlyX] = useState(false);
   // AJUSTE 1 - Modo de operação: 'rapido' = OK dispara imediato, 'carga' = OK só aprova
   const [dispatchMode, setDispatchMode] = useState<'rapido' | 'carga'>('rapido');
+  
+  // Estados para "Enviar Tudo para o X"
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isDispatchingToX, setIsDispatchingToX] = useState(false);
+  const [dispatchProgress, setDispatchProgress] = useState({ current: 0, total: 0 });
+  const [dispatchResult, setDispatchResult] = useState<{ sent: number; failed: number } | null>(null);
 
   // Buscar cargas do dia
   const { data: batches, error: batchesError, isLoading: batchesLoading, mutate: mutateBatches } = useSWR<Batch[]>(
@@ -134,6 +140,55 @@ export default function Dashboard() {
     }
   };
 
+  // Pegar drafts pendentes que incluem X
+  const pendingDraftsWithX = displayDrafts.filter((draft) => {
+    if (!draft || draft.status !== 'PENDING') return false;
+    const channels = Array.isArray(draft.channels) ? draft.channels : [];
+    return channels.includes('TWITTER') || (draft as any).requiresHumanForX;
+  });
+
+  // Disparar TODOS pendentes para o X
+  const handleDispatchAllToX = async () => {
+    if (pendingDraftsWithX.length === 0) return;
+    
+    setShowConfirmModal(false);
+    setIsDispatchingToX(true);
+    setDispatchProgress({ current: 0, total: pendingDraftsWithX.length });
+    setDispatchResult(null);
+    
+    try {
+      const draftIds = pendingDraftsWithX.map(d => d.id);
+      
+      // Processar um por um para mostrar progresso
+      let sent = 0;
+      let failed = 0;
+      
+      for (let i = 0; i < draftIds.length; i++) {
+        setDispatchProgress({ current: i + 1, total: draftIds.length });
+        
+        const result = await dispatchAllPendingToX([draftIds[i]]);
+        sent += result.sent;
+        failed += result.failed;
+        
+        // Atualizar UI a cada post
+        handleUpdate();
+      }
+      
+      setDispatchResult({ sent, failed });
+      
+      // Limpar resultado após 5 segundos
+      setTimeout(() => {
+        setDispatchResult(null);
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Erro ao disparar para X:', error);
+    } finally {
+      setIsDispatchingToX(false);
+      handleUpdate();
+    }
+  };
+
   const selectedBatch = displayBatches.find((b) => b.id === selectedBatchId);
 
   // Estado de loading (só mostra se não tiver error/offline)
@@ -209,6 +264,106 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* ========== BOTÃO "ENVIAR TUDO PARA O X" - Modo Carga ========== */}
+      {dispatchMode === 'carga' && pendingDraftsWithX.length > 0 && !isOffline && (
+        <div className="bg-gradient-to-r from-blue-900/40 to-sky-800/30 rounded-xl border border-blue-500/40 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <span className="text-3xl">🐦</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-blue-400">Disparar para o X (Twitter)</h3>
+                <p className="text-blue-300/70 text-sm">
+                  {pendingDraftsWithX.length} post{pendingDraftsWithX.length > 1 ? 's' : ''} pendente{pendingDraftsWithX.length > 1 ? 's' : ''} para enviar
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowConfirmModal(true)}
+              disabled={isDispatchingToX}
+              className={cn(
+                'px-6 py-3 rounded-xl font-bold text-white transition-all flex items-center gap-3',
+                isDispatchingToX
+                  ? 'bg-blue-500/50 cursor-wait'
+                  : 'bg-gradient-to-r from-blue-500 to-sky-500 hover:from-blue-600 hover:to-sky-600 shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
+              )}
+            >
+              {isDispatchingToX ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  Enviando {dispatchProgress.current}/{dispatchProgress.total}...
+                </>
+              ) : (
+                <>
+                  <span className="text-xl">🚀</span>
+                  Enviar Tudo para o X
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Resultado do dispatch */}
+          {dispatchResult && (
+            <div className={cn(
+              'mt-4 p-3 rounded-lg text-sm font-medium',
+              dispatchResult.failed === 0
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+            )}>
+              {dispatchResult.failed === 0 ? (
+                <>✅ {dispatchResult.sent} post{dispatchResult.sent > 1 ? 's' : ''} enviado{dispatchResult.sent > 1 ? 's' : ''} com sucesso!</>
+              ) : (
+                <>⚠️ {dispatchResult.sent} enviado{dispatchResult.sent > 1 ? 's' : ''}, {dispatchResult.failed} com erro</>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========== MODAL DE CONFIRMAÇÃO ========== */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-surface border border-border rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">🐦</span>
+              </div>
+              <h2 className="text-xl font-bold text-text-primary mb-2">
+                Confirmar Envio para o X
+              </h2>
+              <p className="text-text-secondary">
+                Você está prestes a enviar <span className="text-blue-400 font-bold">{pendingDraftsWithX.length}</span> post{pendingDraftsWithX.length > 1 ? 's' : ''} para o X (Twitter).
+              </p>
+            </div>
+
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
+              <p className="text-amber-400 text-sm flex items-start gap-2">
+                <span>⚠️</span>
+                <span>Os posts serão enviados em sequência com intervalo de 2 segundos para evitar bloqueio.</span>
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 px-4 py-3 rounded-xl bg-surface-hover border border-border text-text-secondary font-medium hover:bg-surface-hover/80 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDispatchAllToX}
+                className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-500 to-sky-500 text-white font-bold hover:from-blue-600 hover:to-sky-600 transition-all flex items-center justify-center gap-2"
+              >
+                <span>🚀</span>
+                Confirmar Envio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats */}
       <StatsBar {...stats} />

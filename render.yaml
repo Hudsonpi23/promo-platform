@@ -49,3 +49,8 @@ services:
         sync: false
       - key: TWITTER_ACCESS_TOKEN_SECRET
         sync: false
+      # Telegram Bot (para postagem no canal)
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
