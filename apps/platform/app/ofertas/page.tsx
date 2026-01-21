@@ -30,6 +30,9 @@ export default function OfertasPage() {
     urgency: 'NORMAL',
   });
 
+  // Estado de loading
+  const [isCreating, setIsCreating] = useState(false);
+
   // Criar oferta
   const handleCreate = async () => {
     // Validação mínima - apenas título e preço final são obrigatórios
@@ -38,27 +41,55 @@ export default function OfertasPage() {
       return;
     }
 
-    await fetch('http://localhost:3001/api/offers', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : parseFloat(form.finalPrice),
-        finalPrice: parseFloat(form.finalPrice),
-      }),
-    });
+    setIsCreating(true);
 
-    setForm({
-      title: '',
-      originalPrice: '',
-      finalPrice: '',
-      affiliateUrl: '',
-      nicheId: '',
-      storeId: '',
-      urgency: 'NORMAL',
-    });
-    setShowForm(false);
-    mutate();
+    try {
+      // Usar URL da API correta (produção ou local)
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://promo-platform-api.onrender.com';
+      
+      const response = await fetch(`${apiUrl}/api/offers`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: form.title,
+          originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : parseFloat(form.finalPrice),
+          finalPrice: parseFloat(form.finalPrice),
+          affiliateUrl: form.affiliateUrl || undefined,
+          nicheId: form.nicheId || undefined,
+          storeId: form.storeId || undefined,
+          urgency: form.urgency || 'NORMAL',
+          status: 'ACTIVE',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao criar oferta');
+      }
+
+      // Limpar formulário
+      setForm({
+        title: '',
+        originalPrice: '',
+        finalPrice: '',
+        affiliateUrl: '',
+        nicheId: '',
+        storeId: '',
+        urgency: 'NORMAL',
+      });
+      
+      setShowForm(false);
+      mutate();
+      
+      alert('✅ Oferta criada com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao criar oferta:', error);
+      alert(`❌ Erro: ${error.message}`);
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   // Criar draft a partir de oferta
@@ -68,18 +99,29 @@ export default function OfertasPage() {
 
     const copyText = `🔥 OFERTA IMPERDÍVEL!\n\n${offer.title}\n\nDe R$ ${offer.originalPrice} por apenas R$ ${offer.finalPrice}!\n\n⚡ ${offer.discount}% de desconto\n\n👉 Aproveite agora antes que acabe!`;
 
-    await fetch(`http://localhost:3001/api/offers/${offerId}/create-draft`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        copyText,
-        batchId: batches[0].id, // Primeira carga disponível
-        channels: ['TELEGRAM', 'SITE'],
-      }),
-    });
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://promo-platform-api.onrender.com';
+      
+      const response = await fetch(`${apiUrl}/api/offers/${offerId}/create-draft`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          copyText,
+          batchId: batches[0].id, // Primeira carga disponível
+          channels: ['TELEGRAM', 'SITE'],
+        }),
+      });
 
-    mutate();
-    alert('Draft criado com sucesso!');
+      if (!response.ok) {
+        throw new Error('Erro ao criar draft');
+      }
+
+      mutate();
+      alert('✅ Draft criado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao criar draft:', error);
+      alert('❌ Erro ao criar draft');
+    }
   };
 
   return (
@@ -206,9 +248,10 @@ export default function OfertasPage() {
           </div>
           <button
             onClick={handleCreate}
-            className="mt-4 px-6 py-2 rounded-lg bg-success hover:bg-success/90 text-white font-medium transition-all"
+            disabled={isCreating}
+            className="mt-4 px-6 py-2 rounded-lg bg-success hover:bg-success/90 text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            ✅ Criar Oferta
+            {isCreating ? '⏳ Criando...' : '✅ Criar Oferta'}
           </button>
         </div>
       )}
