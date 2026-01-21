@@ -68,6 +68,7 @@ export interface Offer {
   originalPrice: number;
   finalPrice: number;
   discount: number;
+  discountPct?: number; // Campo alternativo do banco
   affiliateUrl: string;
   imageUrl?: string;
   niche: Niche;
