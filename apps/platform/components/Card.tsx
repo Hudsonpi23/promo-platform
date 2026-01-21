@@ -15,12 +15,23 @@ interface CardProps {
 export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedCopy, setEditedCopy] = useState(draft.copyText);
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(draft.channels);
+  const [editedCopy, setEditedCopy] = useState(draft.copyText || '');
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(draft.channels || []);
   const [activeTab, setActiveTab] = useState<CopyTab>('TELEGRAM');
 
-  const { offer } = draft;
-  const urgencyLabel = getUrgencyLabel(offer.urgency);
+  // Proteção contra dados nulos
+  const offer = draft.offer || {
+    title: 'Sem título',
+    originalPrice: 0,
+    finalPrice: 0,
+    discount: 0,
+    urgency: 'NORMAL' as const,
+    niche: { name: 'Sem nicho', icon: '📦' },
+    store: { name: 'Sem loja' },
+    affiliateUrl: '',
+  };
+  
+  const urgencyLabel = getUrgencyLabel(offer.urgency || 'NORMAL');
 
   // AJUSTE 1 - Aprovar (modo depende do dispatchMode)
   const handleApprove = async () => {
@@ -118,8 +129,13 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
   };
   
   // Verificar se tem imagem (necessário para X)
-  const hasImage = draft.offer?.imageUrl || (draft as any).imageUrl;
+  const hasImage = offer?.imageUrl || (draft as any).imageUrl;
   const requiresHumanForX = (draft as any).requiresHumanForX;
+  
+  // Valores seguros para niche e store
+  const nicheName = offer?.niche?.name || 'Sem nicho';
+  const nicheIcon = offer?.niche?.icon || '📦';
+  const storeName = offer?.store?.name || 'Sem loja';
 
   return (
     <div className={cn(
@@ -137,7 +153,7 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
             </span>
           )}
           <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
-            {offer.niche.icon} {offer.niche.name}
+            {nicheIcon} {nicheName}
           </span>
           {draft.priority === 'HIGH' && (
             <span className="px-2 py-1 rounded-md bg-warning/20 text-warning text-xs font-medium">
@@ -163,7 +179,7 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
           )}
         </div>
         <span className="px-2 py-1 rounded-md bg-surface text-text-secondary text-xs truncate max-w-[100px]">
-          {offer.store.name}
+          {storeName}
         </span>
       </div>
 
