@@ -150,7 +150,11 @@ export async function postTweet(text: string): Promise<TweetResponse> {
       body: JSON.stringify({ text }),
     });
 
-    const data = await response.json();
+    const data = await response.json() as {
+      data?: { id?: string };
+      detail?: string;
+      title?: string;
+    };
 
     if (!response.ok) {
       console.error('[Twitter] Erro ao postar:', data);
