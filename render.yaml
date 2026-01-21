@@ -40,3 +40,12 @@ services:
       # Proxy Residencial (opcional, para desbloquear ML search)
       - key: PROXY_URL
         sync: false # Formato: http://username:password@proxy.com:port
+      # Twitter/X API (para postagem automática)
+      - key: TWITTER_API_KEY
+        sync: false
+      - key: TWITTER_API_SECRET
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN_SECRET
+        sync: false

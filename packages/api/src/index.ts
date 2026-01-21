@@ -23,6 +23,7 @@ import { mercadoLivreRoutes } from './routes/sources.mercadolivre';
 import { mercadoLivreAuthRoutes } from './routes/auth.mercadolivre';
 import { mlRoutes } from './routes/ml';
 import { seedRoutes } from './routes/seed';
+import { twitterRoutes } from './routes/twitter';
 
 async function main() {
   const server = Fastify({
@@ -193,6 +194,9 @@ async function main() {
 
   // Seed - Inicialização do banco (temporário)
   server.register(seedRoutes, { prefix: '/api' });
+
+  // Twitter/X - Postagem em redes sociais
+  server.register(twitterRoutes, { prefix: '/api/twitter' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

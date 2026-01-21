@@ -87,6 +87,45 @@ export default function OfertasPage() {
     }
   };
 
+  // Estado de loading para X
+  const [postingToX, setPostingToX] = useState<string | null>(null);
+
+  // Postar diretamente no X (Twitter)
+  const handlePostToX = async (offerId: string) => {
+    if (postingToX) return; // Evitar duplo clique
+    
+    setPostingToX(offerId);
+    
+    try {
+      // Primeiro verificar se Twitter está configurado
+      const statusResponse = await fetchWithAuth('/api/twitter/status');
+      const statusData = await statusResponse.json();
+      
+      if (!statusData.configured) {
+        alert('⚠️ Twitter API não configurada.\n\nConfigure as variáveis de ambiente:\n- TWITTER_API_KEY\n- TWITTER_API_SECRET\n- TWITTER_ACCESS_TOKEN\n- TWITTER_ACCESS_TOKEN_SECRET');
+        return;
+      }
+      
+      // Postar no Twitter
+      const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✅ Postado no X com sucesso!\n\n🔗 ${data.tweetUrl || 'Tweet criado!'}`);
+      } else {
+        alert(`❌ Erro ao postar no X:\n${data.error}`);
+      }
+    } catch (error: any) {
+      console.error('Erro ao postar no X:', error);
+      alert(`❌ Erro ao postar no X:\n${error.message}`);
+    } finally {
+      setPostingToX(null);
+    }
+  };
+
   // Criar draft a partir de oferta
   const handleCreateDraft = async (offerId: string) => {
     const offer = offers?.find((o) => o.id === offerId);
@@ -295,15 +334,25 @@ export default function OfertasPage() {
             )}
 
             {/* Ações */}
-            <div className="flex items-center gap-2 pt-3 border-t border-border">
-              <button
-                onClick={() => handleCreateDraft(offer.id)}
-                className="flex-1 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all"
-              >
-                📝 Criar Post
-              </button>
-              <span className="text-xs text-text-muted">
-                {offer._count?.drafts || 0} posts
+            <div className="flex flex-col gap-2 pt-3 border-t border-border">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleCreateDraft(offer.id)}
+                  className="flex-1 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all"
+                >
+                  📝 Criar Post
+                </button>
+                <button
+                  onClick={() => handlePostToX(offer.id)}
+                  disabled={postingToX === offer.id}
+                  className="px-4 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Postar diretamente no X (Twitter)"
+                >
+                  {postingToX === offer.id ? '⏳' : '🐦'} X
+                </button>
+              </div>
+              <span className="text-xs text-text-muted text-center">
+                {offer._count?.drafts || 0} posts criados
               </span>
             </div>
           </div>
