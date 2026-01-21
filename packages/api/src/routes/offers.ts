@@ -97,12 +97,44 @@ export async function offersRoutes(app: FastifyInstance) {
       if (storeId) {
         const store = await prisma.store.findUnique({ where: { id: storeId } });
         if (!store) {
-          // Se não existe, pegar a primeira loja disponível
-          const firstStore = await prisma.store.findFirst({ where: { isActive: true } });
-          storeId = firstStore?.id || null;
+          storeId = null;
         }
-      } else {
-        // Se não fornecido, pegar a primeira loja
+      }
+      
+      // Se não tem storeId, tentar detectar pelo link afiliado
+      if (!storeId && body.affiliateUrl) {
+        const url = body.affiliateUrl.toLowerCase();
+        
+        // Mapa de domínios para slugs de lojas
+        const storeMap: Record<string, string> = {
+          'mercadolivre': 'mercado-livre',
+          'mercadolibre': 'mercado-livre',
+          'amazon': 'amazon',
+          'magazineluiza': 'magazine-luiza',
+          'magalu': 'magazine-luiza',
+          'casasbahia': 'casas-bahia',
+          'shopee': 'shopee',
+          'aliexpress': 'aliexpress',
+          'americanas': 'americanas',
+          'kabum': 'kabum',
+        };
+        
+        // Detectar loja pelo domínio
+        for (const [domain, slug] of Object.entries(storeMap)) {
+          if (url.includes(domain)) {
+            const detectedStore = await prisma.store.findFirst({ 
+              where: { slug, isActive: true } 
+            });
+            if (detectedStore) {
+              storeId = detectedStore.id;
+              break;
+            }
+          }
+        }
+      }
+      
+      // Se ainda não tem, pegar a primeira loja
+      if (!storeId) {
         const firstStore = await prisma.store.findFirst({ where: { isActive: true } });
         storeId = firstStore?.id || null;
       }
