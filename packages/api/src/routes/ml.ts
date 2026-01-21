@@ -9,6 +9,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
+import https from 'https';
 import { getMlConnection, mlApiRequest } from '../lib/mercadolivre';
 
 export async function mlRoutes(fastify: FastifyInstance) {
@@ -194,6 +195,13 @@ export async function mlRoutes(fastify: FastifyInstance) {
               password: proxyUrl.password,
             } : undefined,
           };
+          
+          // CRÍTICO: Desabilitar verificação SSL quando usar proxy
+          // Proxies residenciais interceptam HTTPS e causam ERR_TLS_CERT_ALTNAME_INVALID
+          axiosConfig.httpsAgent = new https.Agent({
+            rejectUnauthorized: false,
+          });
+          
           console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port} (user: ${proxyUrl.username})`);
         } catch (proxyError: any) {
           console.error(`❌ Erro ao configurar proxy: ${proxyError.message}`);
