@@ -107,12 +107,12 @@ export async function offersRoutes(app: FastifyInstance) {
         
         // Mapa de domínios para slugs de lojas
         const storeMap: Record<string, string> = {
-          'mercadolivre': 'mercado-livre',
-          'mercadolibre': 'mercado-livre',
+          'mercadolivre': 'mercadolivre',
+          'mercadolibre': 'mercadolivre',
           'amazon': 'amazon',
-          'magazineluiza': 'magazine-luiza',
-          'magalu': 'magazine-luiza',
-          'casasbahia': 'casas-bahia',
+          'magazineluiza': 'magalu',
+          'magalu': 'magalu',
+          'casasbahia': 'casasbahia',
           'shopee': 'shopee',
           'aliexpress': 'aliexpress',
           'americanas': 'americanas',
