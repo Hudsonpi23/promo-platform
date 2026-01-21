@@ -32,8 +32,9 @@ export default function OfertasPage() {
 
   // Criar oferta
   const handleCreate = async () => {
-    if (!form.title || !form.originalPrice || !form.finalPrice || !form.affiliateUrl || !form.nicheId || !form.storeId) {
-      alert('Preencha todos os campos');
+    // Validação mínima - apenas título e preço final são obrigatórios
+    if (!form.title || !form.finalPrice) {
+      alert('Preencha pelo menos: Título e Preço Final');
       return;
     }
 
@@ -42,7 +43,7 @@ export default function OfertasPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,
-        originalPrice: parseFloat(form.originalPrice),
+        originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : parseFloat(form.finalPrice),
         finalPrice: parseFloat(form.finalPrice),
       }),
     });
@@ -103,19 +104,26 @@ export default function OfertasPage() {
       {showForm && (
         <div className="bg-surface rounded-xl border border-border p-6 animate-slide-in">
           <h3 className="text-lg font-semibold text-text-primary mb-4">Criar Oferta Manual</h3>
+          <p className="text-sm text-text-muted mb-4">
+            ✅ Campos obrigatórios: <strong>Título</strong> e <strong>Preço Final</strong>. Os demais são opcionais.
+          </p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
-              <label className="block text-sm text-text-secondary mb-2">Título</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Título <span className="text-error">*</span>
+              </label>
               <input
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Smartphone Samsung Galaxy A55 256GB"
+                placeholder="Celular Samsung Galaxy A16..."
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Nicho</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Nicho <span className="text-text-muted text-xs">(opcional)</span>
+              </label>
               <select
                 value={form.nicheId}
                 onChange={(e) => setForm({ ...form, nicheId: e.target.value })}
@@ -128,27 +136,35 @@ export default function OfertasPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Preço Original</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Preço Original <span className="text-text-muted text-xs">(opcional)</span>
+              </label>
               <input
                 type="number"
+                step="0.01"
                 value={form.originalPrice}
                 onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
-                placeholder="2499.00"
+                placeholder="1429 (se tiver)"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Preço Final</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Preço Final <span className="text-error">*</span>
+              </label>
               <input
                 type="number"
+                step="0.01"
                 value={form.finalPrice}
                 onChange={(e) => setForm({ ...form, finalPrice: e.target.value })}
-                placeholder="1999.00"
+                placeholder="798"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Loja</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Loja <span className="text-text-muted text-xs">(opcional)</span>
+              </label>
               <select
                 value={form.storeId}
                 onChange={(e) => setForm({ ...form, storeId: e.target.value })}
@@ -161,17 +177,21 @@ export default function OfertasPage() {
               </select>
             </div>
             <div className="lg:col-span-2">
-              <label className="block text-sm text-text-secondary mb-2">Link Afiliado</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Link Afiliado <span className="text-text-muted text-xs">(opcional)</span>
+              </label>
               <input
                 type="url"
                 value={form.affiliateUrl}
                 onChange={(e) => setForm({ ...form, affiliateUrl: e.target.value })}
-                placeholder="https://..."
+                placeholder="https://mercadolivre.com/sec/2RaCjWg"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label className="block text-sm text-text-secondary mb-2">Urgência</label>
+              <label className="block text-sm text-text-secondary mb-2">
+                Urgência <span className="text-text-muted text-xs">(opcional)</span>
+              </label>
               <select
                 value={form.urgency}
                 onChange={(e) => setForm({ ...form, urgency: e.target.value })}
