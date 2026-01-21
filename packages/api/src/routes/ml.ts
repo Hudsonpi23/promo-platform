@@ -186,17 +186,29 @@ export async function mlRoutes(fastify: FastifyInstance) {
       
       if (process.env.PROXY_URL) {
         try {
-          // Usar HttpsProxyAgent para autenticação correta
-          const proxyAgent = new HttpsProxyAgent(process.env.PROXY_URL, {
-            rejectUnauthorized: false, // Permite certificados self-signed do proxy
-          });
+          const proxyUrl = new URL(process.env.PROXY_URL);
+          
+          // HttpsProxyAgent com configuração explícita
+          const proxyOptions: any = {
+            host: proxyUrl.hostname,
+            port: parseInt(proxyUrl.port || '12321'),
+            protocol: proxyUrl.protocol.replace(':', ''),
+            rejectUnauthorized: false,
+          };
+          
+          // Adicionar autenticação se existir
+          if (proxyUrl.username && proxyUrl.password) {
+            proxyOptions.auth = `${decodeURIComponent(proxyUrl.username)}:${decodeURIComponent(proxyUrl.password)}`;
+          }
+          
+          const proxyAgent = new HttpsProxyAgent(proxyOptions);
           
           axiosConfig.httpsAgent = proxyAgent;
           axiosConfig.proxy = false; // Desabilitar config padrão do axios
           
-          const proxyUrl = new URL(process.env.PROXY_URL);
           console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port}`);
-          console.log(`[DEBUG] HttpsProxyAgent configurado`);
+          console.log(`[DEBUG] Proxy protocol: ${proxyOptions.protocol}`);
+          console.log(`[DEBUG] Proxy auth configured: ${!!proxyOptions.auth}`);
         } catch (proxyError: any) {
           console.error(`❌ Erro ao configurar proxy: ${proxyError.message}`);
           return reply.status(500).send({
