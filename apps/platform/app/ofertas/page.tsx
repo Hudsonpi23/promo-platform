@@ -250,7 +250,7 @@ export default function OfertasPage() {
 
       {/* Lista de Ofertas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {offers?.map((offer) => (
+        {(Array.isArray(offers) ? offers : (offers as any)?.data || []).map((offer: any) => (
           <div
             key={offer.id}
             className="bg-surface rounded-xl border border-border p-4 hover:border-primary/50 transition-all"
@@ -258,10 +258,10 @@ export default function OfertasPage() {
             {/* Header */}
             <div className="flex items-center justify-between mb-3">
               <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
-                {offer.niche.name}
+                {offer.niche?.name || 'Sem nicho'}
               </span>
               <span className="text-xs text-text-muted">
-                {offer.store.name}
+                {offer.store?.name || 'Sem loja'}
               </span>
             </div>
 
@@ -272,19 +272,23 @@ export default function OfertasPage() {
 
             {/* Preços */}
             <div className="flex items-baseline gap-2 mb-2">
-              <span className="text-text-muted line-through text-sm">
-                {formatCurrency(Number(offer.originalPrice))}
-              </span>
+              {offer.originalPrice && (
+                <span className="text-text-muted line-through text-sm">
+                  {formatCurrency(Number(offer.originalPrice))}
+                </span>
+              )}
               <span className="text-xl font-bold text-success">
                 {formatCurrency(Number(offer.finalPrice))}
               </span>
-              <span className="text-xs text-success font-medium">
-                -{offer.discount}%
-              </span>
+              {offer.discount && (
+                <span className="text-xs text-success font-medium">
+                  -{offer.discount}%
+                </span>
+              )}
             </div>
 
             {/* Urgência */}
-            {offer.urgency !== 'NORMAL' && (
+            {offer.urgency && offer.urgency !== 'NORMAL' && (
               <div className="text-warning text-xs font-medium mb-3">
                 {getUrgencyLabel(offer.urgency)}
               </div>
@@ -299,7 +303,7 @@ export default function OfertasPage() {
                 📝 Criar Post
               </button>
               <span className="text-xs text-text-muted">
-                {offer._count.drafts} posts
+                {offer._count?.drafts || 0} posts
               </span>
             </div>
           </div>
@@ -307,7 +311,7 @@ export default function OfertasPage() {
       </div>
 
       {/* Empty State */}
-      {offers?.length === 0 && (
+      {((Array.isArray(offers) ? offers : (offers as any)?.data || []).length === 0) && (
         <div className="text-center py-20 text-text-muted">
           <span className="text-6xl mb-4 block">📭</span>
           <p className="text-lg">Nenhuma oferta cadastrada</p>
