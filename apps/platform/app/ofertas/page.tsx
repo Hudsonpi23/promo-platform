@@ -109,6 +109,10 @@ export default function OfertasPage() {
       // Postar no Twitter
       const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
       });
       
       const data = await response.json();
