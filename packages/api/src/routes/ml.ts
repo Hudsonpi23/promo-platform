@@ -9,7 +9,7 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
-import https from 'https';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { getMlConnection, mlApiRequest } from '../lib/mercadolivre';
 
 export async function mlRoutes(fastify: FastifyInstance) {
@@ -186,27 +186,17 @@ export async function mlRoutes(fastify: FastifyInstance) {
       
       if (process.env.PROXY_URL) {
         try {
-          const proxyUrl = new URL(process.env.PROXY_URL);
-          
-          // Configurar proxy com protocolo HTTP (não HTTPS)
-          axiosConfig.proxy = {
-            protocol: 'http',
-            host: proxyUrl.hostname,
-            port: parseInt(proxyUrl.port || '12321'),
-            auth: proxyUrl.username && proxyUrl.password ? {
-              username: decodeURIComponent(proxyUrl.username),
-              password: decodeURIComponent(proxyUrl.password),
-            } : undefined,
-          };
-          
-          // CRÍTICO: Desabilitar verificação SSL quando usar proxy
-          // Proxies residenciais interceptam HTTPS e causam ERR_TLS_CERT_ALTNAME_INVALID
-          axiosConfig.httpsAgent = new https.Agent({
-            rejectUnauthorized: false,
+          // Usar HttpsProxyAgent para autenticação correta
+          const proxyAgent = new HttpsProxyAgent(process.env.PROXY_URL, {
+            rejectUnauthorized: false, // Permite certificados self-signed do proxy
           });
           
+          axiosConfig.httpsAgent = proxyAgent;
+          axiosConfig.proxy = false; // Desabilitar config padrão do axios
+          
+          const proxyUrl = new URL(process.env.PROXY_URL);
           console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port}`);
-          console.log(`[DEBUG] Proxy auth user: ${proxyUrl.username}`);
+          console.log(`[DEBUG] HttpsProxyAgent configurado`);
         } catch (proxyError: any) {
           console.error(`❌ Erro ao configurar proxy: ${proxyError.message}`);
           return reply.status(500).send({
