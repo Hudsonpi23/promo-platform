@@ -187,12 +187,15 @@ export async function mlRoutes(fastify: FastifyInstance) {
       if (process.env.PROXY_URL) {
         try {
           const proxyUrl = new URL(process.env.PROXY_URL);
+          
+          // Configurar proxy com protocolo HTTP (não HTTPS)
           axiosConfig.proxy = {
+            protocol: 'http',
             host: proxyUrl.hostname,
-            port: parseInt(proxyUrl.port || '80'),
+            port: parseInt(proxyUrl.port || '12321'),
             auth: proxyUrl.username && proxyUrl.password ? {
-              username: proxyUrl.username,
-              password: proxyUrl.password,
+              username: decodeURIComponent(proxyUrl.username),
+              password: decodeURIComponent(proxyUrl.password),
             } : undefined,
           };
           
@@ -202,7 +205,8 @@ export async function mlRoutes(fastify: FastifyInstance) {
             rejectUnauthorized: false,
           });
           
-          console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port} (user: ${proxyUrl.username})`);
+          console.log(`🌐 Usando proxy: ${proxyUrl.hostname}:${proxyUrl.port}`);
+          console.log(`[DEBUG] Proxy auth user: ${proxyUrl.username}`);
         } catch (proxyError: any) {
           console.error(`❌ Erro ao configurar proxy: ${proxyError.message}`);
           return reply.status(500).send({
