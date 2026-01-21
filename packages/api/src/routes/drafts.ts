@@ -1,8 +1,21 @@
 import { FastifyInstance } from 'fastify';
+import { nanoid } from 'nanoid';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { createDraftSchema, updateDraftSchema, draftsFilterSchema } from '../lib/schemas.js';
 import { sendError, Errors } from '../lib/errors.js';
+import { sendTelegramMessage, formatTelegramPost, isTelegramConfigured } from '../services/telegram.js';
+
+// Gerar slug a partir do título
+function generateSlug(title: string): string {
+  return title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 60);
+}
 
 export async function draftsRoutes(app: FastifyInstance) {
   // GET /drafts - Listar drafts com filtros
@@ -198,7 +211,15 @@ export async function draftsRoutes(app: FastifyInstance) {
 
       const draft = await prisma.postDraft.findUnique({
         where: { id },
-        include: { batch: true },
+        include: { 
+          batch: true,
+          offer: {
+            include: {
+              niche: true,
+              store: true,
+            },
+          },
+        },
       });
 
       if (!draft) {
@@ -209,11 +230,11 @@ export async function draftsRoutes(app: FastifyInstance) {
         return sendError(reply, Errors.DRAFT_NOT_PENDING);
       }
 
-      // Atualizar draft
+      // Atualizar draft para DISPATCHED (já vai publicar automaticamente)
       const updated = await prisma.postDraft.update({
         where: { id },
         data: {
-          status: 'APPROVED',
+          status: 'DISPATCHED',
           approvedAt: new Date(),
           approvedById: user.id,
         },
@@ -229,17 +250,165 @@ export async function draftsRoutes(app: FastifyInstance) {
         },
       });
 
+      const channels = draft.channels as string[];
+      const offer = draft.offer;
+
+      // ========== PUBLICAR NO SITE AUTOMATICAMENTE ==========
+      if (channels.includes('SITE') && offer) {
+        try {
+          // Gerar slug único
+          let slug = generateSlug(offer.title);
+          let slugSuffix = 0;
+          while (await prisma.publishedPost.findUnique({ where: { slug } })) {
+            slugSuffix++;
+            slug = `${generateSlug(offer.title)}-${slugSuffix}`;
+          }
+
+          const goCode = nanoid(8);
+
+          // Criar publicação no site
+          const publication = await prisma.publishedPost.create({
+            data: {
+              offerId: offer.id,
+              slug,
+              goCode,
+              title: offer.title,
+              excerpt: offer.description,
+              copyText: (draft as any).copyTextSite || draft.copyText || `🔥 ${offer.title}`,
+              price: offer.finalPrice,
+              originalPrice: offer.originalPrice,
+              discountPct: offer.discountPct || 0,
+              affiliateUrl: offer.affiliateUrl,
+              imageUrl: (draft as any).imageUrl || offer.imageUrl,
+              urgency: offer.urgency,
+              nicheId: offer.nicheId,
+              storeId: offer.storeId,
+              isActive: true,
+            },
+          });
+
+          // Registrar delivery para SITE
+          await prisma.postDelivery.create({
+            data: {
+              draftId: draft.id,
+              channel: 'SITE',
+              status: 'SENT',
+              sentAt: new Date(),
+              externalId: publication.id,
+              externalUrl: `/oferta/${publication.slug}`,
+            },
+          });
+
+          console.log(`[Approve] Publicado no site: ${publication.slug}`);
+        } catch (siteError: any) {
+          console.error('[Approve] Erro ao publicar no site:', siteError.message);
+          // Registrar erro de delivery
+          await prisma.postDelivery.create({
+            data: {
+              draftId: draft.id,
+              channel: 'SITE',
+              status: 'ERROR',
+              errorMessage: siteError.message,
+            },
+          });
+        }
+      }
+
+      // ========== ENVIAR PARA O TELEGRAM ==========
+      if (channels.includes('TELEGRAM') && offer) {
+        try {
+          if (!isTelegramConfigured()) {
+            console.log('[Approve] Telegram não configurado, pulando...');
+            await prisma.postDelivery.create({
+              data: {
+                draftId: draft.id,
+                channel: 'TELEGRAM',
+                status: 'ERROR',
+                errorMessage: 'Telegram não configurado',
+              },
+            });
+          } else {
+            // Formatar texto para o Telegram
+            const telegramText = formatTelegramPost({
+              title: offer.title,
+              originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+              finalPrice: Number(offer.finalPrice),
+              discountPct: offer.discountPct,
+              affiliateUrl: offer.affiliateUrl,
+              storeName: offer.store?.name,
+              copyText: (draft as any).copyTextTelegram || draft.copyText,
+            });
+
+            // Enviar para o Telegram (com imagem se tiver)
+            const imageUrl = (draft as any).imageUrl || offer.imageUrl;
+            const telegramResult = await sendTelegramMessage({
+              text: telegramText,
+              imageUrl: imageUrl || undefined,
+            });
+
+            if (telegramResult.success) {
+              await prisma.postDelivery.create({
+                data: {
+                  draftId: draft.id,
+                  channel: 'TELEGRAM',
+                  status: 'SENT',
+                  sentAt: new Date(),
+                  externalId: telegramResult.messageId?.toString(),
+                },
+              });
+              console.log(`[Approve] Telegram enviado com sucesso! ID: ${telegramResult.messageId}`);
+            } else {
+              await prisma.postDelivery.create({
+                data: {
+                  draftId: draft.id,
+                  channel: 'TELEGRAM',
+                  status: 'ERROR',
+                  errorMessage: telegramResult.error,
+                },
+              });
+              console.error(`[Approve] Erro ao enviar Telegram: ${telegramResult.error}`);
+            }
+          }
+        } catch (telegramError: any) {
+          console.error('[Approve] Erro ao enviar Telegram:', telegramError.message);
+          await prisma.postDelivery.create({
+            data: {
+              draftId: draft.id,
+              channel: 'TELEGRAM',
+              status: 'ERROR',
+              errorMessage: telegramError.message,
+            },
+          });
+        }
+      }
+
       // Atualizar contadores do batch
       await prisma.batch.update({
         where: { id: draft.batchId },
         data: {
           pendingCount: { decrement: 1 },
-          approvedCount: { increment: 1 },
+          dispatchedCount: { increment: 1 },
         },
       });
 
-      return { data: updated };
+      // Buscar draft atualizado com deliveries
+      const finalDraft = await prisma.postDraft.findUnique({
+        where: { id },
+        include: {
+          offer: {
+            include: {
+              niche: { select: { id: true, name: true, slug: true, icon: true } },
+              store: { select: { id: true, name: true, slug: true } },
+            },
+          },
+          batch: { select: { id: true, scheduledTime: true, date: true } },
+          deliveries: true,
+        },
+      });
+
+      return { data: finalDraft };
     } catch (error: any) {
+      console.error('[Approve] Erro:', error);
       return sendError(reply, error);
     }
   });

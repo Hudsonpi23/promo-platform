@@ -24,6 +24,7 @@ import { mercadoLivreAuthRoutes } from './routes/auth.mercadolivre';
 import { mlRoutes } from './routes/ml';
 import { seedRoutes } from './routes/seed';
 import { twitterRoutes } from './routes/twitter';
+import { telegramRoutes } from './routes/telegram';
 
 async function main() {
   const server = Fastify({
@@ -197,6 +198,9 @@ async function main() {
 
   // Twitter/X - Postagem em redes sociais
   server.register(twitterRoutes, { prefix: '/api/twitter' });
+
+  // Telegram - Postagem no canal
+  server.register(telegramRoutes, { prefix: '/api/telegram' });
 
   // ==================== ROTAS PÚBLICAS ====================
 
