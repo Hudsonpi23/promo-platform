@@ -7,7 +7,7 @@ import { setToken } from '@/lib/auth';
 export default function LoginPage() {
   const router = useRouter();
   const [form, setForm] = useState({
-    email: 'admin@example.com',
+    email: '',
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -77,11 +77,13 @@ export default function LoginPage() {
                 Email
               </label>
               <input
-                type="email"
+                type="text"
+                name="email"
+                autoComplete="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="admin@example.com"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="Digite seu email"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
                 required
               />
             </div>
@@ -93,13 +95,24 @@ export default function LoginPage() {
               </label>
               <input
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder="••••••••"
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                placeholder="Digite sua senha"
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
                 required
               />
             </div>
+
+            {/* Botão para preencher automaticamente */}
+            <button
+              type="button"
+              onClick={() => setForm({ email: 'admin@example.com', password: 'password' })}
+              className="w-full text-sm text-blue-600 hover:text-blue-700 underline"
+            >
+              Usar credenciais padrão
+            </button>
 
             {/* Erro */}
             {error && (
