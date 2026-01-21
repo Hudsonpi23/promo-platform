@@ -329,19 +329,14 @@ export async function offersRoutes(app: FastifyInstance) {
         // Pegar a próxima carga disponível do dia
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
 
         // Buscar batch existente para hoje
         let batch = await prisma.batch.findFirst({
           where: {
-            scheduledFor: {
-              gte: today,
-              lt: tomorrow,
-            },
-            status: { in: ['PENDING', 'READY'] },
+            date: today,
+            status: 'PENDING',
           },
-          orderBy: { scheduledFor: 'asc' },
+          orderBy: { scheduledTime: 'asc' },
         });
 
         // Se não existe, criar um novo batch
@@ -353,19 +348,10 @@ export async function offersRoutes(app: FastifyInstance) {
           });
 
           const scheduledTime = schedule?.time || '14:00';
-          const [hours, minutes] = scheduledTime.split(':').map(Number);
-          
-          const scheduledFor = new Date();
-          scheduledFor.setHours(hours, minutes, 0, 0);
-          
-          // Se já passou o horário, agendar para amanhã
-          if (scheduledFor < new Date()) {
-            scheduledFor.setDate(scheduledFor.getDate() + 1);
-          }
 
           batch = await prisma.batch.create({
             data: {
-              scheduledFor,
+              date: today,
               scheduledTime,
               status: 'PENDING',
             },
@@ -409,13 +395,17 @@ export async function offersRoutes(app: FastifyInstance) {
         }
       }
 
+      // Definir canais (com tipo correto)
+      const defaultChannels: ('TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'TWITTER' | 'SITE')[] = ['TELEGRAM', 'SITE'];
+      const channels = (body.channels as typeof defaultChannels) || defaultChannels;
+
       // Criar o draft
       const draft = await prisma.postDraft.create({
         data: {
           offerId: offer.id,
           batchId,
           copyText,
-          channels: body.channels || ['TELEGRAM', 'SITE'],
+          channels,
           priority: body.priority || 'NORMAL',
           status: 'PENDING',
         },
