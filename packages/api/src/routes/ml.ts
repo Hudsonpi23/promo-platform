@@ -14,6 +14,90 @@ import { getMlConnection, mlApiRequest } from '../lib/mercadolivre';
 
 export async function mlRoutes(fastify: FastifyInstance) {
   /**
+   * GET /api/ml/ping
+   * Endpoint de teste simples para verificar acesso à API do Mercado Livre
+   * Chama: https://api.mercadolibre.com/sites/MLB/search?q=iphone&limit=1
+   */
+  fastify.get('/ping', async (request: FastifyRequest, reply: FastifyReply) => {
+    const testUrl = 'https://api.mercadolibre.com/sites/MLB/search?q=iphone&limit=1';
+    
+    try {
+      console.log(`[PING] Testando acesso ao ML: ${testUrl}`);
+      
+      const startTime = Date.now();
+      const response = await axios.get(testUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+        timeout: 10000,
+      });
+      const duration = Date.now() - startTime;
+      
+      console.log(`[PING] Sucesso! Status: ${response.status}, Tempo: ${duration}ms`);
+      
+      return reply.status(200).send({
+        success: true,
+        status: response.status,
+        statusText: response.statusText,
+        duration: `${duration}ms`,
+        url: testUrl,
+        headers: response.headers,
+        data: response.data,
+        message: '✅ Acesso ao Mercado Livre funcionando!',
+      });
+      
+    } catch (error: any) {
+      const duration = Date.now() - (error.config?.startTime || Date.now());
+      
+      console.error(`[PING] Erro ao acessar ML:`, {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+      });
+      
+      if (error.response) {
+        // ML respondeu, mas com erro (403, 404, etc)
+        return reply.status(error.response.status).send({
+          success: false,
+          status: error.response.status,
+          statusText: error.response.statusText,
+          duration: `${duration}ms`,
+          url: testUrl,
+          errorCode: error.code,
+          errorMessage: error.message,
+          responseData: error.response.data,
+          message: `❌ Mercado Livre retornou: ${error.response.status} ${error.response.statusText}`,
+        });
+      } else if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+        // Timeout
+        return reply.status(504).send({
+          success: false,
+          status: 504,
+          statusText: 'Gateway Timeout',
+          duration: `${duration}ms`,
+          url: testUrl,
+          errorCode: error.code,
+          errorMessage: error.message,
+          message: '❌ Timeout ao tentar acessar Mercado Livre',
+        });
+      } else {
+        // Erro de rede/DNS/etc
+        return reply.status(500).send({
+          success: false,
+          status: 500,
+          statusText: 'Network Error',
+          duration: `${duration}ms`,
+          url: testUrl,
+          errorCode: error.code,
+          errorMessage: error.message,
+          message: `❌ Erro de rede: ${error.message}`,
+        });
+      }
+    }
+  });
+
+  /**
    * GET /api/ml/connection
    * Retorna status da conexão sem expor tokens
    */
