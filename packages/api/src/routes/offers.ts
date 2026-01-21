@@ -296,4 +296,161 @@ export async function offersRoutes(app: FastifyInstance) {
       return sendError(reply, error);
     }
   });
+
+  // ==================== CRIAR DRAFT A PARTIR DE OFERTA ====================
+  // POST /offers/:id/create-draft
+  app.post('/:id/create-draft', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        copyText?: string;
+        batchId?: string;
+        channels?: string[];
+        priority?: 'HIGH' | 'NORMAL' | 'LOW';
+      };
+
+      // Buscar oferta
+      const offer = await prisma.offer.findUnique({
+        where: { id },
+        include: {
+          niche: { select: { name: true, icon: true } },
+          store: { select: { name: true } },
+        },
+      });
+
+      if (!offer) {
+        return sendError(reply, Errors.NOT_FOUND('Oferta'));
+      }
+
+      // Buscar ou criar batch (carga) para hoje
+      let batchId = body.batchId;
+      
+      if (!batchId) {
+        // Pegar a próxima carga disponível do dia
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Buscar batch existente para hoje
+        let batch = await prisma.batch.findFirst({
+          where: {
+            scheduledFor: {
+              gte: today,
+              lt: tomorrow,
+            },
+            status: { in: ['PENDING', 'READY'] },
+          },
+          orderBy: { scheduledFor: 'asc' },
+        });
+
+        // Se não existe, criar um novo batch
+        if (!batch) {
+          // Buscar schedule padrão (ex: 14:00)
+          const schedule = await prisma.batchSchedule.findFirst({
+            where: { enabled: true },
+            orderBy: { order: 'asc' },
+          });
+
+          const scheduledTime = schedule?.time || '14:00';
+          const [hours, minutes] = scheduledTime.split(':').map(Number);
+          
+          const scheduledFor = new Date();
+          scheduledFor.setHours(hours, minutes, 0, 0);
+          
+          // Se já passou o horário, agendar para amanhã
+          if (scheduledFor < new Date()) {
+            scheduledFor.setDate(scheduledFor.getDate() + 1);
+          }
+
+          batch = await prisma.batch.create({
+            data: {
+              scheduledFor,
+              scheduledTime,
+              status: 'PENDING',
+            },
+          });
+        }
+
+        batchId = batch.id;
+      }
+
+      // Gerar copy text se não fornecido
+      const formatPrice = (price: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+
+      let copyText = body.copyText;
+      if (!copyText) {
+        const originalPrice = offer.originalPrice ? formatPrice(Number(offer.originalPrice)) : null;
+        const finalPrice = formatPrice(Number(offer.finalPrice));
+        const discount = offer.discountPct ? `${offer.discountPct}%` : null;
+
+        // Copy estilo Manu
+        const openers = [
+          'Achei isso agora pouco 👀',
+          'Olha esse preço!',
+          'Fazia tempo que não via assim',
+          'Pra quem tava esperando baixar...',
+          'Vale a pena dar uma olhada',
+        ];
+        const opener = openers[Math.floor(Math.random() * openers.length)];
+
+        copyText = `${opener}\n\n${offer.title}\n\n`;
+        if (originalPrice && discount) {
+          copyText += `De ${originalPrice} por ${finalPrice} (-${discount})\n\n`;
+        } else {
+          copyText += `Por apenas ${finalPrice}\n\n`;
+        }
+        if (offer.store?.name) {
+          copyText += `📦 ${offer.store.name}\n`;
+        }
+        if (offer.affiliateUrl) {
+          copyText += `\n👉 ${offer.affiliateUrl}`;
+        }
+      }
+
+      // Criar o draft
+      const draft = await prisma.postDraft.create({
+        data: {
+          offerId: offer.id,
+          batchId,
+          copyText,
+          channels: body.channels || ['TELEGRAM', 'SITE'],
+          priority: body.priority || 'NORMAL',
+          status: 'PENDING',
+        },
+        include: {
+          offer: {
+            include: {
+              niche: { select: { id: true, name: true, slug: true, icon: true } },
+              store: { select: { id: true, name: true, slug: true } },
+            },
+          },
+          batch: {
+            select: { id: true, scheduledTime: true, status: true },
+          },
+        },
+      });
+
+      // Atualizar contadores do batch
+      await prisma.batch.update({
+        where: { id: batchId },
+        data: {
+          pendingCount: { increment: 1 },
+        },
+      });
+
+      return reply.status(201).send({
+        success: true,
+        message: 'Post criado com sucesso! Ele está pendente de aprovação.',
+        data: draft,
+      });
+    } catch (error: any) {
+      console.error('Erro ao criar draft:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message || 'Erro ao criar draft',
+      });
+    }
+  });
 }

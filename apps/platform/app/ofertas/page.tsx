@@ -131,31 +131,41 @@ export default function OfertasPage() {
   };
 
   // Criar draft a partir de oferta
-  const handleCreateDraft = async (offerId: string) => {
-    const offer = offers?.find((o) => o.id === offerId);
-    if (!offer || !batches?.length) return;
+  // Estado de loading para criar draft
+  const [creatingDraft, setCreatingDraft] = useState<string | null>(null);
 
-    const copyText = `🔥 OFERTA IMPERDÍVEL!\n\n${offer.title}\n\nDe R$ ${offer.originalPrice} por apenas R$ ${offer.finalPrice}!\n\n⚡ ${offer.discount}% de desconto\n\n👉 Aproveite agora antes que acabe!`;
+  const handleCreateDraft = async (offerId: string) => {
+    if (creatingDraft) return; // Evitar duplo clique
+    
+    setCreatingDraft(offerId);
 
     try {
       const response = await fetchWithAuth(`/api/offers/${offerId}/create-draft`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
-          copyText,
-          batchId: batches[0].id, // Primeira carga disponível
           channels: ['TELEGRAM', 'SITE'],
+          priority: 'NORMAL',
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Erro ao criar draft');
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao criar draft');
       }
 
-      mutate();
-      alert('✅ Draft criado com sucesso!');
-    } catch (error) {
+      // Mostrar sucesso
+      alert('✅ Post criado com sucesso!\n\nEle está pendente de aprovação no Dashboard.');
+      
+      // Atualizar lista de ofertas
+    } catch (error: any) {
       console.error('Erro ao criar draft:', error);
-      alert('❌ Erro ao criar draft');
+      alert(`❌ Erro ao criar post:\n${error.message}`);
+    } finally {
+      setCreatingDraft(null);
     }
   };
 
@@ -342,9 +352,10 @@ export default function OfertasPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleCreateDraft(offer.id)}
-                  className="flex-1 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all"
+                  disabled={creatingDraft === offer.id}
+                  className="flex-1 py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  📝 Criar Post
+                  {creatingDraft === offer.id ? '⏳ Criando...' : '📝 Criar Post'}
                 </button>
                 <button
                   onClick={() => handlePostToX(offer.id)}
