@@ -67,20 +67,65 @@ export async function offersRoutes(app: FastifyInstance) {
     try {
       const body = createOfferSchema.parse(request.body);
 
-      // Verificar se nicho existe
-      const niche = await prisma.niche.findUnique({ where: { id: body.nicheId } });
-      if (!niche) {
-        return sendError(reply, Errors.NOT_FOUND('Nicho'));
+      // Calcular desconto automaticamente se não fornecido
+      let discountPct = body.discountPct;
+      if (discountPct === undefined || discountPct === null) {
+        if (body.originalPrice && body.finalPrice && body.originalPrice > body.finalPrice) {
+          discountPct = Math.round(((body.originalPrice - body.finalPrice) / body.originalPrice) * 100);
+        } else {
+          discountPct = 0;
+        }
       }
 
-      // Verificar se loja existe
-      const store = await prisma.store.findUnique({ where: { id: body.storeId } });
-      if (!store) {
-        return sendError(reply, Errors.NOT_FOUND('Loja'));
+      // Se nicheId fornecido, verificar se existe
+      let nicheId = body.nicheId;
+      if (nicheId) {
+        const niche = await prisma.niche.findUnique({ where: { id: nicheId } });
+        if (!niche) {
+          // Se não existe, pegar o primeiro nicho disponível
+          const firstNiche = await prisma.niche.findFirst({ where: { isActive: true } });
+          nicheId = firstNiche?.id || null;
+        }
+      } else {
+        // Se não fornecido, pegar o primeiro nicho
+        const firstNiche = await prisma.niche.findFirst({ where: { isActive: true } });
+        nicheId = firstNiche?.id || null;
+      }
+
+      // Se storeId fornecido, verificar se existe
+      let storeId = body.storeId;
+      if (storeId) {
+        const store = await prisma.store.findUnique({ where: { id: storeId } });
+        if (!store) {
+          // Se não existe, pegar a primeira loja disponível
+          const firstStore = await prisma.store.findFirst({ where: { isActive: true } });
+          storeId = firstStore?.id || null;
+        }
+      } else {
+        // Se não fornecido, pegar a primeira loja
+        const firstStore = await prisma.store.findFirst({ where: { isActive: true } });
+        storeId = firstStore?.id || null;
+      }
+
+      // Validar que temos nicho e loja
+      if (!nicheId || !storeId) {
+        return sendError(reply, { statusCode: 400, message: 'Nicho e Loja são necessários. Execute /setup primeiro.' });
       }
 
       const offer = await prisma.offer.create({
-        data: body as any,
+        data: {
+          title: body.title,
+          description: body.description,
+          originalPrice: body.originalPrice,
+          finalPrice: body.finalPrice,
+          discountPct,
+          affiliateUrl: body.affiliateUrl || '',
+          imageUrl: body.imageUrl,
+          nicheId,
+          storeId,
+          urgency: body.urgency || 'NORMAL',
+          expiresAt: body.expiresAt,
+        },
         include: {
           niche: { select: { id: true, name: true, slug: true, icon: true } },
           store: { select: { id: true, name: true, slug: true } },

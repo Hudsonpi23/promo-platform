@@ -51,11 +51,11 @@ export const createOfferSchema = z.object({
   description: z.string().optional().nullable(),
   originalPrice: z.coerce.number().positive('Preço original deve ser positivo'),
   finalPrice: z.coerce.number().positive('Preço final deve ser positivo'),
-  discountPct: z.coerce.number().int().min(0).max(100),
-  affiliateUrl: z.string().url('URL de afiliado inválida'),
+  discountPct: z.coerce.number().int().min(0).max(100).optional(), // Calculado automaticamente se não fornecido
+  affiliateUrl: z.string().url('URL de afiliado inválida').optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
-  nicheId: z.string().cuid('Nicho inválido'),
-  storeId: z.string().cuid('Loja inválida'),
+  nicheId: z.string().cuid('Nicho inválido').optional().nullable(), // Opcional
+  storeId: z.string().cuid('Loja inválida').optional().nullable(), // Opcional
   urgency: z.enum(['HOJE', 'ULTIMAS_UNIDADES', 'LIMITADO', 'NORMAL']).default('NORMAL'),
   expiresAt: z.coerce.date().optional().nullable(),
 });
