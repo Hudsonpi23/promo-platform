@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import useSWR from 'swr';
 import { Card } from '@/components/Card';
 import { fetcher, Batch, PostDraft, dispatchBatch } from '@/lib/api';
@@ -13,20 +13,44 @@ export default function CargasPage() {
   });
 
   // Buscar cargas do dia selecionado
-  const { data: batches, mutate: mutateBatches } = useSWR<Batch[]>(
+  const { data: batchesRaw, error: batchesError, mutate: mutateBatches } = useSWR<Batch[]>(
     `/api/batches?date=${selectedDate}`,
     fetcher,
-    { refreshInterval: 10000 }
+    { 
+      refreshInterval: 10000,
+      revalidateOnFocus: false,
+      shouldRetryOnError: false,
+    }
   );
 
   // Estado para carga expandida
   const [expandedBatch, setExpandedBatch] = useState<string | null>(null);
 
   // Buscar drafts da carga expandida
-  const { data: drafts, mutate: mutateDrafts } = useSWR<PostDraft[]>(
+  const { data: draftsRaw, mutate: mutateDrafts } = useSWR<PostDraft[]>(
     expandedBatch ? `/api/drafts?batchId=${expandedBatch}` : null,
     fetcher
   );
+
+  // Garantir que sempre são arrays
+  const batches = useMemo(() => 
+    Array.isArray(batchesRaw) ? batchesRaw : [], 
+    [batchesRaw]
+  );
+  const drafts = useMemo(() => 
+    Array.isArray(draftsRaw) ? draftsRaw : [], 
+    [draftsRaw]
+  );
+
+  // Debug: Log data
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Cargas] Data:', { 
+      batchesCount: batches.length, 
+      draftsCount: drafts.length, 
+      expandedBatch,
+      error: batchesError?.message
+    });
+  }
 
   const handleDispatchBatch = async (batchId: string) => {
     try {
@@ -69,10 +93,10 @@ export default function CargasPage() {
       {/* Lista de Cargas */}
       <div className="space-y-4">
         {defaultTimes.map((time) => {
-          const batch = batches?.find((b) => b.scheduledTime === time);
-          const isExpanded = expandedBatch === batch?.id;
+          const batch = batches.find((b) => b?.scheduledTime === time);
+          const isExpanded = batch ? expandedBatch === batch.id : false;
           const total = batch
-            ? batch.pendingCount + batch.approvedCount + batch.dispatchedCount + batch.errorCount
+            ? (batch.pendingCount || 0) + (batch.approvedCount || 0) + (batch.dispatchedCount || 0) + (batch.errorCount || 0)
             : 0;
 
           return (
@@ -156,11 +180,11 @@ export default function CargasPage() {
               </div>
 
               {/* Conteúdo Expandido */}
-              {isExpanded && drafts && (
+              {isExpanded && (
                 <div className="border-t border-border p-6">
                   {drafts.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {drafts.map((draft) => (
+                      {drafts.map((draft) => draft && (
                         <Card key={draft.id} draft={draft} onUpdate={handleUpdate} />
                       ))}
                     </div>

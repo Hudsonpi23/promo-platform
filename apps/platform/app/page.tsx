@@ -48,30 +48,51 @@ export default function Dashboard() {
 
   // Usar dados fake quando API não está conectada
   const isOffline = !!batchesError;
-  const displayBatches = isOffline ? FAKE_BATCHES : (batches || []);
-  const displayDrafts = isOffline ? FAKE_DRAFTS : (drafts || []);
+  
+  // Garantir que sempre são arrays (proteção contra undefined/null)
+  const displayBatches = isOffline 
+    ? FAKE_BATCHES 
+    : (Array.isArray(batches) ? batches : []);
+  const displayDrafts = isOffline 
+    ? FAKE_DRAFTS 
+    : (Array.isArray(drafts) ? drafts : []);
+  
+  // Debug: Log data received
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Dashboard] Data:', { 
+      isOffline, 
+      batchesCount: displayBatches.length, 
+      draftsCount: displayDrafts.length,
+      selectedBatchId
+    });
+  }
 
   // Selecionar primeira carga disponível
   useEffect(() => {
     if (displayBatches.length > 0 && !selectedBatchId) {
-      const pendingBatch = displayBatches.find((b) => b.pendingCount > 0);
-      setSelectedBatchId(pendingBatch?.id || displayBatches[0].id);
+      const pendingBatch = displayBatches.find((b) => b?.pendingCount > 0);
+      setSelectedBatchId(pendingBatch?.id || displayBatches[0]?.id || null);
     }
   }, [displayBatches, selectedBatchId]);
 
-  // Calcular stats
+  // Calcular stats (com proteção contra batch undefined)
   const stats = displayBatches.reduce(
-    (acc, batch) => ({
-      pending: acc.pending + batch.pendingCount,
-      approved: acc.approved + batch.approvedCount,
-      dispatched: acc.dispatched + batch.dispatchedCount,
-      errors: acc.errors + batch.errorCount,
-    }),
+    (acc, batch) => {
+      if (!batch) return acc;
+      return {
+        pending: acc.pending + (batch.pendingCount || 0),
+        approved: acc.approved + (batch.approvedCount || 0),
+        dispatched: acc.dispatched + (batch.dispatchedCount || 0),
+        errors: acc.errors + (batch.errorCount || 0),
+      };
+    },
     { pending: 0, approved: 0, dispatched: 0, errors: 0 }
   );
 
-  // Filtrar drafts
+  // Filtrar drafts (com proteção contra draft undefined)
   const filteredDrafts = displayDrafts.filter((draft) => {
+    if (!draft) return false;
+    
     // Filtro por status
     if (filter !== 'all') {
       if (filter === 'pending' && draft.status !== 'PENDING') return false;
@@ -87,7 +108,8 @@ export default function Dashboard() {
     
     // Filtro "somente X"
     if (showOnlyX) {
-      const hasX = draft.channels?.includes('TWITTER');
+      const channels = Array.isArray(draft.channels) ? draft.channels : [];
+      const hasX = channels.includes('TWITTER');
       const requiresHuman = (draft as any).requiresHumanForX;
       if (!hasX && !requiresHuman) return false;
     }

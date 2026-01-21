@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { PostDraft, approveDraft, markAsApproved, rejectDraft, sendToError, updateDraft } from '@/lib/api';
 import { cn, formatCurrency, formatDiscount, getUrgencyLabel, getStatusColor, getStatusLabel, getChannelIcon } from '@/lib/utils';
 
@@ -13,23 +13,41 @@ interface CardProps {
 }
 
 export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
+  // Debug: Log draft recebido
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Card] Rendering draft:', draft?.id, { hasOffer: !!draft?.offer, hasBatch: !!draft?.batch });
+  }
+
+  // Proteção máxima contra dados nulos
+  const safeDraft = draft || {} as PostDraft;
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedCopy, setEditedCopy] = useState(draft.copyText || '');
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(draft.channels || []);
+  const [editedCopy, setEditedCopy] = useState(safeDraft.copyText || '');
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(
+    Array.isArray(safeDraft.channels) ? safeDraft.channels : []
+  );
   const [activeTab, setActiveTab] = useState<CopyTab>('TELEGRAM');
 
-  // Proteção contra dados nulos
-  const offer = draft.offer || {
+  // Proteção contra dados nulos usando useMemo para evitar re-cálculos
+  const offer = useMemo(() => safeDraft.offer || {
     title: 'Sem título',
     originalPrice: 0,
     finalPrice: 0,
     discount: 0,
+    discountPct: 0,
     urgency: 'NORMAL' as const,
     niche: { name: 'Sem nicho', icon: '📦' },
     store: { name: 'Sem loja' },
     affiliateUrl: '',
-  };
+    imageUrl: '',
+  }, [safeDraft.offer]);
+  
+  // Batch seguro
+  const safeBatch = useMemo(() => safeDraft.batch || {
+    scheduledTime: '--:--',
+    status: 'PENDING',
+  }, [safeDraft.batch]);
   
   const urgencyLabel = getUrgencyLabel(offer.urgency || 'NORMAL');
 
@@ -192,15 +210,19 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
 
         {/* Preços */}
         <div className="flex items-baseline gap-3">
-          <span className="text-text-muted line-through text-sm">
-            {formatCurrency(offer.originalPrice)}
-          </span>
+          {offer.originalPrice > 0 && (
+            <span className="text-text-muted line-through text-sm">
+              {formatCurrency(offer.originalPrice)}
+            </span>
+          )}
           <span className="text-2xl font-bold text-success">
             {formatCurrency(offer.finalPrice)}
           </span>
-          <span className="px-2 py-0.5 rounded bg-success/20 text-success text-sm font-medium">
-            {formatDiscount(offer.discount)}
-          </span>
+          {(offer.discountPct || offer.discount) > 0 && (
+            <span className="px-2 py-0.5 rounded bg-success/20 text-success text-sm font-medium">
+              {formatDiscount(offer.discountPct || offer.discount || 0)}
+            </span>
+          )}
         </div>
 
         {/* Imagem (se X estiver nos canais) */}
@@ -279,8 +301,9 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-wrap">
             {['TELEGRAM', 'WHATSAPP', 'FACEBOOK', 'TWITTER', 'SITE'].map((channel) => {
-              // Buscar status de delivery do canal
-              const delivery = draft.deliveries?.find(d => d.channel === channel);
+              // Buscar status de delivery do canal (com proteção)
+              const deliveries = Array.isArray(safeDraft.deliveries) ? safeDraft.deliveries : [];
+              const delivery = deliveries.find(d => d?.channel === channel);
               const deliveryStatus = delivery?.status;
               
               // Ícone de status
@@ -311,7 +334,7 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
             })}
           </div>
           <div className="text-xs text-text-muted">
-            Carga: <span className="text-text-secondary font-medium">{draft.batch.scheduledTime}</span>
+            Carga: <span className="text-text-secondary font-medium">{safeBatch.scheduledTime}</span>
           </div>
         </div>
 
@@ -401,8 +424,8 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
               <button
                 onClick={() => {
                   setIsEditing(false);
-                  setEditedCopy(draft.copyText);
-                  setSelectedChannels(draft.channels);
+                  setEditedCopy(safeDraft.copyText || '');
+                  setSelectedChannels(Array.isArray(safeDraft.channels) ? safeDraft.channels : []);
                 }}
                 className="px-4 py-2.5 rounded-lg bg-surface-hover hover:bg-border text-text-secondary text-sm transition-all"
               >

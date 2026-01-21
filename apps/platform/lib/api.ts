@@ -5,20 +5,36 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 // Fetcher para SWR com timeout e autenticação
 export const fetcher = async (url: string) => {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos timeout
 
   try {
+    console.log('[Fetcher] Requesting:', url);
+    
     const res = await fetchWithAuth(url, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
     
     if (!res.ok) {
+      console.error('[Fetcher] HTTP error:', res.status, url);
       throw new Error(`HTTP error! status: ${res.status}`);
     }
-    return res.json();
+    
+    const data = await res.json();
+    
+    // Debug: Log response structure
+    console.log('[Fetcher] Response:', url, { 
+      hasData: !!data?.data, 
+      isArray: Array.isArray(data?.data || data),
+      count: Array.isArray(data?.data) ? data.data.length : (Array.isArray(data) ? data.length : 'N/A')
+    });
+    
+    // Normalizar resposta - a API pode retornar { data: [...] } ou diretamente [...]
+    return data?.data || data || [];
   } catch (error: any) {
     clearTimeout(timeoutId);
+    console.error('[Fetcher] Error:', url, error.message);
+    
     if (error.name === 'AbortError') {
       throw new Error('API timeout - servidor não respondeu');
     }
