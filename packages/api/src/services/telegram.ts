@@ -54,7 +54,7 @@ export async function sendTelegramMessage(options: SendMessageOptions): Promise<
       }),
     });
 
-    const data: TelegramResponse = await response.json();
+    const data = await response.json() as TelegramResponse;
 
     if (!data.ok) {
       console.error('[Telegram] Erro ao enviar mensagem:', data.description);
@@ -92,7 +92,7 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
       }),
     });
 
-    const data: TelegramResponse = await response.json();
+    const data = await response.json() as TelegramResponse;
 
     if (!data.ok) {
       console.error('[Telegram] Erro ao enviar foto:', data.description);
@@ -180,7 +180,7 @@ export async function testTelegramConnection(): Promise<{ success: boolean; botN
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`;
     const response = await fetch(url);
-    const data: TelegramResponse = await response.json();
+    const data = await response.json() as TelegramResponse;
 
     if (!data.ok) {
       return { success: false, error: data.description || 'Erro ao conectar' };

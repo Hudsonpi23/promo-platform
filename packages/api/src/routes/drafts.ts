@@ -294,8 +294,7 @@ export async function draftsRoutes(app: FastifyInstance) {
               channel: 'SITE',
               status: 'SENT',
               sentAt: new Date(),
-              externalId: publication.id,
-              externalUrl: `/oferta/${publication.slug}`,
+              externalId: `/oferta/${publication.slug}`,
             },
           });
 
