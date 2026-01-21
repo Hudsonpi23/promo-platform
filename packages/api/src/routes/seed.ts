@@ -89,11 +89,11 @@ export async function seedRoutes(app: FastifyInstance) {
         
         await prisma.batchSchedule.createMany({
           data: [
-            { time: '08:00', isActive: true },
-            { time: '11:00', isActive: true },
-            { time: '14:00', isActive: true },
-            { time: '18:00', isActive: true },
-            { time: '22:00', isActive: true },
+            { time: '08:00', enabled: true, order: 1 },
+            { time: '11:00', enabled: true, order: 2 },
+            { time: '14:00', enabled: true, order: 3 },
+            { time: '18:00', enabled: true, order: 4 },
+            { time: '22:00', enabled: true, order: 5 },
           ],
         });
         
