@@ -22,6 +22,7 @@ import { uploadRoutes } from './routes/upload';
 import { mercadoLivreRoutes } from './routes/sources.mercadolivre';
 import { mercadoLivreAuthRoutes } from './routes/auth.mercadolivre';
 import { mlRoutes } from './routes/ml';
+import { seedRoutes } from './routes/seed';
 
 async function main() {
   const server = Fastify({
@@ -125,6 +126,9 @@ async function main() {
 
   // ML - Testes e validação
   server.register(mlRoutes, { prefix: '/api/ml' });
+
+  // Seed - Inicialização do banco (temporário)
+  server.register(seedRoutes, { prefix: '/api' });
 
   // ==================== ROTAS PÚBLICAS ====================
 
