@@ -1,12 +1,14 @@
+import { fetchWithAuth } from './auth';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-// Fetcher para SWR com timeout
+// Fetcher para SWR com timeout e autenticação
 export const fetcher = async (url: string) => {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 segundos timeout
 
   try {
-    const res = await fetch(`${API_URL}${url}`, {
+    const res = await fetchWithAuth(url, {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);

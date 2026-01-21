@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import useSWR from 'swr';
 import { fetcher, Offer } from '@/lib/api';
+import { fetchWithAuth } from '@/lib/auth';
 import { cn, formatCurrency, getUrgencyLabel } from '@/lib/utils';
 
 export default function OfertasPage() {
@@ -44,14 +45,8 @@ export default function OfertasPage() {
     setIsCreating(true);
 
     try {
-      // Usar URL da API correta (produção ou local)
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://promo-platform-api.onrender.com';
-      
-      const response = await fetch(`${apiUrl}/api/offers`, {
+      const response = await fetchWithAuth('/api/offers', {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           title: form.title,
           originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : parseFloat(form.finalPrice),
@@ -100,11 +95,8 @@ export default function OfertasPage() {
     const copyText = `🔥 OFERTA IMPERDÍVEL!\n\n${offer.title}\n\nDe R$ ${offer.originalPrice} por apenas R$ ${offer.finalPrice}!\n\n⚡ ${offer.discount}% de desconto\n\n👉 Aproveite agora antes que acabe!`;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://promo-platform-api.onrender.com';
-      
-      const response = await fetch(`${apiUrl}/api/offers/${offerId}/create-draft`, {
+      const response = await fetchWithAuth(`/api/offers/${offerId}/create-draft`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           copyText,
           batchId: batches[0].id, // Primeira carga disponível
