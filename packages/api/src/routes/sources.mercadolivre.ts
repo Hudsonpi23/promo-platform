@@ -22,6 +22,10 @@ const RunBodySchema = z.object({
   categories: z.array(z.string()).optional(),
   maxItems: z.number().min(1).max(500).optional(),
   maxPages: z.number().min(1).max(20).optional(),  // Para modo 'deals'
+  // 🔥 NOVO: Opções do sistema de scoring
+  useNewScoring: z.boolean().optional().default(true),  // Usar novo sistema por padrão
+  minScore: z.number().min(0).max(100).optional(),      // Score mínimo (default: 50)
+  autoApprove: z.boolean().optional(),                   // Auto-aprovar (default: true)
 });
 
 const ConfigUpdateSchema = z.object({
@@ -45,6 +49,8 @@ export async function mercadoLivreRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/sources/mercadolivre/run
    * Executa coleta de ofertas do Mercado Livre
+   * 
+   * 🔥 NOVO: Usa sistema de scoring inteligente por padrão
    */
   fastify.post('/run', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -52,15 +58,30 @@ export async function mercadoLivreRoutes(fastify: FastifyInstance) {
       
       const provider = createMercadoLivreProvider(prisma);
       
-      console.log(`[ML Route] Executando coleta no modo: ${body.mode}`);
+      console.log(`[ML Route] Executando coleta no modo: ${body.mode}, useNewScoring: ${body.useNewScoring}`);
       
-      const result = await provider.run({
-        mode: body.mode as RunMode,
-        keywords: body.keywords,
-        categories: body.categories,
-        maxItems: body.maxItems,
-        maxPages: body.maxPages,  // Para modo 'deals'
-      });
+      let result;
+      
+      // 🔥 NOVO: Usar sistema de scoring se habilitado (default: true)
+      if (body.useNewScoring) {
+        console.log('[ML Route] 🔥 Usando NOVO sistema de scoring');
+        result = await provider.runWithNewScoring({
+          mode: body.mode as RunMode,
+          maxPages: body.maxPages,
+          maxItems: body.maxItems,
+          minScore: body.minScore,
+          autoApprove: body.autoApprove,
+        });
+      } else {
+        // Sistema legado
+        result = await provider.run({
+          mode: body.mode as RunMode,
+          keywords: body.keywords,
+          categories: body.categories,
+          maxItems: body.maxItems,
+          maxPages: body.maxPages,
+        });
+      }
       
       return reply.send({
         success: true,
@@ -214,6 +235,28 @@ export async function mercadoLivreRoutes(fastify: FastifyInstance) {
         where: { source: 'MERCADO_LIVRE' },
       });
 
+      // 🔥 NOVO: Estatísticas por score
+      const [highScore, mediumScore, lowScore] = await Promise.all([
+        prisma.postDraft.count({ 
+          where: { 
+            offer: { source: 'MERCADO_LIVRE' },
+            score: { gte: 70 }
+          } 
+        }),
+        prisma.postDraft.count({ 
+          where: { 
+            offer: { source: 'MERCADO_LIVRE' },
+            score: { gte: 50, lt: 70 }
+          } 
+        }),
+        prisma.postDraft.count({ 
+          where: { 
+            offer: { source: 'MERCADO_LIVRE' },
+            score: { lt: 50 }
+          } 
+        }),
+      ]);
+
       return reply.send({
         success: true,
         data: {
@@ -225,6 +268,12 @@ export async function mercadoLivreRoutes(fastify: FastifyInstance) {
           xRemaining: Math.max(0, (config?.xDailyLimit || 30) - todayXDrafts),
           lastRunAt: config?.lastRunAt,
           enabled: config?.enabled ?? true,
+          // 🔥 NOVO: Score stats
+          scoring: {
+            high: highScore,      // >= 70 (alta conversão)
+            medium: mediumScore,  // 50-69 (média conversão)
+            low: lowScore,        // < 50 (baixa conversão)
+          },
         },
       });
     } catch (error: any) {
@@ -232,6 +281,60 @@ export async function mercadoLivreRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({
         success: false,
         error: error.message || 'Erro ao obter estatísticas',
+      });
+    }
+  });
+
+  /**
+   * 🔥 NOVO: POST /api/sources/mercadolivre/score
+   * Calcula score de uma oferta sem criar
+   */
+  fastify.post('/score', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { calculateScore, validateOffer, calculateDiscount } = await import('../services/offerScoring.js');
+      
+      const body = z.object({
+        title: z.string(),
+        price: z.number().positive(),
+        oldPrice: z.number().positive().optional(),
+        category: z.string().optional(),
+        storeName: z.string().optional(),
+        imageUrl: z.string().optional(),
+        trackingUrl: z.string().optional(),
+      }).parse(request.body);
+
+      const offerInput = {
+        title: body.title,
+        price: body.price,
+        oldPrice: body.oldPrice,
+        discountPct: calculateDiscount(body.price, body.oldPrice),
+        category: body.category,
+        storeName: body.storeName,
+        imageUrl: body.imageUrl,
+        trackingUrl: body.trackingUrl || 'https://example.com',
+        productUrl: body.trackingUrl || 'https://example.com',
+        source: 'MERCADO_LIVRE' as const,
+      };
+
+      const validation = validateOffer(offerInput);
+      const scoreResult = calculateScore(offerInput);
+
+      return reply.send({
+        success: true,
+        data: {
+          valid: validation.valid,
+          errorReason: validation.errorReason,
+          score: scoreResult.score,
+          classification: scoreResult.classification,
+          breakdown: scoreResult.breakdown,
+          discount: offerInput.discountPct,
+        },
+      });
+    } catch (error: any) {
+      console.error('Erro ao calcular score:', error);
+      return reply.status(500).send({
+        success: false,
+        error: error.message || 'Erro ao calcular score',
       });
     }
   });

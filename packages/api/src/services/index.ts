@@ -48,3 +48,50 @@ export type {
   UploadResult,
   UploadOptions,
 } from './cloudinary';
+
+// ==================== NEW: SCORING & VALIDATION ====================
+
+// Offer Scoring - Sistema de pontuação e classificação
+export {
+  validateOffer,
+  calculateDiscount,
+  calculateScore,
+  shouldAutoApprove,
+  processOffer,
+  processBatch,
+  getBatchStats,
+} from './offerScoring';
+
+export type {
+  OfferInput as ScoringOfferInput,
+  ValidationResult,
+  ScoreResult,
+  ScoreBreakdown,
+  ProcessedOffer,
+} from './offerScoring';
+
+// AI Copy Generator - Geração de copy com IA
+export {
+  generateCopies,
+  validateCopy,
+  prepareDataForAI,
+  generateAIPrompt,
+} from './aiCopyGenerator';
+
+export type {
+  CopyInputData,
+  GeneratedCopies,
+  CopyGeneratorOptions,
+} from './aiCopyGenerator';
+
+// Offer Processor - Pipeline completo de processamento
+export {
+  processOfferBatch,
+  reprocessExistingOffers,
+} from './offerProcessor';
+
+export type {
+  RawOfferData,
+  ProcessingResult,
+  ProcessingOptions,
+} from './offerProcessor';

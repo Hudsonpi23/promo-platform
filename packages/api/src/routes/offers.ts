@@ -3,6 +3,8 @@ import { prisma } from '../lib/prisma.js';
 import { authGuard, adminGuard } from '../lib/auth.js';
 import { createOfferSchema, updateOfferSchema, offersFilterSchema } from '../lib/schemas.js';
 import { sendError, Errors } from '../lib/errors.js';
+import { processOffer, calculateScore } from '../services/offerScoring.js';
+import { generateCopies } from '../services/aiCopyGenerator.js';
 
 export async function offersRoutes(app: FastifyInstance) {
   // GET /offers - Listar ofertas com filtros
@@ -352,6 +354,7 @@ export async function offersRoutes(app: FastifyInstance) {
         batchId?: string;
         channels?: string[];
         priority?: 'HIGH' | 'NORMAL' | 'LOW';
+        useNewCopyEngine?: boolean;  // 🔥 NOVO: usar novo engine de copy
       };
 
       // Buscar oferta
@@ -406,43 +409,88 @@ export async function offersRoutes(app: FastifyInstance) {
         batchId = batch.id;
       }
 
-      // Gerar copy text se não fornecido
-      const formatPrice = (price: number) =>
-        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+      // 🔥 NOVO: Calcular score da oferta
+      const scoreResult = calculateScore({
+        title: offer.title,
+        price: Number(offer.finalPrice),
+        oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+        discountPct: offer.discountPct,
+        category: offer.niche?.name,
+        storeName: offer.store?.name,
+        imageUrl: offer.imageUrl,
+        trackingUrl: offer.affiliateUrl,
+        productUrl: offer.affiliateUrl,
+        source: offer.source,
+      });
 
+      // 🔥 NOVO: Gerar copy usando novo engine
       let copyText = body.copyText;
-      if (!copyText) {
-        const originalPrice = offer.originalPrice ? formatPrice(Number(offer.originalPrice)) : null;
-        const finalPrice = formatPrice(Number(offer.finalPrice));
-        const discount = offer.discountPct ? `${offer.discountPct}%` : null;
+      let copyTextTelegram: string | undefined;
+      let copyTextSite: string | undefined;
+      let copyTextX: string | undefined;
 
-        // Copy estilo Manu
-        const openers = [
-          'Achei isso agora pouco 👀',
-          'Olha esse preço!',
-          'Fazia tempo que não via assim',
-          'Pra quem tava esperando baixar...',
-          'Vale a pena dar uma olhada',
-        ];
-        const opener = openers[Math.floor(Math.random() * openers.length)];
+      if (!copyText || body.useNewCopyEngine) {
+        // Usar novo copy engine
+        const copies = generateCopies({
+          title: offer.title,
+          price: Number(offer.finalPrice),
+          oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+          discountPct: offer.discountPct || 0,
+          advertiserName: offer.store?.name,
+          storeName: offer.store?.name,
+          category: offer.niche?.name,
+          trackingUrl: offer.affiliateUrl,
+        });
 
-        copyText = `${opener}\n\n${offer.title}\n\n`;
-        if (originalPrice && discount) {
-          copyText += `De ${originalPrice} por ${finalPrice} (-${discount})\n\n`;
-        } else {
-          copyText += `Por apenas ${finalPrice}\n\n`;
-        }
-        if (offer.store?.name) {
-          copyText += `📦 ${offer.store.name}\n`;
-        }
-        if (offer.affiliateUrl) {
-          copyText += `\n👉 ${offer.affiliateUrl}`;
+        copyText = copies.telegram;
+        copyTextTelegram = copies.telegram;
+        copyTextSite = copies.site;
+        copyTextX = copies.x;
+      } else {
+        // Usar copy fornecida ou gerar com engine legado
+        if (!copyText) {
+          const formatPrice = (price: number) =>
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+          
+          const originalPrice = offer.originalPrice ? formatPrice(Number(offer.originalPrice)) : null;
+          const finalPrice = formatPrice(Number(offer.finalPrice));
+          const discount = offer.discountPct ? `${offer.discountPct}%` : null;
+
+          const openers = [
+            'Achei isso agora pouco 👀',
+            'Olha esse preço!',
+            'Fazia tempo que não via assim',
+            'Pra quem tava esperando baixar...',
+            'Vale a pena dar uma olhada',
+          ];
+          const opener = openers[Math.floor(Math.random() * openers.length)];
+
+          copyText = `${opener}\n\n${offer.title}\n\n`;
+          if (originalPrice && discount) {
+            copyText += `De ${originalPrice} por ${finalPrice} (-${discount})\n\n`;
+          } else {
+            copyText += `Por apenas ${finalPrice}\n\n`;
+          }
+          if (offer.store?.name) {
+            copyText += `📦 ${offer.store.name}\n`;
+          }
+          if (offer.affiliateUrl) {
+            copyText += `\n👉 ${offer.affiliateUrl}`;
+          }
         }
       }
 
       // Definir canais (com tipo correto)
       const defaultChannels: ('TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'TWITTER' | 'SITE')[] = ['TELEGRAM', 'SITE'];
-      const channels = (body.channels as typeof defaultChannels) || defaultChannels;
+      let channels = (body.channels as typeof defaultChannels) || defaultChannels;
+
+      // 🔥 NOVO: Se score alto e tem imagem, sugerir X
+      const shouldAddX = scoreResult.score >= 60 && offer.imageUrl && !channels.includes('TWITTER');
+      
+      // Determinar prioridade pelo score se não fornecida
+      const priority = body.priority || 
+        (scoreResult.classification === 'HIGH' ? 'HIGH' : 
+         scoreResult.classification === 'MEDIUM' ? 'NORMAL' : 'LOW');
 
       // Criar o draft
       const draft = await prisma.postDraft.create({
@@ -450,9 +498,16 @@ export async function offersRoutes(app: FastifyInstance) {
           offerId: offer.id,
           batchId,
           copyText,
+          copyTextTelegram,
+          copyTextSite,
+          copyTextX,
           channels,
-          priority: body.priority || 'NORMAL',
+          priority,
           status: 'PENDING',
+          score: scoreResult.score,  // 🔥 NOVO: salvar score
+          imageUrl: offer.imageUrl,
+          requiresImage: channels.includes('TWITTER'),
+          requiresHumanForX: channels.includes('TWITTER'),
         },
         include: {
           offer: {
@@ -478,7 +533,15 @@ export async function offersRoutes(app: FastifyInstance) {
       return reply.status(201).send({
         success: true,
         message: 'Post criado com sucesso! Ele está pendente de aprovação.',
-        data: draft,
+        data: {
+          ...draft,
+          scoring: {
+            score: scoreResult.score,
+            classification: scoreResult.classification,
+            breakdown: scoreResult.breakdown,
+            suggestX: shouldAddX,
+          },
+        },
       });
     } catch (error: any) {
       console.error('Erro ao criar draft:', error);
@@ -486,6 +549,121 @@ export async function offersRoutes(app: FastifyInstance) {
         success: false,
         error: error.message || 'Erro ao criar draft',
       });
+    }
+  });
+
+  // ==================== 🔥 NOVO: CALCULAR SCORE DE OFERTA ====================
+  // POST /offers/:id/score
+  app.post('/:id/score', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+
+      const offer = await prisma.offer.findUnique({
+        where: { id },
+        include: {
+          niche: { select: { name: true } },
+          store: { select: { name: true } },
+        },
+      });
+
+      if (!offer) {
+        return sendError(reply, Errors.NOT_FOUND('Oferta'));
+      }
+
+      // Calcular score
+      const scoreResult = calculateScore({
+        title: offer.title,
+        price: Number(offer.finalPrice),
+        oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+        discountPct: offer.discountPct,
+        category: offer.niche?.name,
+        storeName: offer.store?.name,
+        imageUrl: offer.imageUrl,
+        trackingUrl: offer.affiliateUrl,
+        productUrl: offer.affiliateUrl,
+        source: offer.source,
+      });
+
+      // Atualizar drafts pendentes com novo score
+      const updatedDrafts = await prisma.postDraft.updateMany({
+        where: {
+          offerId: id,
+          status: 'PENDING',
+        },
+        data: {
+          score: scoreResult.score,
+        },
+      });
+
+      return {
+        success: true,
+        data: {
+          offerId: id,
+          score: scoreResult.score,
+          classification: scoreResult.classification,
+          breakdown: scoreResult.breakdown,
+          draftsUpdated: updatedDrafts.count,
+        },
+      };
+    } catch (error: any) {
+      return sendError(reply, error);
+    }
+  });
+
+  // ==================== 🔥 NOVO: GERAR COPY PARA OFERTA ====================
+  // POST /offers/:id/generate-copy
+  app.post('/:id/generate-copy', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const body = request.body as {
+        generateVariations?: boolean;
+      };
+
+      const offer = await prisma.offer.findUnique({
+        where: { id },
+        include: {
+          niche: { select: { name: true } },
+          store: { select: { name: true } },
+        },
+      });
+
+      if (!offer) {
+        return sendError(reply, Errors.NOT_FOUND('Oferta'));
+      }
+
+      // Gerar copies
+      const copies = generateCopies({
+        title: offer.title,
+        price: Number(offer.finalPrice),
+        oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+        discountPct: offer.discountPct || 0,
+        advertiserName: offer.store?.name,
+        storeName: offer.store?.name,
+        category: offer.niche?.name,
+        trackingUrl: offer.affiliateUrl,
+      }, {
+        generateVariations: body.generateVariations,
+      });
+
+      return {
+        success: true,
+        data: {
+          offerId: id,
+          copies: {
+            telegram: copies.telegram,
+            site: copies.site,
+            x: copies.x,
+          },
+          variations: copies.variations,
+          charCounts: {
+            telegram: copies.telegram.length,
+            site: copies.site.length,
+            x: copies.x.length,
+          },
+        },
+      };
+    } catch (error: any) {
+      return sendError(reply, error);
     }
   });
 }

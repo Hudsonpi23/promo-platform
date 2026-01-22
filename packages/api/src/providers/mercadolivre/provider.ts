@@ -2,6 +2,8 @@
  * Provider Mercado Livre
  * 
  * Orquestra coleta, validação, criação de ofertas e drafts.
+ * 
+ * ATUALIZADO: Usa novo sistema de scoring e validação.
  */
 
 import { PrismaClient, Channel } from '@prisma/client';
@@ -9,6 +11,7 @@ import { MercadoLivreClient, mlClient } from './client.js';
 import { MLConfig, NormalizedOffer, RunMode, RunResult, MLProduct } from './types.js';
 import { validateProduct, normalizeProduct, isDuplicate, calculateScore } from './validator.js';
 import { generateHumanCopy } from './copyGenerator.js';
+import { processOfferBatch, RawOfferData, ProcessingOptions } from '../../services/offerProcessor.js';
 
 // ==================== DEFAULTS ====================
 
@@ -399,6 +402,144 @@ export class MercadoLivreProvider {
     });
 
     result.createdDrafts++;
+  }
+}
+
+  /**
+   * 🔥 NOVO: Executa coleta usando o novo sistema de scoring
+   * 
+   * Pipeline:
+   * 1. Coleta produtos do ML (página de ofertas)
+   * 2. Converte para formato RawOfferData
+   * 3. Usa processOfferBatch para validação, scoring, criação e auto-aprovação
+   */
+  async runWithNewScoring(options: {
+    mode: RunMode;
+    maxPages?: number;
+    maxItems?: number;
+    minScore?: number;
+    autoApprove?: boolean;
+  }): Promise<RunResult> {
+    await this.loadConfig();
+    
+    const result: RunResult = {
+      collected: 0,
+      insertedOffers: 0,
+      createdDrafts: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    const { mode, maxPages, maxItems, minScore, autoApprove } = options;
+    
+    let products: MLProduct[] = [];
+
+    try {
+      // Coletar produtos
+      if (mode === 'deals' || this.config.useDealsPageOnly) {
+        console.log('[ML Provider] 🔥 Usando novo sistema de scoring - Modo DEALS');
+        
+        const dealsResponse = await this.client.searchAllDailyDeals({
+          maxPages: maxPages || this.config.dealsMaxPages || 5,
+          itemsPerPage: this.config.dealsItemsPerPage || 57,
+        });
+        
+        products = dealsResponse.results;
+      } else {
+        // Fallback para mock em desenvolvimento
+        const mockResponse = await this.client.getAllMock(maxItems || 50);
+        products = mockResponse.results;
+      }
+
+      result.collected = products.length;
+      console.log(`[ML Provider] Coletados ${result.collected} produtos`);
+
+      // Limitar se necessário
+      if (maxItems && products.length > maxItems) {
+        products = products.slice(0, maxItems);
+      }
+
+      // Converter para RawOfferData
+      const rawOffers: RawOfferData[] = products.map(product => ({
+        externalId: product.id,
+        source: 'MERCADO_LIVRE' as const,
+        title: product.title,
+        price: product.price,
+        oldPrice: product.original_price,
+        productUrl: product.permalink,
+        trackingUrl: product.permalink, // TODO: Gerar link afiliado real
+        imageUrl: product.thumbnail || product.pictures?.[0]?.url,
+        sellerId: String(product.seller.id),
+        sellerName: product.seller.nickname,
+        advertiserName: product.seller.nickname,
+        categoryId: product.category_id,
+        categoryName: undefined, // ML não retorna nome da categoria na busca
+        condition: product.condition,
+        availableQuantity: product.available_quantity,
+        currency: product.currency_id || 'BRL',
+        country: 'BR',
+        rawPayload: product,
+      }));
+
+      // Processar usando novo sistema
+      const processingOptions: ProcessingOptions = {
+        minScore: minScore || 50,
+        autoApprove: autoApprove ?? true,
+        generateCopies: true,
+        skipDuplicates: true,
+        batchScheduleTimes: this.config.scheduleTimes,
+        enableX: this.config.enableX,
+        xDailyLimit: this.config.xDailyLimit,
+        xMinScore: this.config.xMinScore,
+      };
+
+      const processingResult = await processOfferBatch(
+        this.prisma,
+        rawOffers,
+        processingOptions
+      );
+
+      // Mapear resultado
+      result.insertedOffers = processingResult.offersCreated;
+      result.createdDrafts = processingResult.draftsCreated;
+      result.skipped = processingResult.rejected + processingResult.duplicates;
+      result.errors = processingResult.errors;
+
+      // Atualizar lastRunAt
+      await this.prisma.providerConfig.upsert({
+        where: { source: 'MERCADO_LIVRE' },
+        update: { lastRunAt: new Date() },
+        create: {
+          source: 'MERCADO_LIVRE',
+          enabled: true,
+          keywords: this.config.keywords,
+          categories: this.config.categories,
+          minDiscount: this.config.minDiscount,
+          minPrice: this.config.minPrice,
+          maxItemsPerRun: this.config.maxItemsPerRun,
+          enableX: this.config.enableX,
+          xDailyLimit: this.config.xDailyLimit,
+          xMinScore: this.config.xMinScore,
+          scheduleTimes: this.config.scheduleTimes,
+          lastRunAt: new Date(),
+        },
+      });
+
+      console.log(`[ML Provider] ✅ Resultado final:
+        - Coletados: ${result.collected}
+        - Ofertas criadas: ${result.insertedOffers}
+        - Drafts criados: ${result.createdDrafts}
+        - Auto-aprovados: ${processingResult.autoApproved}
+        - Ignorados: ${result.skipped}
+        - Score médio: ${processingResult.avgScore}
+      `);
+
+    } catch (error: any) {
+      result.errors.push(`Erro geral: ${error.message}`);
+      console.error('[ML Provider] Erro:', error);
+    }
+
+    return result;
   }
 }
 

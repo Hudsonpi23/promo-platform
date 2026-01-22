@@ -68,6 +68,7 @@ enum Priority {
 enum OfferSource {
   MANUAL           // Cadastro manual
   MERCADO_LIVRE    // API Mercado Livre
+  AWIN             // Rede Awin (afiliados)
   AMAZON           // Amazon (futuro)
   MAGALU           // Magazine Luiza (futuro)
   LOMADEE          // Lomadee (futuro)
@@ -240,6 +241,12 @@ model Offer {
   
   // Hash para deduplicação (title+price+store)
   dedupeHash          String?
+  
+  // === CAMPOS DE QUALIDADE E VALIDAÇÃO ===
+  rawPayload          Json?       // Payload original da fonte (para debug)
+  errorReason         String?     // Motivo de rejeição/erro
+  currency            String      @default("BRL")
+  country             String      @default("BR")
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
