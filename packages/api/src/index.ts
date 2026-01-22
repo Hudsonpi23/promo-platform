@@ -27,6 +27,7 @@ import { twitterRoutes } from './routes/twitter';
 import { telegramRoutes } from './routes/telegram';
 import { promotionChannelsRoutes } from './routes/promotionChannels';
 import { schedulerRoutes } from './routes/scheduler';
+import { affiliatesRoutes } from './routes/affiliates';
 
 async function main() {
   const server = Fastify({
@@ -209,6 +210,9 @@ async function main() {
 
   // 🔥 NOVO: Sistema de Filas por Canal
   server.register(schedulerRoutes, { prefix: '/api/scheduler' });
+
+  // 🔥 NOVO: Central de Afiliados
+  server.register(affiliatesRoutes, { prefix: '/api/affiliates' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

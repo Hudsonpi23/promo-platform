@@ -18,6 +18,11 @@ import {
   getTodayExecutions,
   getRecentErrors,
   CHANNEL_RULES,
+  runBurstScheduler,
+  initializeChannelConfigs,
+  approveWhatsAppPost,
+  getPendingWhatsAppApprovals,
+  canRepost,
 } from '../services/channelScheduler.js';
 import { generateUruboCopy, generateAllChannelsCopy } from '../services/uruboCopyGenerator.js';
 
@@ -376,6 +381,219 @@ export async function schedulerRoutes(app: FastifyInstance) {
       if (error.name === 'ZodError') {
         return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
       }
+      return sendError(reply, error);
+    }
+  });
+
+  // ==================== 🔥 BURST MODE ====================
+
+  /**
+   * POST /api/scheduler/burst/:channel
+   * Executa burst mode para Telegram ou Site
+   */
+  app.post('/burst/:channel', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { channel } = request.params as { channel: string };
+      const channelUpper = channel.toUpperCase() as 'TELEGRAM' | 'SITE';
+      
+      if (channelUpper !== 'TELEGRAM' && channelUpper !== 'SITE') {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'INVALID_CHANNEL', message: 'Burst mode só está disponível para TELEGRAM e SITE' },
+        });
+      }
+      
+      const body = z.object({
+        maxPosts: z.number().min(1).max(50).optional().default(10),
+      }).parse(request.body || {});
+      
+      console.log(`[API] ⚡ Executando burst para ${channelUpper} (max: ${body.maxPosts})...`);
+      const result = await runBurstScheduler(channelUpper, body.maxPosts);
+      
+      return reply.send({
+        success: true,
+        message: `Burst finalizado: ${result.processed} publicados, ${result.errors} erros`,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Erro ao executar burst:', error);
+      return sendError(reply, error);
+    }
+  });
+
+  // ==================== 🔥 WHATSAPP APPROVAL ====================
+
+  /**
+   * GET /api/scheduler/whatsapp/pending
+   * Lista posts de WhatsApp aguardando aprovação
+   */
+  app.get('/whatsapp/pending', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const pending = await getPendingWhatsAppApprovals();
+      
+      return reply.send({
+        success: true,
+        data: pending,
+        count: pending.length,
+      });
+    } catch (error: any) {
+      console.error('Erro ao listar pendentes WhatsApp:', error);
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * POST /api/scheduler/whatsapp/approve/:id
+   * Aprova um post de WhatsApp
+   */
+  app.post('/whatsapp/approve/:id', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { id } = request.params as { id: string };
+      const user = (request as any).user;
+      
+      const result = await approveWhatsAppPost(id, user?.id || 'system');
+      
+      return reply.send({
+        success: true,
+        message: 'Post aprovado para publicação',
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Erro ao aprovar WhatsApp:', error);
+      return sendError(reply, error);
+    }
+  });
+
+  // ==================== 🔥 ANTI-REPETIÇÃO ====================
+
+  /**
+   * POST /api/scheduler/check-repost
+   * Verifica se um post pode ser republicado
+   */
+  app.post('/check-repost', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = z.object({
+        offerId: z.string(),
+        channel: z.enum(['TELEGRAM', 'WHATSAPP', 'TWITTER', 'INSTAGRAM', 'FACEBOOK', 'SITE']),
+        humorStyle: z.enum(['URUBU', 'NEUTRO', 'FLASH', 'ENGRACADO']).optional().default('URUBU'),
+        cooldownHours: z.number().optional(),
+      }).parse(request.body);
+      
+      // Pegar cooldown do canal se não fornecido
+      const defaultCooldowns: Record<string, number> = {
+        TELEGRAM: 6,
+        WHATSAPP: 24,
+        TWITTER: 24,
+        INSTAGRAM: 48,
+        FACEBOOK: 24,
+        SITE: 6,
+      };
+      
+      const cooldownHours = body.cooldownHours || defaultCooldowns[body.channel] || 6;
+      
+      const result = await canRepost(body.offerId, body.channel as any, body.humorStyle, cooldownHours);
+      
+      return reply.send({
+        success: true,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Erro ao verificar repost:', error);
+      if (error.name === 'ZodError') {
+        return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
+      }
+      return sendError(reply, error);
+    }
+  });
+
+  // ==================== 🔥 CONFIGURAÇÃO ====================
+
+  /**
+   * GET /api/scheduler/config
+   * Retorna configuração de todos os canais
+   */
+  app.get('/config', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const configs = await prisma.channelConfig.findMany({
+        orderBy: { channel: 'asc' },
+      });
+      
+      return reply.send({
+        success: true,
+        data: configs,
+        defaults: CHANNEL_RULES,
+      });
+    } catch (error: any) {
+      console.error('Erro ao obter configurações:', error);
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * PUT /api/scheduler/config/:channel
+   * Atualiza configuração de um canal
+   */
+  app.put('/config/:channel', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const { channel } = request.params as { channel: string };
+      const channelUpper = channel.toUpperCase() as any;
+      
+      const body = z.object({
+        intervalMinutes: z.number().min(1).optional(),
+        dailyLimit: z.number().min(0).optional(),
+        activeHours: z.string().optional(),
+        automationLevel: z.enum(['TOTAL', 'MANUAL_APPROVAL', 'HUMAN_ONLY']).optional(),
+        repostCooldownHours: z.number().min(1).optional(),
+        burstCooldownSecs: z.number().min(10).optional(),
+        burstSchedule: z.array(z.object({
+          hour: z.number().min(0).max(23),
+          posts: z.number().min(1),
+        })).optional(),
+        isEnabled: z.boolean().optional(),
+      }).parse(request.body);
+      
+      const result = await prisma.channelConfig.upsert({
+        where: { channel: channelUpper },
+        update: body,
+        create: {
+          channel: channelUpper,
+          ...body,
+        },
+      });
+      
+      return reply.send({
+        success: true,
+        message: `Configuração do ${channelUpper} atualizada`,
+        data: result,
+      });
+    } catch (error: any) {
+      console.error('Erro ao atualizar configuração:', error);
+      if (error.name === 'ZodError') {
+        return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
+      }
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * POST /api/scheduler/init-configs
+   * Inicializa configurações padrão de todos os canais
+   */
+  app.post('/init-configs', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      await initializeChannelConfigs();
+      
+      const configs = await prisma.channelConfig.findMany({
+        orderBy: { channel: 'asc' },
+      });
+      
+      return reply.send({
+        success: true,
+        message: 'Configurações inicializadas',
+        data: configs,
+      });
+    } catch (error: any) {
+      console.error('Erro ao inicializar configurações:', error);
       return sendError(reply, error);
     }
   });

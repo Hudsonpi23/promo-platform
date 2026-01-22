@@ -68,6 +68,28 @@ enum HumorStyle {
   ENGRACADO // Piadas e memes pesados
 }
 
+// 🔥 NOVO: Tipo de promoção
+enum PromoType {
+  RELAMPAGO // Urgência extrema, Thor, raio
+  OFERTA_DO_DIA // Destaque sem desespero
+  NORMAL // Texto limpo
+  CUPOM // Explicar cupom rapidamente
+}
+
+// 🔥 NOVO: Modo de geração de link de afiliado
+enum AffiliateLinkMode {
+  DIRECT_PASTE // Link colado manualmente (Mercado Livre)
+  TEMPLATE_APPEND // Adiciona parâmetros ao link
+  REDIRECTOR // Usa /go/:offerId?src=:channel
+}
+
+// 🔥 NOVO: Nível de automação do canal
+enum AutomationLevel {
+  TOTAL // Totalmente automático (Telegram, Site, X)
+  MANUAL_APPROVAL // Requer aprovação (WhatsApp)
+  HUMAN_ONLY // Operador humano (Facebook, Instagram)
+}
+
 enum Urgency {
   HOJE
   ULTIMAS_UNIDADES
@@ -106,6 +128,7 @@ model User {
   refreshTokens        RefreshToken[]
   approvedDrafts       PostDraft[]           @relation("ApprovedBy")
   mercadoLivreAccounts MercadoLivreAccount[]
+  affiliateAccounts    AffiliateAccount[]    @relation("AffiliateOwner")
 
   @@index([email])
 }
@@ -151,24 +174,33 @@ model BatchSchedule {
   @@index([order])
 }
 
-// 🔥 NOVO: Configuração de regras por canal (intervalo mínimo entre posts)
+// 🔥 CONFIGURAÇÃO DE REGRAS POR CANAL
 model ChannelConfig {
   id      String  @id @default(cuid())
   channel Channel @unique
 
-  // Intervalo mínimo em minutos entre posts
-  intervalMinutes Int @default(15)
+  // === AUTOMAÇÃO ===
+  automationLevel AutomationLevel @default(TOTAL) // TOTAL, MANUAL_APPROVAL, HUMAN_ONLY
 
-  // Limite diário de posts (0 = sem limite)
-  dailyLimit Int @default(0)
+  // === INTERVALOS ===
+  intervalMinutes   Int @default(15) // Intervalo mínimo entre posts
+  burstCooldownSecs Int @default(60) // Cooldown mínimo em burst (segundos)
 
-  // Horário de funcionamento (ex: "08:00-22:00")
+  // === LIMITES ===
+  dailyLimit Int @default(0) // 0 = sem limite
+
+  // === HORÁRIO ===
   activeHours String? @default("08:00-22:00")
 
-  // Canal habilitado para postagem automática
-  isEnabled Boolean @default(true)
+  // === BURST MODE (Telegram/Site) ===
+  // Ex: [{"hour": 8, "posts": 10}, {"hour": 12, "posts": 15}]
+  burstSchedule Json?
 
-  // Última execução do scheduler
+  // === ANTI-REPETIÇÃO ===
+  repostCooldownHours Int @default(6) // Horas antes de permitir repost
+
+  // === STATUS ===
+  isEnabled        Boolean   @default(true)
   lastSchedulerRun DateTime?
 
   createdAt DateTime @default(now())
@@ -268,6 +300,17 @@ model Offer {
   status    OfferStatus @default(ACTIVE)
   expiresAt DateTime?
 
+  // 🔥 NOVO: Tipo de promoção (afeta copy da IA)
+  promoType PromoType @default(NORMAL)
+
+  // 🔥 NOVO: Central de Afiliados
+  canonicalUrl            String? // URL limpa do produto (para dedupe)
+  ownerAffiliateAccountId String? // Dono do tracking
+  ownerAffiliateAccount   AffiliateAccount? @relation("OfferAffiliateOwner", fields: [ownerAffiliateAccountId], references: [id])
+
+  affiliateProgramId String? // Programa de afiliados
+  affiliateProgram   AffiliateProgram? @relation("OfferAffiliateProgram", fields: [affiliateProgramId], references: [id])
+
   // === CAMPOS PARA SOURCES EXTERNOS (ex: Mercado Livre) ===
   source            OfferSource @default(MANUAL)
   externalId        String? // ID único da oferta no source (ex: MLB123456)
@@ -280,7 +323,7 @@ model Offer {
   categoryId        String? // ID da categoria no source
   categoryPath      String? // Caminho completo da categoria
 
-  // Hash para deduplicação (title+price+store)
+  // Hash para deduplicação (canonicalUrl + 72h)
   dedupeHash String?
 
   // === CAMPOS DE QUALIDADE E VALIDAÇÃO ===
@@ -426,21 +469,29 @@ model PromotionChannel {
   // Copy específica para este canal
   copyText String? @db.Text
 
-  // Estilo de humor da copy (ex: "urubu", "neutro", "flash")
+  // Estilo de humor da copy
   humorStyle HumorStyle @default(URUBU)
 
   // 🔥 Status do canal (SISTEMA DE FILAS)
   status ChannelPostStatus @default(PENDING)
 
   // 🔥 Timestamps da fila
-  queuedAt  DateTime? // Quando entrou na fila
-  postedAt  DateTime? // Quando foi publicado
+  queuedAt DateTime? // Quando entrou na fila
+  postedAt DateTime? // Quando foi publicado
 
   // Erro (se houver)
   errorReason String? @db.Text
 
   // ID externo da publicação (ex: tweet_id, message_id)
   externalId String?
+
+  // 🔥 Anti-repetição: hash = offerId + channel + humorStyle
+  uniqueHash String?
+
+  // 🔥 Aprovação manual (WhatsApp)
+  requiresApproval Boolean   @default(false)
+  approvedAt       DateTime?
+  approvedById     String?
 
   // Metadados adicionais
   metadata Json?
@@ -570,7 +621,7 @@ model ErrorLog {
   @@index([createdAt])
 }
 
-// ==================== MERCADO LIVRE OAUTH ====================
+// ==================== MERCADO LIVRE OAUTH (LEGADO - A REMOVER) ====================
 
 model MercadoLivreAccount {
   id String @id @default(cuid())
@@ -602,4 +653,109 @@ model MercadoLivreAccount {
   @@index([mlUserId])
   @@index([userId])
   @@index([isActive])
+}
+
+// ==================== 🔥 CENTRAL DE AFILIADOS ====================
+// AffiliateAccount = dono do tracking (Hudson, Sócio, Parceiro)
+// AffiliateProgram = loja/rede (Mercado Livre, Shopee, Casas Bahia, etc)
+// AffiliateCredential = vínculo dono + loja
+
+model AffiliateAccount {
+  id   String @id @default(cuid())
+  name String // "Hudson", "Parceiro X"
+  slug String @unique // "hudson", "parceiro-x"
+
+  // Usuário do sistema (opcional)
+  userId String?
+  user   User?   @relation("AffiliateOwner", fields: [userId], references: [id], onDelete: SetNull)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  credentials AffiliateCredential[]
+  offers      Offer[]               @relation("OfferAffiliateOwner")
+
+  @@index([slug])
+  @@index([userId])
+}
+
+model AffiliateProgram {
+  id   String @id @default(cuid())
+  name String // "Mercado Livre", "Amazon", "Shopee"
+  slug String @unique // "mercado-livre", "amazon"
+
+  // Modo de link
+  linkMode AffiliateLinkMode @default(REDIRECTOR)
+
+  // Template de URL (para TEMPLATE_APPEND)
+  // Ex: "https://www.amazon.com.br/dp/{productId}?tag={affiliateTag}"
+  urlTemplate String?
+
+  // Domínios permitidos (para validação)
+  allowedDomains String[] // ["mercadolivre.com.br", "produto.mercadolivre.com.br"]
+
+  // Configurações
+  isActive Boolean @default(true)
+  logoUrl  String?
+  color    String? // Cor da marca
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  credentials AffiliateCredential[]
+  offers      Offer[]               @relation("OfferAffiliateProgram")
+
+  @@index([slug])
+}
+
+model AffiliateCredential {
+  id String @id @default(cuid())
+
+  // Relacionamentos
+  accountId String
+  account   AffiliateAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  programId String
+  program   AffiliateProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  // Credenciais (variam por programa)
+  affiliateTag String? // Tag de afiliado (Amazon: "meutag-20")
+  affiliateId  String? // ID no programa
+  apiKey       String? // Se tiver API
+  apiSecret    String? // Se tiver API
+
+  // Metadados
+  metadata Json?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([accountId, programId])
+  @@index([accountId])
+  @@index([programId])
+}
+
+// ==================== 🔥 ANTI-REPETIÇÃO ====================
+
+model PostHistory {
+  id String @id @default(cuid())
+
+  // Hash único: offerId + channel + humorStyle
+  uniqueHash String @unique
+
+  offerId    String
+  channel    Channel
+  humorStyle HumorStyle
+
+  // Dados do post
+  copyText   String  @db.Text
+  externalId String? // ID no canal (message_id, tweet_id)
+
+  postedAt DateTime @default(now())
+
+  @@index([offerId])
+  @@index([channel])
+  @@index([postedAt])
 }
