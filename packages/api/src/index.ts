@@ -23,6 +23,7 @@ import { uploadRoutes } from './routes/upload';
 import { seedRoutes } from './routes/seed';
 import { twitterRoutes } from './routes/twitter';
 import { telegramRoutes } from './routes/telegram';
+import { facebookRoutes } from './routes/facebook';
 import { promotionChannelsRoutes } from './routes/promotionChannels';
 import { schedulerRoutes } from './routes/scheduler';
 import { affiliatesRoutes } from './routes/affiliates';
@@ -194,6 +195,9 @@ async function main() {
 
   // Telegram - Postagem no canal
   server.register(telegramRoutes, { prefix: '/api/telegram' });
+
+  // Facebook - Postagem na página
+  server.register(facebookRoutes, { prefix: '/api/facebook' });
 
   // 🔥 NOVO: Canais de Promoção (estados por canal)
   server.register(promotionChannelsRoutes, { prefix: '/api/drafts' });
