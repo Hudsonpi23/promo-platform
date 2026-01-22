@@ -6,6 +6,7 @@ import cookie from '@fastify/cookie';
 
 // Serviços
 import { configureCloudinary } from './services/cloudinary';
+import { startScheduler } from './workers/schedule.js';
 
 // Rotas
 import { authRoutes } from './routes/auth';
@@ -220,6 +221,9 @@ async function main() {
     const port = parseInt(process.env.PORT || '3001');
     await server.listen({ port, host: '0.0.0.0' });
     
+    // 🔥 Iniciar scheduler automático (processa filas a cada 1 minuto)
+    startScheduler();
+    
     console.log('');
     console.log('🚀 ═══════════════════════════════════════════════════');
     console.log(`   API rodando em http://localhost:${port}`);
@@ -236,6 +240,7 @@ async function main() {
     console.log(`      GET  /go/:code             → Redirect c/ tracking`);
     console.log(`      POST /api/scheduler/run    → Executar scheduler`);
     console.log(`      GET  /api/manual/queue     → Fila manual copy/paste`);
+    console.log('   ⏰ Scheduler automático: ATIVO (1 min)');
     console.log('═══════════════════════════════════════════════════════');
     console.log('');
   } catch (err: any) {
