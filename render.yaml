@@ -27,19 +27,12 @@ services:
         sync: false
       - key: CLOUDINARY_API_SECRET
         sync: false
-      # Mercado Livre API (credenciais fixas do app)
-      - key: ML_CLIENT_ID
-        sync: false
-      - key: ML_CLIENT_SECRET
-        sync: false
-      - key: ML_REDIRECT_URI
-        sync: false # https://promo-platform-api.onrender.com/api/auth/mercadolivre/callback
       # Frontend URL (para redirect após OAuth)
       - key: FRONTEND_URL
         value: https://promo-platform-admin.vercel.app
-      # Proxy Residencial (opcional, para desbloquear ML search)
-      - key: PROXY_URL
-        sync: false # Formato: http://username:password@proxy.com:port
+      # API URL (para links /go de monetização)
+      - key: API_URL
+        value: https://promo-platform-api.onrender.com
       # Twitter/X API (para postagem automática)
       - key: TWITTER_API_KEY
         sync: false
