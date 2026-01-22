@@ -52,14 +52,20 @@ enum Channel {
   SITE
 }
 
-// Status de publicação por canal
-enum ChannelStatus {
-  PENDING // Aguardando copy/preparação
-  READY // Copy pronta, aguardando publicação
-  MANUAL // Requer aprovação manual
-  PUBLISHED // Já publicado
+// 🔥 NOVO: Status de publicação por canal (SISTEMA DE FILAS)
+enum ChannelPostStatus {
+  PENDING // Aprovado, mas ainda não entrou na fila
+  QUEUED // Está na fila do canal
+  POSTED // Já foi publicado
   ERROR // Erro na publicação
-  SKIPPED // Ignorado/não aplicável
+}
+
+// Estilo de humor da copy
+enum HumorStyle {
+  URUBU // Estilo "Urubu das Promoções" - informal, meme
+  NEUTRO // Tom neutro, profissional
+  FLASH // Urgência extrema
+  ENGRACADO // Piadas e memes pesados
 }
 
 enum Urgency {
@@ -143,6 +149,30 @@ model BatchSchedule {
 
   @@unique([time])
   @@index([order])
+}
+
+// 🔥 NOVO: Configuração de regras por canal (intervalo mínimo entre posts)
+model ChannelConfig {
+  id      String  @id @default(cuid())
+  channel Channel @unique
+
+  // Intervalo mínimo em minutos entre posts
+  intervalMinutes Int @default(15)
+
+  // Limite diário de posts (0 = sem limite)
+  dailyLimit Int @default(0)
+
+  // Horário de funcionamento (ex: "08:00-22:00")
+  activeHours String? @default("08:00-22:00")
+
+  // Canal habilitado para postagem automática
+  isEnabled Boolean @default(true)
+
+  // Última execução do scheduler
+  lastSchedulerRun DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ==================== PROVIDER CONFIG ====================
@@ -378,13 +408,10 @@ model PostDelivery {
   @@index([channel])
 }
 
-// ==================== CANAL DE PROMOÇÃO (NOVO MODELO) ====================
+// ==================== CANAL DE PROMOÇÃO (SISTEMA DE FILAS) ====================
 // PromotionChannel - Estados independentes de publicação por canal
-// Uma promoção pode ter múltiplos canais, cada um com:
-// - Copy específica
-// - Status independente
-// - Configuração de auto-publicação
-// - Agendamento individual
+// Cada canal tem sua própria fila e ritmo de publicação
+// Front-end registra INTENÇÃO → Backend decide QUANDO postar
 
 model PromotionChannel {
   id String @id @default(cuid())
@@ -399,15 +426,15 @@ model PromotionChannel {
   // Copy específica para este canal
   copyText String? @db.Text
 
-  // Status do canal
-  status ChannelStatus @default(PENDING)
+  // Estilo de humor da copy (ex: "urubu", "neutro", "flash")
+  humorStyle HumorStyle @default(URUBU)
 
-  // Configuração de automação
-  autoPublish Boolean @default(false)
+  // 🔥 Status do canal (SISTEMA DE FILAS)
+  status ChannelPostStatus @default(PENDING)
 
-  // Agendamento
-  scheduledAt DateTime?
-  publishedAt DateTime?
+  // 🔥 Timestamps da fila
+  queuedAt  DateTime? // Quando entrou na fila
+  postedAt  DateTime? // Quando foi publicado
 
   // Erro (se houver)
   errorReason String? @db.Text
@@ -422,10 +449,10 @@ model PromotionChannel {
   updatedAt DateTime @updatedAt
 
   @@unique([draftId, channel])
-  @@index([channel])
-  @@index([status])
-  @@index([autoPublish])
-  @@index([scheduledAt])
+  // 🔥 Índice otimizado para o scheduler de filas
+  @@index([channel, status])
+  @@index([queuedAt])
+  @@index([postedAt])
 }
 
 // ==================== PUBLICAÇÕES (SITE) ====================

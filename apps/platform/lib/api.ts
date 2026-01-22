@@ -93,19 +93,22 @@ export interface ChannelDelivery {
   error?: string;
 }
 
-// 🔥 NOVO: Status de canal de promoção
-export type ChannelStatus = 'PENDING' | 'READY' | 'MANUAL' | 'PUBLISHED' | 'ERROR' | 'SKIPPED';
+// 🔥 NOVO: Status de canal de promoção (SISTEMA DE FILAS)
+export type ChannelPostStatus = 'PENDING' | 'QUEUED' | 'POSTED' | 'ERROR';
 
-// 🔥 NOVO: Canal de promoção com estados independentes
+// Estilo de humor
+export type HumorStyle = 'URUBU' | 'NEUTRO' | 'FLASH' | 'ENGRACADO';
+
+// 🔥 NOVO: Canal de promoção com sistema de filas
 export interface PromotionChannel {
   id?: string;
   draftId: string;
   channel: Channel;
   copyText?: string;
-  status: ChannelStatus;
-  autoPublish: boolean;
-  scheduledAt?: string;
-  publishedAt?: string;
+  humorStyle?: HumorStyle;
+  status: ChannelPostStatus;
+  queuedAt?: string;
+  postedAt?: string;
   errorReason?: string;
   externalId?: string;
   _isPlaceholder?: boolean;  // Para canais não criados ainda
@@ -475,6 +478,134 @@ export async function getChannelsStatus(draftId: string): Promise<{
   channels: PromotionChannel[];
 }> {
   const res = await fetchWithAuth(`/api/drafts/${draftId}/channels/status`);
+  const json = await res.json();
+  return json.data;
+}
+
+// ==================== 🔥 SISTEMA DE FILAS POR CANAL ====================
+
+/**
+ * Adiciona um draft à fila de um canal
+ */
+export async function addToQueue(
+  draftId: string,
+  channel: Channel,
+  options?: { copyText?: string; humorStyle?: HumorStyle }
+): Promise<{ success: boolean; data?: PromotionChannel }> {
+  const res = await fetchWithAuth('/api/scheduler/queue', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      draftId,
+      channel,
+      copyText: options?.copyText,
+      humorStyle: options?.humorStyle || 'URUBU',
+    }),
+  });
+  return res.json();
+}
+
+/**
+ * Remove um draft da fila de um canal
+ */
+export async function removeFromQueue(
+  draftId: string,
+  channel: Channel
+): Promise<{ success: boolean }> {
+  const res = await fetchWithAuth(`/api/scheduler/queue/${draftId}/${channel}`, {
+    method: 'DELETE',
+  });
+  return res.json();
+}
+
+/**
+ * Adiciona um draft a TODAS as filas
+ */
+export async function addToAllQueues(
+  draftId: string,
+  options?: { humorStyle?: HumorStyle; channels?: Channel[] }
+): Promise<{ success: boolean; data?: any[] }> {
+  const res = await fetchWithAuth(`/api/scheduler/queue-all/${draftId}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options || {}),
+  });
+  return res.json();
+}
+
+/**
+ * Obtém status de todas as filas
+ */
+export async function getQueuesStatus(): Promise<Record<string, {
+  queued: number;
+  postedToday: number;
+  errors: number;
+  lastPost?: string;
+  nextAllowedPost?: string;
+  intervalMin: number;
+  dailyLimit: number;
+}>> {
+  const res = await fetchWithAuth('/api/scheduler/status');
+  const json = await res.json();
+  return json.data;
+}
+
+/**
+ * Obtém execuções do dia (posts publicados hoje)
+ */
+export async function getTodayExecutions(): Promise<PromotionChannel[]> {
+  const res = await fetchWithAuth('/api/scheduler/executions');
+  const json = await res.json();
+  return json.data || [];
+}
+
+/**
+ * Obtém erros recentes
+ */
+export async function getRecentErrors(limit: number = 50): Promise<PromotionChannel[]> {
+  const res = await fetchWithAuth(`/api/scheduler/errors?limit=${limit}`);
+  const json = await res.json();
+  return json.data || [];
+}
+
+/**
+ * Reprocessa um erro (coloca de volta na fila)
+ */
+export async function retryError(id: string): Promise<{ success: boolean }> {
+  const res = await fetchWithAuth(`/api/scheduler/errors/${id}/retry`, {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+/**
+ * Executa o scheduler manualmente
+ */
+export async function runScheduler(): Promise<{ success: boolean; data?: any }> {
+  const res = await fetchWithAuth('/api/scheduler/run', {
+    method: 'POST',
+  });
+  return res.json();
+}
+
+/**
+ * Gera preview de copy no estilo Urubu
+ */
+export async function generateUruboCopy(input: {
+  title: string;
+  price: number;
+  oldPrice?: number;
+  discountPct?: number;
+  channel: Channel;
+  humorStyle?: HumorStyle;
+  trackingUrl: string;
+  storeName?: string;
+}): Promise<{ text: string; gancho: string; humorStyle: string; charCount: number }> {
+  const res = await fetchWithAuth('/api/scheduler/generate-copy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
   const json = await res.json();
   return json.data;
 }

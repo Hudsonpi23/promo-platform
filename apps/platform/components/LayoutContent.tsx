@@ -30,29 +30,49 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-text-muted">Platform v1.0</p>
           </div>
           
-          <nav className="flex-1 space-y-2">
+          <nav className="flex-1 space-y-1">
+            {/* PRINCIPAL */}
+            <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-2 pb-1">Principal</p>
+            
             <a 
               href="/" 
               className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
                 pathname === '/' 
-                  ? 'bg-surface-hover text-text-primary' 
+                  ? 'bg-primary/20 text-primary border border-primary/30' 
                   : 'hover:bg-surface-hover text-text-secondary'
               }`}
             >
-              <span className="text-lg">📊</span>
-              <span>Dashboard</span>
+              <span className="text-lg">🔵</span>
+              <span>Ações Pendentes</span>
             </a>
+            
             <a 
-              href="/cargas" 
+              href="/execucoes" 
               className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
-                pathname === '/cargas' 
-                  ? 'bg-surface-hover text-text-primary' 
+                pathname === '/execucoes' 
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
                   : 'hover:bg-surface-hover text-text-secondary'
               }`}
             >
-              <span className="text-lg">📦</span>
-              <span>Cargas</span>
+              <span className="text-lg">🟢</span>
+              <span>Execuções do Dia</span>
             </a>
+            
+            <a 
+              href="/erros" 
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/erros' 
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">🔴</span>
+              <span>Erros</span>
+            </a>
+
+            {/* GESTÃO */}
+            <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Gestão</p>
+            
             <a 
               href="/ofertas" 
               className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
@@ -64,17 +84,19 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="text-lg">🏷️</span>
               <span>Ofertas</span>
             </a>
+            
             <a 
-              href="/erros" 
+              href="/cargas" 
               className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
-                pathname === '/erros' 
+                pathname === '/cargas' 
                   ? 'bg-surface-hover text-text-primary' 
                   : 'hover:bg-surface-hover text-text-secondary'
               }`}
             >
-              <span className="text-lg">🧯</span>
-              <span>Setor de Erros</span>
+              <span className="text-lg">📦</span>
+              <span>Cargas (Legado)</span>
             </a>
+            
             <a 
               href="/config" 
               className={`flex items-center gap-3 px-3 py-2 rounded-lg ${

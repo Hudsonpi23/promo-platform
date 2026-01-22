@@ -26,6 +26,7 @@ import { seedRoutes } from './routes/seed';
 import { twitterRoutes } from './routes/twitter';
 import { telegramRoutes } from './routes/telegram';
 import { promotionChannelsRoutes } from './routes/promotionChannels';
+import { schedulerRoutes } from './routes/scheduler';
 
 async function main() {
   const server = Fastify({
@@ -205,6 +206,9 @@ async function main() {
 
   // 🔥 NOVO: Canais de Promoção (estados por canal)
   server.register(promotionChannelsRoutes, { prefix: '/api/drafts' });
+
+  // 🔥 NOVO: Sistema de Filas por Canal
+  server.register(schedulerRoutes, { prefix: '/api/scheduler' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

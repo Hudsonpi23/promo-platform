@@ -2,41 +2,56 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
-import { fetcher } from '@/lib/api';
-import { cn, formatCurrency, getStatusColor } from '@/lib/utils';
+import { fetcher, retryError } from '@/lib/api';
+import { cn, formatCurrency } from '@/lib/utils';
 
-interface ErrorLog {
-  id: string;
-  draftId: string | null;
-  errorType: string;
-  message: string;
-  details: any;
-  isResolved: boolean;
-  resolvedAt: string | null;
-  createdAt: string;
-}
+// Configuração dos canais
+const CHANNEL_CONFIG: Record<string, { name: string; icon: string; color: string }> = {
+  TELEGRAM: { name: 'Telegram', icon: '📱', color: 'bg-blue-500' },
+  WHATSAPP: { name: 'WhatsApp', icon: '💬', color: 'bg-green-500' },
+  TWITTER: { name: 'X', icon: '𝕏', color: 'bg-black' },
+  INSTAGRAM: { name: 'Instagram', icon: '📷', color: 'bg-pink-500' },
+  FACEBOOK: { name: 'Facebook', icon: '👤', color: 'bg-blue-600' },
+  SITE: { name: 'Site', icon: '🌐', color: 'bg-purple-500' },
+};
 
 export default function ErrorsPage() {
-  const [showResolved, setShowResolved] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<string>('all');
+  const [retrying, setRetrying] = useState<string | null>(null);
   
-  const { data: errors, mutate } = useSWR<ErrorLog[]>(
-    `/api/channels/errors?resolved=${showResolved}`,
+  // Buscar erros do scheduler
+  const { data: errors, mutate } = useSWR(
+    '/api/scheduler/errors?limit=100',
     fetcher,
     { refreshInterval: 10000 }
   );
 
-  const handleResolve = async (id: string) => {
-    await fetch(`http://localhost:3001/api/channels/errors/${id}/resolve`, {
-      method: 'POST',
-    });
-    mutate();
+  const handleRetry = async (id: string) => {
+    setRetrying(id);
+    try {
+      await retryError(id);
+      mutate();
+    } catch (error) {
+      console.error('Erro ao reprocessar:', error);
+    } finally {
+      setRetrying(null);
+    }
   };
 
-  const handleRetry = async (id: string) => {
-    await fetch(`http://localhost:3001/api/channels/errors/${id}/retry`, {
-      method: 'POST',
-    });
-    mutate();
+  // Filtrar erros por canal
+  const filteredErrors = Array.isArray(errors)
+    ? errors.filter((err: any) => selectedChannel === 'all' || err.channel === selectedChannel)
+    : [];
+
+  // Calcular estatísticas
+  const stats = {
+    total: Array.isArray(errors) ? errors.length : 0,
+    byChannel: Object.entries(CHANNEL_CONFIG).reduce((acc, [channel]) => {
+      acc[channel] = Array.isArray(errors)
+        ? errors.filter((e: any) => e.channel === channel).length
+        : 0;
+      return acc;
+    }, {} as Record<string, number>),
   };
 
   return (
@@ -44,108 +59,153 @@ export default function ErrorsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            🧯 Setor de Erros
+          <h1 className="text-2xl font-bold text-text-primary flex items-center gap-3">
+            🔴 Erros
           </h1>
           <p className="text-text-muted text-sm">
-            Revise e corrija posts com problemas
+            Posts que precisam de atenção
           </p>
         </div>
+        
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showResolved}
-              onChange={(e) => setShowResolved(e.target.checked)}
-              className="rounded"
-            />
-            Mostrar resolvidos
-          </label>
+          {stats.total > 0 && (
+            <span className="px-3 py-1.5 rounded-full bg-red-500/20 text-red-400 text-sm font-medium">
+              {stats.total} erro{stats.total > 1 ? 's' : ''}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Lista de Erros */}
-      {errors && errors.length > 0 ? (
-        <div className="space-y-4">
-          {errors.map((error) => (
-            <div
-              key={error.id}
+      {/* Filtros por Canal */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <button
+          onClick={() => setSelectedChannel('all')}
+          className={cn(
+            'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
+            selectedChannel === 'all'
+              ? 'bg-red-500 text-white'
+              : 'bg-surface text-text-muted hover:text-text-primary'
+          )}
+        >
+          Todos ({stats.total})
+        </button>
+        {Object.entries(CHANNEL_CONFIG).map(([channel, config]) => {
+          const count = stats.byChannel[channel] || 0;
+          if (count === 0) return null;
+          
+          return (
+            <button
+              key={channel}
+              onClick={() => setSelectedChannel(channel)}
               className={cn(
-                'bg-surface rounded-xl border p-6',
-                error.isResolved ? 'border-border opacity-60' : 'border-error/50'
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1',
+                selectedChannel === channel
+                  ? 'bg-red-500 text-white'
+                  : 'bg-surface text-text-muted hover:text-text-primary'
               )}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  {/* Tipo de erro */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="px-3 py-1 rounded-full bg-error/20 text-error text-xs font-medium">
-                      {error.errorType}
-                    </span>
-                    {error.isResolved && (
-                      <span className="px-3 py-1 rounded-full bg-success/20 text-success text-xs font-medium">
-                        ✅ Resolvido
+              {config.icon} {config.name} ({count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Lista de Erros */}
+      {filteredErrors.length > 0 ? (
+        <div className="space-y-4">
+          {filteredErrors.map((error: any) => {
+            const config = CHANNEL_CONFIG[error.channel] || CHANNEL_CONFIG.SITE;
+            const offer = error.draft?.offer;
+            
+            return (
+              <div
+                key={error.id}
+                className="bg-surface rounded-xl border border-red-500/30 p-5"
+              >
+                <div className="flex items-start gap-4">
+                  {/* Canal */}
+                  <span className={cn('w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0', config.color, 'text-white')}>
+                    {config.icon}
+                  </span>
+                  
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-400 text-xs font-medium">
+                        ❌ Erro
                       </span>
-                    )}
+                      <span className="text-xs text-text-muted">
+                        {config.name}
+                      </span>
+                    </div>
+                    
+                    <h3 className="text-sm font-medium text-text-primary mb-1">
+                      {offer?.title || 'Sem título'}
+                    </h3>
+                    
+                    {/* Mensagem de Erro */}
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-3">
+                      <p className="text-sm text-red-400">
+                        {error.errorReason || 'Erro desconhecido'}
+                      </p>
+                    </div>
+                    
+                    {/* Info adicional */}
+                    <div className="flex items-center gap-3 text-xs text-text-muted">
+                      <span>{offer?.store?.name || 'Sem loja'}</span>
+                      <span>•</span>
+                      <span className="text-success font-medium">{formatCurrency(offer?.finalPrice || 0)}</span>
+                      <span>•</span>
+                      <span>
+                        {error.updatedAt
+                          ? new Date(error.updatedAt).toLocaleString('pt-BR')
+                          : '--'}
+                      </span>
+                    </div>
                   </div>
-
-                  {/* Mensagem */}
-                  <p className="text-text-primary font-medium mb-2">
-                    {error.message}
-                  </p>
-
-                  {/* Detalhes */}
-                  {error.details && (
-                    <pre className="text-xs text-text-muted bg-background p-3 rounded-lg overflow-auto">
-                      {JSON.stringify(error.details, null, 2)}
-                    </pre>
-                  )}
-
-                  {/* Data */}
-                  <p className="text-xs text-text-muted mt-3">
-                    {new Date(error.createdAt).toLocaleString('pt-BR')}
-                    {error.resolvedAt && (
-                      <span className="ml-2">
-                        • Resolvido em {new Date(error.resolvedAt).toLocaleString('pt-BR')}
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                {/* Ações */}
-                {!error.isResolved && (
-                  <div className="flex flex-col gap-2">
-                    {error.draftId && (
-                      <button
-                        onClick={() => handleRetry(error.id)}
-                        className="px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-medium transition-all"
-                      >
-                        🔄 Reenviar
-                      </button>
-                    )}
+                  
+                  {/* Ações */}
+                  <div className="flex flex-col gap-2 flex-shrink-0">
                     <button
-                      onClick={() => handleResolve(error.id)}
-                      className="px-4 py-2 rounded-lg bg-surface-hover hover:bg-success/20 text-text-secondary hover:text-success text-sm font-medium transition-all"
+                      onClick={() => handleRetry(error.id)}
+                      disabled={retrying === error.id}
+                      className={cn(
+                        'px-4 py-2 rounded-lg text-sm font-medium transition-all',
+                        'bg-primary hover:bg-primary-hover text-white',
+                        'disabled:opacity-50 disabled:cursor-not-allowed',
+                        retrying === error.id && 'animate-pulse'
+                      )}
                     >
-                      ✅ Marcar Resolvido
+                      {retrying === error.id ? '⏳ Reenviando...' : '🔄 Tentar Novamente'}
                     </button>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-text-muted">
           <span className="text-6xl mb-4">✨</span>
           <p className="text-lg">Nenhum erro encontrado</p>
           <p className="text-sm">
-            {showResolved
-              ? 'Nenhum erro resolvido ainda'
+            {selectedChannel !== 'all'
+              ? `Nenhum erro no ${CHANNEL_CONFIG[selectedChannel]?.name || selectedChannel}`
               : 'Tudo funcionando perfeitamente!'}
           </p>
         </div>
       )}
+
+      {/* Ajuda */}
+      <div className="bg-surface-hover/50 rounded-xl p-4 border border-border">
+        <p className="text-sm text-text-muted flex items-start gap-2">
+          <span>💡</span>
+          <span>
+            <strong className="text-text-secondary">Dica:</strong> Ao clicar em "Tentar Novamente", 
+            o post volta para a fila do canal e será processado automaticamente no próximo ciclo.
+          </span>
+        </p>
+      </div>
     </div>
   );
 }

@@ -5,11 +5,12 @@ import {
   PostDraft,
   PromotionChannel,
   Channel,
-  ChannelStatus,
+  ChannelPostStatus,
+  HumorStyle,
   getPromotionChannels,
-  initializePromotionChannels,
-  publishToChannel,
-  updatePromotionChannel,
+  addToQueue,
+  addToAllQueues,
+  removeFromQueue,
 } from '@/lib/api';
 import { cn, formatCurrency, formatDiscount, getUrgencyLabel, getStatusColor, getStatusLabel } from '@/lib/utils';
 
@@ -26,23 +27,21 @@ const CHANNEL_CONFIG: Record<Channel, {
   name: string; 
   icon: string; 
   color: string;
-  autoDefault: boolean;
 }> = {
-  TELEGRAM: { name: 'Telegram', icon: '📱', color: 'bg-blue-500', autoDefault: true },
-  WHATSAPP: { name: 'WhatsApp', icon: '💬', color: 'bg-green-500', autoDefault: true },
-  SITE: { name: 'Site', icon: '🌐', color: 'bg-purple-500', autoDefault: true },
-  TWITTER: { name: 'X', icon: '𝕏', color: 'bg-black', autoDefault: false },
-  INSTAGRAM: { name: 'Instagram', icon: '📷', color: 'bg-pink-500', autoDefault: false },
-  FACEBOOK: { name: 'Facebook', icon: '👤', color: 'bg-blue-600', autoDefault: false },
+  TELEGRAM: { name: 'Telegram', icon: '📱', color: 'bg-blue-500' },
+  WHATSAPP: { name: 'WhatsApp', icon: '💬', color: 'bg-green-500' },
+  SITE: { name: 'Site', icon: '🌐', color: 'bg-purple-500' },
+  TWITTER: { name: 'X', icon: '𝕏', color: 'bg-black' },
+  INSTAGRAM: { name: 'Instagram', icon: '📷', color: 'bg-pink-500' },
+  FACEBOOK: { name: 'Facebook', icon: '👤', color: 'bg-blue-600' },
 };
 
-const STATUS_STYLES: Record<ChannelStatus, { bg: string; text: string; label: string }> = {
-  PENDING: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Pendente' },
-  READY: { bg: 'bg-green-500/20', text: 'text-green-400', label: 'Pronto' },
-  MANUAL: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Manual' },
-  PUBLISHED: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Publicado' },
-  ERROR: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Erro' },
-  SKIPPED: { bg: 'bg-gray-500/10', text: 'text-gray-500', label: 'Ignorado' },
+// 🔥 NOVO: Status do sistema de filas
+const STATUS_STYLES: Record<ChannelPostStatus, { bg: string; text: string; label: string; icon: string }> = {
+  PENDING: { bg: 'bg-gray-500/20', text: 'text-gray-400', label: 'Pendente', icon: '⏸️' },
+  QUEUED: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Em fila', icon: '🕐' },
+  POSTED: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Postado', icon: '✅' },
+  ERROR: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Erro', icon: '❌' },
 };
 
 const ALL_CHANNELS: Channel[] = ['TELEGRAM', 'WHATSAPP', 'TWITTER', 'INSTAGRAM', 'FACEBOOK', 'SITE'];
@@ -52,8 +51,9 @@ const ALL_CHANNELS: Channel[] = ['TELEGRAM', 'WHATSAPP', 'TWITTER', 'INSTAGRAM',
 export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
   const [channels, setChannels] = useState<PromotionChannel[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [publishingChannel, setPublishingChannel] = useState<Channel | null>(null);
+  const [queueingChannel, setQueueingChannel] = useState<Channel | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [selectedHumor, setSelectedHumor] = useState<HumorStyle>('URUBU');
 
   // Dados da oferta com proteção
   const offer = draft?.offer || {
@@ -85,8 +85,7 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
         const placeholders: PromotionChannel[] = ALL_CHANNELS.map(ch => ({
           draftId: draft.id,
           channel: ch,
-          status: CHANNEL_CONFIG[ch].autoDefault ? 'READY' : 'MANUAL',
-          autoPublish: CHANNEL_CONFIG[ch].autoDefault,
+          status: 'PENDING',
           _isPlaceholder: true,
         }));
         setChannels(placeholders);
@@ -100,8 +99,7 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
             completeChannels.push({
               draftId: draft.id,
               channel: ch,
-              status: CHANNEL_CONFIG[ch].autoDefault ? 'READY' : 'MANUAL',
-              autoPublish: CHANNEL_CONFIG[ch].autoDefault,
+              status: 'PENDING',
               _isPlaceholder: true,
             });
           }
@@ -118,24 +116,8 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
     loadChannels();
   }, [loadChannels]);
 
-  // Inicializar canais (cria no backend)
-  const handleInitialize = async () => {
-    if (!draft?.id) return;
-    setIsLoading(true);
-    
-    try {
-      await initializePromotionChannels(draft.id);
-      await loadChannels();
-      onUpdate();
-    } catch (error) {
-      console.error('Erro ao inicializar canais:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Publicar em um canal específico
-  const handlePublish = async (channel: Channel) => {
+  // 🔥 Adicionar à fila de um canal específico
+  const handleAddToQueue = async (channel: Channel) => {
     if (!draft?.id) return;
     
     // Verificar se X precisa de imagem
@@ -144,73 +126,99 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
       return;
     }
     
-    setPublishingChannel(channel);
+    setQueueingChannel(channel);
     
     try {
-      const result = await publishToChannel(draft.id, channel);
+      const result = await addToQueue(draft.id, channel, { humorStyle: selectedHumor });
       
       if (result.success) {
         // Atualizar canal local
         setChannels(prev => prev.map(ch => 
           ch.channel === channel 
-            ? { ...ch, status: 'PUBLISHED' as ChannelStatus, publishedAt: new Date().toISOString() }
+            ? { ...ch, status: 'QUEUED' as ChannelPostStatus, queuedAt: new Date().toISOString() }
             : ch
         ));
         onUpdate();
       } else {
-        alert(`Erro ao publicar: ${result.error?.message || 'Erro desconhecido'}`);
+        alert(`Erro ao adicionar à fila`);
       }
     } catch (error: any) {
-      console.error('Erro ao publicar:', error);
+      console.error('Erro ao adicionar à fila:', error);
       alert(`Erro: ${error.message}`);
     } finally {
-      setPublishingChannel(null);
+      setQueueingChannel(null);
     }
   };
 
-  // Toggle autoPublish
-  const handleToggleAuto = async (channel: Channel) => {
+  // 🔥 Adicionar a TODAS as filas
+  const handleAddToAllQueues = async () => {
     if (!draft?.id) return;
     
-    const currentChannel = channels.find(c => c.channel === channel);
-    if (!currentChannel) return;
-    
-    const newAuto = !currentChannel.autoPublish;
+    setIsLoading(true);
     
     try {
-      // Se é placeholder, primeiro inicializar
-      if (currentChannel._isPlaceholder) {
-        await handleInitialize();
+      // Filtrar canais que ainda não estão na fila ou postados
+      const channelsToQueue = channels
+        .filter(ch => ch.status === 'PENDING')
+        .map(ch => ch.channel);
+      
+      if (channelsToQueue.length === 0) {
+        alert('Todos os canais já estão na fila ou postados.');
+        return;
       }
       
-      await updatePromotionChannel(draft.id, channel, {
-        autoPublish: newAuto,
-        status: newAuto ? 'READY' : 'MANUAL',
+      const result = await addToAllQueues(draft.id, {
+        humorStyle: selectedHumor,
+        channels: channelsToQueue,
       });
       
+      if (result.success) {
+        await loadChannels();
+        onUpdate();
+      }
+    } catch (error: any) {
+      console.error('Erro:', error);
+      alert(`Erro: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Remover da fila
+  const handleRemoveFromQueue = async (channel: Channel) => {
+    if (!draft?.id) return;
+    
+    try {
+      await removeFromQueue(draft.id, channel);
       setChannels(prev => prev.map(ch => 
         ch.channel === channel 
-          ? { ...ch, autoPublish: newAuto, status: newAuto ? 'READY' : 'MANUAL' }
+          ? { ...ch, status: 'PENDING' as ChannelPostStatus, queuedAt: undefined }
           : ch
       ));
-    } catch (error) {
-      console.error('Erro ao atualizar canal:', error);
+      onUpdate();
+    } catch (error: any) {
+      console.error('Erro:', error);
     }
   };
 
   // Calcular resumo de status
   const statusSummary = {
-    published: channels.filter(c => c.status === 'PUBLISHED').length,
-    ready: channels.filter(c => c.status === 'READY' || c.status === 'MANUAL').length,
+    posted: channels.filter(c => c.status === 'POSTED').length,
+    queued: channels.filter(c => c.status === 'QUEUED').length,
+    pending: channels.filter(c => c.status === 'PENDING').length,
     error: channels.filter(c => c.status === 'ERROR').length,
     total: channels.length,
   };
+
+  // Verificar se tem ações pendentes (não está tudo postado ou na fila)
+  const hasPendingActions = statusSummary.pending > 0;
 
   return (
     <div className={cn(
       'bg-surface rounded-xl border border-border overflow-hidden',
       'hover:border-primary/50 transition-all duration-200',
-      draft.priority === 'HIGH' && 'ring-2 ring-warning/50'
+      draft.priority === 'HIGH' && 'ring-2 ring-warning/50',
+      statusSummary.posted === statusSummary.total && 'opacity-60'
     )}>
       {/* Header - Tags */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-hover/50">
@@ -236,11 +244,6 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
               'bg-warning/20 text-warning'
             )}>
               📊 {displayScore}
-            </span>
-          )}
-          {urgencyLabel && (
-            <span className="px-2 py-1 rounded-md bg-orange-500/20 text-orange-500 text-xs font-medium">
-              ⏰ {urgencyLabel}
             </span>
           )}
         </div>
@@ -287,19 +290,23 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
           </div>
         )}
 
-        {/* Resumo de Status dos Canais */}
+        {/* 🔥 Resumo de Status dos Canais (SISTEMA DE FILAS) */}
         <div className="flex items-center justify-between py-2 border-y border-border">
           <div className="flex items-center gap-3">
             <span className="text-xs text-text-muted">Canais:</span>
-            <span className="text-xs font-medium text-emerald-400">
-              {statusSummary.published} publicados
-            </span>
-            <span className="text-xs font-medium text-green-400">
-              {statusSummary.ready} prontos
-            </span>
+            {statusSummary.posted > 0 && (
+              <span className="text-xs font-medium text-emerald-400">
+                ✅ {statusSummary.posted} postados
+              </span>
+            )}
+            {statusSummary.queued > 0 && (
+              <span className="text-xs font-medium text-yellow-400">
+                🕐 {statusSummary.queued} em fila
+              </span>
+            )}
             {statusSummary.error > 0 && (
               <span className="text-xs font-medium text-red-400">
-                {statusSummary.error} erros
+                ❌ {statusSummary.error} erros
               </span>
             )}
           </div>
@@ -314,11 +321,34 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
         {/* Lista de Canais (expandível) */}
         {isExpanded && (
           <div className="space-y-2 animate-slide-in">
+            {/* Seletor de Humor */}
+            <div className="flex items-center gap-2 p-2 bg-surface-hover/50 rounded-lg">
+              <span className="text-xs text-text-muted">Estilo:</span>
+              {(['URUBU', 'NEUTRO', 'FLASH'] as HumorStyle[]).map((humor) => (
+                <button
+                  key={humor}
+                  onClick={() => setSelectedHumor(humor)}
+                  className={cn(
+                    'px-2 py-1 rounded text-xs font-medium transition-all',
+                    selectedHumor === humor
+                      ? 'bg-primary text-white'
+                      : 'bg-surface text-text-muted hover:text-text-primary'
+                  )}
+                >
+                  {humor === 'URUBU' && '🦅 Urubu'}
+                  {humor === 'NEUTRO' && '📝 Neutro'}
+                  {humor === 'FLASH' && '⚡ Flash'}
+                </button>
+              ))}
+            </div>
+
             {channels.map((ch) => {
               const config = CHANNEL_CONFIG[ch.channel];
               const statusStyle = STATUS_STYLES[ch.status];
-              const isPublishing = publishingChannel === ch.channel;
-              const canPublish = ch.status === 'READY' || ch.status === 'MANUAL';
+              const isQueueing = queueingChannel === ch.channel;
+              const canQueue = ch.status === 'PENDING';
+              const isInQueue = ch.status === 'QUEUED';
+              const isPosted = ch.status === 'POSTED';
               const isXWithoutImage = ch.channel === 'TWITTER' && !hasImage;
               
               return (
@@ -327,7 +357,7 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
                   className={cn(
                     'flex items-center justify-between p-3 rounded-lg',
                     'bg-surface-hover/50 border border-border',
-                    ch.status === 'PUBLISHED' && 'opacity-60'
+                    isPosted && 'opacity-60'
                   )}
                 >
                   {/* Info do Canal */}
@@ -342,81 +372,61 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
                       <p className="text-sm font-medium text-text-primary">
                         {config.name}
                       </p>
-                      <p className="text-xs text-text-muted">
-                        {ch.autoPublish ? 'Auto: On' : 'Manual'}
-                      </p>
+                      {ch.queuedAt && (
+                        <p className="text-xs text-text-muted">
+                          Na fila desde {new Date(ch.queuedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                      {ch.postedAt && (
+                        <p className="text-xs text-text-muted">
+                          Postado às {new Date(ch.postedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  {/* Status */}
+                  {/* Status e Ações */}
                   <div className="flex items-center gap-2">
+                    {/* Status Badge */}
                     <span className={cn(
-                      'px-2 py-1 rounded text-xs font-medium',
+                      'px-2 py-1 rounded text-xs font-medium flex items-center gap-1',
                       statusStyle.bg, statusStyle.text
                     )}>
-                      {statusStyle.label}
+                      {statusStyle.icon} {statusStyle.label}
                     </span>
-                    
-                    {/* Toggle Auto */}
-                    <button
-                      onClick={() => handleToggleAuto(ch.channel)}
-                      disabled={ch.status === 'PUBLISHED'}
-                      className={cn(
-                        'w-10 h-5 rounded-full transition-all relative',
-                        ch.autoPublish ? 'bg-primary' : 'bg-gray-600',
-                        ch.status === 'PUBLISHED' && 'opacity-50 cursor-not-allowed'
-                      )}
-                    >
-                      <span className={cn(
-                        'absolute w-4 h-4 rounded-full bg-white top-0.5 transition-all',
-                        ch.autoPublish ? 'right-0.5' : 'left-0.5'
-                      )} />
-                    </button>
 
-                    {/* Botão Publicar */}
-                    <button
-                      onClick={() => handlePublish(ch.channel)}
-                      disabled={!canPublish || isPublishing || isXWithoutImage}
-                      title={isXWithoutImage ? 'X requer imagem' : ''}
-                      className={cn(
-                        'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
-                        'flex items-center gap-1',
-                        canPublish && !isXWithoutImage
-                          ? 'bg-primary hover:bg-primary-hover text-white'
-                          : 'bg-surface text-text-muted cursor-not-allowed opacity-50',
-                        isPublishing && 'animate-pulse'
-                      )}
-                    >
-                      {isPublishing ? (
-                        <>
-                          <span className="animate-spin">⏳</span>
-                          Publicando...
-                        </>
-                      ) : ch.status === 'PUBLISHED' ? (
-                        <>✓ Publicado</>
-                      ) : (
-                        <>🚀 Postar</>
-                      )}
-                    </button>
+                    {/* Botão de Ação */}
+                    {canQueue && (
+                      <button
+                        onClick={() => handleAddToQueue(ch.channel)}
+                        disabled={isQueueing || isXWithoutImage}
+                        title={isXWithoutImage ? 'X requer imagem' : 'Adicionar à fila'}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg text-xs font-medium transition-all',
+                          'flex items-center gap-1',
+                          !isXWithoutImage
+                            ? 'bg-primary hover:bg-primary-hover text-white'
+                            : 'bg-surface text-text-muted cursor-not-allowed opacity-50',
+                          isQueueing && 'animate-pulse'
+                        )}
+                      >
+                        {isQueueing ? '⏳' : '🚀'} Postar
+                      </button>
+                    )}
+
+                    {isInQueue && (
+                      <button
+                        onClick={() => handleRemoveFromQueue(ch.channel)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-all"
+                        title="Remover da fila"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
               );
             })}
-
-            {/* Botão Inicializar Canais (se são placeholders) */}
-            {channels.some(c => c._isPlaceholder) && (
-              <button
-                onClick={handleInitialize}
-                disabled={isLoading}
-                className={cn(
-                  'w-full py-2 rounded-lg text-sm font-medium transition-all',
-                  'bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30',
-                  isLoading && 'animate-pulse'
-                )}
-              >
-                {isLoading ? '⏳ Inicializando...' : '🔧 Inicializar Canais'}
-              </button>
-            )}
           </div>
         )}
 
@@ -429,38 +439,32 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
             {getStatusLabel(draft.status)}
           </span>
           
-          <span className="text-xs text-text-muted">
-            {draft.batch?.scheduledTime || '--:--'}
-          </span>
+          {urgencyLabel && (
+            <span className="text-xs text-orange-400">
+              ⏰ {urgencyLabel}
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Ação Rápida - Publicar Todos os Auto */}
-      {statusSummary.ready > 0 && (
+      {/* 🔥 Ação Rápida - Postar em Todos (só aparece se tem ações pendentes) */}
+      {hasPendingActions && (
         <div className="p-4 border-t border-border bg-surface-hover/30">
           <button
-            onClick={async () => {
-              setIsLoading(true);
-              try {
-                for (const ch of channels.filter(c => c.autoPublish && (c.status === 'READY' || c.status === 'MANUAL'))) {
-                  await handlePublish(ch.channel);
-                  await new Promise(r => setTimeout(r, 1000)); // Delay entre publicações
-                }
-                onUpdate();
-              } finally {
-                setIsLoading(false);
-              }
-            }}
+            onClick={handleAddToAllQueues}
             disabled={isLoading}
             className={cn(
               'w-full py-2.5 rounded-lg font-medium text-sm transition-all',
-              'bg-success hover:bg-success/90 text-white',
+              'bg-gradient-to-r from-primary to-purple-500 hover:from-primary-hover hover:to-purple-600 text-white',
               'disabled:opacity-50 disabled:cursor-not-allowed',
               isLoading && 'animate-pulse'
             )}
           >
-            {isLoading ? '⏳ Publicando...' : `🚀 Publicar Automáticos (${channels.filter(c => c.autoPublish && c.status !== 'PUBLISHED').length})`}
+            {isLoading ? '⏳ Adicionando às filas...' : `🚀 Postar em ${statusSummary.pending} canais`}
           </button>
+          <p className="text-xs text-text-muted text-center mt-2">
+            Os posts serão publicados automaticamente respeitando o intervalo de cada canal
+          </p>
         </div>
       )}
     </div>
