@@ -513,7 +513,7 @@ export class MercadoLivreClient {
         return this.getAllMock(limit);
       }
 
-      const data = await response.json();
+      const data = await response.json() as MLSearchResponse;
       
       console.log(`[ML Client] Encontradas ${data.paging?.total || 0} ofertas do dia`);
 
