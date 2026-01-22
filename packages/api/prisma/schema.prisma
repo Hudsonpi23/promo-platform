@@ -52,12 +52,20 @@ enum Channel {
   SITE
 }
 
-// 🔥 NOVO: Status de publicação por canal (SISTEMA DE FILAS)
+// 🔥 Status de publicação por canal (SISTEMA DE FILAS)
 enum ChannelPostStatus {
   PENDING // Aprovado, mas ainda não entrou na fila
-  QUEUED // Está na fila do canal
-  POSTED // Já foi publicado
+  QUEUED // Está na fila do canal (automático)
+  POSTED // Já foi publicado (automático)
   ERROR // Erro na publicação
+  READY_MANUAL // Pronto para copy/paste (canais manuais)
+  DONE_MANUAL // Operador marcou como postado
+}
+
+// 🔥 Modo do canal: automático ou manual (copy/paste)
+enum ChannelMode {
+  AUTO // Publicação automática via API
+  MANUAL // Operador faz copy/paste
 }
 
 // Estilo de humor da copy
@@ -300,16 +308,19 @@ model Offer {
   status    OfferStatus @default(ACTIVE)
   expiresAt DateTime?
 
-  // 🔥 NOVO: Tipo de promoção (afeta copy da IA)
+  // 🔥 Tipo de promoção (afeta copy da IA)
   promoType PromoType @default(NORMAL)
 
-  // 🔥 NOVO: Central de Afiliados
-  canonicalUrl            String? // URL limpa do produto (para dedupe)
+  // 🔥 Central de Afiliados
+  canonicalUrl            String? // URL limpa do produto (para dedupe) - OBRIGATÓRIO
   ownerAffiliateAccountId String? // Dono do tracking
   ownerAffiliateAccount   AffiliateAccount? @relation("OfferAffiliateOwner", fields: [ownerAffiliateAccountId], references: [id])
 
-  affiliateProgramId String? // Programa de afiliados
+  affiliateProgramId String? // Programa de afiliados (marketplace)
   affiliateProgram   AffiliateProgram? @relation("OfferAffiliateProgram", fields: [affiliateProgramId], references: [id])
+
+  // 🔥 Cupom (quando promoType = CUPOM)
+  couponCode String? // Ex: "PROMO10"
 
   // === CAMPOS PARA SOURCES EXTERNOS (ex: Mercado Livre) ===
   source            OfferSource @default(MANUAL)
@@ -466,8 +477,14 @@ model PromotionChannel {
   // Canal
   channel Channel
 
+  // 🔥 Modo do canal: AUTO ou MANUAL (copy/paste)
+  channelMode ChannelMode @default(AUTO)
+
   // Copy específica para este canal
   copyText String? @db.Text
+
+  // Copy editada pelo operador (modo manual)
+  editedCopyText String? @db.Text
 
   // Estilo de humor da copy
   humorStyle HumorStyle @default(URUBU)
@@ -479,11 +496,19 @@ model PromotionChannel {
   queuedAt DateTime? // Quando entrou na fila
   postedAt DateTime? // Quando foi publicado
 
+  // 🔥 Modo Manual: timestamps de conclusão
+  manualDoneAt   DateTime?
+  manualDoneById String?
+
   // Erro (se houver)
   errorReason String? @db.Text
 
   // ID externo da publicação (ex: tweet_id, message_id)
   externalId String?
+
+  // 🔥 Links resolvidos
+  finalUrl String? // Link monetizado final
+  goUrl    String? // Link interno /go/:id?src=channel
 
   // 🔥 Anti-repetição: hash = offerId + channel + humorStyle
   uniqueHash String?
@@ -502,6 +527,7 @@ model PromotionChannel {
   @@unique([draftId, channel])
   // 🔥 Índice otimizado para o scheduler de filas
   @@index([channel, status])
+  @@index([channelMode, status])
   @@index([queuedAt])
   @@index([postedAt])
 }

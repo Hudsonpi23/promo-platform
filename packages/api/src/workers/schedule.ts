@@ -1,115 +1,122 @@
 /**
- * Scheduler Interno
+ * Channel Scheduler Worker
  * 
- * Executa coleta automática de ofertas a cada 10 minutos.
- * Só roda em ambiente de produção (NODE_ENV !== 'test').
+ * Executa o scheduler de canais periodicamente.
+ * Processa filas de publicação por canal (Telegram, X, Site, etc).
  */
 
-import { PrismaClient } from '@prisma/client';
-import { MercadoLivreProvider } from '../providers/mercadolivre/provider';
+import { runScheduler, runBurstScheduler } from '../services/channelScheduler.js';
 
-const prisma = new PrismaClient();
+// Intervalo em ms (1 minuto)
+const INTERVAL_MS = 60 * 1000;
 
-// Intervalo em ms (10 minutos)
-const INTERVAL_MS = 10 * 60 * 1000;
+// Intervalo do burst check (5 minutos)
+const BURST_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
 let schedulerInterval: NodeJS.Timeout | null = null;
+let burstCheckInterval: NodeJS.Timeout | null = null;
 let isRunning = false;
 
 /**
- * Executa uma rodada de coleta
+ * Executa uma rodada do scheduler
  */
-async function runCollection(): Promise<void> {
+async function runSchedulerCycle(): Promise<void> {
   if (isRunning) {
-    console.log('[Scheduler] Coleta ainda em andamento, pulando...');
+    console.log('[Worker] Scheduler ainda em andamento, pulando...');
     return;
   }
 
   isRunning = true;
-  console.log(`[Scheduler] Iniciando coleta automática: ${new Date().toISOString()}`);
-
+  
   try {
-    // Verificar se provider está habilitado
-    const config = await prisma.providerConfig.findUnique({
-      where: { source: 'MERCADO_LIVRE' },
-    });
-
-    if (!config?.enabled) {
-      console.log('[Scheduler] Mercado Livre desabilitado, pulando...');
-      return;
+    const result = await runScheduler();
+    
+    // Log resumido
+    const processed = Object.values(result.results).filter(r => r.processed).length;
+    if (processed > 0) {
+      console.log(`[Worker] Scheduler: ${processed} posts publicados`);
     }
-
-    // Criar provider e executar
-    const provider = new MercadoLivreProvider(prisma);
-    const result = await provider.run({ mode: 'both' });
-
-    console.log('[Scheduler] Coleta finalizada:', {
-      collected: result.collected,
-      insertedOffers: result.insertedOffers,
-      createdDrafts: result.createdDrafts,
-      skipped: result.skipped,
-      errors: result.errors.length,
-    });
-
-    if (result.errors.length > 0) {
-      console.warn('[Scheduler] Erros durante coleta:', result.errors.slice(0, 5));
-    }
-
+    
   } catch (error: any) {
-    console.error('[Scheduler] Erro na coleta:', error.message);
+    console.error('[Worker] Erro no scheduler:', error.message);
   } finally {
     isRunning = false;
   }
 }
 
 /**
- * Inicia o scheduler
+ * Verifica se deve executar burst (horários de pico)
+ */
+async function checkBurstSchedule(): Promise<void> {
+  const hour = new Date().getHours();
+  
+  // Horários de pico para burst: 8h, 12h, 18h, 21h
+  const burstHours = [8, 12, 18, 21];
+  
+  if (!burstHours.includes(hour)) {
+    return;
+  }
+  
+  console.log(`[Worker] ⚡ Horário de burst detectado (${hour}h)`);
+  
+  try {
+    // Burst para Telegram
+    const telegramResult = await runBurstScheduler('TELEGRAM', 10);
+    if (telegramResult.processed > 0) {
+      console.log(`[Worker] ⚡ Telegram burst: ${telegramResult.processed} posts`);
+    }
+    
+    // Burst para Site
+    const siteResult = await runBurstScheduler('SITE', 10);
+    if (siteResult.processed > 0) {
+      console.log(`[Worker] ⚡ Site burst: ${siteResult.processed} posts`);
+    }
+  } catch (error: any) {
+    console.error('[Worker] Erro no burst:', error.message);
+  }
+}
+
+/**
+ * Inicia o scheduler worker
  */
 export function startScheduler(): void {
   if (process.env.NODE_ENV === 'test') {
-    console.log('[Scheduler] Ambiente de teste, scheduler desabilitado');
+    console.log('[Worker] Ambiente de teste, scheduler desabilitado');
     return;
   }
 
   if (schedulerInterval) {
-    console.log('[Scheduler] Já está rodando');
+    console.log('[Worker] Scheduler já está rodando');
     return;
   }
 
-  console.log('[Scheduler] Iniciando scheduler (intervalo: 10 min)');
+  console.log('[Worker] Iniciando Channel Scheduler (intervalo: 1 min)');
   
-  // Executar imediatamente na primeira vez
-  setTimeout(runCollection, 5000); // Aguarda 5s para API inicializar
+  // Executar imediatamente
+  setTimeout(runSchedulerCycle, 5000);
 
   // Agendar execuções periódicas
-  schedulerInterval = setInterval(runCollection, INTERVAL_MS);
+  schedulerInterval = setInterval(runSchedulerCycle, INTERVAL_MS);
+  
+  // Agendar verificação de burst
+  burstCheckInterval = setInterval(checkBurstSchedule, BURST_CHECK_INTERVAL_MS);
 }
 
 /**
- * Para o scheduler
+ * Para o scheduler worker
  */
 export function stopScheduler(): void {
   if (schedulerInterval) {
     clearInterval(schedulerInterval);
     schedulerInterval = null;
-    console.log('[Scheduler] Parado');
   }
-}
-
-/**
- * Executa coleta manual (para testes)
- */
-export async function runManualCollection(): Promise<any> {
-  console.log('[Scheduler] Executando coleta manual...');
   
-  try {
-    const provider = new MercadoLivreProvider(prisma);
-    const result = await provider.run({ mode: 'both' });
-    return result;
-  } catch (error: any) {
-    console.error('[Scheduler] Erro na coleta manual:', error.message);
-    throw error;
+  if (burstCheckInterval) {
+    clearInterval(burstCheckInterval);
+    burstCheckInterval = null;
   }
+  
+  console.log('[Worker] Scheduler parado');
 }
 
 /**
@@ -117,17 +124,15 @@ export async function runManualCollection(): Promise<any> {
  */
 export function getSchedulerStatus(): {
   running: boolean;
-  nextRunIn: number | null;
-  lastRunAt: Date | null;
+  intervalMs: number;
 } {
   return {
     running: !!schedulerInterval,
-    nextRunIn: schedulerInterval ? INTERVAL_MS : null,
-    lastRunAt: null, // TODO: Implementar tracking
+    intervalMs: INTERVAL_MS,
   };
 }
 
-// Auto-start se importado diretamente (não em testes)
+// Auto-start se configurado
 if (process.env.AUTO_START_SCHEDULER === 'true') {
   startScheduler();
 }

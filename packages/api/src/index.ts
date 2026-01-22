@@ -19,15 +19,13 @@ import { publicationsRoutes } from './routes/publications';
 import { trackingRoutes, statsRoutes } from './routes/tracking';
 import { publicRoutes } from './routes/public';
 import { uploadRoutes } from './routes/upload';
-import { mercadoLivreRoutes } from './routes/sources.mercadolivre';
-import { mercadoLivreAuthRoutes } from './routes/auth.mercadolivre';
-import { mlRoutes } from './routes/ml';
 import { seedRoutes } from './routes/seed';
 import { twitterRoutes } from './routes/twitter';
 import { telegramRoutes } from './routes/telegram';
 import { promotionChannelsRoutes } from './routes/promotionChannels';
 import { schedulerRoutes } from './routes/scheduler';
 import { affiliatesRoutes } from './routes/affiliates';
+import { manualRoutes } from './routes/manual';
 
 async function main() {
   const server = Fastify({
@@ -187,15 +185,6 @@ async function main() {
   // Upload (Cloudinary)
   server.register(uploadRoutes, { prefix: '/api' });
 
-  // Sources (Providers)
-  server.register(mercadoLivreRoutes, { prefix: '/api/sources/mercadolivre' });
-
-  // OAuth (Integrações externas)
-  server.register(mercadoLivreAuthRoutes, { prefix: '/api/auth/mercadolivre' });
-
-  // ML - Testes e validação
-  server.register(mlRoutes, { prefix: '/api/ml' });
-
   // Seed - Inicialização do banco (temporário)
   server.register(seedRoutes, { prefix: '/api' });
 
@@ -213,6 +202,9 @@ async function main() {
 
   // 🔥 NOVO: Central de Afiliados
   server.register(affiliatesRoutes, { prefix: '/api/affiliates' });
+
+  // 🔥 NOVO: Operação Manual (Copy/Paste)
+  server.register(manualRoutes, { prefix: '/api/manual' });
 
   // ==================== ROTAS PÚBLICAS ====================
 
@@ -242,7 +234,8 @@ async function main() {
     console.log(`      POST /api/upload/file      → Upload arquivo`);
     console.log(`      GET  /public/feed          → Feed público`);
     console.log(`      GET  /go/:code             → Redirect c/ tracking`);
-    console.log(`      POST /api/sources/mercadolivre/run → Coletar ML`);
+    console.log(`      POST /api/scheduler/run    → Executar scheduler`);
+    console.log(`      GET  /api/manual/queue     → Fila manual copy/paste`);
     console.log('═══════════════════════════════════════════════════════');
     console.log('');
   } catch (err: any) {

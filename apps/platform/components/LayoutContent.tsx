@@ -70,6 +70,45 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span>Erros</span>
             </a>
 
+            {/* OPERADOR MANUAL */}
+            <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Operador Manual</p>
+            
+            <a 
+              href="/manual/facebook" 
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/manual/facebook' 
+                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">📘</span>
+              <span>Facebook</span>
+            </a>
+            
+            <a 
+              href="/manual/instagram" 
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/manual/instagram' 
+                  ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30' 
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">📸</span>
+              <span>Instagram</span>
+            </a>
+            
+            <a 
+              href="/manual/whatsapp" 
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/manual/whatsapp' 
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">💬</span>
+              <span>WhatsApp</span>
+            </a>
+
             {/* GESTÃO */}
             <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Gestão</p>
             
