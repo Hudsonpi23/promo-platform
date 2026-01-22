@@ -94,10 +94,13 @@ export interface ChannelDelivery {
 }
 
 // 🔥 NOVO: Status de canal de promoção (SISTEMA DE FILAS)
-export type ChannelPostStatus = 'PENDING' | 'QUEUED' | 'POSTED' | 'ERROR';
+export type ChannelPostStatus = 'PENDING' | 'QUEUED' | 'POSTED' | 'ERROR' | 'READY_MANUAL' | 'DONE_MANUAL';
 
 // Estilo de humor
 export type HumorStyle = 'URUBU' | 'NEUTRO' | 'FLASH' | 'ENGRACADO';
+
+// Modo do canal: automático ou manual
+export type ChannelMode = 'AUTO' | 'MANUAL';
 
 // 🔥 NOVO: Canal de promoção com sistema de filas
 export interface PromotionChannel {
@@ -107,6 +110,7 @@ export interface PromotionChannel {
   copyText?: string;
   humorStyle?: HumorStyle;
   status: ChannelPostStatus;
+  channelMode?: ChannelMode;  // AUTO = automático, MANUAL = copy/paste
   queuedAt?: string;
   postedAt?: string;
   errorReason?: string;
@@ -470,9 +474,10 @@ export async function publishToAllChannels(
  */
 export async function getChannelsStatus(draftId: string): Promise<{
   total: number;
-  published: number;
-  ready: number;
-  manual: number;
+  posted: number;
+  queued: number;
+  readyManual: number;
+  doneManual: number;
   error: number;
   pending: number;
   channels: PromotionChannel[];

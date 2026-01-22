@@ -42,6 +42,8 @@ const STATUS_STYLES: Record<ChannelPostStatus, { bg: string; text: string; label
   QUEUED: { bg: 'bg-yellow-500/20', text: 'text-yellow-400', label: 'Em fila', icon: '🕐' },
   POSTED: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Postado', icon: '✅' },
   ERROR: { bg: 'bg-red-500/20', text: 'text-red-400', label: 'Erro', icon: '❌' },
+  READY_MANUAL: { bg: 'bg-blue-500/20', text: 'text-blue-400', label: 'Pronto (Manual)', icon: '📋' },
+  DONE_MANUAL: { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Feito', icon: '✅' },
 };
 
 const ALL_CHANNELS: Channel[] = ['TELEGRAM', 'WHATSAPP', 'TWITTER', 'INSTAGRAM', 'FACEBOOK', 'SITE'];
@@ -159,7 +161,7 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
     try {
       // Filtrar canais que ainda não estão na fila ou postados
       const channelsToQueue = channels
-        .filter(ch => ch.status === 'PENDING')
+        .filter(ch => ch.status === 'PENDING' || ch.status === 'READY_MANUAL')
         .map(ch => ch.channel);
       
       if (channelsToQueue.length === 0) {
@@ -203,9 +205,9 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
 
   // Calcular resumo de status
   const statusSummary = {
-    posted: channels.filter(c => c.status === 'POSTED').length,
+    posted: channels.filter(c => c.status === 'POSTED' || c.status === 'DONE_MANUAL').length,
     queued: channels.filter(c => c.status === 'QUEUED').length,
-    pending: channels.filter(c => c.status === 'PENDING').length,
+    pending: channels.filter(c => c.status === 'PENDING' || c.status === 'READY_MANUAL').length,
     error: channels.filter(c => c.status === 'ERROR').length,
     total: channels.length,
   };
@@ -346,9 +348,9 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
               const config = CHANNEL_CONFIG[ch.channel];
               const statusStyle = STATUS_STYLES[ch.status];
               const isQueueing = queueingChannel === ch.channel;
-              const canQueue = ch.status === 'PENDING';
+              const canQueue = ch.status === 'PENDING' || ch.status === 'READY_MANUAL';
               const isInQueue = ch.status === 'QUEUED';
-              const isPosted = ch.status === 'POSTED';
+              const isPosted = ch.status === 'POSTED' || ch.status === 'DONE_MANUAL';
               const isXWithoutImage = ch.channel === 'TWITTER' && !hasImage;
               
               return (
