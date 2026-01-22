@@ -226,7 +226,7 @@ async function getChannelConfig(channel: Channel) {
     automationLevel: dbConfig?.automationLevel ?? defaults.automationLevel,
     repostCooldownHours: dbConfig?.repostCooldownHours ?? defaults.repostCooldownHours,
     burstCooldownSecs: dbConfig?.burstCooldownSecs ?? defaults.burstCooldownSecs,
-    burstSchedule: dbConfig?.burstSchedule as BurstSlot[] | null,
+    burstSchedule: (dbConfig?.burstSchedule as unknown) as BurstSlot[] | null,
     isEnabled: dbConfig?.isEnabled ?? true,
   };
 }
@@ -370,19 +370,17 @@ async function publishToSite(channelRecord: any): Promise<{ success: boolean; ex
 async function publishToTwitter(channelRecord: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
   try {
     // Importar serviço de Twitter
-    const { sendTweet } = await import('./twitter.js');
+    const { postTweet } = await import('./twitter.js');
     
-    const draft = await prisma.postDraft.findUnique({
-      where: { id: channelRecord.draftId },
-      include: { offer: true },
-    });
-
     const text = channelRecord.copyText;
-    const imageUrl = draft?.imageUrl || draft?.offer?.imageUrl;
 
-    const result = await sendTweet(text, imageUrl);
+    const result = await postTweet(text);
     
-    return result;
+    return { 
+      success: result.success, 
+      externalId: result.tweetId, 
+      error: result.error 
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }

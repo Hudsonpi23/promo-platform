@@ -25,11 +25,13 @@ const CreateProgramSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2).regex(/^[a-z0-9-]+$/),
   linkMode: z.enum(['DIRECT_PASTE', 'TEMPLATE_APPEND', 'REDIRECTOR']).default('REDIRECTOR'),
-  urlTemplate: z.string().optional(),
+  urlTemplate: z.string().nullish(),
   allowedDomains: z.array(z.string()).optional(),
-  logoUrl: z.string().optional(),
-  color: z.string().optional(),
+  logoUrl: z.string().nullish(),
+  color: z.string().nullish(),
 });
+
+type CreateProgramInput = z.infer<typeof CreateProgramSchema>;
 
 const CreateCredentialSchema = z.object({
   accountId: z.string(),
@@ -98,7 +100,11 @@ export async function affiliatesRoutes(app: FastifyInstance) {
       }
       
       const account = await prisma.affiliateAccount.create({
-        data: body,
+        data: {
+          name: body.name,
+          slug: body.slug,
+          userId: body.userId || null,
+        },
         include: {
           user: { select: { id: true, name: true, email: true } },
         },
@@ -193,7 +199,15 @@ export async function affiliatesRoutes(app: FastifyInstance) {
       }
       
       const program = await prisma.affiliateProgram.create({
-        data: body,
+        data: {
+          name: body.name,
+          slug: body.slug,
+          linkMode: body.linkMode,
+          urlTemplate: body.urlTemplate || null,
+          allowedDomains: body.allowedDomains || [],
+          logoUrl: body.logoUrl || null,
+          color: body.color || null,
+        },
       });
       
       return reply.status(201).send({
@@ -303,7 +317,15 @@ export async function affiliatesRoutes(app: FastifyInstance) {
       }
       
       const credential = await prisma.affiliateCredential.create({
-        data: body,
+        data: {
+          accountId: body.accountId,
+          programId: body.programId,
+          affiliateTag: body.affiliateTag || null,
+          affiliateId: body.affiliateId || null,
+          apiKey: body.apiKey || null,
+          apiSecret: body.apiSecret || null,
+          metadata: body.metadata || null,
+        },
         include: {
           account: { select: { id: true, name: true, slug: true } },
           program: { select: { id: true, name: true, slug: true } },

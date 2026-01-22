@@ -9,7 +9,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 // ==================== TYPES ====================
 
-export type Channel = 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'TWITTER' | 'SITE';
+export type Channel = 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'TWITTER' | 'INSTAGRAM' | 'SITE';
 
 export interface OfferInput {
   id: string;

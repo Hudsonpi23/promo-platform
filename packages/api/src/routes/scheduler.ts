@@ -339,7 +339,16 @@ export async function schedulerRoutes(app: FastifyInstance) {
     try {
       const body = GenerateCopySchema.parse(request.body);
       
-      const copy = generateUruboCopy(body);
+      const copy = generateUruboCopy({
+        title: body.title,
+        price: body.price,
+        oldPrice: body.oldPrice,
+        discountPct: body.discountPct,
+        channel: body.channel,
+        humorStyle: body.humorStyle,
+        trackingUrl: body.trackingUrl,
+        storeName: body.storeName,
+      });
       
       return reply.send({
         success: true,
@@ -370,7 +379,15 @@ export async function schedulerRoutes(app: FastifyInstance) {
         storeName: z.string().optional(),
       }).parse(request.body);
       
-      const copies = generateAllChannelsCopy(body);
+      const copies = generateAllChannelsCopy({
+        title: body.title,
+        price: body.price,
+        oldPrice: body.oldPrice,
+        discountPct: body.discountPct,
+        humorStyle: body.humorStyle,
+        trackingUrl: body.trackingUrl,
+        storeName: body.storeName,
+      });
       
       return reply.send({
         success: true,

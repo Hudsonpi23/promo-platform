@@ -15,19 +15,20 @@ import { generateCopies } from '../services/aiCopyGenerator.js';
 // ==================== SCHEMAS ====================
 
 const ChannelEnum = z.enum(['TELEGRAM', 'WHATSAPP', 'FACEBOOK', 'TWITTER', 'INSTAGRAM', 'SITE']);
-const ChannelStatusEnum = z.enum(['PENDING', 'READY', 'MANUAL', 'PUBLISHED', 'ERROR', 'SKIPPED']);
+const ChannelStatusEnum = z.enum(['PENDING', 'QUEUED', 'POSTED', 'ERROR', 'READY_MANUAL', 'DONE_MANUAL']);
+const ChannelModeEnum = z.enum(['AUTO', 'MANUAL']);
 
 const CreateChannelSchema = z.object({
   channel: ChannelEnum,
   copyText: z.string().optional(),
-  autoPublish: z.boolean().optional().default(false),
+  channelMode: ChannelModeEnum.optional().default('AUTO'),
   scheduledAt: z.string().datetime().optional(),
 });
 
 const UpdateChannelSchema = z.object({
   copyText: z.string().optional(),
   status: ChannelStatusEnum.optional(),
-  autoPublish: z.boolean().optional(),
+  channelMode: ChannelModeEnum.optional(),
   scheduledAt: z.string().datetime().optional().nullable(),
 });
 
@@ -39,13 +40,14 @@ const PublishChannelSchema = z.object({
 // ==================== DEFAULTS ====================
 
 // Configuração padrão de automação por canal
-const CHANNEL_DEFAULTS: Record<string, { autoPublish: boolean; status: 'READY' | 'MANUAL' }> = {
-  TELEGRAM: { autoPublish: true, status: 'READY' },
-  WHATSAPP: { autoPublish: true, status: 'READY' },
-  SITE: { autoPublish: true, status: 'READY' },
-  TWITTER: { autoPublish: false, status: 'MANUAL' },
-  INSTAGRAM: { autoPublish: false, status: 'MANUAL' },
-  FACEBOOK: { autoPublish: false, status: 'MANUAL' },
+// PENDING = automático, READY_MANUAL = precisa ação manual
+const CHANNEL_DEFAULTS: Record<string, { channelMode: 'AUTO' | 'MANUAL'; status: 'PENDING' | 'READY_MANUAL' }> = {
+  TELEGRAM: { channelMode: 'AUTO', status: 'PENDING' },
+  WHATSAPP: { channelMode: 'AUTO', status: 'PENDING' },
+  SITE: { channelMode: 'AUTO', status: 'PENDING' },
+  TWITTER: { channelMode: 'MANUAL', status: 'READY_MANUAL' },
+  INSTAGRAM: { channelMode: 'MANUAL', status: 'READY_MANUAL' },
+  FACEBOOK: { channelMode: 'MANUAL', status: 'READY_MANUAL' },
 };
 
 // ==================== ROUTES ====================
@@ -73,10 +75,10 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
             draftId,
             channel,
             status: config.status,
-            autoPublish: config.autoPublish,
+            channelMode: config.channelMode,
             copyText: null,
-            scheduledAt: null,
-            publishedAt: null,
+            queuedAt: null,
+            postedAt: null,
             errorReason: null,
             _isPlaceholder: true,
           })),
@@ -154,7 +156,7 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
           channel: channel as any,
           copyText,
           status: config.status as any,
-          autoPublish: config.autoPublish,
+          channelMode: config.channelMode as any,
         };
       });
 
@@ -171,7 +173,7 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
             update: {
               copyText: data.copyText,
               status: data.status,
-              autoPublish: data.autoPublish,
+              channelMode: data.channelMode,
             },
             create: data,
           })
@@ -217,17 +219,17 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
         },
         update: {
           copyText: body.copyText,
-          autoPublish: body.autoPublish,
-          scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
-          status: body.autoPublish ? 'READY' : 'MANUAL',
+          channelMode: body.channelMode,
+          queuedAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+          status: body.channelMode === 'AUTO' ? 'PENDING' : 'READY_MANUAL',
         },
         create: {
           draftId,
           channel: body.channel,
           copyText: body.copyText || '',
-          autoPublish: body.autoPublish,
-          scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
-          status: body.autoPublish ? 'READY' : 'MANUAL',
+          channelMode: body.channelMode,
+          queuedAt: body.scheduledAt ? new Date(body.scheduledAt) : null,
+          status: body.channelMode === 'AUTO' ? 'PENDING' : 'READY_MANUAL',
         },
       });
 
@@ -277,9 +279,9 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
         data: {
           ...(body.copyText !== undefined && { copyText: body.copyText }),
           ...(body.status !== undefined && { status: body.status }),
-          ...(body.autoPublish !== undefined && { autoPublish: body.autoPublish }),
+          ...(body.channelMode !== undefined && { channelMode: body.channelMode }),
           ...(body.scheduledAt !== undefined && { 
-            scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : null 
+            queuedAt: body.scheduledAt ? new Date(body.scheduledAt) : null 
           }),
         },
       });
@@ -333,7 +335,7 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
       }
 
       // Verificar se já foi publicado
-      if (promotionChannel.status === 'PUBLISHED' && !body.force) {
+      if (promotionChannel.status === 'POSTED' && !body.force) {
         return reply.status(400).send({
           success: false,
           error: {
@@ -385,8 +387,8 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
           },
         },
         data: {
-          status: publishResult.success ? 'PUBLISHED' : 'ERROR',
-          publishedAt: publishResult.success ? new Date() : null,
+          status: publishResult.success ? 'POSTED' : 'ERROR',
+          postedAt: publishResult.success ? new Date() : null,
           externalId: publishResult.externalId || null,
           errorReason: publishResult.error || null,
         },
@@ -422,12 +424,12 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
     try {
       const { draftId } = request.params as { draftId: string };
 
-      // Buscar todos os canais com autoPublish
+      // Buscar todos os canais com channelMode AUTO
       const channels = await prisma.promotionChannel.findMany({
         where: {
           draftId,
-          autoPublish: true,
-          status: { in: ['READY', 'MANUAL'] },
+          channelMode: 'AUTO',
+          status: { in: ['PENDING', 'QUEUED', 'READY_MANUAL'] },
         },
         include: {
           draft: {
@@ -477,8 +479,8 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
             },
           },
           data: {
-            status: success ? 'PUBLISHED' : 'ERROR',
-            publishedAt: success ? new Date() : null,
+            status: success ? 'POSTED' : 'ERROR',
+            postedAt: success ? new Date() : null,
             errorReason: error || null,
           },
         });
@@ -510,8 +512,8 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
         select: {
           channel: true,
           status: true,
-          autoPublish: true,
-          publishedAt: true,
+          channelMode: true,
+          postedAt: true,
           errorReason: true,
         },
       });
@@ -519,9 +521,10 @@ export async function promotionChannelsRoutes(app: FastifyInstance) {
       // Montar resumo
       const summary = {
         total: channels.length,
-        published: channels.filter(c => c.status === 'PUBLISHED').length,
-        ready: channels.filter(c => c.status === 'READY').length,
-        manual: channels.filter(c => c.status === 'MANUAL').length,
+        posted: channels.filter(c => c.status === 'POSTED').length,
+        queued: channels.filter(c => c.status === 'QUEUED').length,
+        readyManual: channels.filter(c => c.status === 'READY_MANUAL').length,
+        doneManual: channels.filter(c => c.status === 'DONE_MANUAL').length,
         error: channels.filter(c => c.status === 'ERROR').length,
         pending: channels.filter(c => c.status === 'PENDING').length,
         channels,
@@ -627,14 +630,17 @@ async function publishToTwitter(
 ): Promise<{ success: boolean; externalId?: string; error?: string }> {
   try {
     // Importar serviço de Twitter
-    const { sendTweet } = await import('../services/twitter.js');
+    const { postTweet } = await import('../services/twitter.js');
     
     const text = channel.copyText || draft.copyTextX || draft.copyText;
-    const imageUrl = draft.imageUrl || draft.offer?.imageUrl;
 
-    const result = await sendTweet(text, imageUrl);
+    const result = await postTweet(text);
     
-    return result;
+    return { 
+      success: result.success, 
+      externalId: result.tweetId, 
+      error: result.error 
+    };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
