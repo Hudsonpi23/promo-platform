@@ -387,6 +387,43 @@ async function publishToTwitter(channelRecord: any): Promise<{ success: boolean;
 }
 
 /**
+ * Publica no Facebook
+ */
+async function publishToFacebook(channelRecord: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
+  try {
+    // Importar serviço de Facebook
+    const { postToFacebook, postToFacebookWithImage } = await import('./facebook.js');
+    
+    const draft = await prisma.postDraft.findUnique({
+      where: { id: channelRecord.draftId },
+      include: { offer: true },
+    });
+
+    if (!draft || !draft.offer) {
+      return { success: false, error: 'Draft ou oferta não encontrada' };
+    }
+
+    const text = channelRecord.copyText || draft.copyText;
+    const imageUrl = draft.offer.imageUrl;
+
+    let result;
+    if (imageUrl) {
+      result = await postToFacebookWithImage(text, imageUrl);
+    } else {
+      result = await postToFacebook(text);
+    }
+    
+    return { 
+      success: result.success, 
+      externalId: result.postId, 
+      error: result.error 
+    };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Router de publicação por canal
  */
 async function publishToChannel(
@@ -400,7 +437,9 @@ async function publishToChannel(
       return publishToSite(channelRecord);
     case 'TWITTER':
       return publishToTwitter(channelRecord);
-    // WhatsApp, Instagram, Facebook - implementar conforme APIs disponíveis
+    case 'FACEBOOK':
+      return publishToFacebook(channelRecord);
+    // WhatsApp, Instagram - implementar conforme APIs disponíveis
     default:
       console.log(`[Scheduler] Canal ${channel} não implementado, marcando como publicado`);
       return { success: true, externalId: `mock_${Date.now()}` };
