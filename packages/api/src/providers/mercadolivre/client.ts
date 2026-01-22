@@ -370,13 +370,47 @@ export class MercadoLivreClient {
   }
 
   /**
-   * Parseia preço de forma segura
+   * Parseia preço de forma segura (formato brasileiro: 1.234,56)
    */
   private parsePrice(value: any): number {
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-      const cleaned = value.replace(/[^\d.,]/g, '').replace(',', '.');
-      return parseFloat(cleaned) || 0;
+      // Remover caracteres não numéricos exceto pontos e vírgulas
+      let cleaned = value.replace(/[^\d.,]/g, '');
+      
+      // Formato brasileiro: 1.234,56 -> ponto é milhar, vírgula é decimal
+      // Formato americano: 1,234.56 -> vírgula é milhar, ponto é decimal
+      
+      // Verificar se tem vírgula (formato brasileiro)
+      if (cleaned.includes(',')) {
+        // Se tem ponto antes da vírgula: 1.234,56 -> formato BR
+        if (cleaned.indexOf('.') < cleaned.indexOf(',')) {
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        } else {
+          // Só vírgula: 234,56 -> formato BR
+          cleaned = cleaned.replace(',', '.');
+        }
+      }
+      // Se só tem ponto, verificar se é milhar ou decimal
+      else if (cleaned.includes('.')) {
+        const parts = cleaned.split('.');
+        // Se a parte depois do ponto tem 3 dígitos, é milhar (1.234)
+        if (parts.length === 2 && parts[1].length === 3) {
+          cleaned = cleaned.replace('.', '');
+        }
+      }
+      
+      const result = parseFloat(cleaned) || 0;
+      
+      // Validar: preços acima de 100.000 são provavelmente erros de parsing
+      if (result > 100000) {
+        console.log(`[ML Client] ⚠️ Preço suspeito: ${value} -> ${result}`);
+        // Tentar dividir por 1000 se parecer erro
+        if (result > 1000000) return result / 10000;
+        if (result > 100000) return result / 1000;
+      }
+      
+      return result;
     }
     return 0;
   }
