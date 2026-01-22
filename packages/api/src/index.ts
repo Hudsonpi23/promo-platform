@@ -25,6 +25,7 @@ import { mlRoutes } from './routes/ml';
 import { seedRoutes } from './routes/seed';
 import { twitterRoutes } from './routes/twitter';
 import { telegramRoutes } from './routes/telegram';
+import { promotionChannelsRoutes } from './routes/promotionChannels';
 
 async function main() {
   const server = Fastify({
@@ -201,6 +202,9 @@ async function main() {
 
   // Telegram - Postagem no canal
   server.register(telegramRoutes, { prefix: '/api/telegram' });
+
+  // 🔥 NOVO: Canais de Promoção (estados por canal)
+  server.register(promotionChannelsRoutes, { prefix: '/api/drafts' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

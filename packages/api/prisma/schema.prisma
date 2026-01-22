@@ -28,7 +28,7 @@ enum DraftStatus {
   DISPATCHED
   ERROR
   REJECTED
-  PENDING_X_QUOTA  // Aguardando quota do X
+  PENDING_X_QUOTA // Aguardando quota do X
 }
 
 enum BatchStatus {
@@ -48,7 +48,18 @@ enum Channel {
   WHATSAPP
   FACEBOOK
   TWITTER
+  INSTAGRAM
   SITE
+}
+
+// Status de publicação por canal
+enum ChannelStatus {
+  PENDING // Aguardando copy/preparação
+  READY // Copy pronta, aguardando publicação
+  MANUAL // Requer aprovação manual
+  PUBLISHED // Já publicado
+  ERROR // Erro na publicação
+  SKIPPED // Ignorado/não aplicável
 }
 
 enum Urgency {
@@ -66,12 +77,12 @@ enum Priority {
 
 // Source de onde veio a oferta
 enum OfferSource {
-  MANUAL           // Cadastro manual
-  MERCADO_LIVRE    // API Mercado Livre
-  AWIN             // Rede Awin (afiliados)
-  AMAZON           // Amazon (futuro)
-  MAGALU           // Magazine Luiza (futuro)
-  LOMADEE          // Lomadee (futuro)
+  MANUAL // Cadastro manual
+  MERCADO_LIVRE // API Mercado Livre
+  AWIN // Rede Awin (afiliados)
+  AMAZON // Amazon (futuro)
+  MAGALU // Magazine Luiza (futuro)
+  LOMADEE // Lomadee (futuro)
 }
 
 // ==================== AUTH ====================
@@ -87,7 +98,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   refreshTokens        RefreshToken[]
-  approvedDrafts       PostDraft[] @relation("ApprovedBy")
+  approvedDrafts       PostDraft[]           @relation("ApprovedBy")
   mercadoLivreAccounts MercadoLivreAccount[]
 
   @@index([email])
@@ -109,22 +120,22 @@ model RefreshToken {
 // ==================== CONFIG ====================
 
 model Config {
-  id              String   @id @default("singleton")
-  siteName        String   @default("Manu das Promoções")
-  siteBaseUrl     String   @default("https://manupromocoes.com.br")
-  defaultUtmSource String  @default("manupromocoes")
-  defaultUtmMedium String  @default("site")
-  telegramChannel String?  // @manupromocao
-  whatsappNumber  String?
-  twitterHandle   String?  // @manupromocao
-  facebookPage    String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String   @id @default("singleton")
+  siteName         String   @default("Manu das Promoções")
+  siteBaseUrl      String   @default("https://manupromocoes.com.br")
+  defaultUtmSource String   @default("manupromocoes")
+  defaultUtmMedium String   @default("site")
+  telegramChannel  String? // @manupromocao
+  whatsappNumber   String?
+  twitterHandle    String? // @manupromocao
+  facebookPage     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model BatchSchedule {
   id        String   @id @default(cuid())
-  time      String   // "08:00", "11:00", etc
+  time      String // "08:00", "11:00", etc
   enabled   Boolean  @default(true)
   order     Int      @default(0)
   createdAt DateTime @default(now())
@@ -137,39 +148,39 @@ model BatchSchedule {
 // ==================== PROVIDER CONFIG ====================
 
 model ProviderConfig {
-  id              String      @id @default(cuid())
-  source          OfferSource @unique
-  enabled         Boolean     @default(true)
-  
+  id      String      @id @default(cuid())
+  source  OfferSource @unique
+  enabled Boolean     @default(true)
+
   // Configurações de busca
-  keywords        String[]    // Palavras-chave para busca
-  categories      String[]    // IDs ou slugs de categorias
-  
+  keywords   String[] // Palavras-chave para busca
+  categories String[] // IDs ou slugs de categorias
+
   // Filtros
-  minDiscount     Int         @default(20)  // Desconto mínimo %
-  minPrice        Decimal     @default(50)  @db.Decimal(10, 2)
-  maxPrice        Decimal?    @db.Decimal(10, 2)
-  conditionFilter String[]    @default(["new"]) // "new", "used"
-  
+  minDiscount     Int      @default(20) // Desconto mínimo %
+  minPrice        Decimal  @default(50) @db.Decimal(10, 2)
+  maxPrice        Decimal? @db.Decimal(10, 2)
+  conditionFilter String[] @default(["new"]) // "new", "used"
+
   // Limites
-  maxItemsPerRun  Int         @default(50)
-  
+  maxItemsPerRun Int @default(50)
+
   // X (Twitter) específico
-  enableX         Boolean     @default(true)
-  xDailyLimit     Int         @default(30)  // Máximo de posts X por dia
-  xMinScore       Int         @default(60)  // Score mínimo para sugerir X
-  
+  enableX     Boolean @default(true)
+  xDailyLimit Int     @default(30) // Máximo de posts X por dia
+  xMinScore   Int     @default(60) // Score mínimo para sugerir X
+
   // Schedule
-  scheduleTimes   String[]    @default(["08:00", "11:00", "14:00", "18:00", "22:00"])
-  lastRunAt       DateTime?
-  
+  scheduleTimes String[]  @default(["08:00", "11:00", "14:00", "18:00", "22:00"])
+  lastRunAt     DateTime?
+
   // Credenciais (criptografadas ou via env)
-  apiKey          String?
-  apiSecret       String?
-  accessToken     String?
-  
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  apiKey      String?
+  apiSecret   String?
+  accessToken String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ==================== ENTIDADES BASE ====================
@@ -208,46 +219,46 @@ model Store {
 // ==================== OFERTAS ====================
 
 model Offer {
-  id            String      @id @default(cuid())
+  id            String  @id @default(cuid())
   title         String
   description   String?
-  originalPrice Decimal     @db.Decimal(10, 2)
-  finalPrice    Decimal     @db.Decimal(10, 2)
+  originalPrice Decimal @db.Decimal(10, 2)
+  finalPrice    Decimal @db.Decimal(10, 2)
   discountPct   Int
   affiliateUrl  String
   imageUrl      String?
-  
+
   nicheId String
   niche   Niche  @relation(fields: [nicheId], references: [id])
-  
+
   storeId String
   store   Store  @relation(fields: [storeId], references: [id])
-  
+
   urgency   Urgency     @default(NORMAL)
   status    OfferStatus @default(ACTIVE)
   expiresAt DateTime?
-  
+
   // === CAMPOS PARA SOURCES EXTERNOS (ex: Mercado Livre) ===
-  source              OfferSource @default(MANUAL)
-  externalId          String?     // ID único da oferta no source (ex: MLB123456)
-  productUrl          String?     // URL original do produto (não afiliado)
-  sellerId            String?     // ID do vendedor
-  sellerName          String?     // Nome do vendedor
-  sellerReputation    String?     // Reputação do vendedor (ex: "5_green", "platinum")
-  availableQuantity   Int?        // Estoque disponível
-  condition           String?     // "new", "used", etc
-  categoryId          String?     // ID da categoria no source
-  categoryPath        String?     // Caminho completo da categoria
-  
+  source            OfferSource @default(MANUAL)
+  externalId        String? // ID único da oferta no source (ex: MLB123456)
+  productUrl        String? // URL original do produto (não afiliado)
+  sellerId          String? // ID do vendedor
+  sellerName        String? // Nome do vendedor
+  sellerReputation  String? // Reputação do vendedor (ex: "5_green", "platinum")
+  availableQuantity Int? // Estoque disponível
+  condition         String? // "new", "used", etc
+  categoryId        String? // ID da categoria no source
+  categoryPath      String? // Caminho completo da categoria
+
   // Hash para deduplicação (title+price+store)
-  dedupeHash          String?
-  
+  dedupeHash String?
+
   // === CAMPOS DE QUALIDADE E VALIDAÇÃO ===
-  rawPayload          Json?       // Payload original da fonte (para debug)
-  errorReason         String?     // Motivo de rejeição/erro
-  currency            String      @default("BRL")
-  country             String      @default("BR")
-  
+  rawPayload  Json? // Payload original da fonte (para debug)
+  errorReason String? // Motivo de rejeição/erro
+  currency    String  @default("BRL")
+  country     String  @default("BR")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -270,15 +281,15 @@ model Offer {
 model Batch {
   id            String      @id @default(cuid())
   date          DateTime    @db.Date
-  scheduledTime String      // "08:00", "11:00", "14:00", "18:00", "22:00"
+  scheduledTime String // "08:00", "11:00", "14:00", "18:00", "22:00"
   status        BatchStatus @default(PENDING)
-  
+
   // Contadores desnormalizados
   pendingCount    Int @default(0)
   approvedCount   Int @default(0)
   dispatchedCount Int @default(0)
   errorCount      Int @default(0)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -293,47 +304,48 @@ model Batch {
 
 model PostDraft {
   id String @id @default(cuid())
-  
+
   offerId String
   offer   Offer  @relation(fields: [offerId], references: [id])
-  
+
   batchId String
   batch   Batch  @relation(fields: [batchId], references: [id])
-  
+
   // Copy genérica (fallback)
-  copyText String   @db.Text
-  
+  copyText String @db.Text
+
   // === COPY POR CANAL (humana, sem "robô vibes") ===
-  copyTextTelegram  String?  @db.Text  // 2-3 linhas, link no final
-  copyTextSite      String?  @db.Text  // Similar ao Telegram
-  copyTextX         String?  @db.Text  // Curto ~240 chars, imagem obrigatória, link no final
-  
+  copyTextTelegram String? @db.Text // 2-3 linhas, link no final
+  copyTextSite     String? @db.Text // Similar ao Telegram
+  copyTextX        String? @db.Text // Curto ~240 chars, imagem obrigatória, link no final
+
   channels Channel[]
-  priority Priority @default(NORMAL)
-  
+  priority Priority  @default(NORMAL)
+
   status     DraftStatus @default(PENDING)
   approvedAt DateTime?
-  
+
   approvedById String?
   approvedBy   User?   @relation("ApprovedBy", fields: [approvedById], references: [id])
-  
+
   // === SCORE E VALIDAÇÃO ===
-  score             Int       @default(0)  // Score 0-100 baseado em regras
-  aiScore           Int?      // Score de confiança da IA (legado)
-  errorMsg          String?   @db.Text
-  
+  score    Int     @default(0) // Score 0-100 baseado em regras
+  aiScore  Int? // Score de confiança da IA (legado)
+  errorMsg String? @db.Text
+
   // === IMAGEM E REQUISITOS ===
-  imageUrl          String?   // URL da imagem para X
-  requiresImage     Boolean   @default(false)
-  requiresHumanForX Boolean   @default(true)  // X sempre exige aprovação humana
-  
+  imageUrl          String? // URL da imagem para X
+  requiresImage     Boolean @default(false)
+  requiresHumanForX Boolean @default(true) // X sempre exige aprovação humana
+
   // Variantes de copy por canal (JSON - legado, manter compatibilidade)
   copyChannelVariants Json?
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  deliveries PostDelivery[]
+  deliveries        PostDelivery[]
+  promotionChannels PromotionChannel[] // 🔥 NOVO: Estados por canal
 
   @@index([batchId])
   @@index([offerId])
@@ -344,20 +356,20 @@ model PostDraft {
 
 model PostDelivery {
   id String @id @default(cuid())
-  
+
   draftId String
   draft   PostDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
-  
+
   channel      Channel
   status       DeliveryStatus @default(PENDING)
   sentAt       DateTime?
   externalId   String?
   errorMessage String?        @db.Text
   retries      Int            @default(0)
-  
+
   // Copy gerado pelo CopyEngine para este canal
-  payload      Json?          // { text, headline?, subcopy?, link }
-  
+  payload Json? // { text, headline?, subcopy?, link }
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -366,34 +378,84 @@ model PostDelivery {
   @@index([channel])
 }
 
+// ==================== CANAL DE PROMOÇÃO (NOVO MODELO) ====================
+// PromotionChannel - Estados independentes de publicação por canal
+// Uma promoção pode ter múltiplos canais, cada um com:
+// - Copy específica
+// - Status independente
+// - Configuração de auto-publicação
+// - Agendamento individual
+
+model PromotionChannel {
+  id String @id @default(cuid())
+
+  // Relacionamento com PostDraft (promoção)
+  draftId String
+  draft   PostDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  // Canal
+  channel Channel
+
+  // Copy específica para este canal
+  copyText String? @db.Text
+
+  // Status do canal
+  status ChannelStatus @default(PENDING)
+
+  // Configuração de automação
+  autoPublish Boolean @default(false)
+
+  // Agendamento
+  scheduledAt DateTime?
+  publishedAt DateTime?
+
+  // Erro (se houver)
+  errorReason String? @db.Text
+
+  // ID externo da publicação (ex: tweet_id, message_id)
+  externalId String?
+
+  // Metadados adicionais
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([draftId, channel])
+  @@index([channel])
+  @@index([status])
+  @@index([autoPublish])
+  @@index([scheduledAt])
+}
+
 // ==================== PUBLICAÇÕES (SITE) ====================
 
 model PublishedPost {
   id String @id @default(cuid())
-  
+
   offerId String
   offer   Offer  @relation(fields: [offerId], references: [id])
-  
-  slug     String @unique
-  goCode   String @unique // Código curto para /go/:code
-  
+
+  slug   String @unique
+  goCode String @unique // Código curto para /go/:code
+
   // Snapshot dos dados
-  title       String
-  excerpt     String?  @db.Text
-  copyText    String   @db.Text
-  price       Decimal  @db.Decimal(10, 2)
+  title         String
+  excerpt       String?  @db.Text
+  copyText      String   @db.Text
+  price         Decimal  @db.Decimal(10, 2)
   originalPrice Decimal? @db.Decimal(10, 2)
-  discountPct Int
-  affiliateUrl String
-  imageUrl    String?
-  urgency     Urgency  @default(NORMAL)
-  
+  discountPct   Int
+  affiliateUrl  String
+  imageUrl      String?
+  urgency       Urgency  @default(NORMAL)
+
   nicheId String
   niche   Niche  @relation(fields: [nicheId], references: [id])
-  
+
   storeId String
   store   Store  @relation(fields: [storeId], references: [id])
-  
+
   isActive    Boolean  @default(true)
   publishedAt DateTime @default(now())
   createdAt   DateTime @default(now())
@@ -413,15 +475,15 @@ model PublishedPost {
 
 model Click {
   id String @id @default(cuid())
-  
+
   goCode String
-  
+
   publishedPostId String?
   publishedPost   PublishedPost? @relation(fields: [publishedPostId], references: [id])
-  
+
   offerId String?
   offer   Offer?  @relation(fields: [offerId], references: [id])
-  
+
   channel     Channel?
   utmSource   String?
   utmMedium   String?
@@ -429,7 +491,7 @@ model Click {
   userAgent   String?  @db.Text
   ipHash      String?
   referer     String?
-  
+
   createdAt DateTime @default(now())
 
   @@index([goCode])
@@ -442,16 +504,16 @@ model Click {
 // ==================== IMPORTAÇÃO ====================
 
 model ImportJob {
-  id        String       @id @default(cuid())
-  type      String       // OFFERS_JSON, OFFERS_CSV
-  status    String       @default("PENDING") // PENDING, RUNNING, DONE, ERROR
+  id        String   @id @default(cuid())
+  type      String // OFFERS_JSON, OFFERS_CSV
+  status    String   @default("PENDING") // PENDING, RUNNING, DONE, ERROR
   filename  String?
   totalRows Int?
-  processed Int          @default(0)
-  errors    Int          @default(0)
-  errorLog  String?      @db.Text
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  processed Int      @default(0)
+  errors    Int      @default(0)
+  errorLog  String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([createdAt])
@@ -461,19 +523,19 @@ model ImportJob {
 
 model ErrorLog {
   id String @id @default(cuid())
-  
+
   draftId    String?
   deliveryId String?
-  
-  errorType  String
-  message    String  @db.Text
-  details    Json?
-  stack      String? @db.Text
-  
+
+  errorType String
+  message   String  @db.Text
+  details   Json?
+  stack     String? @db.Text
+
   isResolved Boolean   @default(false)
   resolvedAt DateTime?
   resolvedBy String?
-  
+
   createdAt DateTime @default(now())
 
   @@index([isResolved])
@@ -484,31 +546,31 @@ model ErrorLog {
 // ==================== MERCADO LIVRE OAUTH ====================
 
 model MercadoLivreAccount {
-  id            String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Usuário do sistema que conectou a conta
-  userId        String?
-  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   // Dados do usuário no Mercado Livre
-  mlUserId      String   @unique  // ID do usuário no ML
-  mlNickname    String?           // Apelido/nome no ML
-  mlEmail       String?           // Email no ML
-  
+  mlUserId   String  @unique // ID do usuário no ML
+  mlNickname String? // Apelido/nome no ML
+  mlEmail    String? // Email no ML
+
   // Tokens OAuth (dinâmicos, gerenciados pelo sistema)
-  accessToken   String   @db.Text
-  refreshToken  String   @db.Text
-  tokenType     String   @default("Bearer")
-  expiresAt     DateTime // Quando o access_token expira
-  scope         String?  // Escopos autorizados
-  
+  accessToken  String   @db.Text
+  refreshToken String   @db.Text
+  tokenType    String   @default("Bearer")
+  expiresAt    DateTime // Quando o access_token expira
+  scope        String? // Escopos autorizados
+
   // Status
-  isActive      Boolean  @default(true)
+  isActive      Boolean   @default(true)
   lastUsedAt    DateTime?
   lastRefreshAt DateTime?
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([mlUserId])
   @@index([userId])

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Card } from '@/components/Card';
+import { PromotionCard } from '@/components/PromotionCard';
 import { BatchTabs } from '@/components/BatchTabs';
 import { StatsBar } from '@/components/StatsBar';
 import { fetcher, Batch, PostDraft, dispatchBatch, dispatchAllPendingToX, getTwitterStatus } from '@/lib/api';
@@ -23,6 +24,9 @@ export default function Dashboard() {
   const [showOnlyX, setShowOnlyX] = useState(false);
   // AJUSTE 1 - Modo de operação: 'rapido' = OK dispara imediato, 'carga' = OK só aprova
   const [dispatchMode, setDispatchMode] = useState<'rapido' | 'carga'>('rapido');
+  
+  // 🔥 NOVO: Modo de Card - 'classico' = Card antigo, 'canais' = PromotionCard com canais
+  const [cardMode, setCardMode] = useState<'classico' | 'canais'>('canais');
   
   // Estados para "Enviar Tudo para o X"
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -435,6 +439,32 @@ export default function Dashboard() {
           🐦 Somente X
         </button>
         
+        {/* 🔥 NOVO: Toggle Modo de Card */}
+        <div className="flex items-center gap-1 bg-surface rounded-lg p-1 border border-border">
+          <button
+            onClick={() => setCardMode('canais')}
+            className={cn(
+              'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+              cardMode === 'canais'
+                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+                : 'text-text-secondary hover:text-text-primary'
+            )}
+          >
+            📊 Canais
+          </button>
+          <button
+            onClick={() => setCardMode('classico')}
+            className={cn(
+              'px-3 py-1.5 rounded-md text-sm font-medium transition-all',
+              cardMode === 'classico'
+                ? 'bg-surface-hover text-text-primary'
+                : 'text-text-secondary hover:text-text-primary'
+            )}
+          >
+            📋 Clássico
+          </button>
+        </div>
+        
         <div className="flex-1" />
         <span className="text-sm text-text-muted">
           {filteredDrafts.length} cards
@@ -443,9 +473,18 @@ export default function Dashboard() {
 
       {/* Grid de Cards */}
       {filteredDrafts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className={cn(
+          "grid gap-4",
+          cardMode === 'canais'
+            ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"  // Menos colunas para card com canais
+            : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        )}>
           {filteredDrafts.map((draft) => (
-            <Card key={draft.id} draft={draft} onUpdate={handleUpdate} dispatchMode={dispatchMode} />
+            cardMode === 'canais' ? (
+              <PromotionCard key={draft.id} draft={draft} onUpdate={handleUpdate} />
+            ) : (
+              <Card key={draft.id} draft={draft} onUpdate={handleUpdate} dispatchMode={dispatchMode} />
+            )
           ))}
         </div>
       ) : (

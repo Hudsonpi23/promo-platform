@@ -83,14 +83,32 @@ export interface Offer {
 }
 
 // Canais de divulgação disponíveis
-export type Channel = 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'TWITTER' | 'SITE';
+export type Channel = 'TELEGRAM' | 'WHATSAPP' | 'FACEBOOK' | 'TWITTER' | 'INSTAGRAM' | 'SITE';
 
-// Status de entrega por canal
+// Status de entrega por canal (legado)
 export interface ChannelDelivery {
   channel: Channel;
   status: 'PENDING' | 'SENT' | 'ERROR';
   sentAt?: string;
   error?: string;
+}
+
+// 🔥 NOVO: Status de canal de promoção
+export type ChannelStatus = 'PENDING' | 'READY' | 'MANUAL' | 'PUBLISHED' | 'ERROR' | 'SKIPPED';
+
+// 🔥 NOVO: Canal de promoção com estados independentes
+export interface PromotionChannel {
+  id?: string;
+  draftId: string;
+  channel: Channel;
+  copyText?: string;
+  status: ChannelStatus;
+  autoPublish: boolean;
+  scheduledAt?: string;
+  publishedAt?: string;
+  errorReason?: string;
+  externalId?: string;
+  _isPlaceholder?: boolean;  // Para canais não criados ainda
 }
 
 export interface PostDraft {
@@ -375,4 +393,88 @@ export async function dispatchAllPendingToX(draftIds: string[]): Promise<Dispatc
     failed,
     results,
   };
+}
+
+// ==================== 🔥 NOVO: CANAIS DE PROMOÇÃO ====================
+
+/**
+ * Busca todos os canais de uma promoção
+ */
+export async function getPromotionChannels(draftId: string): Promise<PromotionChannel[]> {
+  const res = await fetchWithAuth(`/api/drafts/${draftId}/channels`);
+  const json = await res.json();
+  return json.data || [];
+}
+
+/**
+ * Inicializa todos os canais de uma promoção com configurações padrão
+ */
+export async function initializePromotionChannels(draftId: string): Promise<{ success: boolean; data?: PromotionChannel[] }> {
+  const res = await fetchWithAuth(`/api/drafts/${draftId}/channels/initialize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return res.json();
+}
+
+/**
+ * Atualiza um canal específico de uma promoção
+ */
+export async function updatePromotionChannel(
+  draftId: string,
+  channel: Channel,
+  data: Partial<PromotionChannel>
+): Promise<{ success: boolean; data?: PromotionChannel }> {
+  const res = await fetchWithAuth(`/api/drafts/${draftId}/channels/${channel}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  return res.json();
+}
+
+/**
+ * Publica em um canal específico
+ */
+export async function publishToChannel(
+  draftId: string,
+  channel: Channel,
+  options?: { force?: boolean }
+): Promise<{ success: boolean; data?: PromotionChannel; error?: any }> {
+  const res = await fetchWithAuth(`/api/drafts/${draftId}/channels/${channel}/publish`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(options || {}),
+  });
+  return res.json();
+}
+
+/**
+ * Publica em todos os canais com autoPublish habilitado
+ */
+export async function publishToAllChannels(
+  draftId: string
+): Promise<{ success: boolean; data?: Array<{ channel: string; success: boolean; error?: string }> }> {
+  const res = await fetchWithAuth(`/api/drafts/${draftId}/channels/publish-all`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  return res.json();
+}
+
+/**
+ * Obtém resumo de status de todos os canais
+ */
+export async function getChannelsStatus(draftId: string): Promise<{
+  total: number;
+  published: number;
+  ready: number;
+  manual: number;
+  error: number;
+  pending: number;
+  channels: PromotionChannel[];
+}> {
+  const res = await fetchWithAuth(`/api/drafts/${draftId}/channels/status`);
+  const json = await res.json();
+  return json.data;
 }
