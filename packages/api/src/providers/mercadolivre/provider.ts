@@ -403,7 +403,6 @@ export class MercadoLivreProvider {
 
     result.createdDrafts++;
   }
-}
 
   /**
    * 🔥 NOVO: Executa coleta usando o novo sistema de scoring

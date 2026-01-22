@@ -419,7 +419,8 @@ export async function processOfferBatch(
             raw.price,
             raw.sellerName || raw.advertiserName || 'unknown'
           ),
-          rawPayload: raw.rawPayload,
+          // @ts-ignore - rawPayload existe após migration
+          rawPayload: raw.rawPayload || undefined,
           currency: raw.currency || 'BRL',
           country: raw.country || 'BR',
           urgency: raw.availableQuantity && raw.availableQuantity <= 10 

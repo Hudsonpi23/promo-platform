@@ -303,7 +303,8 @@ export function shouldAutoApprove(
   const requireHighScore = options?.requireHighScore ?? true;
 
   // Regra 1: Fonte deve ser AWIN (não ML, que requer revisão)
-  if (offer.source !== 'AWIN') {
+  // @ts-ignore - AWIN existe no enum após migration
+  if ((offer.source as string) !== 'AWIN') {
     return false;
   }
 
