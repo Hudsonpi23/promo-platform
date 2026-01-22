@@ -126,12 +126,12 @@ export function Card({ draft, onUpdate, dispatchMode = 'rapido' }: CardProps) {
       });
 
       // Atualizar oferta (preços e título) se tiver oferta associada
-      if (draft.offerId) {
+      if (draft.offer?.id) {
         // Buscar token de autenticação (mesmo nome usado em lib/auth.ts)
         const token = localStorage.getItem('auth_token');
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         
-        const response = await fetch(`${API_URL}/api/offers/${draft.offerId}`, {
+        const response = await fetch(`${API_URL}/api/offers/${draft.offer.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
