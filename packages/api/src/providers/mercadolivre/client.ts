@@ -83,6 +83,38 @@ export class MercadoLivreClient {
   }
 
   /**
+   * Obtém access token via client credentials (App Token)
+   */
+  async getAppToken(): Promise<string | null> {
+    if (!this.clientId || !this.clientSecret) {
+      console.log('[ML Client] ⚠️ ML_CLIENT_ID ou ML_CLIENT_SECRET não configurados');
+      return null;
+    }
+
+    try {
+      console.log('[ML Client] Obtendo App Token...');
+      
+      const response = await axios.post('https://api.mercadolibre.com/oauth/token', {
+        grant_type: 'client_credentials',
+        client_id: this.clientId,
+        client_secret: this.clientSecret,
+      }, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (response.data?.access_token) {
+        this.accessToken = response.data.access_token;
+        console.log('[ML Client] ✅ App Token obtido com sucesso');
+        return this.accessToken;
+      }
+    } catch (error: any) {
+      console.log('[ML Client] ⚠️ Erro ao obter App Token:', error.response?.data?.message || error.message);
+    }
+    
+    return null;
+  }
+
+  /**
    * 🔥 BUSCA OFERTAS REAIS - API OFICIAL DO MERCADO LIVRE
    * 
    * Usa endpoints públicos que retornam dados reais:
@@ -96,6 +128,11 @@ export class MercadoLivreClient {
   } = {}): Promise<MLSearchResponse> {
     const limit = Math.min(options.limit || 50, 50);
     const offset = options.offset || ((options.page || 1) - 1) * limit;
+
+    // Tentar obter token de autenticação primeiro
+    if (!this.accessToken) {
+      await this.getAppToken();
+    }
 
     console.log(`[ML Client] 🔥 Buscando ofertas REAIS da API oficial...`);
 
