@@ -68,7 +68,7 @@ export const DEFAULT_CHANNEL_RULES: Record<string, {
   FACEBOOK: { 
     intervalMin: 30, 
     dailyLimit: 10, 
-    activeHours: '08:00-23:00',
+    activeHours: '00:00-23:59',
     automationLevel: 'TOTAL',
     repostCooldownHours: 24,
     burstCooldownSecs: 0,
