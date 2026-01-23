@@ -68,6 +68,21 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
     store: { name: 'Sem loja' },
     affiliateUrl: '',
     imageUrl: '',
+    // 🤖 v2.0: Campos de IA
+    mainImage: '',
+    curationStatus: 'DRAFT',
+    aiPriorityScore: null,
+    aiRiskLevel: null,
+  };
+
+  // 🤖 v2.0: Informações de IA
+  const aiInfo = {
+    curationStatus: (offer as any).curationStatus || 'DRAFT',
+    priorityScore: (offer as any).aiPriorityScore,
+    riskLevel: (offer as any).aiRiskLevel,
+    isProcessing: (offer as any).curationStatus === 'AI_PROCESSING',
+    isReady: (offer as any).curationStatus === 'AI_READY',
+    isBlocked: (offer as any).curationStatus === 'AI_BLOCKED',
   };
 
   const urgencyLabel = getUrgencyLabel(offer.urgency || 'NORMAL');
@@ -225,6 +240,33 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
       {/* Header - Tags */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-hover/50">
         <div className="flex items-center gap-2 flex-wrap">
+          {/* 🤖 v2.0: Badge de Status da IA */}
+          {aiInfo.isProcessing && (
+            <span className="px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-400 text-xs font-medium animate-pulse">
+              🧠 IA Processando
+            </span>
+          )}
+          {aiInfo.isReady && (
+            <span className="px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-xs font-medium">
+              ✅ IA Pronta
+            </span>
+          )}
+          {aiInfo.isBlocked && (
+            <span className="px-2 py-1 rounded-md bg-red-500/20 text-red-400 text-xs font-medium">
+              ⚠️ Bloqueado
+            </span>
+          )}
+          {/* 🤖 v2.0: Score da IA */}
+          {aiInfo.priorityScore && (
+            <span className={cn(
+              'px-2 py-1 rounded-md text-xs font-medium',
+              aiInfo.priorityScore >= 70 ? 'bg-green-500/20 text-green-400' :
+              aiInfo.priorityScore >= 50 ? 'bg-blue-500/20 text-blue-400' :
+              'bg-yellow-500/20 text-yellow-400'
+            )}>
+              🤖 {aiInfo.priorityScore}
+            </span>
+          )}
           {isML && (
             <span className="px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-500 text-xs font-medium">
               🛒 ML
@@ -238,7 +280,7 @@ export function PromotionCard({ draft, onUpdate }: PromotionCardProps) {
               🔥 Alta
             </span>
           )}
-          {displayScore > 0 && (
+          {displayScore > 0 && !aiInfo.priorityScore && (
             <span className={cn(
               'px-2 py-1 rounded-md text-xs font-medium',
               displayScore >= 70 ? 'bg-success/20 text-success' :

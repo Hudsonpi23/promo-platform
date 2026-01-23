@@ -105,6 +105,33 @@ enum Urgency {
   NORMAL
 }
 
+// 🤖 Status de curadoria da oferta (v2.0 IA)
+enum CurationStatus {
+  DRAFT           // Rascunho, aguardando imagem/dados
+  PENDING_REVIEW  // Aguardando aprovação do operador
+  APPROVED        // Aprovada pelo operador, pronta para IA
+  AI_PROCESSING   // IA está processando
+  AI_READY        // IA finalizou, jobs criados
+  AI_BLOCKED      // IA bloqueou (risco alto)
+}
+
+// 🤖 Status do PostJob (v2.0 IA)
+enum PostJobStatus {
+  PENDING   // Criado pela IA, aguardando fila
+  QUEUED    // Na fila do scheduler
+  POSTED    // Publicado com sucesso
+  ERROR     // Erro na publicação
+  CANCELLED // Cancelado
+}
+
+// 🤖 Nível de risco da oferta (avaliado pela IA Curadora)
+enum RiskLevel {
+  LOW       // Baixo risco
+  MEDIUM    // Risco médio
+  HIGH      // Alto risco - requer atenção
+  BLOCKED   // Bloqueado pela IA
+}
+
 enum Priority {
   HIGH
   NORMAL
@@ -298,6 +325,10 @@ model Offer {
   affiliateUrl  String
   imageUrl      String?
 
+  // 🤖 v2.0 IA: IMAGENS (Cloudinary)
+  mainImage   String?   // Imagem principal OBRIGATÓRIA
+  images      String[]  // Galeria de imagens (URLs Cloudinary)
+
   nicheId String
   niche   Niche  @relation(fields: [nicheId], references: [id])
 
@@ -310,6 +341,16 @@ model Offer {
 
   // 🔥 Tipo de promoção (afeta copy da IA)
   promoType PromoType @default(NORMAL)
+
+  // 🤖 v2.0 IA: STATUS DE CURADORIA
+  curationStatus CurationStatus @default(DRAFT)
+  
+  // 🤖 v2.0 IA: AVALIAÇÃO DA CURADORA
+  aiPriorityScore      Int?       // Score 0-100 (calculado pela IA)
+  aiRiskLevel          RiskLevel? // Nível de risco
+  aiRecommendedNetworks String[]  // Redes recomendadas pela IA
+  aiBlockReason        String?    // Motivo do bloqueio (se houver)
+  aiProcessedAt        DateTime?  // Quando a IA processou
 
   // 🔥 Central de Afiliados
   canonicalUrl            String? // URL limpa do produto (para dedupe) - OBRIGATÓRIO
@@ -349,6 +390,7 @@ model Offer {
   drafts         PostDraft[]
   publishedPosts PublishedPost[]
   clicks         Click[]
+  postJobs       PostJob[]       // 🤖 v2.0 IA: Jobs gerados pela IA
 
   // Índice único por source + externalId
   @@unique([source, externalId])
@@ -358,6 +400,56 @@ model Offer {
   @@index([source])
   @@index([dedupeHash])
   @@index([createdAt])
+  @@index([curationStatus])
+}
+
+// ==================== 🤖 v2.0 IA: POST JOB ====================
+// PostJob = Um job de publicação por rede, gerado pela IA
+// A IA gera POST_JOB. O SCHEDULER apenas executa POST_JOB.
+
+model PostJob {
+  id String @id @default(cuid())
+
+  // Relacionamento com Offer
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  // 🎯 Rede de destino
+  network Channel
+
+  // 📝 Conteúdo gerado pela IA
+  textFinal   String  @db.Text  // Copy final gerada pelo agente
+  imageUsed   String?           // URL da imagem usada
+  
+  // 🤖 Agente responsável
+  agentName   String            // "CURADORA", "ANA", "GABRIEL", "THEO", "LAURA"
+  agentStyle  String?           // Estilo usado (ex: "urgente", "conversacional")
+
+  // 📊 Status do job
+  status      PostJobStatus @default(PENDING)
+  
+  // ⏰ Agendamento
+  scheduledAt DateTime?         // Quando deve ser publicado
+  postedAt    DateTime?         // Quando foi publicado
+  
+  // 🔗 Resultado
+  externalId  String?           // ID externo (tweet_id, post_id, etc)
+  postUrl     String?           // URL do post publicado
+  
+  // ❌ Erro (se houver)
+  errorReason String?   @db.Text
+  retries     Int       @default(0)
+
+  // 📊 Metadados da IA
+  aiMetadata  Json?             // Dados extras da geração (tokens, etc)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([offerId, network])   // Uma oferta = um job por rede
+  @@index([network, status])
+  @@index([scheduledAt])
+  @@index([status])
 }
 
 // ==================== SISTEMA DE CARGAS ====================

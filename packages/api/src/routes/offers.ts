@@ -151,6 +151,13 @@ export async function offersRoutes(app: FastifyInstance) {
         });
       }
 
+      // 🤖 v2.0: Extrair campos de IA do body
+      const bodyWithAI = body as typeof body & {
+        mainImage?: string;
+        images?: string[];
+        curationStatus?: 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED';
+      };
+
       const offer = await prisma.offer.create({
         data: {
           title: body.title,
@@ -164,6 +171,10 @@ export async function offersRoutes(app: FastifyInstance) {
           storeId,
           urgency: body.urgency || 'NORMAL',
           expiresAt: body.expiresAt,
+          // 🤖 v2.0: Novos campos
+          mainImage: bodyWithAI.mainImage || body.imageUrl,
+          images: bodyWithAI.images || [],
+          curationStatus: bodyWithAI.curationStatus || 'DRAFT',
         },
         include: {
           niche: { select: { id: true, name: true, slug: true, icon: true } },
@@ -220,6 +231,10 @@ export async function offersRoutes(app: FastifyInstance) {
         description?: string;
         affiliateUrl?: string;
         imageUrl?: string;
+        // 🤖 v2.0: Novos campos
+        mainImage?: string;
+        images?: string[];
+        curationStatus?: 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'AI_PROCESSING' | 'AI_READY' | 'AI_BLOCKED';
       };
 
       // Verificar se oferta existe
@@ -237,6 +252,11 @@ export async function offersRoutes(app: FastifyInstance) {
       if (body.description !== undefined) updateData.description = body.description;
       if (body.affiliateUrl !== undefined) updateData.affiliateUrl = body.affiliateUrl;
       if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
+      
+      // 🤖 v2.0: Novos campos
+      if (body.mainImage !== undefined) updateData.mainImage = body.mainImage;
+      if (body.images !== undefined) updateData.images = body.images;
+      if (body.curationStatus !== undefined) updateData.curationStatus = body.curationStatus;
 
       const offer = await prisma.offer.update({
         where: { id },

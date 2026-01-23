@@ -29,16 +29,84 @@ export default function OfertasPage() {
     nicheId: '',
     storeId: '',
     urgency: 'NORMAL',
+    mainImage: '', // 🤖 v2.0: Imagem obrigatória
   });
+
+  // 🤖 v2.0: Estado de upload de imagem
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Estado de loading
   const [isCreating, setIsCreating] = useState(false);
 
+  // 🤖 v2.0: Upload de imagem para Cloudinary
+  const handleImageUpload = async (file: File) => {
+    setUploadingImage(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetchWithAuth('/api/upload/file', {
+        method: 'POST',
+        body: formData,
+        headers: {}, // Deixar o browser setar o content-type com boundary
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        setForm({ ...form, mainImage: data.url });
+        setImagePreview(data.url);
+      } else {
+        throw new Error(data.error || 'Erro no upload');
+      }
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      alert(`❌ Erro no upload: ${error.message}`);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // 🤖 v2.0: Upload via URL
+  const handleImageUrlUpload = async (url: string) => {
+    if (!url) return;
+    
+    setUploadingImage(true);
+    
+    try {
+      const response = await fetchWithAuth('/api/upload/url', {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        setForm({ ...form, mainImage: data.url });
+        setImagePreview(data.url);
+      } else {
+        throw new Error(data.error || 'Erro no upload');
+      }
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      alert(`❌ Erro no upload: ${error.message}`);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   // Criar oferta
   const handleCreate = async () => {
-    // Validação mínima - apenas título e preço final são obrigatórios
+    // 🤖 v2.0: Validação com imagem OBRIGATÓRIA
     if (!form.title || !form.finalPrice) {
       alert('Preencha pelo menos: Título e Preço Final');
+      return;
+    }
+
+    if (!form.mainImage) {
+      alert('⚠️ IMAGEM OBRIGATÓRIA!\n\nA imagem é necessária para criar a oferta.\nFaça upload de uma imagem ou cole uma URL.');
       return;
     }
 
@@ -56,6 +124,10 @@ export default function OfertasPage() {
           storeId: form.storeId || undefined,
           urgency: form.urgency || 'NORMAL',
           status: 'ACTIVE',
+          // 🤖 v2.0: Campos de imagem
+          mainImage: form.mainImage,
+          imageUrl: form.mainImage, // Compatibilidade
+          curationStatus: 'DRAFT', // Começa como rascunho
         }),
       });
 
@@ -73,12 +145,14 @@ export default function OfertasPage() {
         nicheId: '',
         storeId: '',
         urgency: 'NORMAL',
+        mainImage: '',
       });
+      setImagePreview(null);
       
       setShowForm(false);
       mutate();
       
-      alert('✅ Oferta criada com sucesso!');
+      alert('✅ Oferta criada com sucesso!\n\n📌 Status: RASCUNHO\n\nAprove a oferta para ativar o processamento da IA.');
     } catch (error: any) {
       console.error('Erro ao criar oferta:', error);
       alert(`❌ Erro: ${error.message}`);
@@ -92,6 +166,67 @@ export default function OfertasPage() {
   
   // Estado de loading para Site
   const [publishingToSite, setPublishingToSite] = useState<string | null>(null);
+
+  // 🤖 v2.0: Estados de IA
+  const [approvingOffer, setApprovingOffer] = useState<string | null>(null);
+  const [processingAI, setProcessingAI] = useState<string | null>(null);
+
+  // 🤖 v2.0: Aprovar oferta para IA
+  const handleApproveOffer = async (offerId: string) => {
+    if (approvingOffer) return;
+    setApprovingOffer(offerId);
+
+    try {
+      const response = await fetchWithAuth(`/api/offers/${offerId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          curationStatus: 'APPROVED',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro ao aprovar');
+      }
+
+      alert('✅ Oferta aprovada!\n\nAgora clique em "Enviar para IA" para processar.');
+      mutate();
+    } catch (error: any) {
+      console.error('Erro ao aprovar:', error);
+      alert(`❌ Erro: ${error.message}`);
+    } finally {
+      setApprovingOffer(null);
+    }
+  };
+
+  // 🤖 v2.0: Processar oferta com IA
+  const handleProcessAI = async (offerId: string) => {
+    if (processingAI) return;
+    setProcessingAI(offerId);
+
+    try {
+      const response = await fetchWithAuth('/api/ai/process', {
+        method: 'POST',
+        body: JSON.stringify({ offerId }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro no processamento');
+      }
+
+      const jobsInfo = data.jobs?.map((j: any) => `• ${j.network}: ${j.agentName}`).join('\n') || '';
+      
+      alert(`✅ IA processou a oferta!\n\nScore: ${data.curadora?.priorityScore || '-'}\nRisco: ${data.curadora?.riskLevel || '-'}\n\nJobs criados:\n${jobsInfo}`);
+      mutate();
+    } catch (error: any) {
+      console.error('Erro no processamento IA:', error);
+      alert(`❌ Erro: ${error.message}`);
+    } finally {
+      setProcessingAI(null);
+    }
+  };
 
   // Publicar no site
   const handlePublishToSite = async (offerId: string) => {
@@ -216,10 +351,78 @@ export default function OfertasPage() {
       {/* Formulário */}
       {showForm && (
         <div className="bg-surface rounded-xl border border-border p-6 animate-slide-in">
-          <h3 className="text-lg font-semibold text-text-primary mb-4">Criar Oferta Manual</h3>
+          <h3 className="text-lg font-semibold text-text-primary mb-4">🤖 Criar Oferta (v2.0 IA)</h3>
           <p className="text-sm text-text-muted mb-4">
-            ✅ Campos obrigatórios: <strong>Título</strong> e <strong>Preço Final</strong>. Os demais são opcionais.
+            ✅ Campos obrigatórios: <strong>Título</strong>, <strong>Preço Final</strong> e <strong>Imagem</strong>.
           </p>
+          
+          {/* 🤖 v2.0: Upload de Imagem */}
+          <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5">
+            <label className="block text-sm font-medium text-text-primary mb-3">
+              📷 Imagem Principal <span className="text-error">* OBRIGATÓRIO</span>
+            </label>
+            
+            {imagePreview ? (
+              <div className="flex items-start gap-4">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="w-32 h-32 object-cover rounded-lg border border-border"
+                />
+                <div className="flex-1">
+                  <p className="text-sm text-success mb-2">✅ Imagem carregada!</p>
+                  <button
+                    onClick={() => {
+                      setImagePreview(null);
+                      setForm({ ...form, mainImage: '' });
+                    }}
+                    className="px-3 py-1 rounded bg-error/20 text-error text-sm hover:bg-error/30 transition-all"
+                  >
+                    🗑️ Remover
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Upload de arquivo */}
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleImageUpload(file);
+                    }}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-4 py-3 rounded-lg cursor-pointer transition-all",
+                      "bg-primary/20 hover:bg-primary/30 text-primary font-medium",
+                      uploadingImage && "opacity-50 cursor-wait"
+                    )}
+                  >
+                    {uploadingImage ? '⏳ Enviando...' : '📤 Upload de Arquivo'}
+                  </label>
+                </div>
+                
+                {/* Ou URL */}
+                <div className="flex-1">
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="Ou cole a URL da imagem"
+                      onBlur={(e) => handleImageUrlUpload(e.target.value)}
+                      className="flex-1 px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="lg:col-span-2">
               <label className="block text-sm text-text-secondary mb-2">
@@ -332,22 +535,59 @@ export default function OfertasPage() {
         {(Array.isArray(offers) ? offers : (offers as any)?.data || []).map((offer: any) => (
           <div
             key={offer.id}
-            className="bg-surface rounded-xl border border-border p-4 hover:border-primary/50 transition-all"
+            className="bg-surface rounded-xl border border-border overflow-hidden hover:border-primary/50 transition-all"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-              <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
-                {offer.niche?.name || 'Sem nicho'}
-              </span>
-              <span className="text-xs text-text-muted">
-                {offer.store?.name || 'Sem loja'}
-              </span>
-            </div>
+            {/* 🤖 v2.0: Imagem */}
+            {(offer.mainImage || offer.imageUrl) && (
+              <div className="relative w-full h-40 bg-background">
+                <img 
+                  src={offer.mainImage || offer.imageUrl} 
+                  alt={offer.title}
+                  className="w-full h-full object-cover"
+                />
+                {/* 🤖 Badge de Status da IA */}
+                {offer.curationStatus && offer.curationStatus !== 'DRAFT' && (
+                  <div className={cn(
+                    "absolute top-2 right-2 px-2 py-1 rounded-md text-xs font-medium",
+                    offer.curationStatus === 'AI_PROCESSING' && "bg-yellow-500/90 text-black",
+                    offer.curationStatus === 'AI_READY' && "bg-green-500/90 text-white",
+                    offer.curationStatus === 'AI_BLOCKED' && "bg-red-500/90 text-white",
+                    offer.curationStatus === 'APPROVED' && "bg-blue-500/90 text-white",
+                    offer.curationStatus === 'PENDING_REVIEW' && "bg-purple-500/90 text-white",
+                  )}>
+                    {offer.curationStatus === 'AI_PROCESSING' && '🧠 IA Processando'}
+                    {offer.curationStatus === 'AI_READY' && '✅ IA Pronta'}
+                    {offer.curationStatus === 'AI_BLOCKED' && '⚠️ Bloqueado'}
+                    {offer.curationStatus === 'APPROVED' && '✓ Aprovada'}
+                    {offer.curationStatus === 'PENDING_REVIEW' && '👁️ Aguardando'}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div className="p-4">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
+                  {offer.niche?.name || 'Sem nicho'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {/* 🤖 Score da IA */}
+                  {offer.aiPriorityScore && (
+                    <span className="px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-400 text-xs font-medium">
+                      ⭐ {offer.aiPriorityScore}
+                    </span>
+                  )}
+                  <span className="text-xs text-text-muted">
+                    {offer.store?.name || 'Sem loja'}
+                  </span>
+                </div>
+              </div>
 
-            {/* Título */}
-            <h3 className="font-semibold text-text-primary mb-2 line-clamp-2">
-              {offer.title}
-            </h3>
+              {/* Título */}
+              <h3 className="font-semibold text-text-primary mb-2 line-clamp-2">
+                {offer.title}
+              </h3>
 
             {/* Preços */}
             <div className="flex items-baseline gap-2 mb-2">
@@ -373,40 +613,66 @@ export default function OfertasPage() {
               </div>
             )}
 
-            {/* Ações */}
-            <div className="flex flex-col gap-2 pt-3 border-t border-border">
-              {/* Linha 1: Criar Post */}
-              <button
-                onClick={() => handleCreateDraft(offer.id)}
-                disabled={creatingDraft === offer.id}
-                className="w-full py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {creatingDraft === offer.id ? '⏳ Criando...' : '📝 Criar Post (Dashboard)'}
-              </button>
-              
-              {/* Linha 2: Enviar direto */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handlePublishToSite(offer.id)}
-                  disabled={publishingToSite === offer.id}
-                  className="flex-1 py-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Publicar diretamente no site"
-                >
-                  {publishingToSite === offer.id ? '⏳' : '🌐'} Site
-                </button>
-                <button
-                  onClick={() => handlePostToX(offer.id)}
-                  disabled={postingToX === offer.id}
-                  className="flex-1 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Postar diretamente no X (Twitter)"
-                >
-                  {postingToX === offer.id ? '⏳' : '🐦'} X
-                </button>
+              {/* Ações */}
+              <div className="flex flex-col gap-2 pt-3 border-t border-border">
+                {/* 🤖 v2.0: Botão Aprovar (se DRAFT) */}
+                {(!offer.curationStatus || offer.curationStatus === 'DRAFT') && (
+                  <button
+                    onClick={() => handleApproveOffer(offer.id)}
+                    disabled={approvingOffer === offer.id}
+                    className="w-full py-2 rounded-lg bg-success/20 hover:bg-success/30 text-success text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {approvingOffer === offer.id ? '⏳ Aprovando...' : '✅ Aprovar para IA'}
+                  </button>
+                )}
+                
+                {/* 🤖 v2.0: Botão Processar IA (se APPROVED) */}
+                {offer.curationStatus === 'APPROVED' && (
+                  <button
+                    onClick={() => handleProcessAI(offer.id)}
+                    disabled={processingAI === offer.id}
+                    className="w-full py-2 rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {processingAI === offer.id ? '🧠 Processando...' : '🤖 Enviar para IA'}
+                  </button>
+                )}
+                
+                {/* Linha 1: Criar Post (modo legado) */}
+                {offer.curationStatus !== 'AI_READY' && (
+                  <button
+                    onClick={() => handleCreateDraft(offer.id)}
+                    disabled={creatingDraft === offer.id}
+                    className="w-full py-2 rounded-lg bg-primary/20 hover:bg-primary/30 text-primary text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {creatingDraft === offer.id ? '⏳ Criando...' : '📝 Criar Post Manual'}
+                  </button>
+                )}
+                
+                {/* Linha 2: Enviar direto */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePublishToSite(offer.id)}
+                    disabled={publishingToSite === offer.id}
+                    className="flex-1 py-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Publicar diretamente no site"
+                  >
+                    {publishingToSite === offer.id ? '⏳' : '🌐'} Site
+                  </button>
+                  <button
+                    onClick={() => handlePostToX(offer.id)}
+                    disabled={postingToX === offer.id}
+                    className="flex-1 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Postar diretamente no X (Twitter)"
+                  >
+                    {postingToX === offer.id ? '⏳' : '🐦'} X
+                  </button>
+                </div>
+                
+                <span className="text-xs text-text-muted text-center">
+                  {offer._count?.drafts || 0} posts criados
+                  {offer.aiPriorityScore && ` • Score IA: ${offer.aiPriorityScore}`}
+                </span>
               </div>
-              
-              <span className="text-xs text-text-muted text-center">
-                {offer._count?.drafts || 0} posts criados
-              </span>
             </div>
           </div>
         ))}

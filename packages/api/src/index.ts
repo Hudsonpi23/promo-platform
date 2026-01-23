@@ -28,6 +28,7 @@ import { promotionChannelsRoutes } from './routes/promotionChannels';
 import { schedulerRoutes } from './routes/scheduler';
 import { affiliatesRoutes } from './routes/affiliates';
 import { manualRoutes } from './routes/manual';
+import { aiWorkflowRoutes } from './routes/aiWorkflow';
 
 async function main() {
   const server = Fastify({
@@ -210,6 +211,9 @@ async function main() {
 
   // 🔥 NOVO: Operação Manual (Copy/Paste)
   server.register(manualRoutes, { prefix: '/api/manual' });
+
+  // 🤖 NOVO v2.0: AI Workflow (Curadoria + Agentes)
+  server.register(aiWorkflowRoutes, { prefix: '/api/ai' });
 
   // ==================== ROTAS PÚBLICAS ====================
 
