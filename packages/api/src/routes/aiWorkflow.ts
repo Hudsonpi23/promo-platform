@@ -45,16 +45,17 @@ export async function aiWorkflowRoutes(server: FastifyInstance) {
   server.post('/process', async (request: FastifyRequest, reply: FastifyReply) => {
     const parsed = ProcessOfferSchema.safeParse(request.body);
     if (!parsed.success) {
-      return sendError(reply, Errors.VALIDATION_ERROR);
+      return sendError(reply, Errors.VALIDATION_ERROR(parsed.error));
     }
 
     const { offerId } = parsed.data;
 
     if (!isOpenAIConfigured()) {
-      return sendError(reply, {
-        statusCode: 503,
-        code: 'AI_NOT_CONFIGURED',
-        message: 'OpenAI não configurada. Defina OPENAI_API_KEY.',
+      return reply.status(503).send({
+        error: {
+          code: 'AI_NOT_CONFIGURED',
+          message: 'OpenAI não configurada. Defina OPENAI_API_KEY.',
+        },
       });
     }
 
@@ -85,10 +86,11 @@ export async function aiWorkflowRoutes(server: FastifyInstance) {
       };
     } catch (error) {
       console.error('[AI Workflow] Erro no processamento:', error);
-      return sendError(reply, {
-        statusCode: 500,
-        code: 'AI_PROCESSING_ERROR',
-        message: error instanceof Error ? error.message : 'Erro no processamento',
+      return reply.status(500).send({
+        error: {
+          code: 'AI_PROCESSING_ERROR',
+          message: error instanceof Error ? error.message : 'Erro no processamento',
+        },
       });
     }
   });
@@ -98,10 +100,11 @@ export async function aiWorkflowRoutes(server: FastifyInstance) {
   // ─────────────────────────────────────────────────────
   server.post('/process-pending', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isOpenAIConfigured()) {
-      return sendError(reply, {
-        statusCode: 503,
-        code: 'AI_NOT_CONFIGURED',
-        message: 'OpenAI não configurada. Defina OPENAI_API_KEY.',
+      return reply.status(503).send({
+        error: {
+          code: 'AI_NOT_CONFIGURED',
+          message: 'OpenAI não configurada. Defina OPENAI_API_KEY.',
+        },
       });
     }
 
@@ -117,10 +120,11 @@ export async function aiWorkflowRoutes(server: FastifyInstance) {
       };
     } catch (error) {
       console.error('[AI Workflow] Erro no processamento em lote:', error);
-      return sendError(reply, {
-        statusCode: 500,
-        code: 'AI_BATCH_ERROR',
-        message: error instanceof Error ? error.message : 'Erro no processamento em lote',
+      return reply.status(500).send({
+        error: {
+          code: 'AI_BATCH_ERROR',
+          message: error instanceof Error ? error.message : 'Erro no processamento em lote',
+        },
       });
     }
   });
