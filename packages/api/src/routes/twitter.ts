@@ -21,6 +21,59 @@ export async function twitterRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /api/twitter/status-public
+   * Verifica status (sem auth) - temporário para testes
+   */
+  app.get('/status-public', async (request, reply) => {
+    const configured = isTwitterConfigured();
+    return { configured };
+  });
+
+  /**
+   * POST /api/twitter/test-post
+   * Rota de teste SEM autenticação - REMOVER APÓS TESTES
+   */
+  app.post('/test-post', async (request, reply) => {
+    const schema = z.object({
+      text: z.string().min(1).max(280),
+      secret: z.string(), // Segredo simples para evitar abusos
+    });
+
+    try {
+      const { text, secret } = schema.parse(request.body);
+      
+      // Validação simples - troque por algo mais seguro se necessário
+      if (secret !== 'promo2026') {
+        return reply.status(403).send({ success: false, error: 'Invalid secret' });
+      }
+      
+      const result = await postTweet(text);
+      
+      if (!result.success) {
+        return reply.status(400).send({
+          success: false,
+          error: result.error,
+        });
+      }
+
+      return {
+        success: true,
+        tweetId: result.tweetId,
+        tweetUrl: result.tweetUrl,
+      };
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return reply.status(400).send({
+          success: false,
+          error: 'Dados inválidos',
+          details: error.errors,
+        });
+      }
+      throw error;
+    }
+  });
+
+  /**
    * POST /api/twitter/post
    * Posta um texto personalizado no Twitter
    */
