@@ -3,6 +3,8 @@
  * Envia mensagens e imagens para o canal de promoções
  */
 
+import axios from 'axios';
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
@@ -28,8 +30,17 @@ export function isTelegramConfigured(): boolean {
 
 /**
  * Envia mensagem de texto para o canal
+ * @param textOrOptions - Texto da mensagem ou objeto com opções
+ * @param imageUrl - URL da imagem (opcional, se textOrOptions for string)
  */
-export async function sendTelegramMessage(options: SendMessageOptions): Promise<{ success: boolean; messageId?: number; error?: string }> {
+export async function sendTelegramMessage(
+  textOrOptions: string | SendMessageOptions,
+  imageUrl?: string
+): Promise<{ success: boolean; messageId?: number; error?: string }> {
+  // Normaliza para objeto de opções
+  const options: SendMessageOptions = typeof textOrOptions === 'string'
+    ? { text: textOrOptions, imageUrl }
+    : textOrOptions;
   if (!isTelegramConfigured()) {
     return { success: false, error: 'Telegram não configurado' };
   }
@@ -40,21 +51,19 @@ export async function sendTelegramMessage(options: SendMessageOptions): Promise<
       return await sendTelegramPhoto(options.imageUrl, options.text);
     }
 
-    // Senão, envia só texto
+    // Senão, envia só texto usando axios
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        text: options.text,
-        parse_mode: options.parseMode || 'HTML',
-        disable_web_page_preview: options.disableWebPagePreview ?? false,
-      }),
+    const response = await axios.post(url, {
+      chat_id: TELEGRAM_CHAT_ID,
+      text: options.text,
+      parse_mode: options.parseMode || 'HTML',
+      disable_web_page_preview: options.disableWebPagePreview ?? false,
+    }, {
+      timeout: 15000,
     });
 
-    const data = await response.json() as TelegramResponse;
+    const data = response.data as TelegramResponse;
 
     if (!data.ok) {
       console.error('[Telegram] Erro ao enviar mensagem:', data.description);
@@ -81,18 +90,16 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
     
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: TELEGRAM_CHAT_ID,
-        photo: photoUrl,
-        caption: caption,
-        parse_mode: 'HTML',
-      }),
+    const response = await axios.post(url, {
+      chat_id: TELEGRAM_CHAT_ID,
+      photo: photoUrl,
+      caption: caption,
+      parse_mode: 'HTML',
+    }, {
+      timeout: 15000,
     });
 
-    const data = await response.json() as TelegramResponse;
+    const data = response.data as TelegramResponse;
 
     if (!data.ok) {
       console.error('[Telegram] Erro ao enviar foto:', data.description);
@@ -179,8 +186,8 @@ export async function testTelegramConnection(): Promise<{ success: boolean; botN
 
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe`;
-    const response = await fetch(url);
-    const data = await response.json() as TelegramResponse;
+    const response = await axios.get(url, { timeout: 10000 });
+    const data = response.data as TelegramResponse;
 
     if (!data.ok) {
       return { success: false, error: data.description || 'Erro ao conectar' };

@@ -169,6 +169,91 @@ export async function postToFacebookWithImage(
   }
 }
 
+// ==================== MULTI-PAGE SUPPORT ====================
+
+// IDs e Tokens das duas páginas do Facebook
+const FACEBOOK_PAGES = [
+  {
+    name: 'Manu Das Promoções',
+    pageId: process.env.META_PAGE_1_ID || process.env.FB_PAGE_ID_1 || process.env.META_PAGE_ID,
+    accessToken: process.env.META_PAGE_1_TOKEN || process.env.FB_PAGE_TOKEN_1 || process.env.META_PAGE_ACCESS_TOKEN,
+  },
+  {
+    name: 'Manu Promoções de Tecnologia',
+    pageId: process.env.META_PAGE_2_ID || process.env.FB_PAGE_ID_2,
+    accessToken: process.env.META_PAGE_2_TOKEN || process.env.FB_PAGE_TOKEN_2,
+  },
+].filter(p => p.pageId && p.accessToken);
+
+/**
+ * Posta em múltiplas páginas do Facebook
+ */
+export async function postToPages(
+  message: string,
+  imageUrl?: string
+): Promise<Record<string, { success: boolean; postId?: string; error?: string }>> {
+  const results: Record<string, { success: boolean; postId?: string; error?: string }> = {};
+
+  if (FACEBOOK_PAGES.length === 0) {
+    console.warn('[Facebook] Nenhuma página configurada');
+    return { default: { success: false, error: 'Nenhuma página configurada' } };
+  }
+
+  for (const page of FACEBOOK_PAGES) {
+    console.log(`[Facebook] Postando em: ${page.name}`);
+    
+    try {
+      const url = imageUrl
+        ? `${META_API_BASE}/${page.pageId}/photos`
+        : `${META_API_BASE}/${page.pageId}/feed`;
+
+      const body: any = {
+        message,
+        access_token: page.accessToken,
+      };
+
+      if (imageUrl) {
+        body.url = imageUrl;
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json() as any;
+
+      if (data.error) {
+        console.error(`[Facebook] Erro em ${page.name}:`, data.error);
+        results[page.pageId!] = {
+          success: false,
+          error: data.error.message,
+        };
+      } else if (data.id || data.post_id) {
+        const postId = data.post_id || data.id;
+        console.log(`[Facebook] ✅ ${page.name}: ${postId}`);
+        results[page.pageId!] = {
+          success: true,
+          postId,
+        };
+      } else {
+        results[page.pageId!] = {
+          success: false,
+          error: 'Resposta inesperada',
+        };
+      }
+    } catch (error: any) {
+      results[page.pageId!] = {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+
+  return results;
+}
+
 /**
  * Gera texto para post do Facebook a partir de uma oferta
  */

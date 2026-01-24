@@ -29,6 +29,7 @@ import { schedulerRoutes } from './routes/scheduler';
 import { affiliatesRoutes } from './routes/affiliates';
 import { manualRoutes } from './routes/manual';
 import { aiWorkflowRoutes } from './routes/aiWorkflow';
+import { autoPromoterRoutes } from './routes/autoPromoterFastify';
 
 async function main() {
   const server = Fastify({
@@ -214,6 +215,9 @@ async function main() {
 
   // 🤖 NOVO v2.0: AI Workflow (Curadoria + Agentes)
   server.register(aiWorkflowRoutes, { prefix: '/api/ai' });
+
+  // 🚀 NOVO: Auto Promoter (ML → Redes Sociais)
+  server.register(autoPromoterRoutes, { prefix: '/api/auto-promoter' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

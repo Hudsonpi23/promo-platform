@@ -21,6 +21,9 @@
     "**/*.test.ts",
     "src/scripts/testPlaywrightPost.ts",
     "src/scripts/postToX.ts",
-    "src/services/mlScraper.ts"
+    "src/scripts/postAllPlatforms.ts",
+    "src/services/mlScraper.ts",
+    "src/scripts/getMLimage.ts",
+    "src/scripts/getMLimage2.ts"
   ]
 }
