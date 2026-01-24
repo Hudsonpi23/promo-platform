@@ -32,12 +32,13 @@ async function main() {
   console.log('🌐 Enviando para API do Render...\n');
   
   try {
-    const response = await fetch(`${API_URL}/api/twitter/post`, {
+    // Usando rota de teste (temporária)
+    const response = await fetch(`${API_URL}/api/twitter/test-post`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ text: tweetText }),
+      body: JSON.stringify({ text: tweetText, secret: 'promo2026' }),
     });
     
     const data = await response.json() as any;
