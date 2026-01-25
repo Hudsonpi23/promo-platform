@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { getPost, getOferta, formatCurrency, getUrgencyInfo, getGoUrl, PublicPost } from '@/lib/api';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import ImageCarousel from '@/components/ImageCarousel';
 
 export const revalidate = 60;
 
@@ -124,15 +125,12 @@ export default async function OfertaPage({ params }: Props) {
             </div>
           </div>
 
-          {/* Imagem (se existir) */}
-          {post.imageUrl && (
-            <div className="relative h-64 md:h-80 bg-gray-100">
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-full object-contain"
-              />
-            </div>
+          {/* Imagem(ns) - Carrossel se houver múltiplas */}
+          {(post.imageUrl || (post as any).images?.length > 0) && (
+            <ImageCarousel
+              images={(post as any).images && (post as any).images.length > 0 ? (post as any).images : [post.imageUrl]}
+              alt={post.title}
+            />
           )}
 
           {/* Conteúdo Principal */}
