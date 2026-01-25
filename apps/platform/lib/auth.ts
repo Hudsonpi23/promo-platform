@@ -38,13 +38,16 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
   // Verificar se é FormData (upload de arquivo)
   const isFormData = options.body instanceof FormData;
   
+  // Verificar se tem body
+  const hasBody = options.body !== undefined && options.body !== null;
+  
   // Não definir Content-Type para FormData (deixar o browser definir automaticamente)
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${token}`,
   };
   
-  // Só adiciona Content-Type: application/json se não for FormData
-  if (!isFormData) {
+  // Só adiciona Content-Type: application/json se não for FormData E se tiver body
+  if (!isFormData && hasBody) {
     headers['Content-Type'] = 'application/json';
   }
   
