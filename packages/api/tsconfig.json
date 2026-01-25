@@ -24,6 +24,10 @@
     "src/scripts/postAllPlatforms.ts",
     "src/services/mlScraper.ts",
     "src/scripts/getMLimage.ts",
-    "src/scripts/getMLimage2.ts"
+    "src/scripts/getMLimage2.ts",
+    "src/scripts/buscarOfertaML.ts",
+    "src/scripts/autoFindAndPost.ts",
+    "src/scripts/mlLogin.ts",
+    "src/scripts/mlAuth.ts"
   ]
 }
