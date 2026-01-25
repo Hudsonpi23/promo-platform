@@ -370,7 +370,13 @@ export default function OfertasPage() {
         throw new Error(data.error || 'Erro ao postar no Telegram');
       }
       
-      alert(`✅ Postado no Telegram com sucesso!\n\n📱 Message ID: ${data.messageId || 'Enviado'}`);
+      // Mensagem customizada se enviou só texto
+      if (data.sentTextOnly) {
+        alert(`⚠️ Postado no Telegram (apenas texto)\n\nA foto não pôde ser enviada, mas o texto com link de afiliado foi postado com sucesso!\n\n📱 Message ID: ${data.messageId || 'Enviado'}`);
+      } else {
+        alert(`✅ Postado no Telegram com sucesso!\n\n📱 Message ID: ${data.messageId || 'Enviado'}`);
+      }
+      
       mutate();
     } catch (error: any) {
       console.error('Erro ao postar no Telegram:', error);
