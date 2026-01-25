@@ -55,11 +55,14 @@ export default function OfertasPage() {
       
       const data = await response.json();
       
-      if (data.url) {
-        setForm({ ...form, mainImage: data.url });
-        setImagePreview(data.url);
+      // Verificar ambos formatos de resposta (data.url ou data.data.url)
+      const imageUrl = data.url || data.data?.url;
+      
+      if (imageUrl) {
+        setForm({ ...form, mainImage: imageUrl });
+        setImagePreview(imageUrl);
       } else {
-        throw new Error(data.error || 'Erro no upload');
+        throw new Error(data.message || data.error || 'Erro no upload');
       }
     } catch (error: any) {
       console.error('Erro no upload:', error);
@@ -78,16 +81,19 @@ export default function OfertasPage() {
     try {
       const response = await fetchWithAuth('/api/upload/url', {
         method: 'POST',
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ imageUrl: url }), // Corrigido: usar imageUrl
       });
       
       const data = await response.json();
       
-      if (data.url) {
-        setForm({ ...form, mainImage: data.url });
-        setImagePreview(data.url);
+      // Verificar ambos formatos de resposta (data.url ou data.data.url)
+      const imageUrl = data.url || data.data?.url;
+      
+      if (imageUrl) {
+        setForm({ ...form, mainImage: imageUrl });
+        setImagePreview(imageUrl);
       } else {
-        throw new Error(data.error || 'Erro no upload');
+        throw new Error(data.message || data.error || data.hint || 'Erro no upload');
       }
     } catch (error: any) {
       console.error('Erro no upload:', error);
