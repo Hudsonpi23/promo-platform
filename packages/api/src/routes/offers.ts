@@ -694,4 +694,43 @@ export async function offersRoutes(app: FastifyInstance) {
       return sendError(reply, error);
     }
   });
+
+  // GET /offers/niches - Listar nichos para filtros
+  app.get('/niches', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const niches = await prisma.niche.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          icon: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      return { data: niches };
+    } catch (error: any) {
+      return sendError(reply, error);
+    }
+  });
+
+  // GET /offers/stores - Listar lojas para filtros
+  app.get('/stores', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const stores = await prisma.store.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      return { data: stores };
+    } catch (error: any) {
+      return sendError(reply, error);
+    }
+  });
 }
