@@ -86,6 +86,13 @@ export async function telegramRoutes(app: FastifyInstance) {
       });
     }
 
+    // Log detalhado para debug
+    console.log('[Telegram] Preparando envio:');
+    console.log('  - Título:', offer.title?.substring(0, 50));
+    console.log('  - imageUrl:', offer.imageUrl || 'VAZIO');
+    console.log('  - mainImage:', (offer as any).mainImage || 'VAZIO');
+    console.log('  - affiliateUrl:', offer.affiliateUrl?.substring(0, 50) || 'VAZIO');
+
     // Formatar e enviar
     const text = formatTelegramPost({
       title: offer.title,
@@ -96,15 +103,24 @@ export async function telegramRoutes(app: FastifyInstance) {
       storeName: offer.store?.name,
     });
 
+    // Usar mainImage ou imageUrl
+    const imageToSend = (offer as any).mainImage || offer.imageUrl;
+    
+    console.log('  - URL final para envio:', imageToSend?.substring(0, 80) || 'SEM IMAGEM');
+
     const result = await sendTelegramMessage({
       text,
-      imageUrl: offer.imageUrl || undefined,
+      imageUrl: imageToSend || undefined,
     });
 
     return {
       success: result.success,
       messageId: result.messageId,
       error: result.error,
+      debug: {
+        hadImage: !!imageToSend,
+        imageUrl: imageToSend?.substring(0, 100),
+      },
     };
   });
 }
