@@ -119,12 +119,23 @@ export default function OfertasPage() {
     setIsCreating(true);
 
     try {
+      // Converter preços (aceitar vírgula ou ponto)
+      const parsePrice = (priceStr: string): number => {
+        if (!priceStr) return 0;
+        // Substituir vírgula por ponto
+        const normalized = priceStr.replace(',', '.');
+        return parseFloat(normalized);
+      };
+      
+      const finalPriceValue = parsePrice(form.finalPrice);
+      const originalPriceValue = form.originalPrice ? parsePrice(form.originalPrice) : finalPriceValue;
+      
       const response = await fetchWithAuth('/api/offers', {
         method: 'POST',
         body: JSON.stringify({
           title: form.title,
-          originalPrice: form.originalPrice ? parseFloat(form.originalPrice) : parseFloat(form.finalPrice),
-          finalPrice: parseFloat(form.finalPrice),
+          originalPrice: originalPriceValue,
+          finalPrice: finalPriceValue,
           affiliateUrl: form.affiliateUrl || undefined,
           nicheId: form.nicheId || undefined,
           storeId: form.storeId || undefined,
@@ -462,11 +473,10 @@ export default function OfertasPage() {
                 Preço Original <span className="text-text-muted text-xs">(opcional)</span>
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 value={form.originalPrice}
                 onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
-                placeholder="1429 (se tiver)"
+                placeholder="Ex: 1429.00 ou 1429"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -475,11 +485,10 @@ export default function OfertasPage() {
                 Preço Final <span className="text-error">*</span>
               </label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 value={form.finalPrice}
                 onChange={(e) => setForm({ ...form, finalPrice: e.target.value })}
-                placeholder="798"
+                placeholder="Ex: 798.00 ou 798"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
