@@ -190,6 +190,7 @@ export default function OfertasPage() {
           // 🤖 v2.0: Campos de imagem
           mainImage: form.mainImage,
           imageUrl: form.mainImage, // Compatibilidade
+          images: form.images, // 🎠 Galeria de imagens (carrossel)
           curationStatus: 'DRAFT', // Começa como rascunho
         }),
       });
@@ -209,8 +210,10 @@ export default function OfertasPage() {
         storeId: '',
         urgency: 'NORMAL',
         mainImage: '',
+        images: [], // 🎠 Limpar galeria
       });
       setImagePreview(null);
+      setGalleryPreviews([]); // 🎠 Limpar preview da galeria
       
       setShowForm(false);
       mutate();
