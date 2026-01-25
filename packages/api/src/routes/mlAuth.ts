@@ -174,6 +174,17 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
    * GET /api/auth/mercadolivre/token
    */
   fastify.get('/api/auth/mercadolivre/token', async (request: FastifyRequest, reply: FastifyReply) => {
+    // Tenta carregar do env se não tiver em memória
+    if (!mlToken && process.env.ML_ACCESS_TOKEN) {
+      mlToken = {
+        access_token: process.env.ML_ACCESS_TOKEN,
+        refresh_token: process.env.ML_REFRESH_TOKEN,
+        user_id: parseInt(process.env.ML_USER_ID || '0'),
+        expires_at: process.env.ML_TOKEN_EXPIRES_AT || new Date().toISOString(),
+      };
+      console.log('[ML Auth] Token carregado das variáveis de ambiente');
+    }
+
     if (!mlToken) {
       return reply.status(404).send({
         success: false,
@@ -187,14 +198,69 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
     const expiresAt = new Date(mlToken.expires_at);
     const isExpired = expiresAt < new Date();
 
+    // Se expirou e tem refresh_token, tenta renovar automaticamente
+    if (isExpired && mlToken.refresh_token) {
+      console.log('[ML Auth] Token expirado, renovando automaticamente...');
+      try {
+        const response = await axios.post('https://api.mercadolibre.com/oauth/token',
+          new URLSearchParams({
+            grant_type: 'refresh_token',
+            client_id: ML_CLIENT_ID,
+            client_secret: ML_CLIENT_SECRET,
+            refresh_token: mlToken.refresh_token,
+          }).toString(),
+          {
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'application/json',
+            }
+          }
+        );
+
+        mlToken = {
+          ...response.data,
+          obtained_at: new Date().toISOString(),
+          expires_at: new Date(Date.now() + response.data.expires_in * 1000).toISOString(),
+        };
+        console.log('[ML Auth] Token renovado com sucesso!');
+      } catch (err: any) {
+        console.error('[ML Auth] Erro ao renovar token:', err.response?.data || err.message);
+      }
+    }
+
     return reply.send({
       success: true,
       token: {
         access_token: mlToken.access_token,
+        refresh_token: mlToken.refresh_token ? mlToken.refresh_token.substring(0, 20) + '...' : null,
         user_id: mlToken.user_id,
         expires_at: mlToken.expires_at,
-        is_expired: isExpired,
+        is_expired: isExpired && !mlToken.refresh_token,
       },
+    });
+  });
+
+  /**
+   * Retorna o token COMPLETO (para salvar nas variáveis de ambiente)
+   * GET /api/auth/mercadolivre/token/full
+   */
+  fastify.get('/api/auth/mercadolivre/token/full', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!mlToken) {
+      return reply.status(404).send({
+        success: false,
+        error: 'no_token',
+      });
+    }
+
+    return reply.send({
+      success: true,
+      env_variables: {
+        ML_ACCESS_TOKEN: mlToken.access_token,
+        ML_REFRESH_TOKEN: mlToken.refresh_token,
+        ML_USER_ID: mlToken.user_id?.toString(),
+        ML_TOKEN_EXPIRES_AT: mlToken.expires_at,
+      },
+      message: 'Copie essas variáveis para o Render para ter token permanente!',
     });
   });
 
