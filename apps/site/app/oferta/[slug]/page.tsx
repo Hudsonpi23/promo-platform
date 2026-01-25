@@ -172,11 +172,11 @@ export default async function OfertaPage({ params }: Props) {
               </div>
             )}
 
-            {/* Botão Principal - Link para /go/:code na API */}
+            {/* Botão Principal - Link direto para affiliateUrl */}
             <a
-              href={goUrl}
+              href={post.affiliateUrl}
               target="_blank"
-              rel="noopener noreferrer"
+              rel="noopener noreferrer sponsored"
               className="block w-full py-5 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold text-xl text-center transition-all transform hover:scale-[1.02] active:scale-[0.98] shadow-xl shadow-red-500/30"
             >
               APROVEITAR OFERTA 🔥
