@@ -35,11 +35,26 @@ export async function ensureAuth(): Promise<string> {
 export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = await ensureAuth();
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(options.headers || {}),
+  // Verificar se é FormData (upload de arquivo)
+  const isFormData = options.body instanceof FormData;
+  
+  // Não definir Content-Type para FormData (deixar o browser definir automaticamente)
+  const headers: Record<string, string> = {
     'Authorization': `Bearer ${token}`,
   };
+  
+  // Só adiciona Content-Type: application/json se não for FormData
+  if (!isFormData) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
+  // Merge com headers customizados (exceto se vazio para FormData)
+  const customHeaders = options.headers as Record<string, string> || {};
+  Object.keys(customHeaders).forEach(key => {
+    if (customHeaders[key]) {
+      headers[key] = customHeaders[key];
+    }
+  });
 
   const response = await fetch(`${API_URL}${url}`, {
     ...options,
@@ -51,12 +66,11 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
     clearToken();
     const newToken = await ensureAuth();
     
+    const retryHeaders = { ...headers, 'Authorization': `Bearer ${newToken}` };
+    
     const retryResponse = await fetch(`${API_URL}${url}`, {
       ...options,
-      headers: {
-        ...headers,
-        'Authorization': `Bearer ${newToken}`,
-      },
+      headers: retryHeaders,
     });
     
     return retryResponse;
