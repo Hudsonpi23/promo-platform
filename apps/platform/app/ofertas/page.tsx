@@ -122,6 +122,7 @@ export default function OfertasPage() {
   const handleImageUrlUpload = async (url: string) => {
     if (!url) return;
     
+    console.log('[Upload URL] Iniciando upload de:', url);
     setUploadingImage(true);
     
     try {
@@ -131,18 +132,22 @@ export default function OfertasPage() {
       });
       
       const data = await response.json();
+      console.log('[Upload URL] Resposta:', data);
       
       // Verificar ambos formatos de resposta (data.url ou data.data.url)
       const imageUrl = data.url || data.data?.url;
       
       if (imageUrl) {
+        console.log('[Upload URL] ✅ Imagem carregada:', imageUrl);
         setForm({ ...form, mainImage: imageUrl });
         setImagePreview(imageUrl);
+        alert('✅ Imagem carregada com sucesso!');
       } else {
-        throw new Error(data.message || data.error || data.hint || 'Erro no upload');
+        console.error('[Upload URL] ❌ Formato inválido:', data);
+        throw new Error(data.message || data.error || data.hint || 'Erro no upload - URL não retornada');
       }
     } catch (error: any) {
-      console.error('Erro no upload:', error);
+      console.error('[Upload URL] Erro:', error);
       alert(`❌ Erro no upload: ${error.message}`);
     } finally {
       setUploadingImage(false);
@@ -555,10 +560,33 @@ export default function OfertasPage() {
                     <input
                       type="url"
                       placeholder="Ou cole a URL da imagem"
-                      onBlur={(e) => handleImageUrlUpload(e.target.value)}
+                      id="image-url-input"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleImageUrlUpload((e.target as HTMLInputElement).value);
+                        }
+                      }}
                       className="flex-1 px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const input = document.getElementById('image-url-input') as HTMLInputElement;
+                        if (input?.value) handleImageUrlUpload(input.value);
+                      }}
+                      disabled={uploadingImage}
+                      className={cn(
+                        "px-4 py-2 rounded-lg bg-primary text-white font-medium text-sm transition-all",
+                        uploadingImage ? "opacity-50 cursor-wait" : "hover:bg-primary/90"
+                      )}
+                    >
+                      {uploadingImage ? '⏳' : '✓'}
+                    </button>
                   </div>
+                  <p className="text-xs text-text-muted mt-1">
+                    Cole a URL e pressione Enter ou clique no ✓
+                  </p>
                 </div>
               </div>
             )}
