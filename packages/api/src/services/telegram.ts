@@ -88,6 +88,8 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
   }
 
   try {
+    console.log('[Telegram] Tentando enviar foto:', photoUrl.substring(0, 80));
+    
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
     
     const response = await axios.post(url, {
@@ -104,21 +106,26 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
     if (!data.ok) {
       console.error('[Telegram] Erro ao enviar foto:', data.description);
       
-      // Se falhar com foto, tenta enviar só o texto
-      if (data.description?.includes('wrong file identifier') || data.description?.includes('failed to get HTTP URL')) {
-        console.log('[Telegram] Tentando enviar apenas texto...');
-        return await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
-      }
-      
-      return { success: false, error: data.description || 'Erro desconhecido' };
+      // SEMPRE tentar enviar só texto se foto falhar
+      console.log('[Telegram] Foto falhou, enviando apenas texto...');
+      return await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
     }
 
     console.log('[Telegram] Foto enviada com sucesso:', data.result?.message_id);
     return { success: true, messageId: data.result?.message_id };
 
   } catch (error: any) {
-    console.error('[Telegram] Erro de conexão:', error.message);
-    return { success: false, error: error.message };
+    console.error('[Telegram] Erro ao enviar foto:', error.response?.data || error.message);
+    
+    // Se der erro de rede ou API, tentar enviar só texto
+    console.log('[Telegram] Erro capturado, tentando enviar apenas texto...');
+    
+    try {
+      return await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
+    } catch (fallbackError: any) {
+      console.error('[Telegram] Falha total:', fallbackError.message);
+      return { success: false, error: `Foto e texto falharam: ${error.response?.data?.description || error.message}` };
+    }
   }
 }
 
