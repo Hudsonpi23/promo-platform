@@ -111,8 +111,16 @@ export async function facebookRoutes(app: FastifyInstance) {
         storeName: offer.store?.name,
       });
 
-      // Publicar em todas as páginas configuradas (com imagem se tiver)
-      const results = await postToPages(message, offer.imageUrl || undefined);
+      // Publicar em todas as páginas configuradas (com imagem(ns) se tiver)
+      const images = (offer as any).images || [];
+      const mainImage = offer.imageUrl;
+      
+      console.log(`[Facebook] Imagens: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}`);
+      
+      // Se tem 2+ imagens na galeria, usar carrossel
+      const results = images.length >= 2
+        ? await postToPages(message, undefined, images)
+        : await postToPages(message, mainImage || undefined);
 
       // Verificar se pelo menos uma página teve sucesso
       const successPages = Object.entries(results).filter(([_, r]) => r.success);
@@ -132,11 +140,15 @@ export async function facebookRoutes(app: FastifyInstance) {
         total: Object.keys(results).length,
         success: successPages.length,
         failed: failedPages.length,
+        isCarousel: images.length >= 2,
+        imageCount: images.length,
       };
 
       return reply.send({
         success: true,
-        message: `Oferta publicada em ${summary.success} de ${summary.total} página(s) do Facebook!`,
+        message: images.length >= 2 
+          ? `Oferta publicada em ${summary.success} de ${summary.total} página(s) com carrossel de ${images.length} imagens!`
+          : `Oferta publicada em ${summary.success} de ${summary.total} página(s) do Facebook!`,
         data: {
           results,
           summary,

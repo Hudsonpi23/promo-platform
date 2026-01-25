@@ -196,14 +196,108 @@ export async function postToFacebookWithImage(
   }
 }
 
+/**
+ * 🎠 Publica um carrossel de imagens na página do Facebook
+ * @param message - Texto do post
+ * @param images - Array de URLs de imagens (2-10 imagens)
+ */
+export async function postToFacebookCarousel(
+  message: string,
+  images: string[]
+): Promise<FacebookPostResult> {
+  if (!isFacebookConfigured()) {
+    return { success: false, error: 'Facebook não configurado' };
+  }
+
+  // Validar número de imagens (2-10)
+  if (images.length < 2 || images.length > 10) {
+    console.error('[Facebook] Carrossel precisa ter entre 2 e 10 imagens');
+    return { success: false, error: 'Carrossel precisa ter entre 2 e 10 imagens' };
+  }
+
+  try {
+    console.log(`[Facebook] Criando carrossel com ${images.length} imagens`);
+    
+    // Passo 1: Upload de cada imagem sem publicar (published=false)
+    const photoIds: string[] = [];
+    
+    for (const imageUrl of images) {
+      const uploadUrl = `${META_API_BASE}/${META_PAGE_ID}/photos`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: imageUrl,
+          published: false, // Não publicar ainda
+          access_token: META_PAGE_ACCESS_TOKEN,
+        }),
+      });
+
+      const uploadData = await uploadResponse.json() as any;
+
+      if (uploadData.error || !uploadData.id) {
+        console.error('[Facebook] Erro ao fazer upload de imagem:', uploadData.error);
+        // Fallback: usar primeira imagem apenas
+        return await postToFacebookWithImage(message, images[0]);
+      }
+
+      photoIds.push(uploadData.id);
+      console.log(`[Facebook] Imagem ${photoIds.length}/${images.length} uploaded: ${uploadData.id}`);
+    }
+
+    // Passo 2: Criar post com as imagens em carrossel
+    const feedUrl = `${META_API_BASE}/${META_PAGE_ID}/feed`;
+    
+    const attachedMedia = photoIds.map(id => ({ media_fbid: id }));
+    
+    const postResponse = await fetch(feedUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        attached_media: attachedMedia,
+        access_token: META_PAGE_ACCESS_TOKEN,
+      }),
+    });
+
+    const postData = await postResponse.json() as any;
+
+    if (postData.error) {
+      console.error('[Facebook] Erro ao criar post com carrossel:', postData.error);
+      return { 
+        success: false, 
+        error: postData.error.message || 'Erro ao criar carrossel no Facebook' 
+      };
+    }
+
+    if (postData.id) {
+      const postId = postData.id;
+      const postUrl = `https://facebook.com/${postId}`;
+      
+      console.log('[Facebook] Carrossel publicado com sucesso:', postId);
+      return { success: true, postId, postUrl };
+    }
+
+    return { success: false, error: 'Resposta inesperada da API' };
+
+  } catch (error: any) {
+    console.error('[Facebook] Erro ao criar carrossel:', error);
+    // Fallback: tentar publicar primeira imagem apenas
+    return await postToFacebookWithImage(message, images[0]);
+  }
+}
+
 // ==================== MULTI-PAGE SUPPORT ====================
 
 /**
  * Posta em múltiplas páginas do Facebook
+ * Suporta: texto, imagem única ou carrossel (2-10 imagens)
  */
 export async function postToPages(
   message: string,
-  imageUrl?: string
+  imageUrl?: string,
+  images?: string[]
 ): Promise<Record<string, { success: boolean; postId?: string; error?: string }>> {
   const results: Record<string, { success: boolean; postId?: string; error?: string }> = {};
 
@@ -212,51 +306,130 @@ export async function postToPages(
     return { default: { success: false, error: 'Nenhuma página configurada' } };
   }
 
+  // Determinar se é carrossel (2+ imagens)
+  const allImages = images && images.length >= 2 ? images : (imageUrl ? [imageUrl] : []);
+  const isCarousel = allImages.length >= 2;
+
   for (const page of FACEBOOK_PAGES) {
-    console.log(`[Facebook] Postando em: ${page.name}`);
+    console.log(`[Facebook] Postando em: ${page.name} ${isCarousel ? `(carrossel com ${allImages.length} imagens)` : ''}`);
     
     try {
-      const url = imageUrl
-        ? `${META_API_BASE}/${page.pageId}/photos`
-        : `${META_API_BASE}/${page.pageId}/feed`;
+      // 🎠 Se é carrossel (2+ imagens)
+      if (isCarousel) {
+        // Passo 1: Upload de cada imagem sem publicar
+        const photoIds: string[] = [];
+        
+        for (const img of allImages) {
+          const uploadUrl = `${META_API_BASE}/${page.pageId}/photos`;
+          
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: img,
+              published: false,
+              access_token: page.accessToken,
+            }),
+          });
 
-      const body: any = {
-        message,
-        access_token: page.accessToken,
-      };
+          const uploadData = await uploadResponse.json() as any;
 
-      if (imageUrl) {
-        body.url = imageUrl;
+          if (uploadData.error || !uploadData.id) {
+            console.error(`[Facebook] Erro ao fazer upload de imagem em ${page.name}:`, uploadData.error);
+            throw new Error(uploadData.error?.message || 'Erro no upload');
+          }
+
+          photoIds.push(uploadData.id);
+        }
+
+        // Passo 2: Criar post com carrossel
+        const feedUrl = `${META_API_BASE}/${page.pageId}/feed`;
+        const attachedMedia = photoIds.map(id => ({ media_fbid: id }));
+        
+        const postResponse = await fetch(feedUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            attached_media: attachedMedia,
+            access_token: page.accessToken,
+          }),
+        });
+
+        const postData = await postResponse.json() as any;
+
+        if (postData.error) {
+          throw new Error(postData.error.message || 'Erro ao criar carrossel');
+        }
+
+        if (postData.id) {
+          console.log(`[Facebook] ✅ ${page.name}: carrossel ${postData.id}`);
+          results[page.pageId!] = {
+            success: true,
+            postId: postData.id,
+          };
+        } else {
+          throw new Error('Resposta inesperada');
+        }
       }
+      // 📷 Se é imagem única
+      else if (allImages.length === 1) {
+        const url = `${META_API_BASE}/${page.pageId}/photos`;
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            url: allImages[0],
+            access_token: page.accessToken,
+          }),
+        });
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+        const data = await response.json() as any;
 
-      const data = await response.json() as any;
+        if (data.error) {
+          throw new Error(data.error.message);
+        } else if (data.id || data.post_id) {
+          const postId = data.post_id || data.id;
+          console.log(`[Facebook] ✅ ${page.name}: ${postId}`);
+          results[page.pageId!] = {
+            success: true,
+            postId,
+          };
+        } else {
+          throw new Error('Resposta inesperada');
+        }
+      }
+      // 📝 Se é só texto
+      else {
+        const url = `${META_API_BASE}/${page.pageId}/feed`;
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message,
+            access_token: page.accessToken,
+          }),
+        });
 
-      if (data.error) {
-        console.error(`[Facebook] Erro em ${page.name}:`, data.error);
-        results[page.pageId!] = {
-          success: false,
-          error: data.error.message,
-        };
-      } else if (data.id || data.post_id) {
-        const postId = data.post_id || data.id;
-        console.log(`[Facebook] ✅ ${page.name}: ${postId}`);
-        results[page.pageId!] = {
-          success: true,
-          postId,
-        };
-      } else {
-        results[page.pageId!] = {
-          success: false,
-          error: 'Resposta inesperada',
-        };
+        const data = await response.json() as any;
+
+        if (data.error) {
+          throw new Error(data.error.message);
+        } else if (data.id) {
+          console.log(`[Facebook] ✅ ${page.name}: ${data.id}`);
+          results[page.pageId!] = {
+            success: true,
+            postId: data.id,
+          };
+        } else {
+          throw new Error('Resposta inesperada');
+        }
       }
     } catch (error: any) {
+      console.error(`[Facebook] Erro em ${page.name}:`, error.message);
       results[page.pageId!] = {
         success: false,
         error: error.message,
