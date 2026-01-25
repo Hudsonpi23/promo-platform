@@ -400,10 +400,12 @@ export default function OfertasPage() {
       const data = await response.json();
       
       if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Erro ao postar no Facebook');
+        // Extrair mensagem de erro corretamente
+        const errorMessage = data.error?.message || data.error || data.message || 'Erro ao postar no Facebook';
+        throw new Error(errorMessage);
       }
       
-      alert(`✅ Postado no Facebook com sucesso!\n\n👤 Post ID: ${data.postId || 'Enviado'}`);
+      alert(`✅ Postado no Facebook com sucesso!\n\n👤 Post ID: ${data.data?.postId || 'Enviado'}`);
       mutate();
     } catch (error: any) {
       console.error('Erro ao postar no Facebook:', error);
