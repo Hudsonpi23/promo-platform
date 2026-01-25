@@ -30,6 +30,7 @@ import { affiliatesRoutes } from './routes/affiliates';
 import { manualRoutes } from './routes/manual';
 import { aiWorkflowRoutes } from './routes/aiWorkflow';
 import { autoPromoterRoutes } from './routes/autoPromoterFastify';
+import { mlAuthRoutes } from './routes/mlAuth';
 
 async function main() {
   const server = Fastify({
@@ -218,6 +219,9 @@ async function main() {
 
   // 🚀 NOVO: Auto Promoter (ML → Redes Sociais)
   server.register(autoPromoterRoutes, { prefix: '/api/auto-promoter' });
+
+  // 🔐 NOVO: Autenticação OAuth2 do Mercado Livre
+  server.register(mlAuthRoutes);
 
   // ==================== ROTAS PÚBLICAS ====================
 
