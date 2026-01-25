@@ -183,6 +183,12 @@ export default function OfertasPage() {
   
   // Estado de loading para Site
   const [publishingToSite, setPublishingToSite] = useState<string | null>(null);
+  
+  // Estado de loading para Telegram
+  const [postingToTelegram, setPostingToTelegram] = useState<string | null>(null);
+  
+  // Estado de loading para Facebook
+  const [postingToFacebook, setPostingToFacebook] = useState<string | null>(null);
 
   // 🤖 v2.0: Estados de IA
   const [approvingOffer, setApprovingOffer] = useState<string | null>(null);
@@ -344,6 +350,60 @@ export default function OfertasPage() {
       alert(`❌ Erro ao criar post:\n${error.message}`);
     } finally {
       setCreatingDraft(null);
+    }
+  };
+  
+  // Postar diretamente no Telegram
+  const handlePostToTelegram = async (offerId: string) => {
+    if (postingToTelegram) return;
+    
+    setPostingToTelegram(offerId);
+    
+    try {
+      const response = await fetchWithAuth(`/api/telegram/post-offer/${offerId}`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao postar no Telegram');
+      }
+      
+      alert(`✅ Postado no Telegram com sucesso!\n\n📱 Message ID: ${data.messageId || 'Enviado'}`);
+      mutate();
+    } catch (error: any) {
+      console.error('Erro ao postar no Telegram:', error);
+      alert(`❌ Erro ao postar no Telegram:\n${error.message}`);
+    } finally {
+      setPostingToTelegram(null);
+    }
+  };
+  
+  // Postar diretamente no Facebook
+  const handlePostToFacebook = async (offerId: string) => {
+    if (postingToFacebook) return;
+    
+    setPostingToFacebook(offerId);
+    
+    try {
+      const response = await fetchWithAuth(`/api/facebook/post-offer/${offerId}`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Erro ao postar no Facebook');
+      }
+      
+      alert(`✅ Postado no Facebook com sucesso!\n\n👤 Post ID: ${data.postId || 'Enviado'}`);
+      mutate();
+    } catch (error: any) {
+      console.error('Erro ao postar no Facebook:', error);
+      alert(`❌ Erro ao postar no Facebook:\n${error.message}`);
+    } finally {
+      setPostingToFacebook(null);
     }
   };
 
@@ -663,12 +723,12 @@ export default function OfertasPage() {
                   </button>
                 )}
                 
-                {/* Linha 2: Enviar direto */}
-                <div className="flex items-center gap-2">
+                {/* Linha 2: Enviar direto - Linha 1 */}
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => handlePublishToSite(offer.id)}
                     disabled={publishingToSite === offer.id}
-                    className="flex-1 py-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="py-2 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Publicar diretamente no site"
                   >
                     {publishingToSite === offer.id ? '⏳' : '🌐'} Site
@@ -676,10 +736,30 @@ export default function OfertasPage() {
                   <button
                     onClick={() => handlePostToX(offer.id)}
                     disabled={postingToX === offer.id}
-                    className="flex-1 py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Postar diretamente no X (Twitter)"
                   >
                     {postingToX === offer.id ? '⏳' : '🐦'} X
+                  </button>
+                </div>
+                
+                {/* Linha 3: Telegram e Facebook */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handlePostToTelegram(offer.id)}
+                    disabled={postingToTelegram === offer.id}
+                    className="py-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Postar diretamente no Telegram"
+                  >
+                    {postingToTelegram === offer.id ? '⏳' : '📱'} Telegram
+                  </button>
+                  <button
+                    onClick={() => handlePostToFacebook(offer.id)}
+                    disabled={postingToFacebook === offer.id}
+                    className="py-2 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Postar diretamente no Facebook"
+                  >
+                    {postingToFacebook === offer.id ? '⏳' : '👤'} Facebook
                   </button>
                 </div>
                 
