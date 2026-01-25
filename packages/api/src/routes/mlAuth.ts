@@ -149,7 +149,9 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
               <p><strong>User ID:</strong> ${tokenData.user_id}</p>
               <p><strong>Expira em:</strong> ${Math.round(tokenData.expires_in / 3600)} horas</p>
               <p><strong>Access Token:</strong></p>
-              <div class="token">${tokenData.access_token.substring(0, 50)}...</div>
+              <div class="token" style="user-select: all;">${tokenData.access_token}</div>
+              <p style="margin-top: 15px;"><strong>Refresh Token:</strong></p>
+              <div class="token" style="user-select: all;">${tokenData.refresh_token || 'N/A'}</div>
             </div>
             <p style="color: #666; font-size: 14px;">Você pode fechar esta janela.</p>
           </div>
