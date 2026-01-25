@@ -38,6 +38,9 @@ export default function OfertasPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]); // 🎠 Preview da galeria
 
+  // Estado de loading
+  const [isCreating, setIsCreating] = useState(false);
+
   // 🎠 Upload de múltiplas imagens para galeria
   const handleGalleryUpload = async (files: FileList) => {
     if (!files || files.length === 0) return;
