@@ -12,6 +12,7 @@ import {
   postToFacebook, 
   postToFacebookWithLink,
   postToFacebookWithImage,
+  postToPages,
   generateFacebookPost 
 } from '../services/facebook.js';
 
@@ -81,7 +82,7 @@ export async function facebookRoutes(app: FastifyInstance) {
 
   /**
    * POST /api/facebook/post-offer/:offerId
-   * Publica uma oferta específica no Facebook
+   * Publica uma oferta específica no Facebook (em todas as páginas configuradas)
    */
   app.post('/post-offer/:offerId', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
@@ -110,27 +111,35 @@ export async function facebookRoutes(app: FastifyInstance) {
         storeName: offer.store?.name,
       });
 
-      // Publicar (com imagem se tiver)
-      let result;
-      if (offer.imageUrl) {
-        result = await postToFacebookWithImage(message, offer.imageUrl);
-      } else {
-        result = await postToFacebookWithLink(message, offer.affiliateUrl);
-      }
+      // Publicar em todas as páginas configuradas (com imagem se tiver)
+      const results = await postToPages(message, offer.imageUrl || undefined);
 
-      if (!result.success) {
+      // Verificar se pelo menos uma página teve sucesso
+      const successPages = Object.entries(results).filter(([_, r]) => r.success);
+      const failedPages = Object.entries(results).filter(([_, r]) => !r.success);
+
+      if (successPages.length === 0) {
+        // Todas falharam
+        const errors = failedPages.map(([pageId, r]) => `${pageId}: ${r.error}`).join('; ');
         return reply.status(400).send({
           success: false,
-          error: { code: 'FACEBOOK_ERROR', message: result.error },
+          error: { code: 'FACEBOOK_ERROR', message: `Falha em todas as páginas: ${errors}` },
         });
       }
 
+      // Pelo menos uma teve sucesso
+      const summary = {
+        total: Object.keys(results).length,
+        success: successPages.length,
+        failed: failedPages.length,
+      };
+
       return reply.send({
         success: true,
-        message: 'Oferta publicada no Facebook!',
+        message: `Oferta publicada em ${summary.success} de ${summary.total} página(s) do Facebook!`,
         data: {
-          postId: result.postId,
-          postUrl: result.postUrl,
+          results,
+          summary,
           offer: {
             id: offer.id,
             title: offer.title,

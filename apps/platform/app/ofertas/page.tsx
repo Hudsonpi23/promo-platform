@@ -405,7 +405,14 @@ export default function OfertasPage() {
         throw new Error(errorMessage);
       }
       
-      alert(`✅ Postado no Facebook com sucesso!\n\n👤 Post ID: ${data.data?.postId || 'Enviado'}`);
+      // Exibir resumo de postagem em múltiplas páginas
+      const summary = data.data?.summary;
+      if (summary) {
+        alert(`✅ Postado no Facebook!\n\n📊 Páginas: ${summary.success}/${summary.total} com sucesso\n${summary.failed > 0 ? `⚠️ ${summary.failed} falharam` : '✅ Todas postaram!'}`);
+      } else {
+        alert(`✅ Postado no Facebook com sucesso!`);
+      }
+      
       mutate();
     } catch (error: any) {
       console.error('Erro ao postar no Facebook:', error);
