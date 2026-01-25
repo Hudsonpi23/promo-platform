@@ -1,9 +1,11 @@
 /**
  * Rotas de autenticação OAuth2 do Mercado Livre
+ * Com suporte a PKCE (Proof Key for Code Exchange)
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
+import crypto from 'crypto';
 
 // Credenciais do app
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '6822621568324751';
@@ -13,14 +15,41 @@ const REDIRECT_URI = process.env.ML_REDIRECT_URI || 'https://promo-platform-api.
 // Armazena o token em memória (em produção, use banco de dados)
 let mlToken: any = null;
 
+// Armazena o code_verifier para PKCE
+let codeVerifier: string | null = null;
+
+/**
+ * Gera code_verifier e code_challenge para PKCE
+ */
+function generatePKCE() {
+  // Gera code_verifier (43-128 caracteres aleatórios)
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  
+  // Gera code_challenge (SHA256 do verifier em base64url)
+  const challenge = crypto
+    .createHash('sha256')
+    .update(verifier)
+    .digest('base64url');
+  
+  return { verifier, challenge };
+}
+
 export async function mlAuthRoutes(fastify: FastifyInstance) {
   
   /**
-   * Inicia o fluxo de autorização OAuth2
+   * Inicia o fluxo de autorização OAuth2 com PKCE
    * GET /api/auth/mercadolivre
    */
   fastify.get('/api/auth/mercadolivre', async (request: FastifyRequest, reply: FastifyReply) => {
-    const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${ML_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    // Gera PKCE
+    const pkce = generatePKCE();
+    codeVerifier = pkce.verifier;
+    
+    console.log('[ML Auth] Iniciando autorização com PKCE');
+    console.log('[ML Auth] Code Verifier:', pkce.verifier.substring(0, 20) + '...');
+    console.log('[ML Auth] Code Challenge:', pkce.challenge.substring(0, 20) + '...');
+    
+    const authUrl = `https://auth.mercadolivre.com.br/authorization?response_type=code&client_id=${ML_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&code_challenge=${pkce.challenge}&code_challenge_method=S256`;
     
     return reply.redirect(authUrl);
   });
@@ -52,16 +81,26 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
 
     try {
       console.log('[ML Auth] Recebido código:', code.substring(0, 20) + '...');
+      console.log('[ML Auth] Code Verifier disponível:', !!codeVerifier);
+
+      // Monta os parâmetros
+      const params: any = {
+        grant_type: 'authorization_code',
+        client_id: ML_CLIENT_ID,
+        client_secret: ML_CLIENT_SECRET,
+        code: code,
+        redirect_uri: REDIRECT_URI,
+      };
+
+      // Adiciona code_verifier se disponível (PKCE)
+      if (codeVerifier) {
+        params.code_verifier = codeVerifier;
+        console.log('[ML Auth] Usando PKCE com code_verifier');
+      }
 
       // Troca o código por access_token
       const response = await axios.post('https://api.mercadolibre.com/oauth/token', 
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: ML_CLIENT_ID,
-          client_secret: ML_CLIENT_SECRET,
-          code: code,
-          redirect_uri: REDIRECT_URI,
-        }).toString(),
+        new URLSearchParams(params).toString(),
         {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -69,6 +108,9 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
           }
         }
       );
+      
+      // Limpa o code_verifier após uso
+      codeVerifier = null;
 
       const tokenData = response.data;
       
