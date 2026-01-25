@@ -3,11 +3,28 @@
  * Publica posts na página do Facebook
  */
 
-const META_PAGE_ID = process.env.META_PAGE_ID;
-const META_PAGE_ACCESS_TOKEN = process.env.META_PAGE_ACCESS_TOKEN;
+// Suporte para múltiplas páginas - configuração centralizada
 const META_GRAPH_VERSION = process.env.META_GRAPH_VERSION || 'v24.0';
-
 const META_API_BASE = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
+
+// IDs e Tokens das páginas do Facebook (suporte legacy e novo formato)
+const FACEBOOK_PAGES = [
+  {
+    name: 'Manu Das Promoções',
+    pageId: process.env.META_PAGE_1_ID || process.env.META_PAGE_ID,
+    accessToken: process.env.META_PAGE_1_TOKEN || process.env.META_PAGE_ACCESS_TOKEN,
+  },
+  {
+    name: 'Manu Promoções de Tecnologia',
+    pageId: process.env.META_PAGE_2_ID,
+    accessToken: process.env.META_PAGE_2_TOKEN || process.env.META_PAGE_2_ACCESS_TOKEN,
+  },
+].filter(p => p.pageId && p.accessToken);
+
+// Página padrão (primeira configurada)
+const DEFAULT_PAGE = FACEBOOK_PAGES[0];
+const META_PAGE_ID = DEFAULT_PAGE?.pageId;
+const META_PAGE_ACCESS_TOKEN = DEFAULT_PAGE?.accessToken;
 
 interface FacebookPostResult {
   success: boolean;
@@ -20,12 +37,14 @@ interface FacebookPostResult {
  * Verifica se o Facebook está configurado
  */
 export function isFacebookConfigured(): boolean {
-  const isConfigured = !!(META_PAGE_ID && META_PAGE_ACCESS_TOKEN);
+  const isConfigured = FACEBOOK_PAGES.length > 0;
   
   // Log detalhado para debug
   console.log('[Facebook] Verificando configuração:');
-  console.log('  - META_PAGE_ID:', META_PAGE_ID ? `${META_PAGE_ID.substring(0, 10)}...` : 'VAZIO');
-  console.log('  - META_PAGE_ACCESS_TOKEN:', META_PAGE_ACCESS_TOKEN ? 'CONFIGURADO' : 'VAZIO');
+  console.log(`  - Páginas configuradas: ${FACEBOOK_PAGES.length}`);
+  FACEBOOK_PAGES.forEach((page, idx) => {
+    console.log(`  - Página ${idx + 1}: ${page.name} (ID: ${page.pageId?.substring(0, 10)}...)`);
+  });
   console.log('  - Configurado:', isConfigured);
   
   return isConfigured;
@@ -178,20 +197,6 @@ export async function postToFacebookWithImage(
 }
 
 // ==================== MULTI-PAGE SUPPORT ====================
-
-// IDs e Tokens das duas páginas do Facebook
-const FACEBOOK_PAGES = [
-  {
-    name: 'Manu Das Promoções',
-    pageId: process.env.META_PAGE_1_ID || process.env.FB_PAGE_ID_1 || process.env.META_PAGE_ID,
-    accessToken: process.env.META_PAGE_1_TOKEN || process.env.FB_PAGE_TOKEN_1 || process.env.META_PAGE_ACCESS_TOKEN,
-  },
-  {
-    name: 'Manu Promoções de Tecnologia',
-    pageId: process.env.META_PAGE_2_ID || process.env.FB_PAGE_ID_2,
-    accessToken: process.env.META_PAGE_2_TOKEN || process.env.FB_PAGE_TOKEN_2,
-  },
-].filter(p => p.pageId && p.accessToken);
 
 /**
  * Posta em múltiplas páginas do Facebook
