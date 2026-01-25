@@ -592,13 +592,17 @@ export default function OfertasPage() {
             )}
           </div>
           
+          {/* ═══════════════════════════════════════════════════════ */}
+          {/* 🎠 CARROSSEL: Adicione mais imagens aqui */}
+          {/* ═══════════════════════════════════════════════════════ */}
+          
           {/* 🎠 Galeria de Imagens (Carrossel) */}
-          <div>
-            <label className="block text-sm text-text-secondary mb-2">
-              🎠 Galeria de Imagens <span className="text-text-muted text-xs">(até 10 imagens)</span>
+          <div className="p-4 rounded-lg border-2 border-dashed border-secondary/50 bg-secondary/5">
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              🎠 Galeria de Imagens <span className="text-text-muted text-xs">(até 10 imagens - OPCIONAL)</span>
             </label>
             <p className="text-xs text-text-muted mb-3">
-              Se adicionar 2+ imagens, será criado um carrossel no Telegram, Facebook e Twitter
+              ⚡ Se adicionar <strong>2+ imagens</strong>, será criado um <strong>carrossel automático</strong> no Telegram, Facebook e Twitter!
             </p>
             
             {/* Preview das imagens da galeria */}
