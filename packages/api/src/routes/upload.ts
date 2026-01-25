@@ -6,13 +6,38 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import axios from 'axios';
 import {
   uploadFromUrl,
   uploadFromBase64,
+  uploadFromBuffer,
   deleteImage,
   healthCheck,
   UploadOptions,
 } from '../services/cloudinary';
+
+/**
+ * Baixar imagem de uma URL, contornando proteções de hotlinking
+ */
+async function downloadImageAsBuffer(imageUrl: string): Promise<Buffer | null> {
+  try {
+    const response = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 30000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'Referer': new URL(imageUrl).origin,
+      },
+    });
+    
+    return Buffer.from(response.data);
+  } catch (error) {
+    console.error('[Download] Erro ao baixar imagem:', error);
+    return null;
+  }
+}
 
 // ==================== SCHEMAS ====================
 
@@ -63,12 +88,30 @@ export async function uploadRoutes(fastify: FastifyInstance) {
         publicId: body.publicId,
       };
 
-      const result = await uploadFromUrl(body.imageUrl, options);
+      // Tentar upload direto primeiro
+      let result = await uploadFromUrl(body.imageUrl, options);
+
+      // Se falhou, tentar baixar a imagem manualmente (contorna proteção de hotlinking)
+      if (!result.success) {
+        console.log('[Upload] Upload direto falhou, tentando download manual...');
+        
+        const buffer = await downloadImageAsBuffer(body.imageUrl);
+        
+        if (buffer) {
+          result = await uploadFromBuffer(buffer, options);
+        }
+      }
 
       if (!result.success) {
+        // Mensagem de erro mais amigável
+        const errorMsg = result.error?.includes('403') || result.error?.includes('forbidden')
+          ? 'A imagem está protegida contra download. Tente fazer upload do arquivo diretamente.'
+          : result.error || 'Não foi possível fazer upload da imagem';
+          
         return reply.status(400).send({
           error: 'UPLOAD_FAILED',
-          message: result.error,
+          message: errorMsg,
+          hint: 'Baixe a imagem no seu computador e faça upload do arquivo diretamente.',
         });
       }
 
