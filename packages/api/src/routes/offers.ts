@@ -158,6 +158,9 @@ export async function offersRoutes(app: FastifyInstance) {
         curationStatus?: 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED';
       };
 
+      // Garantir que imageUrl tenha valor (mainImage ou imageUrl do body)
+      const finalImageUrl = bodyWithAI.mainImage || body.imageUrl;
+
       const offer = await prisma.offer.create({
         data: {
           title: body.title,
@@ -166,13 +169,13 @@ export async function offersRoutes(app: FastifyInstance) {
           finalPrice: body.finalPrice,
           discountPct,
           affiliateUrl: body.affiliateUrl || '',
-          imageUrl: body.imageUrl,
+          imageUrl: finalImageUrl,  // 🔥 FIX: Usar mainImage se imageUrl não fornecido
           nicheId,
           storeId,
           urgency: body.urgency || 'NORMAL',
           expiresAt: body.expiresAt,
           // 🤖 v2.0: Novos campos
-          mainImage: bodyWithAI.mainImage || body.imageUrl,
+          mainImage: finalImageUrl,  // 🔥 FIX: Ambos devem ter o mesmo valor
           images: bodyWithAI.images || [],
           curationStatus: bodyWithAI.curationStatus || 'DRAFT',
         },
@@ -251,10 +254,15 @@ export async function offersRoutes(app: FastifyInstance) {
       if (body.discountPct !== undefined) updateData.discountPct = body.discountPct;
       if (body.description !== undefined) updateData.description = body.description;
       if (body.affiliateUrl !== undefined) updateData.affiliateUrl = body.affiliateUrl;
-      if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
+      
+      // 🔥 FIX: Sincronizar imageUrl e mainImage
+      if (body.imageUrl !== undefined || body.mainImage !== undefined) {
+        const finalImage = body.mainImage || body.imageUrl;
+        updateData.imageUrl = finalImage;
+        updateData.mainImage = finalImage;
+      }
       
       // 🤖 v2.0: Novos campos
-      if (body.mainImage !== undefined) updateData.mainImage = body.mainImage;
       if (body.images !== undefined) updateData.images = body.images;
       if (body.curationStatus !== undefined) updateData.curationStatus = body.curationStatus;
 
