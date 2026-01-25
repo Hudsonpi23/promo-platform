@@ -9,9 +9,15 @@ export async function GET(
 ) {
   const { id } = params;
 
+  console.log('[GO] Redirecionando:', id);
+  console.log('[GO] API_URL:', API_URL);
+
   try {
     // Chamar backend para registrar clique e obter URL final
-    const res = await fetch(`${API_URL}/public/posts/${id}/click`, {
+    const apiUrl = `${API_URL}/public/posts/${id}/click`;
+    console.log('[GO] Chamando:', apiUrl);
+    
+    const res = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -20,22 +26,28 @@ export async function GET(
       },
     });
 
+    console.log('[GO] Status:', res.status);
+
     if (!res.ok) {
+      console.error('[GO] Erro na API:', res.status, await res.text());
       // Se falhar, redirecionar para home
       return NextResponse.redirect(new URL('/', request.url));
     }
 
     const data = await res.json();
+    console.log('[GO] Resposta:', data);
     
     if (data.url) {
+      console.log('[GO] Redirecionando para:', data.url);
       // Redirect 302 para o destino (URL de afiliado)
       return NextResponse.redirect(data.url, { status: 302 });
     }
 
+    console.error('[GO] Sem URL na resposta');
     // Fallback: redirecionar para home
     return NextResponse.redirect(new URL('/', request.url));
   } catch (error) {
-    console.error('Erro no redirect:', error);
+    console.error('[GO] Erro no redirect:', error);
     return NextResponse.redirect(new URL('/', request.url));
   }
 }
