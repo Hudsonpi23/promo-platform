@@ -82,7 +82,7 @@ export async function sendTelegramMessage(
 /**
  * Envia foto com caption para o canal
  */
-export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<{ success: boolean; messageId?: number; error?: string }> {
+export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean }> {
   if (!isTelegramConfigured()) {
     return { success: false, error: 'Telegram não configurado' };
   }
@@ -108,11 +108,19 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
       
       // SEMPRE tentar enviar só texto se foto falhar
       console.log('[Telegram] Foto falhou, enviando apenas texto...');
-      return await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
+      const textResult = await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
+      
+      // Retornar SUCESSO se conseguiu enviar o texto
+      return {
+        success: textResult.success,
+        messageId: textResult.messageId,
+        sentTextOnly: true,
+        error: textResult.success ? undefined : textResult.error,
+      };
     }
 
     console.log('[Telegram] Foto enviada com sucesso:', data.result?.message_id);
-    return { success: true, messageId: data.result?.message_id };
+    return { success: true, messageId: data.result?.message_id, sentTextOnly: false };
 
   } catch (error: any) {
     console.error('[Telegram] Erro ao enviar foto:', error.response?.data || error.message);
@@ -121,10 +129,22 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
     console.log('[Telegram] Erro capturado, tentando enviar apenas texto...');
     
     try {
-      return await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
+      const textResult = await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
+      
+      // Retornar SUCESSO se conseguiu enviar o texto
+      return {
+        success: textResult.success,
+        messageId: textResult.messageId,
+        sentTextOnly: true,
+        error: textResult.success ? undefined : textResult.error,
+      };
     } catch (fallbackError: any) {
       console.error('[Telegram] Falha total:', fallbackError.message);
-      return { success: false, error: `Foto e texto falharam: ${error.response?.data?.description || error.message}` };
+      return { 
+        success: false, 
+        error: `Foto e texto falharam: ${error.response?.data?.description || error.message}`,
+        sentTextOnly: false,
+      };
     }
   }
 }

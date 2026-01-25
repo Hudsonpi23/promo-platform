@@ -117,6 +117,12 @@ export async function telegramRoutes(app: FastifyInstance) {
       success: result.success,
       messageId: result.messageId,
       error: result.error,
+      sentTextOnly: (result as any).sentTextOnly || false,
+      message: (result as any).sentTextOnly 
+        ? '⚠️ Enviado apenas texto (foto falhou)' 
+        : result.success 
+          ? '✅ Enviado com foto' 
+          : undefined,
       debug: {
         hadImage: !!imageToSend,
         imageUrl: imageToSend?.substring(0, 100),
