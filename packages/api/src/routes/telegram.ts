@@ -4,6 +4,7 @@ import {
   isTelegramConfigured, 
   testTelegramConnection, 
   sendTelegramMessage,
+  sendTelegramMediaGroup,
   formatTelegramPost 
 } from '../services/telegram.js';
 import { prisma } from '../lib/prisma.js';
@@ -120,15 +121,36 @@ export async function telegramRoutes(app: FastifyInstance) {
       storeName: offer.store?.name,
     });
 
-    // Usar mainImage ou imageUrl
-    const imageToSend = (offer as any).mainImage || offer.imageUrl;
+    // 🎠 Verificar se tem galeria de imagens (carrossel)
+    const images = (offer as any).images || [];
+    const mainImage = (offer as any).mainImage || offer.imageUrl;
     
-    console.log('  - URL final para envio:', imageToSend?.substring(0, 80) || 'SEM IMAGEM');
+    console.log(`  - Imagens na galeria: ${images.length}`);
+    console.log('  - URL imagem principal:', mainImage?.substring(0, 80) || 'SEM IMAGEM');
 
-    const result = await sendTelegramMessage({
-      text,
-      imageUrl: imageToSend || undefined,
-    });
+    let result;
+    
+    // Se tem 2+ imagens na galeria, enviar como carrossel
+    if (images.length >= 2) {
+      console.log('[Telegram] 🎠 Enviando como carrossel (media group)');
+      result = await sendTelegramMediaGroup(images, text);
+    } 
+    // Se tem apenas 1 imagem (principal ou galeria), enviar foto normal
+    else if (mainImage || images.length === 1) {
+      const imageToSend = mainImage || images[0];
+      console.log('[Telegram] 📷 Enviando foto única');
+      result = await sendTelegramMessage({
+        text,
+        imageUrl: imageToSend,
+      });
+    }
+    // Sem imagens, enviar só texto
+    else {
+      console.log('[Telegram] 📝 Enviando apenas texto (sem imagens)');
+      result = await sendTelegramMessage({
+        text,
+      });
+    }
 
     return {
       success: result.success,
@@ -136,13 +158,16 @@ export async function telegramRoutes(app: FastifyInstance) {
       error: result.error,
       sentTextOnly: (result as any).sentTextOnly || false,
       message: (result as any).sentTextOnly 
-        ? '⚠️ Enviado apenas texto (foto falhou)' 
+        ? '⚠️ Enviado apenas texto (imagens falharam)' 
         : result.success 
-          ? '✅ Enviado com foto' 
+          ? images.length >= 2 
+            ? `✅ Enviado carrossel com ${images.length} imagens` 
+            : '✅ Enviado com foto' 
           : undefined,
       debug: {
-        hadImage: !!imageToSend,
-        imageUrl: imageToSend?.substring(0, 100),
+        hadImages: images.length > 0 || !!mainImage,
+        imageCount: images.length,
+        isCarousel: images.length >= 2,
       },
     };
   });

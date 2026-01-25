@@ -150,6 +150,67 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
 }
 
 /**
+ * 🎠 Envia carrossel de imagens (media group) para o canal
+ * @param images - Array de URLs de imagens (2-10 imagens)
+ * @param caption - Texto do post (apenas na primeira imagem)
+ */
+export async function sendTelegramMediaGroup(
+  images: string[],
+  caption: string
+): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean }> {
+  if (!isTelegramConfigured()) {
+    return { success: false, error: 'Telegram não configurado' };
+  }
+
+  // Validar número de imagens (2-10)
+  if (images.length < 2 || images.length > 10) {
+    console.error('[Telegram] Media group precisa ter entre 2 e 10 imagens');
+    return { success: false, error: 'Media group precisa ter entre 2 e 10 imagens' };
+  }
+
+  try {
+    console.log(`[Telegram] Tentando enviar media group com ${images.length} imagens`);
+    
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMediaGroup`;
+    
+    // Montar array de media (primeira imagem com caption, resto sem)
+    const media = images.map((imageUrl, index) => ({
+      type: 'photo',
+      media: imageUrl,
+      ...(index === 0 && { caption, parse_mode: 'HTML' }), // Caption apenas na primeira
+    }));
+    
+    const response = await axios.post(url, {
+      chat_id: TELEGRAM_CHAT_ID,
+      media,
+    }, {
+      timeout: 20000, // Mais tempo para múltiplas imagens
+    });
+
+    const data = response.data as TelegramResponse;
+
+    if (!data.ok) {
+      console.error('[Telegram] Erro ao enviar media group:', data.description);
+      
+      // Fallback: enviar primeira imagem com caption
+      console.log('[Telegram] Media group falhou, tentando enviar primeira imagem...');
+      return await sendTelegramPhoto(images[0], caption);
+    }
+
+    const messageId = data.result?.[0]?.message_id; // ID da primeira mensagem do grupo
+    console.log('[Telegram] Media group enviado com sucesso:', messageId);
+    return { success: true, messageId, sentTextOnly: false };
+
+  } catch (error: any) {
+    console.error('[Telegram] Erro ao enviar media group:', error.response?.data || error.message);
+    
+    // Fallback: tentar enviar só a primeira imagem
+    console.log('[Telegram] Erro capturado, tentando enviar primeira imagem...');
+    return await sendTelegramPhoto(images[0], caption);
+  }
+}
+
+/**
  * Formata o texto da promoção para o Telegram
  */
 export function formatTelegramPost(offer: {

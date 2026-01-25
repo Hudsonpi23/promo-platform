@@ -30,14 +30,60 @@ export default function OfertasPage() {
     storeId: '',
     urgency: 'NORMAL',
     mainImage: '', // 🤖 v2.0: Imagem obrigatória
+    images: [] as string[], // 🎠 Galeria de imagens (carrossel)
   });
 
   // 🤖 v2.0: Estado de upload de imagem
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]); // 🎠 Preview da galeria
 
-  // Estado de loading
-  const [isCreating, setIsCreating] = useState(false);
+  // 🎠 Upload de múltiplas imagens para galeria
+  const handleGalleryUpload = async (files: FileList) => {
+    if (!files || files.length === 0) return;
+    
+    setUploadingImage(true);
+    const uploadedUrls: string[] = [];
+    
+    try {
+      for (let i = 0; i < Math.min(files.length, 10); i++) { // Máximo 10 imagens
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetchWithAuth('/api/upload/file', {
+          method: 'POST',
+          body: formData,
+          headers: {},
+        });
+        
+        const data = await response.json();
+        const imageUrl = data.url || data.data?.url;
+        
+        if (imageUrl) {
+          uploadedUrls.push(imageUrl);
+        }
+      }
+      
+      setForm({ ...form, images: [...form.images, ...uploadedUrls] });
+      setGalleryPreviews([...galleryPreviews, ...uploadedUrls]);
+      
+      alert(`✅ ${uploadedUrls.length} imagem(ns) adicionada(s) à galeria!`);
+    } catch (error: any) {
+      console.error('Erro no upload:', error);
+      alert(`❌ Erro no upload: ${error.message}`);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // 🎠 Remover imagem da galeria
+  const handleRemoveFromGallery = (index: number) => {
+    const newImages = form.images.filter((_, i) => i !== index);
+    const newPreviews = galleryPreviews.filter((_, i) => i !== index);
+    setForm({ ...form, images: newImages });
+    setGalleryPreviews(newPreviews);
+  };
 
   // 🤖 v2.0: Upload de imagem para Cloudinary
   const handleImageUpload = async (file: File) => {
@@ -511,6 +557,64 @@ export default function OfertasPage() {
                     />
                   </div>
                 </div>
+              </div>
+            )}
+          </div>
+          
+          {/* 🎠 Galeria de Imagens (Carrossel) */}
+          <div>
+            <label className="block text-sm text-text-secondary mb-2">
+              🎠 Galeria de Imagens <span className="text-text-muted text-xs">(até 10 imagens)</span>
+            </label>
+            <p className="text-xs text-text-muted mb-3">
+              Se adicionar 2+ imagens, será criado um carrossel no Telegram, Facebook e Twitter
+            </p>
+            
+            {/* Preview das imagens da galeria */}
+            {galleryPreviews.length > 0 && (
+              <div className="grid grid-cols-5 gap-2 mb-3">
+                {galleryPreviews.map((url, index) => (
+                  <div key={index} className="relative group">
+                    <img 
+                      src={url} 
+                      alt={`Galeria ${index + 1}`} 
+                      className="w-full h-20 object-cover rounded border border-border"
+                    />
+                    <button
+                      onClick={() => handleRemoveFromGallery(index)}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-error text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Botão para adicionar mais imagens */}
+            {galleryPreviews.length < 10 && (
+              <div className="flex gap-2">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const files = e.target.files;
+                    if (files) handleGalleryUpload(files);
+                  }}
+                  className="hidden"
+                  id="gallery-upload"
+                />
+                <label
+                  htmlFor="gallery-upload"
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-all text-sm",
+                    "bg-secondary/20 hover:bg-secondary/30 text-secondary font-medium",
+                    uploadingImage && "opacity-50 cursor-wait"
+                  )}
+                >
+                  {uploadingImage ? '⏳ Enviando...' : `📤 Adicionar Imagens (${galleryPreviews.length}/10)`}
+                </label>
               </div>
             )}
           </div>
