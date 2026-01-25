@@ -20,7 +20,15 @@ interface FacebookPostResult {
  * Verifica se o Facebook está configurado
  */
 export function isFacebookConfigured(): boolean {
-  return !!(META_PAGE_ID && META_PAGE_ACCESS_TOKEN);
+  const isConfigured = !!(META_PAGE_ID && META_PAGE_ACCESS_TOKEN);
+  
+  // Log detalhado para debug
+  console.log('[Facebook] Verificando configuração:');
+  console.log('  - META_PAGE_ID:', META_PAGE_ID ? `${META_PAGE_ID.substring(0, 10)}...` : 'VAZIO');
+  console.log('  - META_PAGE_ACCESS_TOKEN:', META_PAGE_ACCESS_TOKEN ? 'CONFIGURADO' : 'VAZIO');
+  console.log('  - Configurado:', isConfigured);
+  
+  return isConfigured;
 }
 
 /**
