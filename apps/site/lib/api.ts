@@ -170,8 +170,13 @@ export async function getHighlights(): Promise<HighlightItem[]> {
 // Gerar URL do redirect /go
 export function getGoUrl(post: PublicPost): string {
   const code = post.goCode || post.slug || post.id;
-  // Usar a API base URL para o redirect
-  return `${API_URL}/go/${code}`;
+  // Usar a URL do SITE (não da API) para o redirect
+  // O site tem uma rota /go/[id] que chama a API e faz o redirect
+  const siteUrl = typeof window !== 'undefined' 
+    ? window.location.origin 
+    : (process.env.NEXT_PUBLIC_SITE_URL || 'https://promo-platform.vercel.app');
+  
+  return `${siteUrl}/go/${code}`;
 }
 
 // Formatar moeda
