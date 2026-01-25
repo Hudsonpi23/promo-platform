@@ -58,6 +58,10 @@ export const createOfferSchema = z.object({
   storeId: z.string().cuid('Loja inválida').optional().nullable(), // Opcional
   urgency: z.enum(['HOJE', 'ULTIMAS_UNIDADES', 'LIMITADO', 'NORMAL']).default('NORMAL'),
   expiresAt: z.coerce.date().optional().nullable(),
+  // 🎠 Carrossel de imagens
+  mainImage: z.string().url().optional().nullable(),
+  images: z.array(z.string().url()).optional().default([]),
+  curationStatus: z.enum(['DRAFT', 'PENDING_REVIEW', 'APPROVED']).optional().default('DRAFT'),
 });
 
 export const updateOfferSchema = createOfferSchema.partial();

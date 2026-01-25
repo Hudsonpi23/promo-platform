@@ -31,6 +31,7 @@ import { manualRoutes } from './routes/manual';
 import { aiWorkflowRoutes } from './routes/aiWorkflow';
 import { autoPromoterRoutes } from './routes/autoPromoterFastify';
 import { mlAuthRoutes } from './routes/mlAuth';
+import { scraperRoutes } from './routes/scraper';
 
 async function main() {
   const server = Fastify({
@@ -222,6 +223,9 @@ async function main() {
 
   // 🔐 NOVO: Autenticação OAuth2 do Mercado Livre
   server.register(mlAuthRoutes);
+
+  // 🔍 NOVO: Scraper de Produtos (Auto-preencher ofertas)
+  server.register(scraperRoutes, { prefix: '/api/scraper' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

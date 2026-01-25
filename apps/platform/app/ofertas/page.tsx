@@ -40,6 +40,8 @@ export default function OfertasPage() {
 
   // Estado de loading
   const [isCreating, setIsCreating] = useState(false);
+  const [isScraping, setIsScraping] = useState(false);
+  const [productUrl, setProductUrl] = useState('');
 
   // 🎠 Upload de múltiplas imagens para galeria
   const handleGalleryUpload = async (files: FileList) => {
@@ -86,6 +88,62 @@ export default function OfertasPage() {
     const newPreviews = galleryPreviews.filter((_, i) => i !== index);
     setForm({ ...form, images: newImages });
     setGalleryPreviews(newPreviews);
+  };
+
+  // 🔍 Buscar dados do produto automaticamente via URL
+  const handleScrapeProduct = async () => {
+    if (!productUrl) {
+      alert('Cole a URL do produto primeiro!');
+      return;
+    }
+
+    setIsScraping(true);
+
+    try {
+      const response = await fetchWithAuth('/api/scraper/product', {
+        method: 'POST',
+        body: JSON.stringify({ url: productUrl }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error?.message || 'Erro ao buscar dados');
+      }
+
+      const data = await response.json();
+      const productData = data.data;
+
+      console.log('[Scraper] Dados recebidos:', productData);
+
+      // Preencher formulário automaticamente
+      setForm(prev => ({
+        ...prev,
+        title: productData.title || prev.title,
+        finalPrice: productData.finalPrice ? productData.finalPrice.toString() : prev.finalPrice,
+        originalPrice: productData.originalPrice ? productData.originalPrice.toString() : prev.originalPrice,
+        affiliateUrl: productData.affiliateUrl || prev.affiliateUrl,
+        mainImage: productData.mainImage || prev.mainImage,
+        images: productData.images || prev.images,
+      }));
+
+      // Preview da imagem
+      if (productData.mainImage) {
+        setImagePreview(productData.mainImage);
+      }
+
+      // Preview da galeria
+      if (productData.images && productData.images.length > 1) {
+        setGalleryPreviews(productData.images.slice(1)); // Pular a primeira (mainImage)
+      }
+
+      alert(`✅ Dados extraídos com sucesso!\n\n📦 Produto: ${productData.title}\n💰 Preço: R$ ${productData.finalPrice}\n🏪 Loja: ${data.store}\n\nConfira os dados e adicione mais imagens se quiser!`);
+
+    } catch (error: any) {
+      console.error('Erro ao buscar dados:', error);
+      alert(`❌ Erro ao buscar dados do produto:\n\n${error.message}\n\nTente colar manualmente os dados.`);
+    } finally {
+      setIsScraping(false);
+    }
   };
 
   // 🤖 v2.0: Upload de imagem para Cloudinary
@@ -176,9 +234,15 @@ export default function OfertasPage() {
       // Converter preços (aceitar vírgula ou ponto)
       const parsePrice = (priceStr: string): number => {
         if (!priceStr) return 0;
-        // Substituir vírgula por ponto
-        const normalized = priceStr.replace(',', '.');
-        return parseFloat(normalized);
+        // Remover tudo exceto dígitos, vírgula e ponto
+        let normalized = priceStr.toString().trim();
+        // Remover pontos usados como separadores de milhar (ex: 1.997,10)
+        // Se tiver vírgula, assumir que ponto é separador de milhar
+        if (normalized.includes(',')) {
+          normalized = normalized.replace(/\./g, '').replace(',', '.');
+        }
+        // Se não tiver vírgula, ponto é decimal (formato americano)
+        return parseFloat(normalized) || 0;
       };
       
       const finalPriceValue = parsePrice(form.finalPrice);
@@ -504,6 +568,44 @@ export default function OfertasPage() {
           <p className="text-sm text-text-muted mb-4">
             ✅ Campos obrigatórios: <strong>Título</strong>, <strong>Preço Final</strong> e <strong>Imagem</strong>.
           </p>
+          
+          {/* 🔍 AUTO-PREENCHIMENTO: Cole a URL do produto */}
+          <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-blue-500/50 bg-blue-500/5">
+            <label className="block text-sm font-medium text-text-primary mb-2">
+              🔗 Auto-Preencher com URL <span className="text-blue-400 text-xs">(Mercado Livre, Magalu, Amazon, Shark, etc.)</span>
+            </label>
+            <p className="text-xs text-text-muted mb-3">
+              💡 Cole o link do produto e clique em <strong>"Buscar Dados"</strong> para preencher automaticamente: título, preços, imagem e desconto!
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={productUrl}
+                onChange={(e) => setProductUrl(e.target.value)}
+                placeholder="https://www.mercadolivre.com.br/produto/..."
+                className="flex-1 px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleScrapeProduct();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleScrapeProduct}
+                disabled={isScraping || !productUrl}
+                className={cn(
+                  "px-6 py-2 rounded-lg font-medium transition-all",
+                  isScraping || !productUrl
+                    ? "bg-gray-400 cursor-not-allowed text-white"
+                    : "bg-blue-500 hover:bg-blue-600 text-white"
+                )}
+              >
+                {isScraping ? '⏳ Buscando...' : '🔍 Buscar Dados'}
+              </button>
+            </div>
+          </div>
           
           {/* 🤖 v2.0: Upload de Imagem */}
           <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5">
