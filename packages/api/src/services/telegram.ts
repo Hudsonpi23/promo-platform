@@ -60,7 +60,8 @@ export async function sendTelegramMessage(
       parse_mode: options.parseMode || 'HTML',
       disable_web_page_preview: options.disableWebPagePreview ?? false,
     }, {
-      timeout: 15000,
+      timeout: 30000, // 30 segundos
+      maxRedirects: 5,
     });
 
     const data = response.data as TelegramResponse;
@@ -98,7 +99,8 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
       caption: caption,
       parse_mode: 'HTML',
     }, {
-      timeout: 15000,
+      timeout: 30000, // 30 segundos
+      maxRedirects: 5,
     });
 
     const data = response.data as TelegramResponse;

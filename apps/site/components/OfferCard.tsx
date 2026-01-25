@@ -97,12 +97,14 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
       </div>
 
       {/* Botão */}
-      <Link
-        href={`/go/${post.goCode || post.id}`}
+      <a
+        href={post.affiliateUrl}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
         className="block w-full text-center py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg"
       >
         VER OFERTA →
-      </Link>
+      </a>
     </article>
   );
 }

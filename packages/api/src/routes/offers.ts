@@ -19,6 +19,7 @@ export async function offersRoutes(app: FastifyInstance) {
       if (nicheId) where.nicheId = nicheId;
       if (storeId) where.storeId = storeId;
       if (status) where.status = status;
+      else where.status = { not: 'ARCHIVED' }; // 🗑️ Não mostrar ofertas arquivadas por padrão
       if (minDiscount) where.discountPct = { gte: minDiscount };
       if (q) {
         where.OR = [

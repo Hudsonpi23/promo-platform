@@ -24,10 +24,14 @@ export async function scraperRoutes(app: FastifyInstance) {
         store = 'magalu';
       } else if (urlLower.includes('amazon')) {
         store = 'amazon';
-      } else if (urlLower.includes('awin') || urlLower.includes('gigantec')) {
+      } else if (urlLower.includes('gigantec')) {
+        store = 'gigantec';
+      } else if (urlLower.includes('awin')) {
         store = 'awin';
       } else if (urlLower.includes('shark') || urlLower.includes('ninja')) {
         store = 'shark';
+      } else if (urlLower.includes('montecarlo')) {
+        store = 'montecarlo';
       }
 
       console.log('[Scraper] Loja detectada:', store);
@@ -53,10 +57,14 @@ export async function scraperRoutes(app: FastifyInstance) {
           productData = await scrapeMagalu(page);
         } else if (store === 'amazon') {
           productData = await scrapeAmazon(page);
+        } else if (store === 'gigantec') {
+          productData = await scrapeGigantec(page);
         } else if (store === 'awin') {
           productData = await scrapeAwin(page);
         } else if (store === 'shark') {
           productData = await scrapeShark(page);
+        } else if (store === 'montecarlo') {
+          productData = await scrapeMonteCarlo(page);
         } else {
           // Scraping genérico
           productData = await scrapeGeneric(page);
@@ -299,6 +307,151 @@ async function scrapeShark(page: any) {
   };
 }
 
+async function scrapeGigantec(page: any) {
+  console.log('[Scraper] Usando scraper do Gigantec...');
+
+  // Título
+  const title = await page.$eval('h1.page-title span', (el: any) => el.textContent?.trim())
+    .catch(() => page.$eval('h1', (el: any) => el.textContent?.trim()))
+    .catch(() => '');
+
+  // Preço (formato brasileiro: R$ 1.439,90)
+  const finalPriceText = await page.$$eval('[class*="price"], [data-price-type="finalPrice"]', (prices: any[]) => {
+    for (const el of prices) {
+      const text = el.textContent || '';
+      if (text.includes('R$') && !text.toLowerCase().includes('parcelado')) {
+        return text;
+      }
+    }
+    return '';
+  }).catch(() => '0');
+
+  const finalPrice = parseFloat(
+    finalPriceText
+      .replace(/R\$/g, '')
+      .replace(/\./g, '') // Remove separador de milhar
+      .replace(',', '.') // Vírgula vira ponto decimal
+      .trim()
+  ) || 0;
+
+  // Tentar pegar preço original (se houver desconto)
+  const originalPriceText = await page.$eval('[class*="old-price"], [data-price-type="oldPrice"]', (el: any) => el.textContent)
+    .catch(() => null);
+
+  let originalPrice = finalPrice;
+  let discount = 0;
+
+  if (originalPriceText) {
+    originalPrice = parseFloat(
+      originalPriceText
+        .replace(/R\$/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim()
+    ) || finalPrice;
+
+    if (originalPrice > finalPrice) {
+      discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+    }
+  }
+
+  // Imagem principal - usar data-zoom-image ou src completo
+  const mainImage = await page.$eval('.gallery-placeholder img, .product-image-photo', (el: any) => {
+    // Priorizar data-zoom-image (imagem grande)
+    return el.getAttribute('data-zoom-image') || el.getAttribute('src') || el.src;
+  })
+    .catch(() => page.$$eval('img', (imgs: any[]) => {
+      // Procurar imagem do produto (maior que 300px)
+      const productImg = imgs.find((img: any) => img.width > 300 && img.height > 300);
+      return productImg?.getAttribute('data-zoom-image') || productImg?.getAttribute('src') || productImg?.src || '';
+    }))
+    .catch(() => '');
+
+  // Tentar pegar galeria de imagens
+  const images = await page.$$eval('.product-image-photo, [class*="gallery"] img', (imgs: any[]) =>
+    imgs
+      .map((img: any) => img.getAttribute('data-zoom-image') || img.getAttribute('src') || img.src)
+      .filter((src: string) => src && src.startsWith('http'))
+  ).catch(() => [mainImage]);
+
+  return {
+    title,
+    finalPrice,
+    originalPrice: originalPrice !== finalPrice ? originalPrice : null,
+    discount,
+    mainImage,
+    images: images.slice(0, 10),
+  };
+}
+
+async function scrapeMonteCarlo(page: any) {
+  console.log('[Scraper] Usando scraper do Monte Carlo Joias...');
+
+  // Título
+  const title = await page.$eval('.product-name, h1', (el: any) => el.textContent?.trim())
+    .catch(() => page.$eval('h1', (el: any) => el.textContent?.trim()))
+    .catch(() => '');
+
+  // Preço (formato brasileiro: R$ 1.439,90)
+  const finalPriceText = await page.$$eval('[class*="price"]', (prices: any[]) => {
+    for (const el of prices) {
+      const text = el.textContent || '';
+      if (text.includes('R$') && !text.toLowerCase().includes('parcelado')) {
+        return text;
+      }
+    }
+    return '';
+  }).catch(() => '0');
+
+  const finalPrice = parseFloat(
+    finalPriceText
+      .replace(/R\$/g, '')
+      .replace(/\./g, '') // Remove separador de milhar
+      .replace(',', '.') // Vírgula vira ponto decimal
+      .trim()
+  ) || 0;
+
+  // Tentar pegar preço original (se houver desconto)
+  const originalPriceText = await page.$eval('[class*="old-price"], [class*="price-old"]', (el: any) => el.textContent)
+    .catch(() => null);
+
+  let originalPrice = finalPrice;
+  let discount = 0;
+
+  if (originalPriceText) {
+    originalPrice = parseFloat(
+      originalPriceText
+        .replace(/R\$/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .trim()
+    ) || finalPrice;
+
+    if (originalPrice > finalPrice) {
+      discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+    }
+  }
+
+  // Imagem principal
+  const mainImage = await page.$eval('.product-image-photo, .product-img img', (el: any) => {
+    return el.getAttribute('src') || el.getAttribute('data-src') || el.src;
+  })
+    .catch(() => page.$$eval('img', (imgs: any[]) => {
+      const productImg = imgs.find((img: any) => img.width > 300 && img.height > 300);
+      return productImg?.getAttribute('src') || productImg?.getAttribute('data-src') || productImg?.src || '';
+    }))
+    .catch(() => '');
+
+  return {
+    title,
+    finalPrice,
+    originalPrice: originalPrice !== finalPrice ? originalPrice : null,
+    discount,
+    mainImage,
+    images: [mainImage],
+  };
+}
+
 async function scrapeGeneric(page: any) {
   console.log('[Scraper] Usando scraper genérico...');
 
@@ -315,11 +468,16 @@ async function scrapeGeneric(page: any) {
 
   const finalPrice = parseFloat(priceText.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
 
-  // Tentar pegar imagem
-  const mainImage = await page.$eval('img[alt*="produto"]', (el: any) => el.src)
+  // Tentar pegar imagem (usando getAttribute para evitar truncamento)
+  const mainImage = await page.$eval('img[alt*="produto"], img[alt*="product"]', (el: any) => {
+    return el.getAttribute('src') || el.getAttribute('data-src') || el.src;
+  })
     .catch(() => page.$$eval('img', (imgs: any[]) => {
-      const productImg = imgs.find(img => img.width > 200 && img.height > 200);
-      return productImg?.src || imgs[0]?.src || '';
+      const productImg = imgs.find((img: any) => img.width > 200 && img.height > 200);
+      if (productImg) {
+        return productImg.getAttribute('src') || productImg.getAttribute('data-src') || productImg.src;
+      }
+      return imgs[0]?.getAttribute('src') || imgs[0]?.src || '';
     }))
     .catch(() => '');
 

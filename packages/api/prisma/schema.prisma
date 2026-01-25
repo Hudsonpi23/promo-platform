@@ -319,7 +319,7 @@ model Offer {
   id            String  @id @default(cuid())
   title         String
   description   String?
-  originalPrice Decimal @db.Decimal(10, 2)
+  originalPrice Decimal? @db.Decimal(10, 2)  // 🔥 OPCIONAL para produtos sem desconto
   finalPrice    Decimal @db.Decimal(10, 2)
   discountPct   Int
   affiliateUrl  String

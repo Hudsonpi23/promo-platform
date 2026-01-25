@@ -49,9 +49,9 @@ export const updateStoreSchema = createStoreSchema.partial();
 export const createOfferSchema = z.object({
   title: z.string().min(5, 'Título deve ter no mínimo 5 caracteres'),
   description: z.string().optional().nullable(),
-  originalPrice: z.coerce.number().positive('Preço original deve ser positivo'),
+  originalPrice: z.coerce.number().positive('Preço original deve ser positivo').optional().nullable(),
   finalPrice: z.coerce.number().positive('Preço final deve ser positivo'),
-  discountPct: z.coerce.number().int().min(0).max(100).optional(), // Calculado automaticamente se não fornecido
+  discountPct: z.coerce.number().int().min(0).max(100).optional().nullable(), // Calculado automaticamente se não fornecido
   affiliateUrl: z.string().url('URL de afiliado inválida').optional().nullable(),
   imageUrl: z.string().url().optional().nullable(),
   nicheId: z.string().cuid('Nicho inválido').optional().nullable(), // Opcional

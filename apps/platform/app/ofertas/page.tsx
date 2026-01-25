@@ -115,12 +115,18 @@ export default function OfertasPage() {
 
       console.log('[Scraper] Dados recebidos:', productData);
 
+      // Formatar preços para 2 casas decimais
+      const formatPrice = (price: number | null | undefined): string => {
+        if (!price) return '';
+        return price.toFixed(2); // Garante 2 casas decimais: 1997.10
+      };
+
       // Preencher formulário automaticamente
       setForm(prev => ({
         ...prev,
         title: productData.title || prev.title,
-        finalPrice: productData.finalPrice ? productData.finalPrice.toString() : prev.finalPrice,
-        originalPrice: productData.originalPrice ? productData.originalPrice.toString() : prev.originalPrice,
+        finalPrice: formatPrice(productData.finalPrice),
+        originalPrice: formatPrice(productData.originalPrice),
         affiliateUrl: productData.affiliateUrl || prev.affiliateUrl,
         mainImage: productData.mainImage || prev.mainImage,
         images: productData.images || prev.images,
@@ -246,13 +252,16 @@ export default function OfertasPage() {
       };
       
       const finalPriceValue = parsePrice(form.finalPrice);
-      const originalPriceValue = form.originalPrice ? parsePrice(form.originalPrice) : finalPriceValue;
+      const originalPriceValue = form.originalPrice ? parsePrice(form.originalPrice) : null;
+      
+      // Se os preços forem iguais ou não houver original, não há desconto
+      const hasDiscount = originalPriceValue && originalPriceValue > finalPriceValue;
       
       const response = await fetchWithAuth('/api/offers', {
         method: 'POST',
         body: JSON.stringify({
           title: form.title,
-          originalPrice: originalPriceValue,
+          originalPrice: hasDiscount ? originalPriceValue : null,
           finalPrice: finalPriceValue,
           affiliateUrl: form.affiliateUrl || undefined,
           nicheId: form.nicheId || undefined,
@@ -269,7 +278,9 @@ export default function OfertasPage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || 'Erro ao criar oferta');
+        console.error('[Ofertas] Erro detalhado:', error);
+        const errorMsg = error.error?.message || error.message || JSON.stringify(error);
+        throw new Error(errorMsg);
       }
 
       // Limpar formulário
@@ -474,6 +485,39 @@ export default function OfertasPage() {
     }
   };
   
+  // 🗑️ Deletar oferta
+  const [deletingOffer, setDeletingOffer] = useState<string | null>(null);
+  
+  const handleDeleteOffer = async (offerId: string, offerTitle: string) => {
+    // Confirmar antes de deletar
+    const confirmDelete = confirm(`🗑️ Tem certeza que deseja DELETAR esta oferta?\n\n"${offerTitle}"\n\n⚠️ Esta ação não pode ser desfeita!`);
+    
+    if (!confirmDelete) return;
+    
+    setDeletingOffer(offerId);
+    
+    try {
+      const response = await fetchWithAuth(`/api/offers/${offerId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || 'Erro ao deletar oferta');
+      }
+      
+      alert('✅ Oferta deletada com sucesso!');
+      
+      // Atualizar lista de ofertas
+      await loadOffers();
+    } catch (error: any) {
+      console.error('Erro ao deletar oferta:', error);
+      alert(`❌ Erro ao deletar oferta:\n${error.message}`);
+    } finally {
+      setDeletingOffer(null);
+    }
+  };
+
   // Postar diretamente no Telegram
   const handlePostToTelegram = async (offerId: string) => {
     if (postingToTelegram) return;
@@ -1021,6 +1065,16 @@ export default function OfertasPage() {
                     {postingToFacebook === offer.id ? '⏳' : '👤'} Facebook
                   </button>
                 </div>
+                
+                {/* 🗑️ Botão DELETAR */}
+                <button
+                  onClick={() => handleDeleteOffer(offer.id, offer.title)}
+                  disabled={deletingOffer === offer.id}
+                  className="w-full py-2 rounded-lg bg-error/20 hover:bg-error/30 text-error text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Deletar esta oferta permanentemente"
+                >
+                  {deletingOffer === offer.id ? '⏳ Deletando...' : '🗑️ Deletar'}
+                </button>
                 
                 <span className="text-xs text-text-muted text-center">
                   {offer._count?.drafts || 0} posts criados
