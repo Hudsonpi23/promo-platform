@@ -65,9 +65,10 @@ export async function telegramRoutes(app: FastifyInstance) {
     const { offerId } = request.params as { offerId: string };
 
     if (!isTelegramConfigured()) {
+      console.error('[Telegram] Telegram não configurado - verifique TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID');
       return reply.status(400).send({
         success: false,
-        error: 'Telegram não configurado',
+        error: 'Telegram não configurado. Configure TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID no .env',
       });
     }
 
@@ -80,6 +81,7 @@ export async function telegramRoutes(app: FastifyInstance) {
     });
 
     if (!offer) {
+      console.error('[Telegram] Oferta não encontrada:', offerId);
       return reply.status(404).send({
         success: false,
         error: 'Oferta não encontrada',
@@ -92,6 +94,21 @@ export async function telegramRoutes(app: FastifyInstance) {
     console.log('  - imageUrl:', offer.imageUrl || 'VAZIO');
     console.log('  - mainImage:', (offer as any).mainImage || 'VAZIO');
     console.log('  - affiliateUrl:', offer.affiliateUrl?.substring(0, 50) || 'VAZIO');
+    console.log('  - finalPrice:', offer.finalPrice);
+    console.log('  - originalPrice:', offer.originalPrice);
+
+    // Validar campos obrigatórios
+    if (!offer.title || !offer.finalPrice || !offer.affiliateUrl) {
+      console.error('[Telegram] Campos obrigatórios faltando:', {
+        hasTitle: !!offer.title,
+        hasFinalPrice: !!offer.finalPrice,
+        hasAffiliateUrl: !!offer.affiliateUrl,
+      });
+      return reply.status(400).send({
+        success: false,
+        error: 'Oferta incompleta: faltam campos obrigatórios (título, preço ou link)',
+      });
+    }
 
     // Formatar e enviar
     const text = formatTelegramPost({
