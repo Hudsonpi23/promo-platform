@@ -26,21 +26,21 @@ export async function authRoutes(app: FastifyInstance) {
         return sendError(reply, Errors.INVALID_CREDENTIALS);
       }
 
-      // Gerar tokens
+      // Gerar tokens (90 dias para não precisar relogar)
       const accessToken = app.jwt.sign(
         { id: user.id, email: user.email, role: user.role },
-        { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+        { expiresIn: '90d' } // 90 dias
       );
 
       const refreshTokenRaw = nanoid(64);
       const refreshTokenHash = await hashToken(refreshTokenRaw);
 
-      // Salvar refresh token
+      // Salvar refresh token (90 dias)
       await prisma.refreshToken.create({
         data: {
           tokenHash: refreshTokenHash,
           userId: user.id,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias
+          expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 dias
         },
       });
 
@@ -98,11 +98,11 @@ export async function authRoutes(app: FastifyInstance) {
         data: { revokedAt: new Date() },
       });
 
-      // Gerar novos tokens
+      // Gerar novos tokens (90 dias)
       const user = validToken.user;
       const accessToken = app.jwt.sign(
         { id: user.id, email: user.email, role: user.role },
-        { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+        { expiresIn: '90d' } // 90 dias
       );
 
       const refreshTokenRaw = nanoid(64);
@@ -112,7 +112,7 @@ export async function authRoutes(app: FastifyInstance) {
         data: {
           tokenHash: refreshTokenHash,
           userId: user.id,
-          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 dias
         },
       });
 
