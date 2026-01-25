@@ -197,6 +197,59 @@ async function downloadImageAsBase64(imageUrl: string): Promise<string | null> {
 }
 
 /**
+ * 🎠 Faz upload de múltiplas imagens para o Twitter (até 4 imagens)
+ * @param imageUrls - Array de URLs de imagens (1-4 imagens)
+ * @returns Array de media IDs ou erro
+ */
+export async function uploadMultipleMedia(imageUrls: string[]): Promise<{
+  success: boolean;
+  mediaIds?: string[];
+  error?: string;
+}> {
+  if (!isTwitterConfigured()) {
+    return { success: false, error: 'Twitter API não configurada' };
+  }
+
+  // Validar número de imagens (1-4)
+  if (imageUrls.length < 1 || imageUrls.length > 4) {
+    console.error('[Twitter] Número de imagens inválido (deve ser 1-4)');
+    return { success: false, error: 'Twitter suporta apenas 1-4 imagens por tweet' };
+  }
+
+  console.log(`[Twitter] Fazendo upload de ${imageUrls.length} imagens`);
+
+  try {
+    const mediaIds: string[] = [];
+
+    // Upload de cada imagem sequencialmente
+    for (let i = 0; i < imageUrls.length; i++) {
+      const imageUrl = imageUrls[i];
+      console.log(`[Twitter] Uploading imagem ${i + 1}/${imageUrls.length}: ${imageUrl.substring(0, 50)}...`);
+
+      const uploadResult = await uploadMedia(imageUrl);
+
+      if (!uploadResult.success || !uploadResult.mediaId) {
+        console.error(`[Twitter] Falha ao fazer upload da imagem ${i + 1}:`, uploadResult.error);
+        // Se alguma falhar, retornar erro (Twitter precisa de todas ou nenhuma)
+        return {
+          success: false,
+          error: `Falha no upload da imagem ${i + 1}: ${uploadResult.error}`,
+        };
+      }
+
+      mediaIds.push(uploadResult.mediaId);
+    }
+
+    console.log(`[Twitter] ✅ ${mediaIds.length} imagens enviadas com sucesso`);
+    return { success: true, mediaIds };
+
+  } catch (error: any) {
+    console.error('[Twitter] Erro no upload de múltiplas imagens:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Faz upload de uma imagem para o Twitter
  * Retorna o media_id para usar no tweet
  */
@@ -356,6 +409,72 @@ export async function postTweetWithImage(text: string, imageUrl: string): Promis
 }
 
 /**
+ * 🎠 Posta um tweet com múltiplas imagens (até 4)
+ * @param text - Texto do tweet
+ * @param imageUrls - Array de URLs de imagens (1-4 imagens)
+ */
+export async function postTweetWithMultipleImages(
+  text: string,
+  imageUrls: string[]
+): Promise<TweetResponse> {
+  // 1. Fazer upload de todas as imagens
+  const uploadResult = await uploadMultipleMedia(imageUrls);
+  
+  if (!uploadResult.success || !uploadResult.mediaIds || uploadResult.mediaIds.length === 0) {
+    console.error('[Twitter] Falha no upload de múltiplas imagens, postando com primeira imagem...');
+    // Fallback: tentar apenas primeira imagem
+    if (imageUrls.length > 0) {
+      return postTweetWithImage(text, imageUrls[0]);
+    }
+    // Último fallback: postar só texto
+    return postTweet(text);
+  }
+  
+  // 2. Postar tweet com todas as imagens
+  console.log(`[Twitter] Postando tweet com ${uploadResult.mediaIds.length} imagens`);
+  
+  try {
+    const body = {
+      text,
+      media: {
+        media_ids: uploadResult.mediaIds, // Array de media IDs
+      },
+    };
+
+    const response = await fetch(`${TWITTER_API_BASE}/tweets`, {
+      method: 'POST',
+      headers: {
+        'Authorization': generateOAuthHeader('POST', `${TWITTER_API_BASE}/tweets`, body),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json() as { data?: { id: string; text: string }; errors?: any[] };
+
+    if (!response.ok || data.errors) {
+      const errorMsg = data.errors?.[0]?.message || `HTTP ${response.status}`;
+      console.error('[Twitter] Erro ao postar tweet:', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    if (data.data?.id) {
+      console.log('[Twitter] ✅ Tweet postado com sucesso (múltiplas imagens):', data.data.id);
+      return {
+        success: true,
+        tweetId: data.data.id,
+        tweetUrl: `https://twitter.com/i/web/status/${data.data.id}`,
+      };
+    }
+
+    return { success: false, error: 'Resposta inesperada da API' };
+  } catch (error: any) {
+    console.error('[Twitter] Erro ao postar tweet com múltiplas imagens:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Gera o texto do tweet a partir de uma oferta
  */
 export function generateTweetText(offer: {
@@ -424,7 +543,25 @@ export async function postOfferToTwitter(offer: {
   discount?: number;
   affiliateUrl?: string;
   storeName?: string;
+  imageUrl?: string;
+  images?: string[];
 }): Promise<TweetResponse> {
   const tweetText = generateTweetText(offer);
+  
+  // 🎠 Se tem múltiplas imagens (2-4), usar carrossel
+  if (offer.images && offer.images.length >= 2) {
+    console.log(`[Twitter] Postando oferta com ${offer.images.length} imagens`);
+    return postTweetWithMultipleImages(tweetText, offer.images.slice(0, 4)); // Máximo 4
+  }
+  
+  // 📷 Se tem apenas 1 imagem (imageUrl ou images[0])
+  const singleImage = offer.imageUrl || (offer.images && offer.images[0]);
+  if (singleImage) {
+    console.log('[Twitter] Postando oferta com 1 imagem');
+    return postTweetWithImage(tweetText, singleImage);
+  }
+  
+  // 📝 Sem imagens, só texto
+  console.log('[Twitter] Postando oferta sem imagens');
   return postTweet(tweetText);
 }

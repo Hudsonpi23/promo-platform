@@ -135,6 +135,11 @@ export async function twitterRoutes(app: FastifyInstance) {
     }
 
     // Postar no Twitter
+    const images = (offer as any).images || [];
+    const mainImage = offer.imageUrl;
+    
+    console.log(`[Twitter] Preparando post: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}`);
+    
     const result = await postOfferToTwitter({
       title: offer.title,
       originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
@@ -142,6 +147,8 @@ export async function twitterRoutes(app: FastifyInstance) {
       discount: offer.discountPct || undefined,
       affiliateUrl: offer.affiliateUrl || undefined,
       storeName: offer.store?.name,
+      imageUrl: mainImage || undefined,
+      images: images.length > 0 ? images : undefined,
     });
 
     if (!result.success) {
