@@ -3,6 +3,7 @@ import { getPost, getOferta, formatCurrency, getUrgencyInfo, getGoUrl, PublicPos
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ImageCarousel from '@/components/ImageCarousel';
+import DeletePostButton from '@/components/DeletePostButton';
 
 export const revalidate = 60;
 
@@ -203,6 +204,9 @@ export default async function OfertaPage({ params }: Props) {
           </Link>
         </div>
       </div>
+
+      {/* Botão de deletar (só aparece para admins logados) */}
+      {!isDemo && <DeletePostButton postId={post.id} postTitle={post.title} />}
     </div>
   );
 }

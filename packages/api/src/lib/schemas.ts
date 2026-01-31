@@ -46,25 +46,44 @@ export const updateStoreSchema = createStoreSchema.partial();
 
 // ==================== OFFERS ====================
 
-export const createOfferSchema = z.object({
+// Schema base para ofertas (sem preprocess)
+const offerBaseSchema = z.object({
   title: z.string().min(5, 'Título deve ter no mínimo 5 caracteres'),
   description: z.string().optional().nullable(),
   originalPrice: z.coerce.number().positive('Preço original deve ser positivo').optional().nullable(),
   finalPrice: z.coerce.number().positive('Preço final deve ser positivo'),
   discountPct: z.coerce.number().int().min(0).max(100).optional().nullable(), // Calculado automaticamente se não fornecido
-  affiliateUrl: z.string().url('URL de afiliado inválida').optional().nullable(),
-  imageUrl: z.string().url().optional().nullable(),
-  nicheId: z.string().cuid('Nicho inválido').optional().nullable(), // Opcional
-  storeId: z.string().cuid('Loja inválida').optional().nullable(), // Opcional
+  // 🔓 Menos rígido com URLs para evitar erros chatos de validação na criação manual
+  affiliateUrl: z.string().optional().nullable(),
+  imageUrl: z.string().optional().nullable(),
+  nicheId: z.string().cuid('Nicho inválido').optional().nullable(), // Opcional - strings vazias viram null
+  storeId: z.string().cuid('Loja inválida').optional().nullable(), // Opcional - strings vazias viram null
   urgency: z.enum(['HOJE', 'ULTIMAS_UNIDADES', 'LIMITADO', 'NORMAL']).default('NORMAL'),
   expiresAt: z.coerce.date().optional().nullable(),
   // 🎠 Carrossel de imagens
-  mainImage: z.string().url().optional().nullable(),
-  images: z.array(z.string().url()).optional().default([]),
+  mainImage: z.string().optional().nullable(),
+  images: z.array(z.string()).optional().default([]),
   curationStatus: z.enum(['DRAFT', 'PENDING_REVIEW', 'APPROVED']).optional().default('DRAFT'),
 });
 
-export const updateOfferSchema = createOfferSchema.partial();
+// Schema de criação com preprocess para converter strings vazias em null
+export const createOfferSchema = z.preprocess((data: any) => {
+  // Converter strings vazias em null para campos opcionais
+  if (data && typeof data === 'object') {
+    const processed = { ...data };
+    if (processed.affiliateUrl === '') processed.affiliateUrl = null;
+    if (processed.imageUrl === '') processed.imageUrl = null;
+    if (processed.nicheId === '') processed.nicheId = null;
+    if (processed.storeId === '') processed.storeId = null;
+    if (processed.mainImage === '') processed.mainImage = null;
+    if (processed.description === '') processed.description = null;
+    return processed;
+  }
+  return data;
+}, offerBaseSchema);
+
+// Schema de atualização (todos os campos opcionais)
+export const updateOfferSchema = offerBaseSchema.partial();
 
 export const offersFilterSchema = paginationSchema.extend({
   nicheId: z.string().optional(),

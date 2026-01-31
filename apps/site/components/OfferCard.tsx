@@ -1,7 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { PublicPost } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { isAdmin } from '@/lib/auth';
 
 interface OfferCardProps {
   post: PublicPost;
@@ -29,9 +32,102 @@ function getUrgencyInfo(urgency: string) {
 }
 
 export function OfferCard({ post, featured = false }: OfferCardProps) {
+  const router = useRouter();
   const urgencyInfo = getUrgencyInfo(post.urgency);
-  const hasDiscount = post.discount && post.discount > 0;
+  const hasDiscount = Boolean(post.discount && post.discount > 0);
   const slug = post.slug || post.id;
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    // Verificar se usuário admin está logado
+    setIsLoggedIn(isAdmin());
+    
+    // Escutar mudanças no localStorage
+    const handleStorageChange = () => {
+      setIsLoggedIn(isAdmin());
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Verificar periodicamente
+    const interval = setInterval(() => {
+      setIsLoggedIn(isAdmin());
+    }, 1000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const confirmDelete = confirm(
+      `🗑️ Deletar este post?\n\n"${post.title}"\n\n⚠️ Não pode ser desfeito!`
+    );
+
+    if (!confirmDelete) return;
+
+    setIsDeleting(true);
+
+    try {
+      // Usar a mesma constante de API_URL do lib/api.ts
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      const url = `${apiUrl}/public/posts/${post.id}`;
+      
+      console.log('Deletando post:', { url, postId: post.id });
+
+      // Tentar primeiro com token (se existir)
+      const token = localStorage.getItem('token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers,
+      });
+
+      // Tentar parsear a resposta mesmo se não for ok
+      let responseData;
+      try {
+        responseData = await response.json();
+      } catch (parseError) {
+        responseData = { error: { message: 'Erro ao processar resposta do servidor' } };
+      }
+
+      if (!response.ok) {
+        const errorMessage = responseData?.error?.message || responseData?.message || `Erro ${response.status}: ${response.statusText}`;
+        throw new Error(errorMessage);
+      }
+
+      // Sucesso - remover o card da tela imediatamente
+      const cardElement = (e.target as HTMLElement).closest('article');
+      if (cardElement) {
+        cardElement.style.opacity = '0';
+        cardElement.style.transition = 'opacity 0.3s';
+        setTimeout(() => {
+          cardElement.remove();
+        }, 300);
+      }
+      
+      // Mostrar mensagem de sucesso
+      alert('✅ Post deletado com sucesso!');
+    } catch (error: any) {
+      console.error('Erro ao deletar post:', error);
+      const errorMessage = error.message || 'Erro desconhecido ao deletar post';
+      alert(`❌ Erro: ${errorMessage}`);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative p-4 ${featured ? 'md:p-5' : ''}`}>
@@ -101,10 +197,32 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
         href={post.affiliateUrl}
         target="_blank"
         rel="noopener noreferrer sponsored"
-        className="block w-full text-center py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg"
+        className="block w-full text-center py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg mb-2"
       >
         VER OFERTA →
       </a>
+
+      {/* Botão deletar - apenas para admin */}
+      {isLoggedIn && (
+        <button
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="w-full text-center py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          title="Deletar post"
+        >
+          {isDeleting ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              <span>Deletando...</span>
+            </>
+          ) : (
+            <>
+              <span>🗑️</span>
+              <span>Deletar</span>
+            </>
+          )}
+        </button>
+      )}
     </article>
   );
 }

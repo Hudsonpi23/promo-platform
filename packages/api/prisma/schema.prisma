@@ -107,29 +107,29 @@ enum Urgency {
 
 // 🤖 Status de curadoria da oferta (v2.0 IA)
 enum CurationStatus {
-  DRAFT           // Rascunho, aguardando imagem/dados
-  PENDING_REVIEW  // Aguardando aprovação do operador
-  APPROVED        // Aprovada pelo operador, pronta para IA
-  AI_PROCESSING   // IA está processando
-  AI_READY        // IA finalizou, jobs criados
-  AI_BLOCKED      // IA bloqueou (risco alto)
+  DRAFT // Rascunho, aguardando imagem/dados
+  PENDING_REVIEW // Aguardando aprovação do operador
+  APPROVED // Aprovada pelo operador, pronta para IA
+  AI_PROCESSING // IA está processando
+  AI_READY // IA finalizou, jobs criados
+  AI_BLOCKED // IA bloqueou (risco alto)
 }
 
 // 🤖 Status do PostJob (v2.0 IA)
 enum PostJobStatus {
-  PENDING   // Criado pela IA, aguardando fila
-  QUEUED    // Na fila do scheduler
-  POSTED    // Publicado com sucesso
-  ERROR     // Erro na publicação
+  PENDING // Criado pela IA, aguardando fila
+  QUEUED // Na fila do scheduler
+  POSTED // Publicado com sucesso
+  ERROR // Erro na publicação
   CANCELLED // Cancelado
 }
 
 // 🤖 Nível de risco da oferta (avaliado pela IA Curadora)
 enum RiskLevel {
-  LOW       // Baixo risco
-  MEDIUM    // Risco médio
-  HIGH      // Alto risco - requer atenção
-  BLOCKED   // Bloqueado pela IA
+  LOW // Baixo risco
+  MEDIUM // Risco médio
+  HIGH // Alto risco - requer atenção
+  BLOCKED // Bloqueado pela IA
 }
 
 enum Priority {
@@ -164,6 +164,7 @@ model User {
   approvedDrafts       PostDraft[]           @relation("ApprovedBy")
   mercadoLivreAccounts MercadoLivreAccount[]
   affiliateAccounts    AffiliateAccount[]    @relation("AffiliateOwner")
+  customPhrases        CustomPhrase[]        @relation("CustomPhraseCreator")
 
   @@index([email])
 }
@@ -316,18 +317,18 @@ model Store {
 // ==================== OFERTAS ====================
 
 model Offer {
-  id            String  @id @default(cuid())
+  id            String   @id @default(cuid())
   title         String
   description   String?
-  originalPrice Decimal? @db.Decimal(10, 2)  // 🔥 OPCIONAL para produtos sem desconto
-  finalPrice    Decimal @db.Decimal(10, 2)
+  originalPrice Decimal? @db.Decimal(10, 2) // 🔥 OPCIONAL para produtos sem desconto
+  finalPrice    Decimal  @db.Decimal(10, 2)
   discountPct   Int
   affiliateUrl  String
   imageUrl      String?
 
   // 🤖 v2.0 IA: IMAGENS (Cloudinary)
-  mainImage   String?   // Imagem principal OBRIGATÓRIA
-  images      String[]  // Galeria de imagens (URLs Cloudinary)
+  mainImage String? // Imagem principal OBRIGATÓRIA
+  images    String[] // Galeria de imagens (URLs Cloudinary)
 
   nicheId String
   niche   Niche  @relation(fields: [nicheId], references: [id])
@@ -344,13 +345,13 @@ model Offer {
 
   // 🤖 v2.0 IA: STATUS DE CURADORIA
   curationStatus CurationStatus @default(DRAFT)
-  
+
   // 🤖 v2.0 IA: AVALIAÇÃO DA CURADORA
-  aiPriorityScore      Int?       // Score 0-100 (calculado pela IA)
-  aiRiskLevel          RiskLevel? // Nível de risco
-  aiRecommendedNetworks String[]  // Redes recomendadas pela IA
-  aiBlockReason        String?    // Motivo do bloqueio (se houver)
-  aiProcessedAt        DateTime?  // Quando a IA processou
+  aiPriorityScore       Int? // Score 0-100 (calculado pela IA)
+  aiRiskLevel           RiskLevel? // Nível de risco
+  aiRecommendedNetworks String[] // Redes recomendadas pela IA
+  aiBlockReason         String? // Motivo do bloqueio (se houver)
+  aiProcessedAt         DateTime? // Quando a IA processou
 
   // 🔥 Central de Afiliados
   canonicalUrl            String? // URL limpa do produto (para dedupe) - OBRIGATÓRIO
@@ -390,7 +391,7 @@ model Offer {
   drafts         PostDraft[]
   publishedPosts PublishedPost[]
   clicks         Click[]
-  postJobs       PostJob[]       // 🤖 v2.0 IA: Jobs gerados pela IA
+  postJobs       PostJob[] // 🤖 v2.0 IA: Jobs gerados pela IA
 
   // Índice único por source + externalId
   @@unique([source, externalId])
@@ -418,35 +419,35 @@ model PostJob {
   network Channel
 
   // 📝 Conteúdo gerado pela IA
-  textFinal   String  @db.Text  // Copy final gerada pelo agente
-  imageUsed   String?           // URL da imagem usada
-  
+  textFinal String  @db.Text // Copy final gerada pelo agente
+  imageUsed String? // URL da imagem usada
+
   // 🤖 Agente responsável
-  agentName   String            // "CURADORA", "ANA", "GABRIEL", "THEO", "LAURA"
-  agentStyle  String?           // Estilo usado (ex: "urgente", "conversacional")
+  agentName  String // "CURADORA", "ANA", "GABRIEL", "THEO", "LAURA"
+  agentStyle String? // Estilo usado (ex: "urgente", "conversacional")
 
   // 📊 Status do job
-  status      PostJobStatus @default(PENDING)
-  
+  status PostJobStatus @default(PENDING)
+
   // ⏰ Agendamento
-  scheduledAt DateTime?         // Quando deve ser publicado
-  postedAt    DateTime?         // Quando foi publicado
-  
+  scheduledAt DateTime? // Quando deve ser publicado
+  postedAt    DateTime? // Quando foi publicado
+
   // 🔗 Resultado
-  externalId  String?           // ID externo (tweet_id, post_id, etc)
-  postUrl     String?           // URL do post publicado
-  
+  externalId String? // ID externo (tweet_id, post_id, etc)
+  postUrl    String? // URL do post publicado
+
   // ❌ Erro (se houver)
-  errorReason String?   @db.Text
-  retries     Int       @default(0)
+  errorReason String? @db.Text
+  retries     Int     @default(0)
 
   // 📊 Metadados da IA
-  aiMetadata  Json?             // Dados extras da geração (tokens, etc)
+  aiMetadata Json? // Dados extras da geração (tokens, etc)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([offerId, network])   // Uma oferta = um job por rede
+  @@unique([offerId, network]) // Uma oferta = um job por rede
   @@index([network, status])
   @@index([scheduledAt])
   @@index([status])
@@ -876,4 +877,39 @@ model PostHistory {
   @@index([offerId])
   @@index([channel])
   @@index([postedAt])
+}
+
+// ==================== FRASES PERSONALIZADAS ====================
+
+// Frases personalizadas criadas pelos usuários/operadores
+// Quando um usuário digita uma frase manualmente, ela é salva aqui para reutilização
+model CustomPhrase {
+  id String @id @default(cuid())
+
+  // A frase em si
+  phrase String @db.Text
+
+  // Produto/categoria associada (para reutilização)
+  productKeyword String? // Ex: "tv", "perfume", "celular"
+  category       String? // Ex: "eletronicos", "perfumes", "moda"
+
+  // Canal específico (opcional - se null, pode ser usado em qualquer canal)
+  channel Channel?
+
+  // Quem criou
+  createdById String
+  createdBy   User   @relation("CustomPhraseCreator", fields: [createdById], references: [id])
+
+  // Metadados
+  usageCount Int     @default(0) // Quantas vezes foi usada
+  isActive   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productKeyword])
+  @@index([category])
+  @@index([channel])
+  @@index([isActive])
+  @@index([createdById])
 }

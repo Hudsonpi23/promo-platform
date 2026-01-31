@@ -391,4 +391,38 @@ export async function publicRoutes(app: FastifyInstance) {
       publishedAt: post.publishedAt,
     };
   });
+
+  // DELETE /public/posts/:id - Deletar post publicado (público - sem autenticação)
+  app.delete('/posts/:id', async (request, reply) => {
+    const { id } = request.params as { id: string };
+
+    try {
+      // Buscar o post
+      const post = await prisma.publishedPost.findUnique({
+        where: { id },
+      });
+
+      if (!post) {
+        return reply.code(404).send({ 
+          error: { message: '❌ Post não encontrado.' } 
+        });
+      }
+
+      // Deletar o post (soft delete - marcar como inativo)
+      await prisma.publishedPost.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      return reply.send({ 
+        success: true, 
+        message: '✅ Post deletado com sucesso!' 
+      });
+    } catch (error: any) {
+      console.error('Erro ao deletar post:', error);
+      return reply.code(500).send({ 
+        error: { message: '❌ Erro ao deletar post.' } 
+      });
+    }
+  });
 }

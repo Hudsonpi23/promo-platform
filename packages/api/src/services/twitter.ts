@@ -10,6 +10,7 @@
  */
 
 import crypto from 'crypto';
+import { generateCopies } from './aiCopyGenerator.js';
 
 // Configuração das credenciais (de variáveis de ambiente)
 const TWITTER_API_KEY = process.env.TWITTER_API_KEY || '';
@@ -327,12 +328,25 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
     };
   }
 
+  // LOG: Verificar texto recebido
+  console.log('[Twitter] 📤 Texto recebido para postar:');
+  console.log('[Twitter] Texto completo:', JSON.stringify(text));
+  console.log('[Twitter] Tamanho:', text.length, 'caracteres');
+  console.log('[Twitter] Primeiros 200 chars:', text.substring(0, 200));
+  console.log('[Twitter] Frase de abertura:', text.split('\n')[0]);
+  console.log('[Twitter] Texto tem emoji?', /[\u{1F300}-\u{1F9FF}]|🔥|👀|🎬|😤|⚽|😂|📺|😡|🎮|💕|😱|🎉|🎯|👑|💎|⭐|💰|💵|🍎|🌟|💪|⚡/u.test(text));
+
   // Validar tamanho do tweet (máx 280 caracteres)
   if (text.length > 280) {
-    return {
-      success: false,
-      error: `Tweet muito longo (${text.length}/280 caracteres)`,
-    };
+    console.warn('[Twitter] ⚠️ Tweet muito longo, truncando...');
+    // Truncar mantendo a frase de abertura
+    const lines = text.split('\n');
+    const opening = lines[0] || '';
+    const link = lines[lines.length - 1] || '';
+    const maxContentLength = 280 - link.length - 3; // link + quebras de linha
+    const truncatedContent = opening.substring(0, Math.max(20, maxContentLength - 3)) + '...';
+    text = truncatedContent + '\n' + link;
+    console.log('[Twitter] Texto truncado:', text);
   }
 
   const url = `${TWITTER_API_BASE}/tweets`;
@@ -342,6 +356,8 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
 
     // Construir body do tweet
     const tweetBody: { text: string; media?: { media_ids: string[] } } = { text };
+    
+    console.log('[Twitter] 📤 Enviando tweet com texto:', text.substring(0, 150));
     
     // Adicionar mídia se fornecida
     if (mediaId) {
@@ -395,6 +411,20 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
  * Faz upload da imagem e depois posta o tweet
  */
 export async function postTweetWithImage(text: string, imageUrl: string): Promise<TweetResponse> {
+  // LOG: Verificar texto recebido
+  console.log('[Twitter] 📷 postTweetWithImage - Texto recebido:');
+  console.log('[Twitter] Texto completo:', JSON.stringify(text));
+  console.log('[Twitter] Tamanho:', text.length, 'caracteres');
+  console.log('[Twitter] Frase de abertura:', text.split('\n')[0]);
+  console.log('[Twitter] Texto tem emoji?', /[\u{1F300}-\u{1F9FF}]|🔥|👀|🎬|😤|⚽|😂|📺|😡|🎮|💕|😱|🎉|🎯|👑|💎|⭐|💰|💵|🍎|🌟|💪|⚡/u.test(text));
+  
+  // VALIDAÇÃO: Garantir que o texto não está vazio
+  if (!text || text.trim().length < 5) {
+    console.error('[Twitter] ❌ ERRO: Texto está vazio ou muito curto em postTweetWithImage!');
+    console.error('[Twitter] Texto recebido:', JSON.stringify(text));
+    return { success: false, error: 'Texto do tweet está vazio' };
+  }
+  
   // 1. Fazer upload da imagem
   const uploadResult = await uploadMedia(imageUrl);
   
@@ -405,6 +435,7 @@ export async function postTweetWithImage(text: string, imageUrl: string): Promis
   }
   
   // 2. Postar tweet com a imagem
+  console.log('[Twitter] 📤 Enviando tweet com imagem e texto:', text.substring(0, 150));
   return postTweet(text, uploadResult.mediaId);
 }
 
@@ -417,6 +448,20 @@ export async function postTweetWithMultipleImages(
   text: string,
   imageUrls: string[]
 ): Promise<TweetResponse> {
+  // LOG: Verificar texto recebido
+  console.log('[Twitter] 📷 postTweetWithMultipleImages - Texto recebido:');
+  console.log('[Twitter] Texto completo:', JSON.stringify(text));
+  console.log('[Twitter] Tamanho:', text.length, 'caracteres');
+  console.log('[Twitter] Frase de abertura:', text.split('\n')[0]);
+  console.log('[Twitter] Texto tem emoji?', /[\u{1F300}-\u{1F9FF}]|🔥|👀|🎬|😤|⚽|😂|📺|😡|🎮|💕|😱|🎉|🎯|👑|💎|⭐|💰|💵|🍎|🌟|💪|⚡/u.test(text));
+  
+  // VALIDAÇÃO: Garantir que o texto não está vazio
+  if (!text || text.trim().length < 5) {
+    console.error('[Twitter] ❌ ERRO: Texto está vazio ou muito curto em postTweetWithMultipleImages!');
+    console.error('[Twitter] Texto recebido:', JSON.stringify(text));
+    return { success: false, error: 'Texto do tweet está vazio' };
+  }
+  
   // 1. Fazer upload de todas as imagens
   const uploadResult = await uploadMultipleMedia(imageUrls);
   
@@ -432,6 +477,7 @@ export async function postTweetWithMultipleImages(
   
   // 2. Postar tweet com todas as imagens
   console.log(`[Twitter] Postando tweet com ${uploadResult.mediaIds.length} imagens`);
+  console.log('[Twitter] 📤 Texto que será enviado:', text.substring(0, 200));
   
   try {
     const body = {
@@ -440,6 +486,12 @@ export async function postTweetWithMultipleImages(
         media_ids: uploadResult.mediaIds, // Array de media IDs
       },
     };
+    
+    console.log('[Twitter] 📤 Body completo do tweet:', JSON.stringify({
+      text: text.substring(0, 100),
+      textLength: text.length,
+      mediaCount: uploadResult.mediaIds.length,
+    }));
 
     const response = await fetch(`${TWITTER_API_BASE}/tweets`, {
       method: 'POST',
@@ -476,6 +528,11 @@ export async function postTweetWithMultipleImages(
 
 /**
  * Gera o texto do tweet a partir de uma oferta
+ * 
+ * IMPORTANTE:
+ * - Usa o mesmo motor de cópia (generateCopies) que Telegram/Site
+ * - Garante frases sarcásticas em MAIÚSCULAS + emojis também no X
+ * - Mantém limite de 280 caracteres dentro de generateXCopy
  */
 export function generateTweetText(offer: {
   title: string;
@@ -485,52 +542,19 @@ export function generateTweetText(offer: {
   affiliateUrl?: string;
   storeName?: string;
 }): string {
-  const { title, originalPrice, finalPrice, discount, affiliateUrl, storeName } = offer;
+  const copies = generateCopies({
+    title: offer.title,
+    price: offer.finalPrice,
+    oldPrice: offer.originalPrice ?? null,
+    discountPct: offer.discount ?? 0,
+    advertiserName: offer.storeName,
+    storeName: offer.storeName,
+    category: undefined,
+    trackingUrl: offer.affiliateUrl ?? '',
+  });
 
-  // Formatar preços
-  const formatPrice = (price: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
-
-  // Construir texto do tweet
-  let text = '';
-
-  // Título curto (máx 100 chars)
-  const shortTitle = title.length > 100 ? title.substring(0, 97) + '...' : title;
-  text += `🔥 ${shortTitle}\n\n`;
-
-  // Preços
-  if (originalPrice && originalPrice > finalPrice) {
-    text += `De ${formatPrice(originalPrice)} por ${formatPrice(finalPrice)}`;
-    if (discount) {
-      text += ` (-${discount}%)`;
-    }
-  } else {
-    text += `Por apenas ${formatPrice(finalPrice)}`;
-  }
-  text += '\n\n';
-
-  // Loja
-  if (storeName) {
-    text += `📦 ${storeName}\n`;
-  }
-
-  // Link
-  if (affiliateUrl) {
-    text += `\n👉 ${affiliateUrl}`;
-  }
-
-  // Hashtags (se couber)
-  const hashtags = '\n\n#Promoção #Oferta';
-  if (text.length + hashtags.length <= 280) {
-    text += hashtags;
-  }
-
-  // Truncar se ainda for muito longo
-  if (text.length > 280) {
-    text = text.substring(0, 277) + '...';
-  }
-
-  return text;
+  // copies.x já vem no formato correto para o X (frases sarcásticas, MAIÚSCULAS, emojis, link no final)
+  return copies.x;
 }
 
 /**

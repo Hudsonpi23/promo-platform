@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { isTwitterConfigured, postOfferToTwitter, postTweet, generateTweetText } from '../services/twitter.js';
+import { generateCopies } from '../services/aiCopyGenerator.js';
 import { z } from 'zod';
 
 export async function twitterRoutes(app: FastifyInstance) {
@@ -196,10 +197,32 @@ export async function twitterRoutes(app: FastifyInstance) {
       });
     }
 
-    // Usar copyTextX se existir, senão gerar do offer
-    let tweetText = (draft as any).copyTextX;
+    // OBRIGATÓRIO: SEMPRE regenerar copy usando sistema de frases personalizadas
+    // Isso garante que drafts antigos também usem as novas frases sarcásticas
+    let tweetText: string | null = null;
+    
+    if (draft.offer) {
+      // SEMPRE gerar usando sistema de frases personalizadas (frases sarcásticas em MAIÚSCULAS)
+      const copies = generateCopies({
+        title: draft.offer.title,
+        price: Number(draft.offer.finalPrice),
+        oldPrice: draft.offer.originalPrice ? Number(draft.offer.originalPrice) : null,
+        discountPct: draft.offer.discountPct || 0,
+        advertiserName: draft.offer.store?.name,
+        storeName: draft.offer.store?.name,
+        category: draft.offer.niche?.name,
+        trackingUrl: draft.offer.affiliateUrl,
+      });
+      tweetText = copies.x; // Já está em MAIÚSCULAS
+    }
+    
+    // Fallback apenas se não conseguir gerar
+    if (!tweetText) {
+      tweetText = (draft as any).copyTextX || draft.copyText;
+    }
     
     if (!tweetText && draft.offer) {
+      // Fallback apenas se não conseguir gerar
       tweetText = generateTweetText({
         title: draft.offer.title,
         originalPrice: draft.offer.originalPrice ? Number(draft.offer.originalPrice) : undefined,
@@ -215,6 +238,17 @@ export async function twitterRoutes(app: FastifyInstance) {
         success: false,
         error: 'Não foi possível gerar texto para o tweet',
       });
+    }
+    
+    // Garantir que está em MAIÚSCULAS (exceto link e emojis)
+    const lines = tweetText.split('\n');
+    const linkLine = lines[lines.length - 1];
+    const content = lines.slice(0, -1).join('\n');
+    // Converter para maiúsculas apenas o conteúdo (não o link)
+    if (linkLine && (linkLine.startsWith('http') || linkLine.includes('👉'))) {
+      tweetText = content.toUpperCase() + '\n' + linkLine;
+    } else {
+      tweetText = tweetText.toUpperCase();
     }
 
     // Postar no Twitter

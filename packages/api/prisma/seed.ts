@@ -157,6 +157,12 @@ async function main() {
     { name: 'Mercado Livre', slug: 'mercadolivre' },
     { name: 'KaBuM!', slug: 'kabum' },
     { name: 'AliExpress', slug: 'aliexpress' },
+    // Lojas afiliadas adicionais do usuário
+    { name: 'Stanley BR', slug: 'stanley-br' },
+    { name: 'LG BR', slug: 'lg-br' },
+    { name: 'Intimissimi BR', slug: 'intimissimi-br' },
+    { name: 'Arno BR', slug: 'arno-br' },
+    { name: 'Mizuno BR', slug: 'mizuno-br' },
   ];
 
   const stores: any = {};

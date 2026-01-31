@@ -4,9 +4,9 @@ import {
   isTelegramConfigured, 
   testTelegramConnection, 
   sendTelegramMessage,
-  sendTelegramMediaGroup,
   formatTelegramPost 
 } from '../services/telegram.js';
+import { uploadFromUrl } from '../services/cloudinary.js';
 import { prisma } from '../lib/prisma.js';
 
 export async function telegramRoutes(app: FastifyInstance) {
@@ -111,34 +111,86 @@ export async function telegramRoutes(app: FastifyInstance) {
       });
     }
 
-    // Formatar e enviar
-    const text = formatTelegramPost({
+    // OBRIGATÓRIO: Gerar copy usando frases personalizadas em MAIÚSCULAS
+    const { generateCopies } = await import('../services/aiCopyGenerator.js');
+    const copies = generateCopies({
       title: offer.title,
-      originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-      finalPrice: Number(offer.finalPrice),
-      discountPct: offer.discountPct,
-      affiliateUrl: offer.affiliateUrl,
+      price: Number(offer.finalPrice),
+      oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+      discountPct: offer.discountPct || 0,
+      advertiserName: offer.store?.name,
       storeName: offer.store?.name,
+      category: null,
+      trackingUrl: offer.affiliateUrl,
     });
+    
+    // Usar copyTextTelegram (já está em MAIÚSCULAS)
+    let text = copies.telegram;
+    
+    // VALIDAÇÃO: Se o texto estiver vazio ou muito curto, gerar fallback
+    if (!text || text.trim().length < 10) {
+      console.warn('[Telegram] Copy gerado está vazio ou muito curto, gerando fallback...');
+      const formatPrice = (price: number) =>
+        new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+      
+      // Link PRIMEIRO (garante preview do Telegram) - sempre em minúsculas
+      const normalizedUrl = (offer.affiliateUrl || '').toLowerCase();
+      let fallbackText = `${normalizedUrl}\n\n`;
+      fallbackText += 'ACHADO NÃO É ROUBADO 🔥\n\n';
+      fallbackText += `${offer.title.toUpperCase()}\n\n`;
+      
+      if (offer.originalPrice && offer.discountPct) {
+        fallbackText += `DE ${formatPrice(offer.originalPrice).toUpperCase()} POR ${formatPrice(offer.finalPrice).toUpperCase()}`;
+        fallbackText += ` (-${Math.round(offer.discountPct)}% OFF)`;
+        if (offer.discountPct >= 20) {
+          fallbackText += ' 🔥';
+        }
+      } else {
+        fallbackText += `POR ${formatPrice(offer.finalPrice).toUpperCase()}`;
+      }
+      
+      text = fallbackText;
+    }
+    
+    console.log('[Telegram] Texto gerado:', text.substring(0, 100) + '...');
+    console.log('[Telegram] Tamanho do texto:', text.length, 'caracteres');
 
     // 🎠 Verificar se tem galeria de imagens (carrossel)
     const images = (offer as any).images || [];
-    const mainImage = (offer as any).mainImage || offer.imageUrl;
+    let mainImage = (offer as any).mainImage || offer.imageUrl;
     
     console.log(`  - Imagens na galeria: ${images.length}`);
-    console.log('  - URL imagem principal:', mainImage?.substring(0, 80) || 'SEM IMAGEM');
+    console.log('  - URL imagem principal (ANTES Cloudinary):', mainImage?.substring(0, 120) || 'SEM IMAGEM');
+
+    // 💾 Se a imagem principal NÃO for Cloudinary, subir para Cloudinary
+    // Isso evita bloqueios/hotlink em hosts externos (como alguns sites de loja)
+    if (mainImage && !mainImage.includes('res.cloudinary.com')) {
+      try {
+        console.log('[Telegram] 🌩️ Uploadando imagem para Cloudinary para uso no Telegram...');
+        const uploadResult = await uploadFromUrl(mainImage, {
+          folder: 'promo-platform/offers/telegram',
+        });
+
+        if (uploadResult.success && uploadResult.url) {
+          console.log('[Telegram] ✅ Imagem subida para Cloudinary:', uploadResult.url.substring(0, 120));
+          mainImage = uploadResult.url;
+        } else {
+          console.warn('[Telegram] ⚠️ Falha ao subir imagem para Cloudinary, usando URL original:', uploadResult.error);
+        }
+      } catch (cloudErr: any) {
+        console.error('[Telegram] ❌ Erro ao subir imagem para Cloudinary:', cloudErr.message);
+      }
+    }
+
+    console.log('  - URL imagem principal (DEPOIS Cloudinary):', mainImage?.substring(0, 120) || 'SEM IMAGEM');
 
     let result;
     
-    // Se tem 2+ imagens na galeria, enviar como carrossel
-    if (images.length >= 2) {
-      console.log('[Telegram] 🎠 Enviando como carrossel (media group)');
-      result = await sendTelegramMediaGroup(images, text);
-    } 
-    // Se tem apenas 1 imagem (principal ou galeria), enviar foto normal
-    else if (mainImage || images.length === 1) {
+    // SEMPRE enviar apenas UMA imagem (a primeira disponível)
+    // Removido sistema de carrossel - sempre foto única
+    if (mainImage || images.length > 0) {
       const imageToSend = mainImage || images[0];
-      console.log('[Telegram] 📷 Enviando foto única');
+      console.log('[Telegram] 📷 Enviando foto única com URL:', imageToSend.substring(0, 120));
       result = await sendTelegramMessage({
         text,
         imageUrl: imageToSend,
@@ -160,14 +212,12 @@ export async function telegramRoutes(app: FastifyInstance) {
       message: (result as any).sentTextOnly 
         ? '⚠️ Enviado apenas texto (imagens falharam)' 
         : result.success 
-          ? images.length >= 2 
-            ? `✅ Enviado carrossel com ${images.length} imagens` 
-            : '✅ Enviado com foto' 
+          ? '✅ Enviado com foto' 
           : undefined,
       debug: {
         hadImages: images.length > 0 || !!mainImage,
         imageCount: images.length,
-        isCarousel: images.length >= 2,
+        isCarousel: false, // Carrossel removido
       },
     };
   });

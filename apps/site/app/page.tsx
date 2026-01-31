@@ -6,7 +6,8 @@ import { OfferGrid } from '@/components/OfferGrid';
 import { FiltersBar } from '@/components/FiltersBar';
 import Link from 'next/link';
 
-export const revalidate = 30;
+// Desabilitar revalidação automática para evitar loops quando API não responde
+export const revalidate = false;
 
 // Nichos padrão (quando API não retorna)
 const DEFAULT_NICHES: Niche[] = [
@@ -25,15 +26,25 @@ interface PageProps {
 }
 
 export default async function Home({ searchParams }: PageProps) {
-  const [postsData, niches, highlights] = await Promise.all([
-    getPosts({ 
-      limit: 24, 
-      sort: (searchParams.sort as 'recent' | 'discount') || 'recent',
-      q: searchParams.q,
-    }),
-    getNiches(),
-    getHighlights(),
-  ]);
+  // Usar try-catch para evitar erros que causam loops
+  let postsData, niches, highlights;
+  try {
+    [postsData, niches, highlights] = await Promise.all([
+      getPosts({ 
+        limit: 24, 
+        sort: (searchParams.sort as 'recent' | 'discount') || 'recent',
+        q: searchParams.q,
+      }),
+      getNiches(),
+      getHighlights(),
+    ]);
+  } catch (error) {
+    console.error('Erro ao carregar dados:', error);
+    // Valores padrão em caso de erro
+    postsData = { items: [], hasMore: false };
+    niches = [];
+    highlights = [];
+  }
 
   const posts = postsData.items;
   const displayNiches = niches.length > 0 ? niches : DEFAULT_NICHES;

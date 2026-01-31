@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { getNiches } from '@/lib/api';
+import { AuthButton } from './AuthButton';
 
 export async function TopNav() {
   const niches = await getNiches().catch(() => []);
@@ -42,6 +43,9 @@ export async function TopNav() {
 
           {/* CTA */}
           <div className="flex items-center gap-3">
+            {/* Botão de Login/Logout */}
+            <AuthButton />
+            
             {/* Redes Sociais */}
             <div className="hidden sm:flex items-center gap-2">
               <a href="https://twitter.com/manupromocao" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-gray-100 hover:bg-black hover:text-white flex items-center justify-center transition-all text-gray-600" title="Twitter/X">

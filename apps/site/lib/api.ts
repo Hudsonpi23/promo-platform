@@ -59,10 +59,17 @@ async function apiFetch<T>(
   }
 ): Promise<T | null> {
   try {
+    // Criar AbortController para timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos
+
     const res = await fetch(`${API_URL}${endpoint}`, {
       next: { revalidate: options?.revalidate ?? 30 },
-      cache: options?.cache,
+      cache: options?.cache || 'default',
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       console.error(`API Error: ${res.status} - ${endpoint}`);
@@ -70,8 +77,11 @@ async function apiFetch<T>(
     }
 
     return res.json();
-  } catch (error) {
-    console.error(`Fetch error: ${endpoint}`, error);
+  } catch (error: any) {
+    // Não logar erros de abort para evitar spam no console
+    if (error.name !== 'AbortError') {
+      console.error(`Fetch error: ${endpoint}`, error);
+    }
     return null;
   }
 }

@@ -456,7 +456,34 @@ export function generateFacebookPost(offer: {
   const formatPrice = (price: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
 
-  let text = `🔥 ${title}\n\n`;
+  // 💎 Detectar se é JOIA
+  const isJewelry = storeName?.toLowerCase().includes('joia') || 
+                    storeName?.toLowerCase().includes('monte carlo') ||
+                    title?.toLowerCase().includes('brinco') ||
+                    title?.toLowerCase().includes('anel') ||
+                    title?.toLowerCase().includes('colar') ||
+                    title?.toLowerCase().includes('pulseira');
+
+  let opener;
+  
+  if (isJewelry) {
+    // 💎 Frases especiais para JOIAS
+    const jewelryOpeners = [
+      '💎 Que presente lindo!',
+      '✨ Com essa joia você vai arrasar!',
+      '💍 Presente perfeito para impressionar!',
+      '💎 Olha que charme!',
+      '✨ Elegância que cabe no bolso!',
+      '💍 Luxo acessível!',
+      '💎 Presente que vai encantar!',
+    ];
+    opener = jewelryOpeners[Math.floor(Math.random() * jewelryOpeners.length)];
+  } else {
+    // 🔥 Emoji padrão para outros produtos
+    opener = '🔥';
+  }
+
+  let text = `${opener} ${title}\n\n`;
 
   if (originalPrice && originalPrice > finalPrice) {
     text += `De ${formatPrice(originalPrice)} por ${formatPrice(finalPrice)}`;
@@ -469,7 +496,7 @@ export function generateFacebookPost(offer: {
   }
 
   if (storeName) {
-    text += `📦 ${storeName}\n\n`;
+    text += `🤎 ${storeName}\n\n`;
   }
 
   text += `👉 Aproveite: ${affiliateUrl}`;

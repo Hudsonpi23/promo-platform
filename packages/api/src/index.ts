@@ -32,6 +32,7 @@ import { aiWorkflowRoutes } from './routes/aiWorkflow';
 import { autoPromoterRoutes } from './routes/autoPromoterFastify';
 import { mlAuthRoutes } from './routes/mlAuth';
 import { scraperRoutes } from './routes/scraper';
+import { customPhrasesRoutes } from './routes/customPhrases';
 
 async function main() {
   const server = Fastify({
@@ -226,6 +227,9 @@ async function main() {
 
   // 🔍 NOVO: Scraper de Produtos (Auto-preencher ofertas)
   server.register(scraperRoutes, { prefix: '/api/scraper' });
+  
+  // 📝 Frases Personalizadas (salvar frases criadas manualmente)
+  server.register(customPhrasesRoutes, { prefix: '/api/custom-phrases' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

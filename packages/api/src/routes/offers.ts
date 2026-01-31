@@ -120,6 +120,12 @@ export async function offersRoutes(app: FastifyInstance) {
           'aliexpress': 'aliexpress',
           'americanas': 'americanas',
           'kabum': 'kabum',
+          // Novas lojas afiliadas do usuário
+          'stanley1913': 'stanley-br',
+          'lg.com': 'lg-br',
+          'intimissimi.com.br': 'intimissimi-br',
+          'arno.com.br': 'arno-br',
+          'mizuno.com.br': 'mizuno-br',
         };
         
         // Detectar loja pelo domínio
@@ -191,6 +197,41 @@ export async function offersRoutes(app: FastifyInstance) {
       if (error.name === 'ZodError') {
         return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
       }
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * GET /api/offers/debug/list
+   * Lista as últimas ofertas para facilitar encontrar o ID
+   * DEVE estar ANTES de /:id para ser capturada corretamente
+   */
+  app.get('/debug/list', async (request, reply) => {
+    try {
+      const offers = await prisma.offer.findMany({
+        take: 10,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          finalPrice: true,
+          originalPrice: true,
+          discountPct: true,
+        },
+      });
+
+      return reply.send({
+        success: true,
+        data: offers.map(offer => ({
+          id: offer.id,
+          title: offer.title.substring(0, 60),
+          price: offer.finalPrice,
+          discount: offer.discountPct,
+          debugUrl: `http://localhost:3001/api/offers/${offer.id}/debug-telegram-text`,
+        })),
+        message: 'Acesse uma das URLs acima para ver o texto gerado para Telegram',
+      });
+    } catch (error: any) {
       return sendError(reply, error);
     }
   });
@@ -380,10 +421,14 @@ export async function offersRoutes(app: FastifyInstance) {
       const { id } = request.params as { id: string };
       const body = request.body as {
         copyText?: string;
+        copyTextTelegram?: string;
+        copyTextSite?: string;
+        copyTextX?: string;
         batchId?: string;
         channels?: string[];
         priority?: 'HIGH' | 'NORMAL' | 'LOW';
         useNewCopyEngine?: boolean;  // 🔥 NOVO: usar novo engine de copy
+        createManual?: boolean; // 🔥 NOVO: flag para indicar que é post manual
       };
 
       // Buscar oferta
@@ -452,61 +497,38 @@ export async function offersRoutes(app: FastifyInstance) {
         source: offer.source,
       });
 
-      // 🔥 NOVO: Gerar copy usando novo engine
-      let copyText = body.copyText;
-      let copyTextTelegram: string | undefined;
-      let copyTextSite: string | undefined;
-      let copyTextX: string | undefined;
+      // 🔥 OBRIGATÓRIO: Sempre usar novo copy engine com frases personalizadas e emojis
+      // O sistema SEMPRE gera frases personalizadas quando disponíveis
+      let copyText: string;
+      let copyTextTelegram: string;
+      let copyTextSite: string;
+      let copyTextX: string;
 
-      if (!copyText || body.useNewCopyEngine) {
-        // Usar novo copy engine
-        const copies = generateCopies({
-          title: offer.title,
-          price: Number(offer.finalPrice),
-          oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-          discountPct: offer.discountPct || 0,
-          advertiserName: offer.store?.name,
-          storeName: offer.store?.name,
-          category: offer.niche?.name,
-          trackingUrl: offer.affiliateUrl,
-        });
+      // SEMPRE usar novo copy engine (frases personalizadas são obrigatórias)
+      const copies = generateCopies({
+        title: offer.title,
+        price: Number(offer.finalPrice),
+        oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+        discountPct: offer.discountPct || 0,
+        advertiserName: offer.store?.name,
+        storeName: offer.store?.name,
+        category: offer.niche?.name,
+        trackingUrl: offer.affiliateUrl,
+      });
 
-        copyText = copies.telegram;
+      copyText = copies.telegram;
+      copyTextTelegram = copies.telegram;
+      copyTextSite = copies.site;
+      copyTextX = copies.x;
+
+      // Se copyText foi fornecido manualmente, usar apenas para copyText genérico
+      // Mas copyTextTelegram, copyTextSite e copyTextX SEMPRE usam frases personalizadas
+      if (body.copyText && !body.useNewCopyEngine) {
+        copyText = body.copyText;
+        // Mas ainda gerar as cópias específicas por canal com frases personalizadas
         copyTextTelegram = copies.telegram;
         copyTextSite = copies.site;
         copyTextX = copies.x;
-      } else {
-        // Usar copy fornecida ou gerar com engine legado
-        if (!copyText) {
-          const formatPrice = (price: number) =>
-            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
-          
-          const originalPrice = offer.originalPrice ? formatPrice(Number(offer.originalPrice)) : null;
-          const finalPrice = formatPrice(Number(offer.finalPrice));
-          const discount = offer.discountPct ? `${offer.discountPct}%` : null;
-
-          const openers = [
-            'Achei isso agora pouco 👀',
-            'Olha esse preço!',
-            'Fazia tempo que não via assim',
-            'Pra quem tava esperando baixar...',
-            'Vale a pena dar uma olhada',
-          ];
-          const opener = openers[Math.floor(Math.random() * openers.length)];
-
-          copyText = `${opener}\n\n${offer.title}\n\n`;
-          if (originalPrice && discount) {
-            copyText += `De ${originalPrice} por ${finalPrice} (-${discount})\n\n`;
-          } else {
-            copyText += `Por apenas ${finalPrice}\n\n`;
-          }
-          if (offer.store?.name) {
-            copyText += `📦 ${offer.store.name}\n`;
-          }
-          if (offer.affiliateUrl) {
-            copyText += `\n👉 ${offer.affiliateUrl}`;
-          }
-        }
       }
 
       // Definir canais (com tipo correto)
@@ -532,7 +554,7 @@ export async function offersRoutes(app: FastifyInstance) {
           copyTextX,
           channels,
           priority,
-          status: 'PENDING',
+          status: 'PENDING', // Post manual sempre PENDING
           score: scoreResult.score,  // 🔥 NOVO: salvar score
           imageUrl: offer.imageUrl,
           requiresImage: channels.includes('TWITTER'),
@@ -731,6 +753,190 @@ export async function offersRoutes(app: FastifyInstance) {
 
       return { data: stores };
     } catch (error: any) {
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * GET /api/offers/:offerId/debug-telegram-text
+   * Endpoint de debug para verificar o texto que será gerado para Telegram
+   * Mais fácil de usar: só precisa do ID da oferta (não do draft)
+   * SEM autenticação para facilitar debug
+   */
+  app.get('/:offerId/debug-telegram-text', async (request, reply) => {
+    try {
+      const { offerId } = request.params as { offerId: string };
+      
+      const offer = await prisma.offer.findUnique({
+        where: { id: offerId },
+        include: {
+          niche: true,
+          store: true,
+        },
+      });
+      
+      if (!offer) {
+        return reply.status(404).send({
+          success: false,
+          error: 'Oferta não encontrada',
+        });
+      }
+      
+      // Gerar o texto exatamente como seria gerado para publicação
+      const { generateCopies } = await import('../services/aiCopyGenerator.js');
+      const copies = generateCopies({
+        title: offer.title,
+        price: Number(offer.finalPrice),
+        oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+        discountPct: offer.discountPct || 0,
+        advertiserName: offer.store?.name,
+        storeName: offer.store?.name,
+        category: offer.niche?.name,
+        trackingUrl: offer.affiliateUrl,
+      });
+      
+      const text = copies.telegram;
+      
+      // LOG CRÍTICO: Verificar o que foi gerado
+      console.log('[Debug] Texto gerado pelo generateCopies:');
+      console.log('[Debug] Texto completo:', JSON.stringify(text));
+      console.log('[Debug] Tamanho:', text.length);
+      console.log('[Debug] Linhas:', text.split('\n').length);
+      console.log('[Debug] Linhas não vazias:', text.split('\n').filter(l => l.trim().length > 0).length);
+      
+      // Análise detalhada do texto
+      const lines = text.split('\n').filter(line => line.trim().length > 0);
+      const hasOnlyLink = lines.length <= 1 || text.trim() === offer.affiliateUrl;
+      
+      // Se tiver apenas o link, tentar gerar novamente com fallback forçado
+      if (hasOnlyLink) {
+        console.error('[Debug] ❌ Texto contém apenas o link! Forçando geração com fallback...');
+        
+        // Gerar novamente com seed diferente
+        const copies2 = generateCopies({
+          title: offer.title,
+          price: Number(offer.finalPrice),
+          oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+          discountPct: offer.discountPct || 0,
+          advertiserName: offer.store?.name,
+          storeName: offer.store?.name,
+          category: offer.niche?.name,
+          trackingUrl: offer.affiliateUrl,
+        });
+        
+        const text2 = copies2.telegram;
+        console.log('[Debug] Texto gerado na segunda tentativa:', JSON.stringify(text2));
+        
+        // Se ainda tiver apenas link, usar fallback manual
+        const lines2 = text2.split('\n').filter(line => line.trim().length > 0);
+        if (lines2.length <= 1 || text2.trim() === offer.affiliateUrl) {
+          console.error('[Debug] ❌❌ Segunda tentativa também falhou! Usando fallback manual...');
+          const formatPrice = (price: number) =>
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
+          
+          const fallbackText = `${offer.affiliateUrl.toLowerCase()}\n\nACHADO NÃO É ROUBADO 🔥\n\n${offer.title.toUpperCase().substring(0, 50)}\nPOR ${formatPrice(offer.finalPrice).toUpperCase()}`;
+          return reply.send({
+            success: true,
+            data: {
+              offer: {
+                id: offer.id,
+                title: offer.title,
+                finalPrice: offer.finalPrice,
+                originalPrice: offer.originalPrice,
+                discountPct: offer.discountPct,
+                affiliateUrl: offer.affiliateUrl,
+              },
+              generatedText: {
+                text: fallbackText,
+                textLength: fallbackText.length,
+                lines: fallbackText.split('\n'),
+                nonEmptyLines: fallbackText.split('\n').filter(l => l.trim().length > 0).length,
+                firstLine: fallbackText.split('\n')[0],
+                restOfText: fallbackText.split('\n').slice(1).join('\n'),
+                hasOnlyLink: false,
+                analysis: {
+                  hasLink: true,
+                  hasOpening: true,
+                  hasPrice: true,
+                  hasTitle: true,
+                  hasEmoji: true,
+                },
+                rawText: JSON.stringify(fallbackText),
+                warning: '⚠️ Texto original tinha apenas link, usando fallback manual',
+                originalText: text,
+              },
+            },
+          });
+        }
+        
+        // Usar segunda tentativa se funcionou
+        return reply.send({
+          success: true,
+          data: {
+            offer: {
+              id: offer.id,
+              title: offer.title,
+              finalPrice: offer.finalPrice,
+              originalPrice: offer.originalPrice,
+              discountPct: offer.discountPct,
+              affiliateUrl: offer.affiliateUrl,
+            },
+            generatedText: {
+              text: text2,
+              textLength: text2.length,
+              lines: text2.split('\n'),
+              nonEmptyLines: text2.split('\n').filter(l => l.trim().length > 0).length,
+              firstLine: text2.split('\n')[0],
+              restOfText: text2.split('\n').slice(1).join('\n'),
+              hasOnlyLink: lines2.length <= 1,
+              analysis: {
+                hasLink: text2.includes(offer.affiliateUrl),
+                hasOpening: lines2.length > 1 && !lines2[1].startsWith('http'),
+                hasPrice: text2.includes('R$') || text2.includes('POR') || text2.includes('DE') || text2.includes('SAIU'),
+                hasTitle: text2.includes(offer.title.toUpperCase().substring(0, 20)),
+                hasEmoji: /[🔥⭐💎👀]/.test(text2),
+              },
+              rawText: JSON.stringify(text2),
+              warning: lines2.length <= 1 ? '⚠️ ATENÇÃO: Texto contém apenas o link!' : null,
+              originalText: text,
+            },
+          },
+        });
+      }
+      
+      return reply.send({
+        success: true,
+        data: {
+          offer: {
+            id: offer.id,
+            title: offer.title,
+            finalPrice: offer.finalPrice,
+            originalPrice: offer.originalPrice,
+            discountPct: offer.discountPct,
+            affiliateUrl: offer.affiliateUrl,
+          },
+          generatedText: {
+            text,
+            textLength: text.length,
+            lines: text.split('\n'),
+            nonEmptyLines: lines.length,
+            firstLine: lines[0] || '',
+            restOfText: lines.slice(1).join('\n'),
+            hasOnlyLink,
+            analysis: {
+              hasLink: text.includes(offer.affiliateUrl),
+              hasOpening: lines.length > 1 && !lines[1].startsWith('http'),
+              hasPrice: text.includes('R$') || text.includes('POR') || text.includes('DE') || text.includes('SAIU'),
+              hasTitle: text.includes(offer.title.toUpperCase().substring(0, 20)),
+              hasEmoji: /[🔥⭐💎👀]/.test(text),
+            },
+            rawText: JSON.stringify(text),
+          },
+          warning: hasOnlyLink ? '⚠️ ATENÇÃO: Texto contém apenas o link! Isso pode fazer o Telegram não mostrar o texto.' : null,
+        },
+      });
+    } catch (error: any) {
+      console.error('[Debug] Erro ao gerar texto de debug:', error);
       return sendError(reply, error);
     }
   });

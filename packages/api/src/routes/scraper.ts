@@ -111,32 +111,59 @@ async function scrapeMercadoLivre(page: any) {
     .catch(() => page.$eval('.ui-pdp-title', (el: any) => el.textContent?.trim()))
     .catch(() => '');
 
-  // Preço final
-  const finalPriceText = await page.$eval('.andes-money-amount__fraction', (el: any) => el.textContent)
-    .catch(() => page.$eval('.price-tag-fraction', (el: any) => el.textContent))
-    .catch(() => '0');
-
-  const finalPriceCents = await page.$eval('.andes-money-amount__cents', (el: any) => el.textContent)
-    .catch(() => '00');
-
-  const finalPrice = parseFloat(`${finalPriceText}.${finalPriceCents}`.replace(/\./g, '').replace(',', '.')) || 0;
-
-  // Preço original (se houver desconto)
-  let originalPrice = finalPrice;
-  let discount = 0;
-
-  const originalPriceText = await page.$eval('.andes-money-amount--previous .andes-money-amount__fraction', (el: any) => el.textContent)
-    .catch(() => null);
-
-  if (originalPriceText) {
-    const originalPriceCents = await page.$eval('.andes-money-amount--previous .andes-money-amount__cents', (el: any) => el.textContent)
-      .catch(() => '00');
-    originalPrice = parseFloat(`${originalPriceText}.${originalPriceCents}`.replace(/\./g, '').replace(',', '.')) || finalPrice;
-    
-    if (originalPrice > finalPrice) {
-      discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+  // Preço original (riscado, se houver desconto) - pegar primeiro
+  let originalPrice: number | null = null;
+  try {
+    const originalPriceText = await page.$eval('.andes-money-amount--previous .andes-money-amount__fraction', (el: any) => el.textContent);
+    const originalPriceCents = await page.$eval('.andes-money-amount--previous .andes-money-amount__cents', (el: any) => el.textContent).catch(() => '00');
+    if (originalPriceText) {
+      // Corrigir parsing: juntar parte inteira e centavos corretamente
+      // Ex: "54" + "90" = "5490" centavos = 54.90 reais
+      const originalPriceStr = `${originalPriceText}${originalPriceCents.padStart(2, '0')}`;
+      originalPrice = parseFloat(originalPriceStr) / 100; // Converter centavos para reais
     }
+  } catch (e) {
+    // Não tem preço original (sem desconto)
   }
+
+  // Preço final (preço atual, não riscado) - pegar do container principal
+  // Usar seletor que exclui o preço riscado
+  let finalPrice = 0;
+  try {
+    // Tentar pegar do container de preço principal (sem a classe --previous)
+    const finalPriceText = await page.$eval('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
+      (el: any) => el.textContent)
+      .catch(() => page.$eval('.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount__fraction', (el: any) => el.textContent))
+      .catch(() => '0');
+
+    const finalPriceCents = await page.$eval('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
+      (el: any) => el.textContent)
+      .catch(() => page.$eval('.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount__cents', (el: any) => el.textContent))
+      .catch(() => '00');
+
+    // Corrigir parsing: juntar parte inteira e centavos corretamente
+    // Ex: "36" + "90" = "3690" centavos = 36.90 reais
+    const finalPriceStr = `${finalPriceText}${finalPriceCents.padStart(2, '0')}`;
+    finalPrice = parseFloat(finalPriceStr) / 100; // Converter centavos para reais
+  } catch (e) {
+    console.error('[Scraper ML] Erro ao pegar preço final:', e);
+  }
+
+  // Calcular desconto
+  let discount = 0;
+  if (originalPrice && originalPrice > finalPrice) {
+    discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+  }
+
+  console.log('[Scraper ML] Preços extraídos:', { originalPrice, finalPrice, discount });
 
   // Imagem principal
   const mainImage = await page.$eval('figure.ui-pdp-gallery__figure img', (el: any) => el.src)
@@ -230,9 +257,24 @@ async function scrapeAwin(page: any) {
 
   // Tentar detectar a loja final
   const currentUrl = page.url();
+  const urlLower = currentUrl.toLowerCase();
   console.log('[Scraper] URL final:', currentUrl);
 
-  // Scraping genérico
+  // IMPORTANTE: manter comportamento do Mercado Livre como está
+  if (urlLower.includes('mercadolivre') || urlLower.includes('mercadolibre')) {
+    console.log('[Scraper Awin] Detectado Mercado Livre após redirecionamento');
+    return scrapeMercadoLivre(page);
+  }
+
+  // Suporte específico para Gigantec BR via Awin
+  if (urlLower.includes('gigantec.com.br')) {
+    console.log('[Scraper Awin] Detectado Gigantec após redirecionamento');
+    return scrapeGigantec(page);
+  }
+
+  // Outras lojas (Magalu, Amazon, etc.) podem ser tratadas aqui no futuro
+  // Por enquanto, usar scraper genérico
+  console.log('[Scraper Awin] Loja não reconhecida, usando scraper genérico');
   return scrapeGeneric(page);
 }
 
@@ -303,7 +345,10 @@ async function scrapeShark(page: any) {
     originalPrice: originalPrice !== finalPrice ? originalPrice : null,
     discount,
     mainImage,
-    images: images.slice(0, 10),
+    // Para evitar confusão e garantir consistência nas publicações (especialmente no Telegram),
+    // salvamos apenas a IMAGEM PRINCIPAL como galeria. Outras imagens da página da Gigantec
+    // não são necessárias neste fluxo.
+    images: [mainImage],
   };
 }
 

@@ -33,6 +33,15 @@ export default function OfertasPage() {
     images: [] as string[], // 🎠 Galeria de imagens (carrossel)
   });
 
+  // Estado para criar post manual
+  const [createManualPost, setCreateManualPost] = useState(false);
+  const [manualCopyText, setManualCopyText] = useState({
+    copyText: '',
+    copyTextTelegram: '',
+    copyTextSite: '',
+    copyTextX: '',
+  });
+
   // 🤖 v2.0: Estado de upload de imagem
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -100,14 +109,26 @@ export default function OfertasPage() {
     setIsScraping(true);
 
     try {
+      // Verificar se a API está acessível antes de fazer a requisição
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+      console.log('[Scraper] Fazendo requisição para:', `${API_URL}/api/scraper/product`);
+      console.log('[Scraper] URL do produto:', productUrl);
+      
+      // Criar AbortController para timeout de 60 segundos (scraping pode demorar)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      
       const response = await fetchWithAuth('/api/scraper/product', {
         method: 'POST',
         body: JSON.stringify({ url: productUrl }),
+        signal: controller.signal,
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || 'Erro ao buscar dados');
+        const error = await response.json().catch(() => ({ error: { message: 'Erro desconhecido' } }));
+        throw new Error(error.error?.message || `Erro HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -115,18 +136,29 @@ export default function OfertasPage() {
 
       console.log('[Scraper] Dados recebidos:', productData);
 
-      // Formatar preços para 2 casas decimais
-      const formatPrice = (price: number | null | undefined): string => {
-        if (!price) return '';
-        return price.toFixed(2); // Garante 2 casas decimais: 1997.10
+      // Formatar preços para exibição (com vírgula brasileira)
+      // O scraper agora retorna valores já em reais (não em centavos)
+      const formatPriceForInput = (price: number | null | undefined): string => {
+        if (!price || price === 0) return '';
+        
+        // O scraper já retorna valores em reais (ex: 36.90, 54.90)
+        // Apenas formatar com vírgula (formato brasileiro)
+        return price.toFixed(2).replace('.', ',');
       };
+
+      console.log('[Scraper] Dados recebidos do scraper:', {
+        finalPrice: productData.finalPrice,
+        originalPrice: productData.originalPrice,
+        finalPriceFormatted: formatPriceForInput(productData.finalPrice),
+        originalPriceFormatted: formatPriceForInput(productData.originalPrice),
+      });
 
       // Preencher formulário automaticamente
       setForm(prev => ({
         ...prev,
         title: productData.title || prev.title,
-        finalPrice: formatPrice(productData.finalPrice),
-        originalPrice: formatPrice(productData.originalPrice),
+        finalPrice: formatPriceForInput(productData.finalPrice),
+        originalPrice: formatPriceForInput(productData.originalPrice),
         affiliateUrl: productData.affiliateUrl || prev.affiliateUrl,
         mainImage: productData.mainImage || prev.mainImage,
         images: productData.images || prev.images,
@@ -146,7 +178,19 @@ export default function OfertasPage() {
 
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error);
-      alert(`❌ Erro ao buscar dados do produto:\n\n${error.message}\n\nTente colar manualmente os dados.`);
+      
+      // Mensagem de erro mais detalhada
+      let errorMessage = error.message || 'Erro desconhecido';
+      
+      if (error.name === 'AbortError' || error.message?.includes('timeout')) {
+        errorMessage = 'A requisição demorou muito. O produto pode estar indisponível ou a conexão está lenta.';
+      } else if (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError')) {
+        errorMessage = 'Não foi possível conectar à API. Verifique se a API está rodando em http://localhost:3001';
+      } else if (error.message?.includes('401') || error.message?.includes('Não autenticado')) {
+        errorMessage = 'Sessão expirada. Faça login novamente.';
+      }
+      
+      alert(`❌ Erro ao buscar dados do produto:\n\n${errorMessage}\n\nTente colar manualmente os dados.`);
     } finally {
       setIsScraping(false);
     }
@@ -240,15 +284,35 @@ export default function OfertasPage() {
       // Converter preços (aceitar vírgula ou ponto)
       const parsePrice = (priceStr: string): number => {
         if (!priceStr) return 0;
-        // Remover tudo exceto dígitos, vírgula e ponto
-        let normalized = priceStr.toString().trim();
-        // Remover pontos usados como separadores de milhar (ex: 1.997,10)
-        // Se tiver vírgula, assumir que ponto é separador de milhar
+        // Remover espaços e caracteres não numéricos exceto vírgula e ponto
+        let normalized = priceStr.toString().trim().replace(/[^\d,.-]/g, '');
+        
+        // Formato brasileiro: 483,18 ou 483.18
+        // Se tiver vírgula, assumir formato brasileiro (vírgula = decimal)
         if (normalized.includes(',')) {
+          // Remover pontos (separadores de milhar) e trocar vírgula por ponto
           normalized = normalized.replace(/\./g, '').replace(',', '.');
         }
-        // Se não tiver vírgula, ponto é decimal (formato americano)
-        return parseFloat(normalized) || 0;
+        // Se não tiver vírgula mas tiver ponto, verificar se é decimal ou milhar
+        else if (normalized.includes('.')) {
+          // Se tiver mais de 2 dígitos após o ponto, provavelmente é separador de milhar
+          const parts = normalized.split('.');
+          if (parts.length > 2 || (parts[1] && parts[1].length > 2)) {
+            // É separador de milhar, remover
+            normalized = normalized.replace(/\./g, '');
+          }
+          // Caso contrário, manter como decimal
+        }
+        
+        const value = parseFloat(normalized) || 0;
+        
+        // Se o valor for muito grande (provavelmente está em centavos), dividir por 100
+        // Ex: 48318 -> 483.18, 25641 -> 256.41
+        if (value > 10000 && value < 1000000) {
+          return value / 100;
+        }
+        
+        return value;
       };
       
       const finalPriceValue = parsePrice(form.finalPrice);
@@ -298,10 +362,84 @@ export default function OfertasPage() {
       setImagePreview(null);
       setGalleryPreviews([]); // 🎠 Limpar preview da galeria
       
+      const createdOffer = await response.json();
+      const offerId = createdOffer.data?.id || createdOffer.id;
+
+      // Se marcou para criar post manual, criar o draft com status PENDING
+      if (createManualPost && offerId) {
+        try {
+          const draftResponse = await fetchWithAuth(`/api/offers/${offerId}/create-draft`, {
+            method: 'POST',
+            body: JSON.stringify({
+              copyText: manualCopyText.copyText || undefined,
+              copyTextTelegram: manualCopyText.copyTextTelegram || undefined,
+              copyTextSite: manualCopyText.copyTextSite || undefined,
+              copyTextX: manualCopyText.copyTextX || undefined,
+              channels: ['TELEGRAM', 'SITE'],
+              priority: 'NORMAL',
+              createManual: true, // Flag para indicar que é manual
+            }),
+          });
+
+          if (draftResponse.ok) {
+            const draftData = await draftResponse.json();
+            // Salvar frases personalizadas no banco
+            if (draftData.data?.id) {
+              try {
+                await fetchWithAuth('/api/custom-phrases/save', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    draftId: draftData.data.id,
+                    phrases: {
+                      copyText: manualCopyText.copyText,
+                      copyTextTelegram: manualCopyText.copyTextTelegram,
+                      copyTextSite: manualCopyText.copyTextSite,
+                      copyTextX: manualCopyText.copyTextX,
+                    },
+                    productTitle: form.title,
+                    category: form.nicheId,
+                  }),
+                });
+              } catch (phraseError) {
+                console.error('Erro ao salvar frases personalizadas:', phraseError);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Erro ao criar post manual:', error);
+        }
+      }
+
+      // Limpar formulário
+      setForm({
+        title: '',
+        originalPrice: '',
+        finalPrice: '',
+        affiliateUrl: '',
+        nicheId: '',
+        storeId: '',
+        urgency: 'NORMAL',
+        mainImage: '',
+        images: [], // 🎠 Limpar galeria
+      });
+      setImagePreview(null);
+      setGalleryPreviews([]); // 🎠 Limpar preview da galeria
+      setCreateManualPost(false);
+      setManualCopyText({
+        copyText: '',
+        copyTextTelegram: '',
+        copyTextSite: '',
+        copyTextX: '',
+      });
+      
       setShowForm(false);
       mutate();
       
-      alert('✅ Oferta criada com sucesso!\n\n📌 Status: RASCUNHO\n\nAprove a oferta para ativar o processamento da IA.');
+      if (createManualPost) {
+        alert('✅ Oferta criada com sucesso!\n\n📝 Post manual criado com status PENDING\n\nVocê pode editar as frases no Dashboard.');
+      } else {
+        alert('✅ Oferta criada com sucesso!\n\n📌 Status: RASCUNHO\n\nAprove a oferta para ativar o processamento da IA.');
+      }
     } catch (error: any) {
       console.error('Erro ao criar oferta:', error);
       alert(`❌ Erro: ${error.message}`);
@@ -509,7 +647,7 @@ export default function OfertasPage() {
       alert('✅ Oferta deletada com sucesso!');
       
       // Atualizar lista de ofertas
-      await loadOffers();
+      await mutate();
     } catch (error: any) {
       console.error('Erro ao deletar oferta:', error);
       alert(`❌ Erro ao deletar oferta:\n${error.message}`);
@@ -839,7 +977,7 @@ export default function OfertasPage() {
                 type="text"
                 value={form.originalPrice}
                 onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
-                placeholder="Ex: 1429.00 ou 1429"
+                placeholder="Ex: 483,18 ou 483.18"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -851,7 +989,7 @@ export default function OfertasPage() {
                 type="text"
                 value={form.finalPrice}
                 onChange={(e) => setForm({ ...form, finalPrice: e.target.value })}
-                placeholder="Ex: 798.00 ou 798"
+                placeholder="Ex: 256,41 ou 256.41"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -898,6 +1036,83 @@ export default function OfertasPage() {
               </select>
             </div>
           </div>
+
+          {/* 📝 Opção para criar post manual */}
+          <div className="mt-6 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createManualPost}
+                onChange={(e) => setCreateManualPost(e.target.checked)}
+                className="w-5 h-5 rounded border-border text-primary focus:ring-2 focus:ring-primary"
+              />
+              <div>
+                <span className="text-sm font-medium text-text-primary">
+                  📝 Criar Post Manual
+                </span>
+                <p className="text-xs text-text-muted mt-1">
+                  Cria um post com status PENDING para você digitar as frases manualmente
+                </p>
+              </div>
+            </label>
+
+            {createManualPost && (
+              <div className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Frase Genérica (opcional)
+                  </label>
+                  <textarea
+                    value={manualCopyText.copyText}
+                    onChange={(e) => setManualCopyText({ ...manualCopyText, copyText: e.target.value })}
+                    placeholder="Digite a frase genérica aqui..."
+                    rows={2}
+                    className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Frase para Telegram (opcional)
+                  </label>
+                  <textarea
+                    value={manualCopyText.copyTextTelegram}
+                    onChange={(e) => setManualCopyText({ ...manualCopyText, copyTextTelegram: e.target.value })}
+                    placeholder="Digite a frase para Telegram aqui..."
+                    rows={2}
+                    className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Frase para Site (opcional)
+                  </label>
+                  <textarea
+                    value={manualCopyText.copyTextSite}
+                    onChange={(e) => setManualCopyText({ ...manualCopyText, copyTextSite: e.target.value })}
+                    placeholder="Digite a frase para Site aqui..."
+                    rows={2}
+                    className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-2">
+                    Frase para X/Twitter (opcional)
+                  </label>
+                  <textarea
+                    value={manualCopyText.copyTextX}
+                    onChange={(e) => setManualCopyText({ ...manualCopyText, copyTextX: e.target.value })}
+                    placeholder="Digite a frase para X/Twitter aqui..."
+                    rows={2}
+                    className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  />
+                </div>
+                <p className="text-xs text-text-muted">
+                  💡 As frases digitadas aqui serão salvas no banco de dados para reutilização futura
+                </p>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleCreate}
             disabled={isCreating}

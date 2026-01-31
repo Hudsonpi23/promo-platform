@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setToken } from '@/lib/auth';
+import Link from 'next/link';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,20 +23,16 @@ export default function LoginPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       const loginUrl = `${apiUrl}/auth/login`;
       
-      console.log('Tentando fazer login em:', loginUrl);
-
       const response = await fetch(loginUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
 
-      // Verificar se conseguiu conectar
       if (!response) {
-        throw new Error('Não foi possível conectar ao servidor. Verifique se a API está rodando na porta 3001.');
+        throw new Error('Não foi possível conectar ao servidor. Verifique se a API está rodando.');
       }
 
-      // Tentar parsear resposta mesmo se der erro
       let data;
       try {
         data = await response.json();
@@ -57,24 +54,21 @@ export default function LoginPage() {
         throw new Error('Token não recebido do servidor');
       }
 
-      // Salvar token
-      setToken(token);
+      // Verificar se é admin
+      if (data.data?.user?.role !== 'ADMIN') {
+        throw new Error('Apenas administradores podem fazer login no site.');
+      }
 
-      // Redirecionar para dashboard
+      // Salvar token
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(data.data?.user || {}));
+
+      // Redirecionar para home
       router.push('/');
+      router.refresh();
     } catch (err: any) {
       console.error('Erro no login:', err);
-      
-      // Mensagens de erro mais específicas
-      let errorMessage = err.message || 'Erro ao fazer login';
-      
-      if (err.message?.includes('Failed to fetch') || err.message?.includes('NetworkError')) {
-        errorMessage = 'Não foi possível conectar ao servidor. Verifique se a API está rodando:\n\n1. Abra um terminal\n2. Execute: cd packages/api && npm run dev\n3. Aguarde a mensagem "API rodando em http://localhost:3001"';
-      } else if (err.message?.includes('ECONNREFUSED') || err.message?.includes('connection')) {
-        errorMessage = 'Servidor não está respondendo. Certifique-se de que a API está rodando na porta 3001.';
-      }
-      
-      setError(errorMessage);
+      setError(err.message || 'Erro ao fazer login');
     } finally {
       setIsLoading(false);
     }
@@ -85,16 +79,24 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Card de Login */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {/* Logo/Header */}
+          {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-              <span className="text-3xl">🎯</span>
-            </div>
+            <Link href="/" className="inline-block mb-4">
+              <div className="relative w-20 h-20 mx-auto rounded-full overflow-hidden border-4 border-blue-500 shadow-lg">
+                <Image
+                  src="/manu-avatar.png"
+                  alt="Manu das Promoções"
+                  fill
+                  className="object-cover object-top"
+                  priority
+                />
+              </div>
+            </Link>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Promo Platform
+              Manu das Promoções
             </h1>
             <p className="text-gray-600">
-              Painel Administrativo
+              Login Administrativo
             </p>
           </div>
 
@@ -106,12 +108,12 @@ export default function LoginPage() {
                 Email
               </label>
               <input
-                type="text"
+                type="email"
                 name="email"
                 autoComplete="email"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                placeholder="Digite seu email"
+                placeholder="admin@example.com"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-900"
                 required
               />
@@ -160,24 +162,18 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Credenciais de Teste */}
-          <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-600 font-medium mb-2">
-              📋 Credenciais padrão:
-            </p>
-            <p className="text-xs text-gray-500 font-mono">
-              Email: admin@example.com
-            </p>
-            <p className="text-xs text-gray-500 font-mono">
-              Senha: password
-            </p>
+          {/* Link para voltar */}
+          <div className="mt-6 text-center">
+            <Link href="/" className="text-sm text-gray-600 hover:text-blue-600">
+              ← Voltar para o site
+            </Link>
           </div>
         </div>
 
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-white text-sm opacity-75">
-            © 2026 Promo Platform - Todos os direitos reservados
+            © 2026 Manu das Promoções - Todos os direitos reservados
           </p>
         </div>
       </div>
