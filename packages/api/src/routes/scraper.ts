@@ -6,11 +6,32 @@ import { sendError, Errors } from '../lib/errors.js';
 export async function scraperRoutes(app: FastifyInstance) {
   // POST /scraper/product - Extrair dados de uma URL de produto
   app.post('/product', { preHandler: [authGuard] }, async (request, reply) => {
+    let browser: any = null;
+    
     try {
       const { url } = request.body as { url: string };
 
       if (!url) {
-        return sendError(reply, Errors.VALIDATION_ERROR([{ message: 'URL é obrigatória' }]));
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'URL é obrigatória',
+          },
+        });
+      }
+
+      // Validar se é uma URL válida
+      try {
+        new URL(url);
+      } catch {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'INVALID_URL',
+            message: 'URL inválida. Por favor, forneça uma URL completa (ex: https://...)',
+          },
+        });
       }
 
       console.log('[Scraper] Iniciando scraping de:', url);
@@ -36,8 +57,35 @@ export async function scraperRoutes(app: FastifyInstance) {
 
       console.log('[Scraper] Loja detectada:', store);
 
+      // Validar se é uma página de produto (não página de rede social, etc)
+      if (store === 'mercadolivre' && (urlLower.includes('/social/') || urlLower.includes('/perfil/'))) {
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'INVALID_PRODUCT_PAGE',
+            message: 'Esta URL não é uma página de produto. Por favor, forneça a URL direta do produto no Mercado Livre.',
+          },
+        });
+      }
+
       // Iniciar navegador
-      const browser = await chromium.launch({ headless: true });
+      try {
+        browser = await chromium.launch({ 
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox'], // Necessário para alguns ambientes
+        });
+      } catch (browserError: any) {
+        console.error('[Scraper] Erro ao iniciar navegador:', browserError);
+        return reply.status(500).send({
+          success: false,
+          error: {
+            code: 'BROWSER_ERROR',
+            message: 'Erro ao iniciar navegador. Playwright pode não estar instalado corretamente.',
+            details: browserError.message,
+          },
+        });
+      }
+
       const context = await browser.newContext({
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       });
@@ -47,8 +95,13 @@ export async function scraperRoutes(app: FastifyInstance) {
 
       try {
         // Navegar para a página
+        console.log('[Scraper] Navegando para a URL...');
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForTimeout(2000);
+
+        // Verificar se a página carregou corretamente
+        const pageTitle = await page.title().catch(() => '');
+        console.log('[Scraper] Título da página:', pageTitle.substring(0, 100));
 
         // Scraping específico por loja
         if (store === 'mercadolivre') {
@@ -70,6 +123,15 @@ export async function scraperRoutes(app: FastifyInstance) {
           productData = await scrapeGeneric(page);
         }
 
+        // Validar se conseguiu extrair dados mínimos
+        if (!productData.title || productData.title.trim().length === 0) {
+          throw new Error('Não foi possível extrair o título do produto. A página pode não ser uma página de produto válida.');
+        }
+
+        if (!productData.finalPrice || productData.finalPrice <= 0) {
+          throw new Error('Não foi possível extrair o preço do produto.');
+        }
+
         // Adicionar URL original
         productData.affiliateUrl = url;
 
@@ -81,11 +143,27 @@ export async function scraperRoutes(app: FastifyInstance) {
           hasImage: !!productData.mainImage,
         });
 
-      } catch (error: any) {
-        console.error('[Scraper] Erro ao extrair dados:', error.message);
-        throw error;
+      } catch (scrapingError: any) {
+        console.error('[Scraper] Erro ao extrair dados:', scrapingError.message);
+        console.error('[Scraper] Stack:', scrapingError.stack);
+        
+        return reply.status(400).send({
+          success: false,
+          error: {
+            code: 'SCRAPING_ERROR',
+            message: 'Erro ao extrair dados do produto',
+            details: scrapingError.message,
+            suggestion: 'Verifique se a URL é uma página de produto válida e tente novamente.',
+          },
+        });
       } finally {
-        await browser.close();
+        if (browser) {
+          try {
+            await browser.close();
+          } catch (closeError) {
+            console.error('[Scraper] Erro ao fechar navegador:', closeError);
+          }
+        }
       }
 
       return reply.send({
@@ -95,8 +173,26 @@ export async function scraperRoutes(app: FastifyInstance) {
       });
 
     } catch (error: any) {
-      console.error('[Scraper] Erro:', error);
-      return sendError(reply, error);
+      console.error('[Scraper] Erro geral:', error);
+      console.error('[Scraper] Stack:', error.stack);
+      
+      // Garantir que o navegador seja fechado mesmo em caso de erro
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error('[Scraper] Erro ao fechar navegador:', closeError);
+        }
+      }
+
+      return reply.status(500).send({
+        success: false,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Erro interno ao processar scraping',
+          details: error.message,
+        },
+      });
     }
   });
 }
