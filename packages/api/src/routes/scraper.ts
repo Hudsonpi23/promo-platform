@@ -1,7 +1,10 @@
 import { FastifyInstance } from 'fastify';
 import { chromium } from 'playwright';
+import * as cheerio from 'cheerio';
+import axios from 'axios';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
+import { scrapeMercadoLivreHTTP, scrapeMagaluHTTP, scrapeAmazonHTTP, scrapeGenericHTTP } from './scraper-http.js';
 
 export async function scraperRoutes(app: FastifyInstance) {
   // POST /scraper/product - Extrair dados de uma URL de produto
@@ -68,8 +71,13 @@ export async function scraperRoutes(app: FastifyInstance) {
         });
       }
 
-      // Iniciar navegador
+      let productData: any = {};
+
+      // Tentar usar Playwright primeiro, se falhar usar Cheerio (HTTP)
+      let usePlaywright = true;
+      
       try {
+        // Iniciar navegador
         browser = await chromium.launch({ 
           headless: true,
           args: [
@@ -82,28 +90,14 @@ export async function scraperRoutes(app: FastifyInstance) {
             '--disable-gpu',
           ], // Argumentos necessários para ambientes como Render
         });
-      } catch (browserError: any) {
-        console.error('[Scraper] Erro ao iniciar navegador:', browserError);
-        return reply.status(500).send({
-          success: false,
-          error: {
-            code: 'BROWSER_ERROR',
-            message: 'Erro ao iniciar navegador. Playwright pode não estar instalado corretamente.',
-            details: browserError.message,
-          },
+
+        const context = await browser.newContext({
+          userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         });
-      }
+        const page = await context.newPage();
 
-      const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      });
-      const page = await context.newPage();
-
-      let productData: any = {};
-
-      try {
         // Navegar para a página
-        console.log('[Scraper] Navegando para a URL...');
+        console.log('[Scraper] Usando Playwright...');
         await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForTimeout(2000);
 
@@ -130,6 +124,59 @@ export async function scraperRoutes(app: FastifyInstance) {
           // Scraping genérico
           productData = await scrapeGeneric(page);
         }
+
+        // Fechar navegador
+        if (browser) {
+          await browser.close();
+          browser = null;
+        }
+
+      } catch (playwrightError: any) {
+        console.warn('[Scraper] Playwright falhou, tentando com Cheerio (HTTP):', playwrightError.message);
+        usePlaywright = false;
+        
+        // Fechar navegador se ainda estiver aberto
+        if (browser) {
+          try {
+            await browser.close();
+          } catch (e) {
+            // Ignorar erro ao fechar
+          }
+          browser = null;
+        }
+
+        // Fallback: usar Cheerio (HTTP scraping)
+        try {
+          console.log('[Scraper] Usando Cheerio (HTTP scraping)...');
+          const response = await axios.get(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+              'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+            },
+            timeout: 30000,
+          });
+
+          const $ = cheerio.load(response.data);
+
+          // Scraping específico por loja usando Cheerio
+          if (store === 'mercadolivre') {
+            productData = await scrapeMercadoLivreHTTP($);
+          } else if (store === 'magalu') {
+            productData = await scrapeMagaluHTTP($);
+          } else if (store === 'amazon') {
+            productData = await scrapeAmazonHTTP($);
+          } else {
+            // Scraping genérico
+            productData = await scrapeGenericHTTP($);
+          }
+        } catch (httpError: any) {
+          console.error('[Scraper] Erro no scraping HTTP:', httpError.message);
+          throw new Error(`Falha no scraping: ${httpError.message}`);
+        }
+      }
+
+      try {
 
         // Validar se conseguiu extrair dados mínimos
         if (!productData.title || productData.title.trim().length === 0) {
