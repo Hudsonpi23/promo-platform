@@ -117,7 +117,7 @@ export async function telegramRoutes(app: FastifyInstance) {
       title: offer.title,
       price: Number(offer.finalPrice),
       oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-      discountPct: offer.discountPct || 0,
+      discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
       advertiserName: offer.store?.name,
       storeName: offer.store?.name,
       category: null,
@@ -140,13 +140,17 @@ export async function telegramRoutes(app: FastifyInstance) {
       fallbackText += `${offer.title.toUpperCase()}\n\n`;
       
       if (offer.originalPrice && offer.discountPct) {
-        fallbackText += `DE ${formatPrice(offer.originalPrice).toUpperCase()} POR ${formatPrice(offer.finalPrice).toUpperCase()}`;
-        fallbackText += ` (-${Math.round(offer.discountPct)}% OFF)`;
-        if (offer.discountPct >= 20) {
+        const originalPriceNumber = Number(offer.originalPrice);
+        const finalPriceNumber = Number(offer.finalPrice);
+        const discountNumber = Number(offer.discountPct);
+
+        fallbackText += `DE ${formatPrice(originalPriceNumber).toUpperCase()} POR ${formatPrice(finalPriceNumber).toUpperCase()}`;
+        fallbackText += ` (-${Math.round(discountNumber)}% OFF)`;
+        if (discountNumber >= 20) {
           fallbackText += ' 🔥';
         }
       } else {
-        fallbackText += `POR ${formatPrice(offer.finalPrice).toUpperCase()}`;
+        fallbackText += `POR ${formatPrice(Number(offer.finalPrice)).toUpperCase()}`;
       }
       
       text = fallbackText;

@@ -488,7 +488,7 @@ export async function offersRoutes(app: FastifyInstance) {
         title: offer.title,
         price: Number(offer.finalPrice),
         oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-        discountPct: offer.discountPct,
+        discountPct: offer.discountPct ? Number(offer.discountPct) : null,
         category: offer.niche?.name,
         storeName: offer.store?.name,
         imageUrl: offer.imageUrl,
@@ -509,7 +509,7 @@ export async function offersRoutes(app: FastifyInstance) {
         title: offer.title,
         price: Number(offer.finalPrice),
         oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-        discountPct: offer.discountPct || 0,
+        discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
         advertiserName: offer.store?.name,
         storeName: offer.store?.name,
         category: offer.niche?.name,
@@ -626,7 +626,7 @@ export async function offersRoutes(app: FastifyInstance) {
         title: offer.title,
         price: Number(offer.finalPrice),
         oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-        discountPct: offer.discountPct,
+        discountPct: offer.discountPct ? Number(offer.discountPct) : null,
         category: offer.niche?.name,
         storeName: offer.store?.name,
         imageUrl: offer.imageUrl,
@@ -687,7 +687,7 @@ export async function offersRoutes(app: FastifyInstance) {
         title: offer.title,
         price: Number(offer.finalPrice),
         oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-        discountPct: offer.discountPct || 0,
+        discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
         advertiserName: offer.store?.name,
         storeName: offer.store?.name,
         category: offer.niche?.name,
@@ -788,7 +788,7 @@ export async function offersRoutes(app: FastifyInstance) {
         title: offer.title,
         price: Number(offer.finalPrice),
         oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
-        discountPct: offer.discountPct || 0,
+        discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
         advertiserName: offer.store?.name,
         storeName: offer.store?.name,
         category: offer.niche?.name,
@@ -834,16 +834,16 @@ export async function offersRoutes(app: FastifyInstance) {
           const formatPrice = (price: number) =>
             new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(price);
           
-          const fallbackText = `${offer.affiliateUrl.toLowerCase()}\n\nACHADO NÃO É ROUBADO 🔥\n\n${offer.title.toUpperCase().substring(0, 50)}\nPOR ${formatPrice(offer.finalPrice).toUpperCase()}`;
+          const fallbackText = `${offer.affiliateUrl.toLowerCase()}\n\nACHADO NÃO É ROUBADO 🔥\n\n${offer.title.toUpperCase().substring(0, 50)}\nPOR ${formatPrice(Number(offer.finalPrice)).toUpperCase()}`;
           return reply.send({
             success: true,
             data: {
               offer: {
                 id: offer.id,
                 title: offer.title,
-                finalPrice: offer.finalPrice,
-                originalPrice: offer.originalPrice,
-                discountPct: offer.discountPct,
+                finalPrice: Number(offer.finalPrice),
+                originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+                discountPct: offer.discountPct ? Number(offer.discountPct) : null,
                 affiliateUrl: offer.affiliateUrl,
               },
               generatedText: {
@@ -876,9 +876,9 @@ export async function offersRoutes(app: FastifyInstance) {
             offer: {
               id: offer.id,
               title: offer.title,
-              finalPrice: offer.finalPrice,
-              originalPrice: offer.originalPrice,
-              discountPct: offer.discountPct,
+              finalPrice: Number(offer.finalPrice),
+              originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+              discountPct: offer.discountPct ? Number(offer.discountPct) : null,
               affiliateUrl: offer.affiliateUrl,
             },
             generatedText: {
@@ -907,14 +907,14 @@ export async function offersRoutes(app: FastifyInstance) {
       return reply.send({
         success: true,
         data: {
-          offer: {
-            id: offer.id,
-            title: offer.title,
-            finalPrice: offer.finalPrice,
-            originalPrice: offer.originalPrice,
-            discountPct: offer.discountPct,
-            affiliateUrl: offer.affiliateUrl,
-          },
+            offer: {
+              id: offer.id,
+              title: offer.title,
+              finalPrice: Number(offer.finalPrice),
+              originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+              discountPct: offer.discountPct ? Number(offer.discountPct) : null,
+              affiliateUrl: offer.affiliateUrl,
+            },
           generatedText: {
             text,
             textLength: text.length,

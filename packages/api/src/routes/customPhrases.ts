@@ -70,7 +70,7 @@ export async function customPhrasesRoutes(app: FastifyInstance) {
     try {
       const user = (request as any).user;
       if (!user) {
-        return sendError(reply, Errors.UNAUTHORIZED());
+        return sendError(reply, Errors.UNAUTHORIZED);
       }
 
       const body = SavePhrasesSchema.parse(request.body);

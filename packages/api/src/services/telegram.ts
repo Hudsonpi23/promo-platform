@@ -125,7 +125,7 @@ export async function sendTelegramMessage(
 /**
  * Envia foto com caption para o canal
  */
-export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean }> {
+export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean; photoMessageId?: number }> {
   if (!isTelegramConfigured()) {
     return { success: false, error: 'Telegram não configurado' };
   }
