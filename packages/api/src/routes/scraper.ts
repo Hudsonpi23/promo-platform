@@ -72,7 +72,15 @@ export async function scraperRoutes(app: FastifyInstance) {
       try {
         browser = await chromium.launch({ 
           headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'], // Necessário para alguns ambientes
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--no-first-run',
+            '--no-zygote',
+            '--disable-gpu',
+          ], // Argumentos necessários para ambientes como Render
         });
       } catch (browserError: any) {
         console.error('[Scraper] Erro ao iniciar navegador:', browserError);
