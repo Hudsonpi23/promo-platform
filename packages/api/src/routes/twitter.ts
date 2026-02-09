@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
-import { isTwitterConfigured, postOfferToTwitter, postTweet, generateTweetText } from '../services/twitter.js';
+import { isTwitterConfigured, postOfferToTwitter, postTweet, generateTweetText, postTweetWithImage } from '../services/twitter.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
 import { z } from 'zod';
 
@@ -197,62 +197,35 @@ export async function twitterRoutes(app: FastifyInstance) {
       });
     }
 
-    // OBRIGATÓRIO: SEMPRE regenerar copy usando sistema de frases personalizadas
-    // Isso garante que drafts antigos também usem as novas frases sarcásticas
-    let tweetText: string | null = null;
-    
-    if (draft.offer) {
-      // SEMPRE gerar usando sistema de frases personalizadas (frases sarcásticas em MAIÚSCULAS)
-      const copies = generateCopies({
-        title: draft.offer.title,
-        price: Number(draft.offer.finalPrice),
-        oldPrice: draft.offer.originalPrice ? Number(draft.offer.originalPrice) : null,
-        discountPct: draft.offer.discountPct || 0,
-        advertiserName: draft.offer.store?.name,
-        storeName: draft.offer.store?.name,
-        category: draft.offer.niche?.name,
-        trackingUrl: draft.offer.affiliateUrl,
-      });
-      tweetText = copies.x; // Já está em MAIÚSCULAS
-    }
-    
-    // Fallback apenas se não conseguir gerar
-    if (!tweetText) {
-      tweetText = (draft as any).copyTextX || draft.copyText;
-    }
-    
-    if (!tweetText && draft.offer) {
-      // Fallback apenas se não conseguir gerar
-      tweetText = generateTweetText({
-        title: draft.offer.title,
-        originalPrice: draft.offer.originalPrice ? Number(draft.offer.originalPrice) : undefined,
-        finalPrice: Number(draft.offer.finalPrice),
-        discount: draft.offer.discountPct || undefined,
-        affiliateUrl: draft.offer.affiliateUrl || undefined,
-        storeName: draft.offer.store?.name,
-      });
-    }
-
-    if (!tweetText) {
+    if (!draft.offer) {
       return reply.status(400).send({
         success: false,
-        error: 'Não foi possível gerar texto para o tweet',
+        error: 'Draft não possui oferta associada',
       });
     }
-    
-    // Garantir que está em MAIÚSCULAS (exceto link e emojis)
-    const lines = tweetText.split('\n');
-    const linkLine = lines[lines.length - 1];
-    const content = lines.slice(0, -1).join('\n');
-    // Converter para maiúsculas apenas o conteúdo (não o link)
-    if (linkLine && (linkLine.startsWith('http') || linkLine.includes('👉'))) {
-      tweetText = content.toUpperCase() + '\n' + linkLine;
-    } else {
-      tweetText = tweetText.toUpperCase();
-    }
 
-    // Postar no Twitter
-    const result = await postTweet(tweetText);
+    // OBRIGATÓRIO: SEMPRE usar postOfferToTwitter que já tem toda a lógica correta
+    // Isso garante que o texto seja gerado com frases personalizadas, preços, descontos, etc.
+    const offer = draft.offer;
+    const images = (offer as any).images || [];
+    const mainImage = (draft as any).imageUrl || offer.imageUrl;
+    
+    console.log(`[Twitter post-draft] Preparando post: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}`);
+    console.log(`[Twitter post-draft] Oferta: ${offer.title.substring(0, 50)}`);
+    console.log(`[Twitter post-draft] Preço: R$ ${Number(offer.finalPrice).toFixed(2)}`);
+    console.log(`[Twitter post-draft] Desconto: ${offer.discountPct || 0}%`);
+
+    // Usar postOfferToTwitter que já gera o texto completo com frases, preços, descontos
+    const result = await postOfferToTwitter({
+      title: offer.title,
+      originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
+      finalPrice: Number(offer.finalPrice),
+      discount: offer.discountPct || undefined,
+      affiliateUrl: offer.affiliateUrl || undefined,
+      storeName: offer.store?.name,
+      imageUrl: mainImage || undefined,
+      images: images.length > 0 ? images : undefined,
+    });
 
     if (!result.success) {
       // Atualizar status do draft para erro
@@ -277,7 +250,7 @@ export async function twitterRoutes(app: FastifyInstance) {
         externalId: result.tweetId,
         payload: {
           tweetUrl: result.tweetUrl,
-          text: tweetText,
+          text: 'Gerado automaticamente pelo sistema',
         },
       },
     });
