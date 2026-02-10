@@ -1575,24 +1575,35 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   text += `\n\n${link}`;
   
   // VALIDAÇÃO FINAL: Se ainda muito longo, cortar agressivamente
+  // MAS SEMPRE manter desconto quando houver preço original
   if (text.length > CHAR_LIMITS.X) {
-    // Versão ultra-minimalista: só abertura + preço + link
+    // Versão ultra-minimalista: só abertura + preço + desconto + link
     // Twitter/X: manter texto normal (não em maiúsculas)
-    const minimalTitle = getShortTitle(input.title, 15); // Removido .toUpperCase()
+    const minimalTitle = getShortTitle(input.title, 15);
     if (input.oldPrice && input.oldPrice > input.price) {
       const priceOld = formatPrice(input.oldPrice);
-      text = `${opening}\n${minimalTitle}\n${priceNow}\n\n${link}`; // Removido .toUpperCase()
+      const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
+      const discountText = discountPercent >= 20 && discountEmoji 
+        ? ` ${discountEmoji}-${discountPercent}% OFF`
+        : ` -${discountPercent}% OFF`;
+      const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
+      text = `${opening}\n${minimalTitle}\n${priceText}\n\n${link}`;
     } else {
-      text = `${opening}\n${priceNow}\n\n${link}`; // Removido .toUpperCase()
+      text = `${opening}\n${minimalTitle}\n${priceNow}\n\n${link}`;
     }
     
-    // Se ainda não couber, remover título completamente
+    // Se ainda não couber, remover título mas SEMPRE manter preço original + desconto
     if (text.length > CHAR_LIMITS.X) {
       if (input.oldPrice && input.oldPrice > input.price) {
         const priceOld = formatPrice(input.oldPrice);
-        text = `${opening}\nDe ${priceOld} por ${priceNow}\n\n${link}`; // Removido .toUpperCase()
+        const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
+        const discountText = discountPercent >= 20 && discountEmoji 
+          ? ` ${discountEmoji}-${discountPercent}% OFF`
+          : ` -${discountPercent}% OFF`;
+        const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
+        text = `${opening}\n${priceText}\n\n${link}`;
       } else {
-        text = `${opening}\n${priceNow}\n\n${link}`; // Removido .toUpperCase()
+        text = `${opening}\n${priceNow}\n\n${link}`;
       }
     }
     
