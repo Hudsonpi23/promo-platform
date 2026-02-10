@@ -1607,28 +1607,31 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       }
     }
     
-    // Último recurso: NUNCA truncar abertura - remover título se necessário
+    // Último recurso: OBRIGATÓRIO manter preço sempre, mesmo que precise remover abertura
     if (text.length > CHAR_LIMITS.X) {
       const linkPart = `\n\n${link}`;
-      // Preservar abertura COMPLETA, remover título se necessário
+      // Preservar preço + desconto SEMPRE, remover abertura se necessário
       if (input.oldPrice && input.oldPrice > input.price) {
         const priceOld = formatPrice(input.oldPrice);
-        const priceText = `De ${priceOld} por ${priceNow}`; // Removido .toUpperCase()
-        const textWithoutTitle = `${opening}\n${priceText}${linkPart}`;
-        if (textWithoutTitle.length <= CHAR_LIMITS.X) {
-          text = textWithoutTitle;
+        const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
+        const discountText = discountPercent >= 20 && discountEmoji 
+          ? ` ${discountEmoji}-${discountPercent}% OFF`
+          : ` -${discountPercent}% OFF`;
+        const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
+        const textWithoutOpening = `${priceText}${linkPart}`;
+        if (textWithoutOpening.length <= CHAR_LIMITS.X) {
+          text = textWithoutOpening;
         } else {
-          // Se ainda não couber, manter apenas abertura + preço simplificado
-          const simplePrice = `Por ${priceNow}`; // Removido .toUpperCase()
-          text = `${opening}\n${simplePrice}${linkPart}`;
+          // Se ainda não couber, manter apenas preço + desconto (sem abertura)
+          text = priceText + linkPart;
         }
       } else {
-        const textWithoutTitle = `${opening}\n${priceNow}${linkPart}`; // Removido .toUpperCase()
-        if (textWithoutTitle.length <= CHAR_LIMITS.X) {
-          text = textWithoutTitle;
+        const textWithoutOpening = `${priceNow}${linkPart}`;
+        if (textWithoutOpening.length <= CHAR_LIMITS.X) {
+          text = textWithoutOpening;
         } else {
-          // Se ainda não couber, manter apenas abertura + link
-          text = `${opening}${linkPart}`;
+          // Se ainda não couber, manter apenas preço (sem abertura)
+          text = priceNow + linkPart;
         }
       }
     }
