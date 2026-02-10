@@ -1496,8 +1496,9 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   const productPhraseForX = getProductSpecificPhrase(input.title, true);
   
   // Se tiver frase específica, usar ela como abertura. Senão, usar generateOpening normal.
+  // Twitter/X: manter texto normal (não em maiúsculas)
   const openingBase = productPhraseForX
-    ? productPhraseForX.toUpperCase()
+    ? productPhraseForX // Removido .toUpperCase()
     : generateOpening(input, seed, 2000); // Canal X: offset 2000
   
   // LOG: Verificar se a frase foi gerada corretamente
@@ -1516,14 +1517,16 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   const maxContentLength = CHAR_LIMITS.X - reservedSpace - 10; // margem de segurança
   
   // Título muito curto para X (máximo 40 caracteres)
-  let shortTitle = getShortTitle(input.title, 40).toUpperCase();
+  // Twitter/X: manter texto normal (não em maiúsculas)
+  let shortTitle = getShortTitle(input.title, 40); // Removido .toUpperCase()
   
   // Montar texto base: abertura + título + preço
   let text: string;
   
   if (input.oldPrice && input.oldPrice > input.price) {
     const priceOld = formatPrice(input.oldPrice);
-    const priceText = `DE ${priceOld.toUpperCase()} POR ${priceNow.toUpperCase()}`;
+    // Twitter/X: manter texto normal (não em maiúsculas)
+    const priceText = `De ${priceOld} por ${priceNow}`; // Removido .toUpperCase()
     
     // Tentar com título completo primeiro
     let testText = `${opening}\n${shortTitle}\n${priceText}`;
@@ -1544,7 +1547,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       text = testText;
     } else {
       // Reduzir título
-      shortTitle = getShortTitle(input.title, 25).toUpperCase();
+      shortTitle = getShortTitle(input.title, 25); // Removido .toUpperCase()
       text = `${opening}\n${shortTitle}\n${priceText}`;
       
       // Tentar adicionar desconto simplificado
@@ -1557,14 +1560,15 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     }
   } else {
     // Sem preço antigo - mais simples
-    let testText = `${opening}\n${shortTitle}\nPOR ${priceNow.toUpperCase()}`;
+    // Twitter/X: manter texto normal (não em maiúsculas)
+    let testText = `${opening}\n${shortTitle}\nPor ${priceNow}`; // Removido .toUpperCase()
     
     if ((testText + `\n\n${link}`).length <= CHAR_LIMITS.X) {
       text = testText;
     } else {
       // Reduzir título ainda mais
-      shortTitle = getShortTitle(input.title, 20).toUpperCase();
-      text = `${opening}\n${shortTitle}\n${priceNow.toUpperCase()}`;
+      shortTitle = getShortTitle(input.title, 20); // Removido .toUpperCase()
+      text = `${opening}\n${shortTitle}\n${priceNow}`; // Removido .toUpperCase()
     }
   }
   
@@ -1574,21 +1578,22 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // VALIDAÇÃO FINAL: Se ainda muito longo, cortar agressivamente
   if (text.length > CHAR_LIMITS.X) {
     // Versão ultra-minimalista: só abertura + preço + link
-    const minimalTitle = getShortTitle(input.title, 15).toUpperCase();
+    // Twitter/X: manter texto normal (não em maiúsculas)
+    const minimalTitle = getShortTitle(input.title, 15); // Removido .toUpperCase()
     if (input.oldPrice && input.oldPrice > input.price) {
       const priceOld = formatPrice(input.oldPrice);
-      text = `${opening}\n${minimalTitle}\n${priceNow.toUpperCase()}\n\n${link}`;
+      text = `${opening}\n${minimalTitle}\n${priceNow}\n\n${link}`; // Removido .toUpperCase()
     } else {
-      text = `${opening}\n${priceNow.toUpperCase()}\n\n${link}`;
+      text = `${opening}\n${priceNow}\n\n${link}`; // Removido .toUpperCase()
     }
     
     // Se ainda não couber, remover título completamente
     if (text.length > CHAR_LIMITS.X) {
       if (input.oldPrice && input.oldPrice > input.price) {
         const priceOld = formatPrice(input.oldPrice);
-        text = `${opening}\nDE ${priceOld.toUpperCase()} POR ${priceNow.toUpperCase()}\n\n${link}`;
+        text = `${opening}\nDe ${priceOld} por ${priceNow}\n\n${link}`; // Removido .toUpperCase()
       } else {
-        text = `${opening}\n${priceNow.toUpperCase()}\n\n${link}`;
+        text = `${opening}\n${priceNow}\n\n${link}`; // Removido .toUpperCase()
       }
     }
     
@@ -1598,17 +1603,17 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       // Preservar abertura COMPLETA, remover título se necessário
       if (input.oldPrice && input.oldPrice > input.price) {
         const priceOld = formatPrice(input.oldPrice);
-        const priceText = `DE ${priceOld.toUpperCase()} POR ${priceNow.toUpperCase()}`;
+        const priceText = `De ${priceOld} por ${priceNow}`; // Removido .toUpperCase()
         const textWithoutTitle = `${opening}\n${priceText}${linkPart}`;
         if (textWithoutTitle.length <= CHAR_LIMITS.X) {
           text = textWithoutTitle;
         } else {
           // Se ainda não couber, manter apenas abertura + preço simplificado
-          const simplePrice = `POR ${priceNow.toUpperCase()}`;
+          const simplePrice = `Por ${priceNow}`; // Removido .toUpperCase()
           text = `${opening}\n${simplePrice}${linkPart}`;
         }
       } else {
-        const textWithoutTitle = `${opening}\n${priceNow.toUpperCase()}${linkPart}`;
+        const textWithoutTitle = `${opening}\n${priceNow}${linkPart}`; // Removido .toUpperCase()
         if (textWithoutTitle.length <= CHAR_LIMITS.X) {
           text = textWithoutTitle;
         } else {
@@ -1623,11 +1628,10 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   console.log('[generateXCopy] Texto antes de processar:', text.substring(0, 200));
   console.log('[generateXCopy] Tamanho:', text.length);
   
-  // Garantir que está tudo em MAIÚSCULAS (exceto link e emojis)
-  // IMPORTANTE: toUpperCase() preserva emojis automaticamente
+  // Twitter/X: manter texto normal (não em maiúsculas)
   const lines = text.split('\n');
   const linkLine = lines[lines.length - 1];
-  const content = lines.slice(0, -1).join('\n').toUpperCase();
+  const content = lines.slice(0, -1).join('\n'); // Removido .toUpperCase()
   const finalText = content + '\n' + linkLine;
   
   // LOG: Verificar texto final
