@@ -1526,36 +1526,35 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   if (input.oldPrice && input.oldPrice > input.price) {
     const priceOld = formatPrice(input.oldPrice);
     // Twitter/X: manter texto normal (não em maiúsculas)
-    const priceText = `De ${priceOld} por ${priceNow}`; // Removido .toUpperCase()
+    // OBRIGATÓRIO: Sempre incluir desconto quando houver preço original
+    const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
+    const discountText = discountPercent >= 20 && discountEmoji 
+      ? ` ${discountEmoji}-${discountPercent}% OFF`
+      : ` -${discountPercent}% OFF`;
+    
+    // Montar texto com desconto SEMPRE incluído
+    const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
     
     // Tentar com título completo primeiro
     let testText = `${opening}\n${shortTitle}\n${priceText}`;
-    
-    // Se couber, adicionar desconto
-    if (input.discountPct > 0) {
-      const discountText = input.discountPct >= 20 && discountEmoji 
-        ? ` ${discountEmoji}-${Math.round(input.discountPct)}%`
-        : ` -${Math.round(input.discountPct)}%`;
-      
-      if ((testText + discountText + `\n\n${link}`).length <= CHAR_LIMITS.X) {
-        testText += discountText;
-      }
-    }
     
     // Verificar se cabe
     if ((testText + `\n\n${link}`).length <= CHAR_LIMITS.X) {
       text = testText;
     } else {
-      // Reduzir título
-      shortTitle = getShortTitle(input.title, 25); // Removido .toUpperCase()
+      // Reduzir título mas MANTER desconto
+      shortTitle = getShortTitle(input.title, 25);
       text = `${opening}\n${shortTitle}\n${priceText}`;
       
-      // Tentar adicionar desconto simplificado
-      if (input.discountPct > 0) {
-        const simpleDiscount = ` -${Math.round(input.discountPct)}%`;
-        if ((text + simpleDiscount + `\n\n${link}`).length <= CHAR_LIMITS.X) {
-          text += simpleDiscount;
-        }
+      // Se ainda não couber, reduzir mais o título mas SEMPRE manter desconto
+      if ((text + `\n\n${link}`).length > CHAR_LIMITS.X) {
+        shortTitle = getShortTitle(input.title, 20);
+        text = `${opening}\n${shortTitle}\n${priceText}`;
+      }
+      
+      // Se ainda não couber, remover título mas MANTER preço original + desconto
+      if ((text + `\n\n${link}`).length > CHAR_LIMITS.X) {
+        text = `${opening}\n${priceText}`;
       }
     }
   } else {
