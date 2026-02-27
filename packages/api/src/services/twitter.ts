@@ -586,21 +586,15 @@ export async function postOfferToTwitter(offer: {
   images?: string[];
 }): Promise<TweetResponse> {
   const tweetText = generateTweetText(offer);
-  
-  // 🎠 Se tem múltiplas imagens (2-4), usar carrossel
-  if (offer.images && offer.images.length >= 2) {
-    console.log(`[Twitter] Postando oferta com ${offer.images.length} imagens`);
-    return postTweetWithMultipleImages(tweetText, offer.images.slice(0, 4)); // Máximo 4
-  }
-  
-  // 📷 Se tem apenas 1 imagem (imageUrl ou images[0])
+
+  // No Twitter usar SEMPRE 1 imagem — grid 2x2/4 fica ruim para produtos
+  // Prioridade: imageUrl principal → primeira da galeria
   const singleImage = offer.imageUrl || (offer.images && offer.images[0]);
   if (singleImage) {
-    console.log('[Twitter] Postando oferta com 1 imagem');
+    console.log('[Twitter] Postando oferta com 1 imagem principal');
     return postTweetWithImage(tweetText, singleImage);
   }
-  
-  // 📝 Sem imagens, só texto
+
   console.log('[Twitter] Postando oferta sem imagens');
   return postTweet(tweetText);
 }

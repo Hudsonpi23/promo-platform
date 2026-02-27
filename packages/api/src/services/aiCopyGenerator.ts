@@ -1519,18 +1519,19 @@ function generateSiteCopy(input: CopyInputData, seed: number): string {
 /**
  * Gera copy para X/Twitter (≤ 280 caracteres)
  * Estratégia: gancho de vendas + produto curto + preço + link
+ * IMPORTANTE: Twitter encurta URLs para 23 chars (t.co) — usar 23 no cálculo sempre
  */
 function generateXCopy(input: CopyInputData, seed: number): string {
   const priceNow = formatPrice(input.price);
   const link = input.trackingUrl;
   const discountEmoji = getDiscountEmoji(input.discountPct, input.title);
+  const TWITTER_URL_LENGTH = 23; // Twitter sempre encurta URLs para t.co (23 chars)
 
   // Gancho de vendas: usar frase de desconto se houver % expressivo, senão gancho geral
   let opening: string;
   const discountPct = Math.round(input.discountPct || 0);
 
-  if (discountPct >= 20 && X_DISCOUNT_HOOKS.length > 0) {
-    // 50% chance de usar frase de desconto, 50% gancho geral
+  if (discountPct >= 20) {
     const usePctHook = (seed % 2 === 0);
     if (usePctHook) {
       const hookFn = pickRandom(X_DISCOUNT_HOOKS, seed);
@@ -1544,168 +1545,52 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   console.log('[generateXCopy] Gancho de vendas (X):', opening);
 
-  // Twitter encurta TODA URL para 23 chars (t.co) - usar 23 fixo no cálculo
-  const TWITTER_URL_LENGTH = 23;
-  const reservedSpace = TWITTER_URL_LENGTH + 3; // url encurtada + quebras de linha
-  const maxContentLength = CHAR_LIMITS.X - reservedSpace - 5; // margem de segurança
+  // Espaço disponível para conteúdo (sem o link — Twitter conta URL como 23 chars)
+  // 280 - 23 (url) - 2 (quebras \n\n antes do link) - 5 (margem)
+  const maxContentLength = CHAR_LIMITS.X - TWITTER_URL_LENGTH - 7;
   
-  // Título muito curto para X (máximo 40 caracteres)
-  // Twitter/X: manter texto normal (não em maiúsculas)
-  let shortTitle = getShortTitle(input.title, 40); // Removido .toUpperCase()
-  
-  // Montar texto base: abertura + título + preço
-  let text: string;
-  
+  // ── Montar linha de preço ──
+  const discountPercent = Math.round(input.discountPct || (
+    input.oldPrice && input.oldPrice > input.price
+      ? ((input.oldPrice - input.price) / input.oldPrice * 100)
+      : 0
+  ));
+
+  let priceLine: string;
   if (input.oldPrice && input.oldPrice > input.price) {
     const priceOld = formatPrice(input.oldPrice);
-    // Twitter/X: manter texto normal (não em maiúsculas)
-    // OBRIGATÓRIO: Sempre incluir desconto quando houver preço original
-    const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
-    const discountText = discountPercent >= 20 && discountEmoji 
-      ? ` ${discountEmoji}-${discountPercent}% OFF`
-      : ` -${discountPercent}% OFF`;
-    
-    // Montar texto com desconto SEMPRE incluído
-    const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
-    
-    // Tentar com título completo primeiro
-    let testText = `${opening}\n${shortTitle}\n${priceText}`;
-    
-    // Verificar se cabe
-    if ((testText + `\n\n${link}`).length <= CHAR_LIMITS.X) {
-      text = testText;
-    } else {
-      // Reduzir título mas MANTER desconto
-      shortTitle = getShortTitle(input.title, 25);
-      text = `${opening}\n${shortTitle}\n${priceText}`;
-      
-      // Se ainda não couber, reduzir mais o título mas SEMPRE manter desconto
-      if ((text + `\n\n${link}`).length > CHAR_LIMITS.X) {
-        shortTitle = getShortTitle(input.title, 20);
-        text = `${opening}\n${shortTitle}\n${priceText}`;
-      }
-      
-      // Se ainda não couber, remover título mas MANTER preço original + desconto
-      if ((text + `\n\n${link}`).length > CHAR_LIMITS.X) {
-        text = `${opening}\n${priceText}`;
-      }
-    }
+    const discountStr = discountPercent >= 20 && discountEmoji
+      ? `${discountEmoji} -${discountPercent}% OFF`
+      : `-${discountPercent}% OFF`;
+    priceLine = `De ${priceOld} por ${priceNow} ${discountStr}`;
   } else {
-    // Sem preço antigo - mais simples
-    // Twitter/X: manter texto normal (não em maiúsculas)
-    let testText = `${opening}\n${shortTitle}\nPor ${priceNow}`; // Removido .toUpperCase()
-    
-    if ((testText + `\n\n${link}`).length <= CHAR_LIMITS.X) {
-      text = testText;
-    } else {
-      // Reduzir título ainda mais
-      shortTitle = getShortTitle(input.title, 20); // Removido .toUpperCase()
-      text = `${opening}\n${shortTitle}\n${priceNow}`; // Removido .toUpperCase()
+    priceLine = `Por ${priceNow}`;
+  }
+
+  // ── Construir conteúdo (sem link) usando maxContentLength ──
+  // Tentar: gancho + título + preço → reduzir título se necessário
+  let content: string;
+  const titleFull = getShortTitle(input.title, 40);
+  const titleMid  = getShortTitle(input.title, 25);
+  const titleMin  = getShortTitle(input.title, 15);
+
+  const candidates = [
+    `${opening}\n${titleFull}\n${priceLine}`,
+    `${opening}\n${titleMid}\n${priceLine}`,
+    `${opening}\n${titleMin}\n${priceLine}`,
+    `${opening}\n${priceLine}`,
+  ];
+
+  content = candidates[candidates.length - 1]; // fallback mínimo
+  for (const c of candidates) {
+    if (c.length <= maxContentLength) {
+      content = c;
+      break;
     }
   }
-  
-  // Adicionar link
-  text += `\n\n${link}`;
-  
-  // VALIDAÇÃO FINAL: Se ainda muito longo, cortar agressivamente
-  // MAS SEMPRE manter desconto quando houver preço original
-  if (text.length > CHAR_LIMITS.X) {
-    // Versão ultra-minimalista: só abertura + preço + desconto + link
-    // Twitter/X: manter texto normal (não em maiúsculas)
-    const minimalTitle = getShortTitle(input.title, 15);
-    if (input.oldPrice && input.oldPrice > input.price) {
-      const priceOld = formatPrice(input.oldPrice);
-      const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
-      const discountText = discountPercent >= 20 && discountEmoji 
-        ? ` ${discountEmoji}-${discountPercent}% OFF`
-        : ` -${discountPercent}% OFF`;
-      const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
-      text = `${opening}\n${minimalTitle}\n${priceText}\n\n${link}`;
-    } else {
-      text = `${opening}\n${minimalTitle}\n${priceNow}\n\n${link}`;
-    }
-    
-    // Se ainda não couber, remover título mas SEMPRE manter preço original + desconto
-    if (text.length > CHAR_LIMITS.X) {
-      if (input.oldPrice && input.oldPrice > input.price) {
-        const priceOld = formatPrice(input.oldPrice);
-        const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
-        const discountText = discountPercent >= 20 && discountEmoji 
-          ? ` ${discountEmoji}-${discountPercent}% OFF`
-          : ` -${discountPercent}% OFF`;
-        const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
-        text = `${opening}\n${priceText}\n\n${link}`;
-      } else {
-        text = `${opening}\n${priceNow}\n\n${link}`;
-      }
-    }
-    
-    // Último recurso: OBRIGATÓRIO manter preço sempre, mesmo que precise remover abertura
-    if (text.length > CHAR_LIMITS.X) {
-      const linkPart = `\n\n${link}`;
-      // Preservar preço + desconto SEMPRE, remover abertura se necessário
-      if (input.oldPrice && input.oldPrice > input.price) {
-        const priceOld = formatPrice(input.oldPrice);
-        const discountPercent = Math.round(input.discountPct || ((input.oldPrice - input.price) / input.oldPrice * 100));
-        const discountText = discountPercent >= 20 && discountEmoji 
-          ? ` ${discountEmoji}-${discountPercent}% OFF`
-          : ` -${discountPercent}% OFF`;
-        const priceText = `De ${priceOld} por ${priceNow}${discountText}`;
-        const textWithoutOpening = `${priceText}${linkPart}`;
-        if (textWithoutOpening.length <= CHAR_LIMITS.X) {
-          text = textWithoutOpening;
-        } else {
-          // Se ainda não couber, manter apenas preço + desconto (sem abertura)
-          text = priceText + linkPart;
-        }
-      } else {
-        const textWithoutOpening = `${priceNow}${linkPart}`;
-        if (textWithoutOpening.length <= CHAR_LIMITS.X) {
-          text = textWithoutOpening;
-        } else {
-          // Se ainda não couber, manter apenas preço (sem abertura)
-          text = priceNow + linkPart;
-        }
-      }
-    }
-  }
-  
-  // LOG: Verificar texto antes de processar
-  console.log('[generateXCopy] Texto antes de processar:', text.substring(0, 200));
-  console.log('[generateXCopy] Tamanho:', text.length);
-  
-  // Twitter/X: manter texto normal (não em maiúsculas)
-  const lines = text.split('\n');
-  const linkLine = lines[lines.length - 1];
-  const content = lines.slice(0, -1).join('\n'); // Removido .toUpperCase()
-  const finalText = content + '\n' + linkLine;
-  
-  // LOG: Verificar texto final
+
+  const finalText = `${content}\n\n${link}`;
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 200));
-  console.log('[generateXCopy] Tamanho final:', finalText.length);
-  console.log('[generateXCopy] Frase de abertura no texto final:', finalText.split('\n')[0]);
-  
-  // VALIDAÇÃO FINAL ABSOLUTA: NUNCA truncar abertura
-  if (finalText.length > CHAR_LIMITS.X) {
-    // Preservar primeira linha (abertura) e truncar apenas o resto
-    const contentLines = content.split('\n');
-    const openingLine = contentLines[0] || ''; // Primeira linha (frase de abertura)
-    const restOfContent = contentLines.slice(1).join('\n'); // Resto do conteúdo
-    
-    const linkPart = '\n' + linkLine;
-    const openingWithNewline = openingLine + '\n';
-    const maxRestLength = CHAR_LIMITS.X - linkPart.length - openingWithNewline.length - 3;
-    
-    if (maxRestLength > 0 && restOfContent.length > maxRestLength) {
-      // Truncar apenas o resto, mantendo abertura completa
-      const truncatedRest = restOfContent.substring(0, maxRestLength - 3) + '...';
-      return openingWithNewline + truncatedRest + linkPart;
-    } else {
-      // Se couber tudo, usar conteúdo completo
-      return finalText;
-    }
-  }
-  
   return finalText;
 }
 
