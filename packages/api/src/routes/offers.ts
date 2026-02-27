@@ -236,6 +236,79 @@ export async function offersRoutes(app: FastifyInstance) {
     }
   });
 
+  // GET /offers/niches - Listar nichos para filtros
+  app.get('/niches', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const niches = await prisma.niche.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          icon: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      return { data: niches };
+    } catch (error: any) {
+      console.error('[Offers/niches] Erro:', error?.message || error);
+      if (error?.code === 'P2021') {
+        return reply.status(500).send({
+          error: {
+            code: 'DB_TABLE_MISSING',
+            message: 'Tabela Niche não existe. Execute: npx prisma migrate deploy',
+          },
+        });
+      }
+      if (error?.message?.includes('connect') || error?.message?.includes('Connection')) {
+        return reply.status(503).send({
+          error: {
+            code: 'DB_CONNECTION',
+            message: 'Banco de dados indisponível. Verifique DATABASE_URL.',
+          },
+        });
+      }
+      return sendError(reply, error);
+    }
+  });
+
+  // GET /offers/stores - Listar lojas para filtros
+  app.get('/stores', { preHandler: [authGuard] }, async (request, reply) => {
+    try {
+      const stores = await prisma.store.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+        orderBy: { name: 'asc' },
+      });
+
+      return { data: stores };
+    } catch (error: any) {
+      console.error('[Offers/stores] Erro:', error?.message || error);
+      if (error?.code === 'P2021') {
+        return reply.status(500).send({
+          error: {
+            code: 'DB_TABLE_MISSING',
+            message: 'Tabela Store não existe. Execute: npx prisma migrate deploy',
+          },
+        });
+      }
+      if (error?.message?.includes('connect') || error?.message?.includes('Connection')) {
+        return reply.status(503).send({
+          error: {
+            code: 'DB_CONNECTION',
+            message: 'Banco de dados indisponível. Verifique DATABASE_URL.',
+          },
+        });
+      }
+      return sendError(reply, error);
+    }
+  });
+
   // GET /offers/:id
   app.get('/:id', { preHandler: [authGuard] }, async (request, reply) => {
     try {
@@ -714,79 +787,6 @@ export async function offersRoutes(app: FastifyInstance) {
         },
       };
     } catch (error: any) {
-      return sendError(reply, error);
-    }
-  });
-
-  // GET /offers/niches - Listar nichos para filtros
-  app.get('/niches', { preHandler: [authGuard] }, async (request, reply) => {
-    try {
-      const niches = await prisma.niche.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          icon: true,
-        },
-        orderBy: { name: 'asc' },
-      });
-
-      return { data: niches };
-    } catch (error: any) {
-      console.error('[Offers/niches] Erro:', error?.message || error);
-      if (error?.code === 'P2021') {
-        return reply.status(500).send({
-          error: {
-            code: 'DB_TABLE_MISSING',
-            message: 'Tabela Niche não existe. Execute: npx prisma migrate deploy',
-          },
-        });
-      }
-      if (error?.message?.includes('connect') || error?.message?.includes('Connection')) {
-        return reply.status(503).send({
-          error: {
-            code: 'DB_CONNECTION',
-            message: 'Banco de dados indisponível. Verifique DATABASE_URL.',
-          },
-        });
-      }
-      return sendError(reply, error);
-    }
-  });
-
-  // GET /offers/stores - Listar lojas para filtros
-  app.get('/stores', { preHandler: [authGuard] }, async (request, reply) => {
-    try {
-      const stores = await prisma.store.findMany({
-        where: { isActive: true },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-        orderBy: { name: 'asc' },
-      });
-
-      return { data: stores };
-    } catch (error: any) {
-      console.error('[Offers/stores] Erro:', error?.message || error);
-      if (error?.code === 'P2021') {
-        return reply.status(500).send({
-          error: {
-            code: 'DB_TABLE_MISSING',
-            message: 'Tabela Store não existe. Execute: npx prisma migrate deploy',
-          },
-        });
-      }
-      if (error?.message?.includes('connect') || error?.message?.includes('Connection')) {
-        return reply.status(503).send({
-          error: {
-            code: 'DB_CONNECTION',
-            message: 'Banco de dados indisponível. Verifique DATABASE_URL.',
-          },
-        });
-      }
       return sendError(reply, error);
     }
   });
