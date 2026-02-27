@@ -60,15 +60,37 @@ export async function scraperRoutes(app: FastifyInstance) {
 
       console.log('[Scraper] Loja detectada:', store);
 
-      // Validar se é uma página de produto (não página de rede social, etc)
-      if (store === 'mercadolivre' && (urlLower.includes('/social/') || urlLower.includes('/perfil/'))) {
-        return reply.status(400).send({
-          success: false,
-          error: {
-            code: 'INVALID_PRODUCT_PAGE',
-            message: 'Esta URL não é uma página de produto. Por favor, forneça a URL direta do produto no Mercado Livre.',
-          },
-        });
+      // Se for URL de compartilhamento/social do ML, seguir o redirect para obter a URL real do produto
+      let resolvedUrl = url;
+      if (store === 'mercadolivre' && (urlLower.includes('/social/') || urlLower.includes('/s/') || urlLower.includes('mlgo.to'))) {
+        try {
+          console.log('[Scraper] URL de compartilhamento detectada, seguindo redirect...');
+          const redirectRes = await axios.get(url, {
+            maxRedirects: 10,
+            timeout: 10000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36' },
+            validateStatus: () => true,
+          });
+          // axios armazena a URL final em request.res.responseUrl
+          const finalUrl: string = (redirectRes.request as any)?.res?.responseUrl || url;
+          console.log('[Scraper] URL final após redirect:', finalUrl);
+          if (finalUrl && finalUrl !== url) {
+            resolvedUrl = finalUrl;
+          }
+        } catch (redirectErr: any) {
+          console.warn('[Scraper] Falha ao seguir redirect:', redirectErr.message);
+        }
+        // Se ainda continua sendo URL social após tentativa de resolução, rejeitar
+        if (resolvedUrl.toLowerCase().includes('/social/')) {
+          return reply.status(400).send({
+            success: false,
+            error: {
+              code: 'INVALID_PRODUCT_PAGE',
+              message: 'Esta URL não é uma página de produto. Por favor, forneça a URL direta do produto no Mercado Livre.',
+            },
+          });
+        }
+        console.log('[Scraper] Usando URL resolvida:', resolvedUrl);
       }
 
       let productData: any = {};
@@ -96,9 +118,9 @@ export async function scraperRoutes(app: FastifyInstance) {
         });
         const page = await context.newPage();
 
-        // Navegar para a página
+        // Navegar para a página (usar resolvedUrl se foi redirecionado de URL social)
         console.log('[Scraper] Usando Playwright...');
-        await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForTimeout(2000);
 
         // Verificar se a página carregou corretamente
@@ -148,7 +170,7 @@ export async function scraperRoutes(app: FastifyInstance) {
         // Fallback: usar Cheerio (HTTP scraping)
         try {
           console.log('[Scraper] Usando Cheerio (HTTP scraping)...');
-          const response = await axios.get(url, {
+          const response = await axios.get(resolvedUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -187,8 +209,8 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o preço do produto.');
         }
 
-        // Adicionar URL original
-        productData.affiliateUrl = url;
+        // Adicionar URL original (ou a resolvida se veio de link social)
+        productData.affiliateUrl = resolvedUrl;
 
         console.log('[Scraper] Dados extraídos:', {
           title: productData.title?.substring(0, 50),
