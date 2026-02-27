@@ -48,6 +48,9 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const errorMessage = data?.error?.message || data?.message || 'Email ou senha incorretos';
+        if (response.status === 500) {
+          throw new Error(`${errorMessage}. Verifique se o banco está conectado e execute "npm run db:seed" em packages/api.`);
+        }
         throw new Error(errorMessage);
       }
 
@@ -137,7 +140,7 @@ export default function LoginPage() {
             {/* Botão para preencher automaticamente */}
             <button
               type="button"
-              onClick={() => setForm({ email: 'admin@example.com', password: 'password' })}
+              onClick={() => setForm({ email: 'admin@local.dev', password: 'admin123' })}
               className="w-full text-sm text-blue-600 hover:text-blue-700 underline"
             >
               Usar credenciais padrão
@@ -166,10 +169,13 @@ export default function LoginPage() {
               📋 Credenciais padrão:
             </p>
             <p className="text-xs text-gray-500 font-mono">
-              Email: admin@example.com
+              Email: admin@local.dev
             </p>
             <p className="text-xs text-gray-500 font-mono">
-              Senha: password
+              Senha: admin123
+            </p>
+            <p className="text-xs text-amber-600 mt-2">
+              Execute &quot;npm run db:seed&quot; em packages/api se não tiver usuários.
             </p>
           </div>
         </div>

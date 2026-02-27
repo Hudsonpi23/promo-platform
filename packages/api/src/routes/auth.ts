@@ -57,6 +57,7 @@ export async function authRoutes(app: FastifyInstance) {
         },
       };
     } catch (error: any) {
+      console.error('[Auth] Erro no login:', error?.message || error);
       if (error.name === 'ZodError') {
         return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
       }

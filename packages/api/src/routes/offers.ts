@@ -734,6 +734,23 @@ export async function offersRoutes(app: FastifyInstance) {
 
       return { data: niches };
     } catch (error: any) {
+      console.error('[Offers/niches] Erro:', error?.message || error);
+      if (error?.code === 'P2021') {
+        return reply.status(500).send({
+          error: {
+            code: 'DB_TABLE_MISSING',
+            message: 'Tabela Niche não existe. Execute: npx prisma migrate deploy',
+          },
+        });
+      }
+      if (error?.message?.includes('connect') || error?.message?.includes('Connection')) {
+        return reply.status(503).send({
+          error: {
+            code: 'DB_CONNECTION',
+            message: 'Banco de dados indisponível. Verifique DATABASE_URL.',
+          },
+        });
+      }
       return sendError(reply, error);
     }
   });
@@ -753,6 +770,23 @@ export async function offersRoutes(app: FastifyInstance) {
 
       return { data: stores };
     } catch (error: any) {
+      console.error('[Offers/stores] Erro:', error?.message || error);
+      if (error?.code === 'P2021') {
+        return reply.status(500).send({
+          error: {
+            code: 'DB_TABLE_MISSING',
+            message: 'Tabela Store não existe. Execute: npx prisma migrate deploy',
+          },
+        });
+      }
+      if (error?.message?.includes('connect') || error?.message?.includes('Connection')) {
+        return reply.status(503).send({
+          error: {
+            code: 'DB_CONNECTION',
+            message: 'Banco de dados indisponível. Verifique DATABASE_URL.',
+          },
+        });
+      }
       return sendError(reply, error);
     }
   });
