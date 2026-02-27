@@ -336,42 +336,32 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
   console.log('[Twitter] Frase de abertura:', text.split('\n')[0]);
   console.log('[Twitter] Texto tem emoji?', /[\u{1F300}-\u{1F9FF}]|🔥|👀|🎬|😤|⚽|😂|📺|😡|🎮|💕|😱|🎉|🎯|👑|💎|⭐|💰|💵|🍎|🌟|💪|⚡/u.test(text));
 
-  // Validar tamanho do tweet (máx 280 caracteres)
-  // OBRIGATÓRIO: Sempre manter preço e desconto, mesmo que precise remover abertura
-  if (text.length > 280) {
-    console.warn('[Twitter] ⚠️ Tweet muito longo, truncando...');
-    const lines = text.split('\n');
-    const link = lines[lines.length - 1] || '';
-    const linkPart = '\n' + link;
-    
-    // Tentar encontrar linha com preço (geralmente contém "De", "Por", "R$")
-    const priceLine = lines.find(line => 
-      line.includes('R$') || 
-      line.toLowerCase().includes('de ') || 
-      line.toLowerCase().includes('por ') ||
-      line.includes('% OFF')
-    );
-    
-    if (priceLine) {
-      // Se tem linha de preço, manter ela + link (remover abertura se necessário)
-      const priceWithLink = priceLine + linkPart;
-      if (priceWithLink.length <= 280) {
-        text = priceWithLink;
-        console.log('[Twitter] Texto truncado mantendo preço:', text);
-      } else {
-        // Se ainda não couber, manter apenas preço sem link (link será adicionado depois)
-        text = priceLine;
-        console.log('[Twitter] Texto truncado para apenas preço:', text);
-      }
+  // Twitter encurta toda URL para 23 chars (t.co) — calcular tamanho real considerando isso
+  const TWITTER_URL_LENGTH = 23;
+  const lines = text.split('\n');
+  const lastLine = lines[lines.length - 1] || '';
+  const isLastLineUrl = lastLine.startsWith('http');
+  const effectiveLength = isLastLineUrl
+    ? (text.length - lastLine.length + TWITTER_URL_LENGTH)
+    : text.length;
+
+  if (effectiveLength > 280) {
+    console.warn('[Twitter] ⚠️ Tweet efetivamente longo (' + effectiveLength + ' chars), ajustando...');
+    // Manter gancho (primeira linha) + preço + link — nunca descartar o gancho
+    const link = isLastLineUrl ? lastLine : '';
+    const contentLines = lines.filter((l, i) => !(i === lines.length - 1 && isLastLineUrl) && l.trim().length > 0);
+    const hookLine = contentLines[0] || '';
+    const priceLine = contentLines.find(l =>
+      l.includes('R$') || l.toLowerCase().includes('por ') || l.includes('% OFF')
+    ) || contentLines[contentLines.length - 1] || '';
+
+    const candidate = hookLine + '\n' + priceLine + (link ? '\n\n' + link : '');
+    if (candidate.length - (link.length) + TWITTER_URL_LENGTH <= 280) {
+      text = candidate;
     } else {
-      // Fallback: truncar mantendo abertura + link (mas avisar que preço foi perdido)
-      const opening = lines[0] || '';
-      const maxContentLength = 280 - link.length - 3;
-      const truncatedContent = opening.substring(0, Math.max(20, maxContentLength - 3)) + '...';
-      text = truncatedContent + linkPart;
-      console.warn('[Twitter] ⚠️ ATENÇÃO: Preço foi removido no truncamento!');
-      console.log('[Twitter] Texto truncado:', text);
+      text = hookLine + (link ? '\n\n' + link : '');
     }
+    console.log('[Twitter] Texto ajustado:', text.substring(0, 100));
   }
 
   const url = `${TWITTER_API_BASE}/tweets`;

@@ -1543,12 +1543,11 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   }
 
   console.log('[generateXCopy] Gancho de vendas (X):', opening);
-  
-  // Calcular espaço disponível (280 - link - quebras de linha - margem de segurança)
-  // Link geralmente tem ~50-60 caracteres, deixar ~220 para conteúdo
-  const linkLength = link.length;
-  const reservedSpace = linkLength + 3; // link + quebras de linha
-  const maxContentLength = CHAR_LIMITS.X - reservedSpace - 10; // margem de segurança
+
+  // Twitter encurta TODA URL para 23 chars (t.co) - usar 23 fixo no cálculo
+  const TWITTER_URL_LENGTH = 23;
+  const reservedSpace = TWITTER_URL_LENGTH + 3; // url encurtada + quebras de linha
+  const maxContentLength = CHAR_LIMITS.X - reservedSpace - 5; // margem de segurança
   
   // Título muito curto para X (máximo 40 caracteres)
   // Twitter/X: manter texto normal (não em maiúsculas)
