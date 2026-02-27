@@ -773,6 +773,40 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
   ],
 };
 
+// ==================== FRASES DE VENDAS PARA X/TWITTER ====================
+// Ganhos de alto impacto, curtas, que geram curiosidade e urgência real
+const X_SALES_HOOKS = [
+  'Como assim tão barato?! 😱',
+  'Isso você não pode perder! 🔥',
+  'Alguém me explica esse preço 👀',
+  'Tá mais barato do que devia 💸',
+  'Não acredito nesse preço 😳',
+  'Corre antes que acabe! ⚡',
+  'Esse desconto é sério?! 🤯',
+  'Achei e vim avisar 📢',
+  'Tá barato demais pra ignorar 😤',
+  'Pode confiar, vale muito 👌',
+  'Que desconto é esse meu Deus 🙏',
+  'Quem precisava, chegou a hora ⏰',
+  'Raramente aparece assim 💎',
+  'Olha o preço disso! 👇',
+  'Comprei e vim recomendar ✅',
+  'Desconto que não volta 🚫',
+  'Ainda tem! Corre! 🏃',
+  'Esse tá rindo do concorrente 😂',
+  'Preço de liquidação, produto top 🏆',
+  'Tá dando de graça praticamente 💰',
+];
+
+// Frases de vendas com desconto explícito (para quando há % de desconto)
+const X_DISCOUNT_HOOKS = [
+  (pct: number) => `${pct}% de desconto?! Isso é real 🤯`,
+  (pct: number) => `Baixou ${pct}%! Corre 🔥`,
+  (pct: number) => `${pct}% OFF e ainda tá em estoque 😱`,
+  (pct: number) => `Tá com ${pct}% de desconto, acredite ⚡`,
+  (pct: number) => `Quase metade do preço (-${pct}%) 💸`,
+];
+
 // Templates de preço em MAIÚSCULAS
 const PRICE_TEMPLATES = [
   (old: string, now: string) => `DE ${old} POR ${now}`,
@@ -1483,32 +1517,32 @@ function generateSiteCopy(input: CopyInputData, seed: number): string {
 }
 
 /**
- * Gera copy para X/Twitter (≤ 280 caracteres) - TUDO EM MAIÚSCULAS + EMOJIS
- * IMPORTANTE: X/Twitter tem limite de 280 caracteres, precisa ser bem curto
+ * Gera copy para X/Twitter (≤ 280 caracteres)
+ * Estratégia: gancho de vendas + produto curto + preço + link
  */
 function generateXCopy(input: CopyInputData, seed: number): string {
   const priceNow = formatPrice(input.price);
   const link = input.trackingUrl;
   const discountEmoji = getDiscountEmoji(input.discountPct, input.title);
-  
-  // 🔥 X/Twitter: garantir SEMPRE frase sarcástica específica do produto se existir
-  // Tentar pegar frase específica direto (mais agressivo do que generateOpening)
-  const productPhraseForX = getProductSpecificPhrase(input.title, true);
-  
-  // Se tiver frase específica, usar ela como abertura. Senão, usar generateOpening normal.
-  // Twitter/X: manter texto normal (não em maiúsculas)
-  const openingBase = productPhraseForX
-    ? productPhraseForX // Removido .toUpperCase()
-    : generateOpening(input, seed, 2000); // Canal X: offset 2000
-  
-  // LOG: Verificar se a frase foi gerada corretamente
-  console.log('[generateXCopy] Frase de abertura gerada (X):', openingBase);
-  console.log(
-    '[generateXCopy] Frase tem emoji?',
-    /[\u{1F300}-\u{1F9FF}]|🔥|👀|🎬|😤|⚽|😂|📺|😡|🎮|💕|😱|🎉|🎯|👑|💎|⭐|💰|💵|🍎|🌟|💪|⚡/u.test(openingBase)
-  );
-  
-  const opening = openingBase;
+
+  // Gancho de vendas: usar frase de desconto se houver % expressivo, senão gancho geral
+  let opening: string;
+  const discountPct = Math.round(input.discountPct || 0);
+
+  if (discountPct >= 20 && X_DISCOUNT_HOOKS.length > 0) {
+    // 50% chance de usar frase de desconto, 50% gancho geral
+    const usePctHook = (seed % 2 === 0);
+    if (usePctHook) {
+      const hookFn = pickRandom(X_DISCOUNT_HOOKS, seed);
+      opening = hookFn(discountPct);
+    } else {
+      opening = pickRandom(X_SALES_HOOKS, seed);
+    }
+  } else {
+    opening = pickRandom(X_SALES_HOOKS, seed);
+  }
+
+  console.log('[generateXCopy] Gancho de vendas (X):', opening);
   
   // Calcular espaço disponível (280 - link - quebras de linha - margem de segurança)
   // Link geralmente tem ~50-60 caracteres, deixar ~220 para conteúdo
