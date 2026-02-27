@@ -197,6 +197,10 @@ export async function offersRoutes(app: FastifyInstance) {
       if (error.name === 'ZodError') {
         return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
       }
+      if (error?.message?.includes('connect') || error?.message?.includes('Connection') || !process.env.DATABASE_URL) {
+        return reply.status(503).send({ error: { code: 'DB_CONNECTION', message: 'Banco de dados indisponível. Configure DATABASE_URL no Render.' } });
+      }
+      console.error('[POST /offers] Erro:', error?.message, error?.code);
       return sendError(reply, error);
     }
   });

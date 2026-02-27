@@ -94,12 +94,35 @@ async function main() {
   });
 
   // Health check
-  server.get('/health', async () => {
-    return { 
-      status: 'ok', 
+  server.get('/health', async (request, reply) => {
+    const dbUrl = process.env.DATABASE_URL;
+    let dbStatus = 'unknown';
+    let dbError: string | undefined;
+
+    if (!dbUrl) {
+      dbStatus = 'not_configured';
+      dbError = 'DATABASE_URL not set';
+    } else {
+      try {
+        const { PrismaClient } = await import('@prisma/client');
+        const testPrisma = new PrismaClient();
+        await testPrisma.$queryRaw`SELECT 1`;
+        await testPrisma.$disconnect();
+        dbStatus = 'connected';
+      } catch (e: any) {
+        dbStatus = 'error';
+        dbError = e.message;
+      }
+    }
+
+    const status = dbStatus === 'connected' ? 200 : 503;
+    return reply.status(status).send({ 
+      status: dbStatus === 'connected' ? 'ok' : 'degraded',
+      db: dbStatus,
+      ...(dbError && { dbError }),
       timestamp: new Date().toISOString(),
       version: '1.0.0',
-    };
+    });
   });
 
   // Setup/Seed - Criar usuário admin (endpoint público temporário)
