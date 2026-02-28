@@ -6,6 +6,94 @@ import { sendError, Errors } from '../lib/errors.js';
 import { processOffer, calculateScore } from '../services/offerScoring.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
 
+// ── Mapeamento de palavras-chave → slug de nicho ──────────────────────────────
+// Ordem importa: os nichos mais específicos devem vir ANTES dos genéricos
+const NICHE_KEYWORDS: Record<string, string[]> = {
+  livros: [
+    'livro', 'book', 'harry potter', 'romance', 'novel', 'coleção', 'saga',
+    'literatura', 'editora', 'edição', 'bíblia', 'poesia', 'conto', 'devocional',
+    'almanaque', 'enciclopédia', 'mangá', 'hq', 'quadrinho', 'rowling',
+    'tolkien', 'autobiografia', 'biografia', 'autoajuda', 'espiritismo',
+  ],
+  games: [
+    'game', 'jogo', 'videogame', 'console', 'playstation', 'xbox', 'nintendo',
+    'controle gamer', 'joystick', 'gamer', 'ps4', 'ps5', 'switch', 'gaming',
+    'headset gamer', 'cadeira gamer', 'rgb gamer', 'pc gamer',
+  ],
+  esportes: [
+    'futebol', 'chuteira', 'bola de futebol', 'uniforme esportivo',
+    'academia', 'musculação', 'haltere', 'anilha', 'barra de treino',
+    'corrida', 'tênis esportivo', 'natação', 'óculos de natação',
+    'bike', 'bicicleta', 'patins', 'skate',
+    'fitness', 'treino', 'suplemento esportivo', 'whey', 'creatina',
+  ],
+  beleza: [
+    'maquiagem', 'batom', 'perfume', 'colônia', 'desodorante',
+    'shampoo', 'condicionador', 'máscara capilar', 'escova', 'babyliss',
+    'skincare', 'hidratante', 'protetor solar', 'sérum', 'base', 'blush',
+    'esmalte', 'removedor de esmalte', 'unhas', 'depilação',
+    'creme para o rosto', 'tônico facial', 'kit de maquiagem',
+  ],
+  casa: [
+    'quadro', 'quadros', 'decorativo', 'decoração', 'decorativos',
+    'cama', 'colchão', 'travesseiro', 'cobertor', 'lençol', 'edredom',
+    'sofá', 'poltrona', 'mesa de jantar', 'mesa de escritório',
+    'cadeira', 'armário', 'guarda-roupa', 'estante', 'prateleira',
+    'geladeira', 'fogão', 'micro-ondas', 'forno elétrico',
+    'cafeteira', 'liquidificador', 'batedeira', 'air fryer', 'fritadeira',
+    'panela', 'frigideira', 'chaleira', 'jarra', 'garrafa termica',
+    'garrafa térmica', 'copo térmico', 'pote', 'vasilha',
+    'vassoura', 'rodo', 'mop', 'tapete', 'capacho',
+    'luminária', 'abajur', 'espelho', 'porta-retrato',
+    'organizador', 'cabide', 'cesto', 'caixa organizadora',
+    'ventilador', 'climatizador', 'ar condicionado',
+  ],
+  moda: [
+    'camiseta', 'camisa', 'calça', 'bermuda', 'short', 'vestido', 'saia',
+    'blusa', 'regata', 'moletom', 'jaqueta', 'casaco', 'sobretudo',
+    'meias', 'meia', 'cueca', 'sutiã', 'calcinha', 'boxer', 'pijama',
+    'sapato', 'sandália', 'chinelo', 'tênis casual', 'bota', 'sapatilha',
+    'bolsa', 'mochila', 'carteira', 'cinto', 'óculos de sol',
+    'roupa infantil', 'roupa feminina', 'roupa masculina', 'roupa bebê',
+    'conjunto', 'kit pares meias', 'kit meias',
+  ],
+  mercado: [
+    'alimento', 'comida', 'bebida', 'café solúvel', 'leite condensado',
+    'suco', 'óleo de cozinha', 'arroz', 'feijão', 'macarrão',
+    'biscoito', 'snack', 'vitamina', 'proteína em pó',
+    'tempero', 'molho', 'conserva', 'enlatado',
+  ],
+  eletronicos: [
+    'celular', 'smartphone', 'iphone', 'notebook', 'computador',
+    'tv ', 'televisão', 'smart tv', 'tablet', 'ipad',
+    'fone de ouvido', 'headphone', 'earphone', 'câmera', 'câmera fotográfica',
+    'impressora', 'monitor', 'teclado', 'mouse', 'hd externo', 'ssd',
+    'processador', 'placa de vídeo', 'roteador', 'carregador', 'pendrive',
+    'smartwatch', 'relógio inteligente', 'caixa de som', 'soundbar',
+    'projetor', 'drone', 'leitor de cartão',
+  ],
+};
+
+/** Detecta o slug do nicho mais adequado a partir do título do produto */
+function detectNicheSlug(title: string): string | null {
+  const t = title.toLowerCase();
+  for (const [slug, keywords] of Object.entries(NICHE_KEYWORDS)) {
+    if (keywords.some(kw => t.includes(kw))) return slug;
+  }
+  return null;
+}
+
+/** Resolve o nicheId a partir do título, consultando os nichos do banco */
+async function resolveNicheIdFromTitle(title: string): Promise<string | null> {
+  const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
+  const slug = detectNicheSlug(title);
+  if (slug) {
+    const matched = allNiches.find(n => n.slug === slug);
+    if (matched) return matched.id;
+  }
+  return allNiches[0]?.id || null;
+}
+
 export async function offersRoutes(app: FastifyInstance) {
   // GET /offers - Listar ofertas com filtros
   app.get('/', { preHandler: [authGuard] }, async (request, reply) => {
@@ -89,39 +177,7 @@ export async function offersRoutes(app: FastifyInstance) {
 
       // Se nicheId não definido, detectar automaticamente pelo título
       if (!nicheId && body.title) {
-        const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
-        const titleLower = body.title.toLowerCase();
-
-        // Mapeamento de palavras-chave → slug do nicho
-        const nicheKeywords: Record<string, string[]> = {
-          livros:     ['livro', 'book', 'harry potter', 'romance', 'novel', 'coleção', 'saga', 'literatura', 'editora', 'edição', 'autor', 'bíblia', 'poesia', 'conto'],
-          games:      ['game', 'jogo', 'videogame', 'console', 'playstation', 'xbox', 'nintendo', 'controle', 'joystick', 'gamer', 'ps4', 'ps5', 'switch', 'gaming'],
-          esportes:   ['futebol', 'bola', 'tênis', 'esporte', 'academia', 'treino', 'fitness', 'musculação', 'corrida', 'natação', 'chuteira', 'uniforme', 'bike', 'bicicleta', 'caminhada'],
-          beleza:     ['maquiagem', 'batom', 'perfume', 'creme', 'shampoo', 'condicionador', 'skincare', 'hidratante', 'protetor solar', 'sérum', 'base', 'blush', 'esmalte', 'cabelo', 'unhas'],
-          casa:       ['cama', 'mesa', 'sofá', 'cadeira', 'armário', 'geladeira', 'fogão', 'micro-ondas', 'liquidificador', 'panela', 'cozinha', 'banheiro', 'colchão', 'travesseiro', 'cobertor', 'decoração', 'vassoura', 'tapete'],
-          moda:       ['roupa', 'camisa', 'camiseta', 'calça', 'vestido', 'saia', 'blusa', 'jaqueta', 'casaco', 'tênis', 'sapato', 'sandália', 'bolsa', 'mochila', 'meias', 'cueca', 'sutiã', 'pijama'],
-          mercado:    ['alimento', 'comida', 'bebida', 'café', 'leite', 'suco', 'óleo', 'arroz', 'feijão', 'macarrão', 'chocolate', 'biscoito', 'snack', 'proteína', 'suplemento', 'vitamina'],
-          eletronicos: ['celular', 'smartphone', 'notebook', 'computador', 'tv', 'televisão', 'tablet', 'fone', 'headphone', 'câmera', 'impressora', 'monitor', 'teclado', 'mouse', 'hd', 'ssd', 'processador', 'placa', 'roteador', 'carregador', 'bateria', 'pendrive', 'relógio digital', 'smartwatch'],
-        };
-
-        let detectedSlug: string | null = null;
-        for (const [slug, keywords] of Object.entries(nicheKeywords)) {
-          if (keywords.some(kw => titleLower.includes(kw))) {
-            detectedSlug = slug;
-            break;
-          }
-        }
-
-        if (detectedSlug) {
-          const matched = allNiches.find(n => n.slug === detectedSlug);
-          if (matched) nicheId = matched.id;
-        }
-
-        // Fallback: primeiro nicho ativo
-        if (!nicheId) {
-          const first = allNiches[0];
-          nicheId = first?.id || null;
-        }
+        nicheId = await resolveNicheIdFromTitle(body.title);
       } else if (!nicheId) {
         const firstNiche = await prisma.niche.findFirst({ where: { isActive: true } });
         nicheId = firstNiche?.id || null;
@@ -1007,6 +1063,42 @@ export async function offersRoutes(app: FastifyInstance) {
       });
     } catch (error: any) {
       console.error('[Debug] Erro ao gerar texto de debug:', error);
+      return sendError(reply, error);
+    }
+  });
+
+  // POST /offers/fix-niches — Corrige o nicho de TODAS as ofertas existentes baseado no título
+  app.post('/fix-niches', { preHandler: [authGuard] }, async (_request, reply) => {
+    try {
+      const offers = await prisma.offer.findMany({
+        select: { id: true, title: true },
+      });
+
+      const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
+      let updated = 0;
+      let skipped = 0;
+
+      for (const offer of offers) {
+        const slug = detectNicheSlug(offer.title);
+        if (!slug) { skipped++; continue; }
+        const matched = allNiches.find(n => n.slug === slug);
+        if (!matched) { skipped++; continue; }
+        await prisma.offer.update({
+          where: { id: offer.id },
+          data: { nicheId: matched.id },
+        });
+        updated++;
+      }
+
+      return reply.send({
+        success: true,
+        total: offers.length,
+        updated,
+        skipped,
+        message: `✅ ${updated} ofertas corrigidas, ${skipped} sem correspondência (mantidas como estão)`,
+      });
+    } catch (error: any) {
+      console.error('[fix-niches] Erro:', error);
       return sendError(reply, error);
     }
   });
