@@ -1067,35 +1067,42 @@ export async function offersRoutes(app: FastifyInstance) {
     }
   });
 
-  // POST /offers/fix-niches — Corrige o nicho de TODAS as ofertas existentes baseado no título
-  app.post('/fix-niches', { preHandler: [authGuard] }, async (_request, reply) => {
+  // POST /offers/fix-niches — Corrige o nicho de TODAS as Offer + PublishedPost baseado no título
+  app.post('/fix-niches', async (_request, reply) => {
     try {
-      const offers = await prisma.offer.findMany({
-        select: { id: true, title: true },
-      });
-
       const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
-      let updated = 0;
+      let updatedOffers = 0;
+      let updatedPosts = 0;
       let skipped = 0;
 
+      // 1. Corrigir tabela Offer
+      const offers = await prisma.offer.findMany({ select: { id: true, title: true } });
       for (const offer of offers) {
         const slug = detectNicheSlug(offer.title);
         if (!slug) { skipped++; continue; }
         const matched = allNiches.find(n => n.slug === slug);
         if (!matched) { skipped++; continue; }
-        await prisma.offer.update({
-          where: { id: offer.id },
-          data: { nicheId: matched.id },
-        });
-        updated++;
+        await prisma.offer.update({ where: { id: offer.id }, data: { nicheId: matched.id } });
+        updatedOffers++;
+      }
+
+      // 2. Corrigir tabela PublishedPost (que alimenta o site público)
+      const posts = await prisma.publishedPost.findMany({ select: { id: true, title: true } });
+      for (const post of posts) {
+        const slug = detectNicheSlug(post.title);
+        if (!slug) continue;
+        const matched = allNiches.find(n => n.slug === slug);
+        if (!matched) continue;
+        await prisma.publishedPost.update({ where: { id: post.id }, data: { nicheId: matched.id } });
+        updatedPosts++;
       }
 
       return reply.send({
         success: true,
-        total: offers.length,
-        updated,
+        updatedOffers,
+        updatedPosts,
         skipped,
-        message: `✅ ${updated} ofertas corrigidas, ${skipped} sem correspondência (mantidas como estão)`,
+        message: `✅ ${updatedOffers} Offers + ${updatedPosts} PublishedPosts corrigidos`,
       });
     } catch (error: any) {
       console.error('[fix-niches] Erro:', error);
