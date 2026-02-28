@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { PublicPost } from '@/lib/api';
 import { useRouter } from 'next/navigation';
@@ -143,13 +144,13 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
       {/* Imagem do produto */}
       {post.imageUrl && (
         <Link href={`/oferta/${slug}`} className="block">
-          <div className="w-full bg-gray-50 flex items-center justify-center overflow-hidden" style={{ height: featured ? '220px' : '180px' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+          <div className={`relative w-full bg-gray-50 overflow-hidden ${featured ? 'h-56' : 'h-44'}`}>
+            <Image
               src={post.imageUrl}
               alt={post.title}
-              className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
-              loading="lazy"
+              fill
+              className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 768px) 100vw, 33vw"
             />
           </div>
         </Link>
