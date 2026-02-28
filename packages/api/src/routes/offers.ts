@@ -84,13 +84,45 @@ export async function offersRoutes(app: FastifyInstance) {
       let nicheId = body.nicheId;
       if (nicheId) {
         const niche = await prisma.niche.findUnique({ where: { id: nicheId } });
-        if (!niche) {
-          // Se não existe, pegar o primeiro nicho disponível
-          const firstNiche = await prisma.niche.findFirst({ where: { isActive: true } });
-          nicheId = firstNiche?.id || null;
+        if (!niche) nicheId = null;
+      }
+
+      // Se nicheId não definido, detectar automaticamente pelo título
+      if (!nicheId && body.title) {
+        const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
+        const titleLower = body.title.toLowerCase();
+
+        // Mapeamento de palavras-chave → slug do nicho
+        const nicheKeywords: Record<string, string[]> = {
+          livros:     ['livro', 'book', 'harry potter', 'romance', 'novel', 'coleção', 'saga', 'literatura', 'editora', 'edição', 'autor', 'bíblia', 'poesia', 'conto'],
+          games:      ['game', 'jogo', 'videogame', 'console', 'playstation', 'xbox', 'nintendo', 'controle', 'joystick', 'gamer', 'ps4', 'ps5', 'switch', 'gaming'],
+          esportes:   ['futebol', 'bola', 'tênis', 'esporte', 'academia', 'treino', 'fitness', 'musculação', 'corrida', 'natação', 'chuteira', 'uniforme', 'bike', 'bicicleta', 'caminhada'],
+          beleza:     ['maquiagem', 'batom', 'perfume', 'creme', 'shampoo', 'condicionador', 'skincare', 'hidratante', 'protetor solar', 'sérum', 'base', 'blush', 'esmalte', 'cabelo', 'unhas'],
+          casa:       ['cama', 'mesa', 'sofá', 'cadeira', 'armário', 'geladeira', 'fogão', 'micro-ondas', 'liquidificador', 'panela', 'cozinha', 'banheiro', 'colchão', 'travesseiro', 'cobertor', 'decoração', 'vassoura', 'tapete'],
+          moda:       ['roupa', 'camisa', 'camiseta', 'calça', 'vestido', 'saia', 'blusa', 'jaqueta', 'casaco', 'tênis', 'sapato', 'sandália', 'bolsa', 'mochila', 'meias', 'cueca', 'sutiã', 'pijama'],
+          mercado:    ['alimento', 'comida', 'bebida', 'café', 'leite', 'suco', 'óleo', 'arroz', 'feijão', 'macarrão', 'chocolate', 'biscoito', 'snack', 'proteína', 'suplemento', 'vitamina'],
+          eletronicos: ['celular', 'smartphone', 'notebook', 'computador', 'tv', 'televisão', 'tablet', 'fone', 'headphone', 'câmera', 'impressora', 'monitor', 'teclado', 'mouse', 'hd', 'ssd', 'processador', 'placa', 'roteador', 'carregador', 'bateria', 'pendrive', 'relógio digital', 'smartwatch'],
+        };
+
+        let detectedSlug: string | null = null;
+        for (const [slug, keywords] of Object.entries(nicheKeywords)) {
+          if (keywords.some(kw => titleLower.includes(kw))) {
+            detectedSlug = slug;
+            break;
+          }
         }
-      } else {
-        // Se não fornecido, pegar o primeiro nicho
+
+        if (detectedSlug) {
+          const matched = allNiches.find(n => n.slug === detectedSlug);
+          if (matched) nicheId = matched.id;
+        }
+
+        // Fallback: primeiro nicho ativo
+        if (!nicheId) {
+          const first = allNiches[0];
+          nicheId = first?.id || null;
+        }
+      } else if (!nicheId) {
         const firstNiche = await prisma.niche.findFirst({ where: { isActive: true } });
         nicheId = firstNiche?.id || null;
       }
