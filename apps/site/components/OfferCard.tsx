@@ -130,7 +130,7 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
   };
 
   return (
-    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative p-4 ${featured ? 'md:p-5' : ''}`}>
+    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative overflow-hidden ${featured ? 'md:p-5' : ''}`}>
       {/* Badge de desconto */}
       {hasDiscount && (
         <div className="absolute -top-2 -right-2 z-10">
@@ -140,6 +140,22 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
         </div>
       )}
 
+      {/* Imagem do produto */}
+      {post.imageUrl && (
+        <Link href={`/oferta/${slug}`} className="block">
+          <div className="w-full bg-gray-50 flex items-center justify-center overflow-hidden" style={{ height: featured ? '220px' : '180px' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={post.imageUrl}
+              alt={post.title}
+              className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+            />
+          </div>
+        </Link>
+      )}
+
+      <div className="p-4">
       {/* Urgência */}
       {urgencyInfo && (
         <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${urgencyInfo.bg} ${urgencyInfo.text} mb-3`}>
@@ -223,22 +239,26 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
           )}
         </button>
       )}
+      </div>
     </article>
   );
 }
 
 export function OfferCardSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border-2 border-blue-100 p-4 animate-pulse">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="h-6 w-20 bg-blue-100 rounded-lg"></div>
-        <div className="h-4 w-16 bg-gray-100 rounded"></div>
+    <div className="bg-white rounded-2xl border-2 border-blue-100 overflow-hidden animate-pulse">
+      <div className="w-full h-44 bg-gray-100"></div>
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="h-6 w-20 bg-blue-100 rounded-lg"></div>
+          <div className="h-4 w-16 bg-gray-100 rounded"></div>
+        </div>
+        <div className="h-5 bg-gray-100 rounded mb-2"></div>
+        <div className="h-5 bg-gray-100 rounded w-3/4 mb-4"></div>
+        <div className="h-4 bg-gray-100 rounded w-1/3 mb-1"></div>
+        <div className="h-7 bg-blue-100 rounded w-1/2 mb-4"></div>
+        <div className="h-12 bg-blue-200 rounded-xl"></div>
       </div>
-      <div className="h-5 bg-gray-100 rounded mb-2"></div>
-      <div className="h-5 bg-gray-100 rounded w-3/4 mb-4"></div>
-      <div className="h-4 bg-gray-100 rounded w-1/3 mb-1"></div>
-      <div className="h-7 bg-blue-100 rounded w-1/2 mb-4"></div>
-      <div className="h-12 bg-blue-200 rounded-xl"></div>
     </div>
   );
 }
