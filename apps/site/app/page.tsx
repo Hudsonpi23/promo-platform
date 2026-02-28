@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { getPosts, getNiches, getHighlights, PublicPost, Niche } from '@/lib/api';
+import { getPosts, getNiches, getHighlights, PublicPost, Niche, FeedResponse, HighlightItem } from '@/lib/api';
 import { OfferCard } from '@/components/OfferCard';
 import { OfferGrid } from '@/components/OfferGrid';
 import { FiltersBar } from '@/components/FiltersBar';
@@ -27,7 +27,9 @@ interface PageProps {
 
 export default async function Home({ searchParams }: PageProps) {
   // Usar try-catch para evitar erros que causam loops
-  let postsData, niches, highlights;
+  let postsData: FeedResponse = { items: [], hasMore: false };
+  let niches: Niche[] = [];
+  let highlights: HighlightItem[] = [];
   try {
     [postsData, niches, highlights] = await Promise.all([
       getPosts({ 
