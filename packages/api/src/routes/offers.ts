@@ -1068,7 +1068,7 @@ export async function offersRoutes(app: FastifyInstance) {
   });
 
   // POST /offers/fix-niches — Corrige o nicho de TODAS as Offer + PublishedPost baseado no título
-  app.post('/fix-niches', async (_request, reply) => {
+  app.post('/fix-niches', { preHandler: [authGuard] }, async (_request, reply) => {
     try {
       const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
       let updatedOffers = 0;
