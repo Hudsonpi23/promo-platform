@@ -167,28 +167,40 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
   };
 
   // ── 2a: Preço Pix (preço final) ─────────────────────────────────────────
-  // Localiza "OFF no Pix" no HTML e extrai a fração/cents imediatamente antes.
-  const pixIdx = rawHtml.search(/OFF no Pix/i);
-  if (pixIdx > 0) {
-    const ctx = rawHtml.slice(Math.max(0, pixIdx - 600), pixIdx);
+  // A página de produto pode ter MÚLTIPLAS seções com "OFF no Pix"
+  // (ex: Loja Oficial Samsung E Melhor Preço). Coletamos TODOS e pegamos o MENOR.
+  const pixPrices: number[] = [];
+  for (const pixMatch of rawHtml.matchAll(/OFF no Pix/gi)) {
+    const idx = pixMatch.index ?? 0;
+    const ctx = rawHtml.slice(Math.max(0, idx - 600), idx);
     const fracs = [...ctx.matchAll(/andes-money-amount__fraction[^>]*>([\d.]+)<\/span>/gi)];
     if (fracs.length > 0) {
       const lastFrac = fracs[fracs.length - 1][1];
       const centsMatches = [...ctx.matchAll(/andes-money-amount__cents[^>]*>(\d{1,2})<\/span>/gi)];
       const lastCents = centsMatches.length > 0 ? centsMatches[centsMatches.length - 1][1] : '00';
-      finalPrice = parseMlFrac(lastFrac, lastCents);
-      console.log('[ML HTTP] Preço Pix via regex:', lastFrac, lastCents, '->', finalPrice);
+      const v = parseMlFrac(lastFrac, lastCents);
+      if (v > 0) pixPrices.push(v);
     }
+  }
+  if (pixPrices.length > 0) {
+    // Menor preço Pix = "Melhor preço" (não a loja oficial mais cara)
+    finalPrice = Math.min(...pixPrices);
+    console.log('[ML HTTP] Todos preços Pix encontrados:', pixPrices, '-> usando menor:', finalPrice);
   }
 
   // ── 2b: Preço riscado / original ─────────────────────────────────────────
-  // Busca andes-money-amount--previous (preço antes do desconto).
-  const prevMatch = rawHtml.match(
-    /andes-money-amount--previous[^<]*(?:<[^>]*>)*[^<]*andes-money-amount__fraction[^>]*>([\d.]+)<\/span>(?:[^<]*(?:<[^>]*>)*[^<]*andes-money-amount__cents[^>]*>(\d{1,2})<\/span>)?/i
-  );
-  if (prevMatch) {
-    originalPrice = parseMlFrac(prevMatch[1], prevMatch[2] || '00');
-    console.log('[ML HTTP] Preço riscado via regex:', prevMatch[1], prevMatch[2], '->', originalPrice);
+  // Pode haver múltiplos riscados (ex: R$3.499 Samsung + R$3.299 Melhor Preço).
+  // Pega o MENOR riscado — que é o do "Melhor preço".
+  const prevPrices: number[] = [];
+  for (const prevMatch of rawHtml.matchAll(
+    /andes-money-amount--previous[\s\S]{0,300}?andes-money-amount__fraction[^>]*>([\d.]+)<\/span>(?:[\s\S]{0,100}?andes-money-amount__cents[^>]*>(\d{1,2})<\/span>)?/gi
+  )) {
+    const v = parseMlFrac(prevMatch[1], prevMatch[2] || '00');
+    if (v > 0) prevPrices.push(v);
+  }
+  if (prevPrices.length > 0) {
+    originalPrice = Math.min(...prevPrices);
+    console.log('[ML HTTP] Todos preços riscados encontrados:', prevPrices, '-> usando menor:', originalPrice);
   }
 
   // ── 2c: Fallback CSS seletores ────────────────────────────────────────────
