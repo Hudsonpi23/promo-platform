@@ -98,8 +98,12 @@ export async function telegramRoutes(app: FastifyInstance) {
     console.log('  - finalPrice:', offer.finalPrice);
     console.log('  - originalPrice:', offer.originalPrice);
 
-    // Validar campos obrigatórios
-    if (!offer.title || !offer.finalPrice || !offer.affiliateUrl) {
+    // Validar campos obrigatórios (apenas título e preço — link é opcional)
+    const missingFields: string[] = [];
+    if (!offer.title) missingFields.push('Título');
+    if (!offer.finalPrice) missingFields.push('Preço Final');
+
+    if (missingFields.length > 0) {
       console.error('[Telegram] Campos obrigatórios faltando:', {
         hasTitle: !!offer.title,
         hasFinalPrice: !!offer.finalPrice,
@@ -107,8 +111,13 @@ export async function telegramRoutes(app: FastifyInstance) {
       });
       return reply.status(400).send({
         success: false,
-        error: 'Oferta incompleta: faltam campos obrigatórios (título, preço ou link)',
+        error: `Oferta incompleta: faltam os campos obrigatórios → ${missingFields.join(', ')}`,
       });
+    }
+
+    // Se não tiver link afiliado, logar aviso mas continuar
+    if (!offer.affiliateUrl) {
+      console.warn('[Telegram] Oferta sem link afiliado — post será enviado sem link de compra.');
     }
 
     // OBRIGATÓRIO: Gerar copy usando frases personalizadas em MAIÚSCULAS
@@ -135,7 +144,7 @@ export async function telegramRoutes(app: FastifyInstance) {
       
       // Link PRIMEIRO (garante preview do Telegram) - sempre em minúsculas
       const normalizedUrl = (offer.affiliateUrl || '').toLowerCase();
-      let fallbackText = `${normalizedUrl}\n\n`;
+      let fallbackText = normalizedUrl ? `${normalizedUrl}\n\n` : '';
       fallbackText += 'ACHADO NÃO É ROUBADO 🔥\n\n';
       fallbackText += `${offer.title.toUpperCase()}\n\n`;
       
