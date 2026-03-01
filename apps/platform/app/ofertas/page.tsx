@@ -107,14 +107,12 @@ export default function OfertasPage() {
       });
 
       // Preencher formulário automaticamente
-      // Se o scraper não retornar affiliateUrl, usar a própria URL colada (preserva params de afiliado)
-      const resolvedAffiliateUrl = productData.affiliateUrl || productUrl || '';
       setForm(prev => ({
         ...prev,
         title: productData.title || prev.title,
         finalPrice: formatPriceForInput(productData.finalPrice),
         originalPrice: formatPriceForInput(productData.originalPrice),
-        affiliateUrl: resolvedAffiliateUrl || prev.affiliateUrl,
+        affiliateUrl: productData.affiliateUrl || prev.affiliateUrl,
         mainImage: productData.mainImage || prev.mainImage,
         images: productData.images || prev.images,
       }));
@@ -129,11 +127,7 @@ export default function OfertasPage() {
         setGalleryPreviews(productData.images.slice(1)); // Pular a primeira (mainImage)
       }
 
-      if (data.partialData) {
-        alert(`⚠️ Título e imagem carregados!\n\n📦 ${productData.title}\n\nEste tipo de anúncio (página de catálogo) não permite extração automática de preços.\n\nInsira o Preço Original e o Preço Final manualmente.`);
-      } else {
-        alert(`✅ Dados extraídos com sucesso!\n\n📦 Produto: ${productData.title}\n💰 Preço: R$ ${productData.finalPrice}\n🏪 Loja: ${data.store}\n\nConfira os dados e adicione mais imagens se quiser!`);
-      }
+      alert(`✅ Dados extraídos com sucesso!\n\n📦 Produto: ${productData.title}\n💰 Preço: R$ ${productData.finalPrice}\n🏪 Loja: ${data.store}\n\nConfira os dados e adicione mais imagens se quiser!`);
 
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error);
@@ -867,7 +861,7 @@ export default function OfertasPage() {
                 type="text"
                 value={form.originalPrice}
                 onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
-                placeholder="Ex: 1.299,00 ou 1299,00"
+                placeholder="Ex: 483,18 ou 483.18"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -879,7 +873,7 @@ export default function OfertasPage() {
                 type="text"
                 value={form.finalPrice}
                 onChange={(e) => setForm({ ...form, finalPrice: e.target.value })}
-                placeholder="Ex: 999,90 ou 1.169,10"
+                placeholder="Ex: 256,41 ou 256.41"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>

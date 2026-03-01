@@ -110,41 +110,18 @@ export async function scraperRoutes(app: FastifyInstance) {
             '--no-first-run',
             '--no-zygote',
             '--disable-gpu',
-            '--single-process',                    // economiza memória no Render free tier
-            '--disable-extensions',
-            '--disable-background-networking',
-            '--disable-default-apps',
-            '--disable-sync',
-            '--disable-translate',
-            '--hide-scrollbars',
-            '--mute-audio',
-            '--disable-renderer-backgrounding',
-          ],
+          ], // Argumentos necessários para ambientes como Render
         });
 
         const context = await browser.newContext({
           userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          locale: 'pt-BR',
-          timezoneId: 'America/Sao_Paulo',
-          viewport: { width: 1366, height: 768 },
-          extraHTTPHeaders: {
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
-          },
         });
         const page = await context.newPage();
 
         // Navegar para a página (usar resolvedUrl se foi redirecionado de URL social)
         console.log('[Scraper] Usando Playwright...');
-        await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
-
-        // Esperar preços carregarem (ML renderiza via JS — pode demorar)
-        try {
-          await page.waitForSelector('.andes-money-amount__fraction', { timeout: 15000 });
-          await page.waitForTimeout(2500); // margem para Pix e seção "Melhor preço"
-        } catch {
-          console.warn('[Scraper] Seletor de preços não apareceu em 15s, continuando...');
-          await page.waitForTimeout(3000);
-        }
+        await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.waitForTimeout(2000);
 
         // Verificar se a página carregou corretamente
         const pageTitle = await page.title().catch(() => '');
@@ -177,8 +154,7 @@ export async function scraperRoutes(app: FastifyInstance) {
         }
 
       } catch (playwrightError: any) {
-        console.warn('[Scraper] Playwright falhou:', playwrightError.message);
-        console.warn('[Scraper] Stack:', playwrightError.stack?.substring(0, 300));
+        console.warn('[Scraper] Playwright falhou, tentando com Cheerio (HTTP):', playwrightError.message);
         usePlaywright = false;
         
         // Fechar navegador se ainda estiver aberto
@@ -207,7 +183,7 @@ export async function scraperRoutes(app: FastifyInstance) {
 
           // Scraping específico por loja usando Cheerio
           if (store === 'mercadolivre') {
-            productData = await scrapeMercadoLivreHTTP($, resolvedUrl);
+            productData = await scrapeMercadoLivreHTTP($);
           } else if (store === 'magalu') {
             productData = await scrapeMagaluHTTP($);
           } else if (store === 'amazon') {
@@ -229,23 +205,12 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o título do produto. A página pode não ser uma página de produto válida.');
         }
 
-        // Sempre preservar a URL como affiliateUrl (com parâmetros de rastreamento do afiliado)
-        productData.affiliateUrl = resolvedUrl;
-
-        // Dados parciais (catálogo ML): título e imagem foram extraídos, mas preços
-        // precisam ser inseridos manualmente. Retorna sucesso com flag partialData.
         if (!productData.finalPrice || productData.finalPrice <= 0) {
-          if (productData.partialData) {
-            // Retorna 200 com dados parciais — frontend mostrará aviso para preencher preços
-            return reply.send({
-              success: true,
-              partialData: true,
-              data: productData,
-              store,
-            });
-          }
           throw new Error('Não foi possível extrair o preço do produto.');
         }
+
+        // Adicionar URL original (ou a resolvida se veio de link social)
+        productData.affiliateUrl = resolvedUrl;
 
         console.log('[Scraper] Dados extraídos:', {
           title: productData.title?.substring(0, 50),
@@ -314,113 +279,56 @@ export async function scraperRoutes(app: FastifyInstance) {
 async function scrapeMercadoLivre(page: any) {
   console.log('[Scraper] Usando scraper do Mercado Livre...');
 
-  // ── Bloquear recursos desnecessários para acelerar carregamento ───────────
-  // Imagens, CSS e fontes não são necessários para extrair preços/título.
-  // Sem esse bloqueio, o ML carrega ~5-10MB de assets antes de mostrar preços.
-  await page.route('**/*', (route: any) => {
-    const type = route.request().resourceType();
-    if (['image', 'stylesheet', 'font', 'media', 'imageset'].includes(type)) {
-      route.abort();
-    } else {
-      route.continue();
-    }
-  });
-
-  // ── Interceptar chamadas de API do ML para capturar preços diretamente ────
-  // Quando a página carrega, o JavaScript do ML faz chamadas para sua própria
-  // API buscando dados do produto. Capturamos essas respostas.
-  let capturedApiPrices: { finalPrice: number; originalPrice: number | null } | null = null;
-
-  page.on('response', async (response: any) => {
-    try {
-      const url = response.url();
-      if (response.status() !== 200) return;
-      // Captura chamadas para a API pública do ML com item ID
-      if (url.includes('api.mercadolibre.com/items/MLB') ||
-          url.includes('api.mercadolibre.com/pdp/')) {
-        const json = await response.json().catch(() => null);
-        if (json?.price > 0) {
-          // Prefere o item de menor preço (Melhor preço)
-          if (!capturedApiPrices || json.price < capturedApiPrices.finalPrice) {
-            capturedApiPrices = {
-              finalPrice: json.price,
-              originalPrice: json.original_price || null,
-            };
-            console.log('[Scraper ML] Preço capturado da API via intercept:', json.price, json.original_price);
-          }
-        }
-      }
-    } catch { /* ignorar erros de parsing */ }
-  });
-
   // Título
   const title = await page.$eval('h1.ui-pdp-title', (el: any) => el.textContent?.trim())
     .catch(() => page.$eval('.ui-pdp-title', (el: any) => el.textContent?.trim()))
     .catch(() => '');
 
-  // ── Se capturamos preços via intercepção de API, usar esses valores ────────
-  if (capturedApiPrices && (capturedApiPrices as any).finalPrice > 0) {
-    const cp = capturedApiPrices as { finalPrice: number; originalPrice: number | null };
-    const discount = cp.originalPrice && cp.originalPrice > cp.finalPrice
-      ? Math.round(((cp.originalPrice - cp.finalPrice) / cp.originalPrice) * 100)
-      : 0;
-    console.log('[Scraper ML] Usando preços da API interceptada:', cp);
-    const mainImage = await page.$eval('figure.ui-pdp-gallery__figure img', (el: any) => el.src)
-      .catch(() => page.$eval('.ui-pdp-image', (el: any) => el.getAttribute('src')))
-      .catch(() => '');
-    return {
-      title,
-      finalPrice: cp.finalPrice,
-      originalPrice: cp.originalPrice !== cp.finalPrice ? cp.originalPrice : null,
-      discount,
-      mainImage,
-      images: mainImage ? [mainImage] : [],
-    };
+  // Preço original (riscado, se houver desconto) - pegar primeiro
+  let originalPrice: number | null = null;
+  try {
+    const originalPriceText = await page.$eval('.andes-money-amount--previous .andes-money-amount__fraction', (el: any) => el.textContent);
+    const originalPriceCents = await page.$eval('.andes-money-amount--previous .andes-money-amount__cents', (el: any) => el.textContent).catch(() => '00');
+    if (originalPriceText) {
+      // Corrigir parsing: juntar parte inteira e centavos corretamente
+      // Ex: "54" + "90" = "5490" centavos = 54.90 reais
+      const originalPriceStr = `${originalPriceText}${originalPriceCents.padStart(2, '0')}`;
+      originalPrice = parseFloat(originalPriceStr) / 100; // Converter centavos para reais
+    }
+  } catch (e) {
+    // Não tem preço original (sem desconto)
   }
 
-  // ── Extrair preços via page.evaluate — página já renderizada com JS ───────
-  const priceData = await page.evaluate(() => {
-    const parseFraction = (fraction: string, cents: string): number => {
-      if (!fraction) return 0;
-      const clean = fraction.replace(/\./g, ''); // remove separador de milhar
-      const c = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
-      return parseFloat(`${clean}${c}`) / 100;
-    };
+  // Preço final (preço atual, não riscado) - pegar do container principal
+  // Usar seletor que exclui o preço riscado
+  let finalPrice = 0;
+  try {
+    // Tentar pegar do container de preço principal (sem a classe --previous)
+    const finalPriceText = await page.$eval('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
+      (el: any) => el.textContent)
+      .catch(() => page.$eval('.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount__fraction', (el: any) => el.textContent))
+      .catch(() => '0');
 
-    const readAmount = (el: Element): number => {
-      const f = el.querySelector('.andes-money-amount__fraction')?.textContent || '';
-      const c = el.querySelector('.andes-money-amount__cents')?.textContent || '00';
-      return parseFraction(f, c);
-    };
+    const finalPriceCents = await page.$eval('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
+      (el: any) => el.textContent)
+      .catch(() => page.$eval('.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
+        (el: any) => el.textContent))
+      .catch(() => page.$eval('.andes-money-amount__cents', (el: any) => el.textContent))
+      .catch(() => '00');
 
-    // Coletar TODOS os preços riscados (tachados) da página
-    const crossedPrices: number[] = Array.from(
-      document.querySelectorAll('.andes-money-amount--previous')
-    ).map(readAmount).filter(v => v > 0);
-
-    // Coletar TODOS os preços NÃO riscados da página
-    const currentPrices: number[] = Array.from(
-      document.querySelectorAll('.andes-money-amount:not(.andes-money-amount--previous)')
-    ).map(readAmount).filter(v => v > 0);
-
-    // Preço original = menor preço riscado (o "antes" mais relevante)
-    const originalPrice: number | null = crossedPrices.length
-      ? Math.min(...crossedPrices)
-      : null;
-
-    // Preço final = menor preço não riscado que seja plausível
-    // (≥ 20% do original, para descartar parcelas individuais)
-    const minThreshold = originalPrice ? originalPrice * 0.2 : 1;
-    const validCurrentPrices = currentPrices.filter(v => v >= minThreshold);
-    const finalPrice = validCurrentPrices.length
-      ? Math.min(...validCurrentPrices)
-      : 0;
-
-    return { originalPrice, finalPrice, crossedPrices, currentPrices };
-  }).catch(() => ({ originalPrice: null as number | null, finalPrice: 0 }));
-
-  const originalPrice = priceData.originalPrice;
-  const finalPrice = priceData.finalPrice;
+    // Corrigir parsing: juntar parte inteira e centavos corretamente
+    // Ex: "36" + "90" = "3690" centavos = 36.90 reais
+    const finalPriceStr = `${finalPriceText}${finalPriceCents.padStart(2, '0')}`;
+    finalPrice = parseFloat(finalPriceStr) / 100; // Converter centavos para reais
+  } catch (e) {
+    console.error('[Scraper ML] Erro ao pegar preço final:', e);
+  }
 
   // Calcular desconto
   let discount = 0;
@@ -428,11 +336,7 @@ async function scrapeMercadoLivre(page: any) {
     discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
   }
 
-  console.log('[Scraper ML] Preços extraídos:', {
-    originalPrice, finalPrice, discount,
-    todosRiscados: priceData.crossedPrices,
-    todosAtuais: priceData.currentPrices,
-  });
+  console.log('[Scraper ML] Preços extraídos:', { originalPrice, finalPrice, discount });
 
   // Imagem principal
   const mainImage = await page.$eval('figure.ui-pdp-gallery__figure img', (el: any) => el.src)
