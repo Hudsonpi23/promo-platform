@@ -175,12 +175,21 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
     // API falhou → extrai título e imagem do HTML estático e retorna dados parciais.
     // O HTML de catálogo tem meta tags mesmo sem JS (título, og:image).
     const rawHtmlForMeta = $.html();
-    const metaTitle =
+    const decodeHtmlEntities = (str: string) =>
+      str.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&#39;/g, "'")
+         .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ');
+
+    const rawMetaTitle =
       $('meta[property="og:title"]').attr('content') ||
       $('meta[name="title"]').attr('content') ||
-      $('title').first().text().replace(/\s*\|\s*Mercado Livre.*$/i, '').trim() ||
-      rawHtmlForMeta.match(/<title[^>]*>([^<]{10,})<\/title>/i)?.[1]?.replace(/\s*\|\s*Mercado.*/i, '').trim() ||
+      $('title').first().text().trim() ||
+      rawHtmlForMeta.match(/<title[^>]*>([^<]{10,})<\/title>/i)?.[1]?.trim() ||
       '';
+    // Remove sufixos indesejados: "| Mercado Livre", "- R$ X.XXX", etc.
+    const metaTitle = decodeHtmlEntities(rawMetaTitle)
+      .replace(/\s*[-|]\s*R\$\s*[\d.,]+\s*$/i, '')  // remove "- R$ 3.339" no fim
+      .replace(/\s*\|\s*Mercado\s*(Livre|Liber[oó])\s*$/i, '')  // remove "| Mercado Livre"
+      .trim();
     const metaImage =
       $('meta[property="og:image"]').attr('content') ||
       $('meta[name="image"]').attr('content') ||
