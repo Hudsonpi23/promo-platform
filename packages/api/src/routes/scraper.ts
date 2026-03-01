@@ -115,13 +115,27 @@ export async function scraperRoutes(app: FastifyInstance) {
 
         const context = await browser.newContext({
           userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          locale: 'pt-BR',
+          timezoneId: 'America/Sao_Paulo',
+          viewport: { width: 1366, height: 768 },
+          extraHTTPHeaders: {
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+          },
         });
         const page = await context.newPage();
 
         // Navegar para a página (usar resolvedUrl se foi redirecionado de URL social)
         console.log('[Scraper] Usando Playwright...');
         await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForTimeout(2000);
+
+        // Esperar preços carregarem (ML renderiza via JS — pode demorar)
+        try {
+          await page.waitForSelector('.andes-money-amount__fraction', { timeout: 15000 });
+          await page.waitForTimeout(2500); // margem para Pix e seção "Melhor preço"
+        } catch {
+          console.warn('[Scraper] Seletor de preços não apareceu em 15s, continuando...');
+          await page.waitForTimeout(3000);
+        }
 
         // Verificar se a página carregou corretamente
         const pageTitle = await page.title().catch(() => '');
@@ -322,7 +336,7 @@ async function scrapeMercadoLivre(page: any) {
       ? Math.min(...validCurrentPrices)
       : 0;
 
-    return { originalPrice, finalPrice };
+    return { originalPrice, finalPrice, crossedPrices, currentPrices };
   }).catch(() => ({ originalPrice: null as number | null, finalPrice: 0 }));
 
   const originalPrice = priceData.originalPrice;
@@ -334,7 +348,11 @@ async function scrapeMercadoLivre(page: any) {
     discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
   }
 
-  console.log('[Scraper ML] Preços extraídos:', { originalPrice, finalPrice, discount });
+  console.log('[Scraper ML] Preços extraídos:', {
+    originalPrice, finalPrice, discount,
+    todosRiscados: priceData.crossedPrices,
+    todosAtuais: priceData.currentPrices,
+  });
 
   // Imagem principal
   const mainImage = await page.$eval('figure.ui-pdp-gallery__figure img', (el: any) => el.src)
