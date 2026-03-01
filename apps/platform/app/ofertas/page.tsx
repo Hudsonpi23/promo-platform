@@ -45,6 +45,7 @@ export default function OfertasPage() {
   // 🤖 v2.0: Estado de upload de imagem
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
 
   // Estado de loading
   const [isCreating, setIsCreating] = useState(false);
