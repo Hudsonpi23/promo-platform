@@ -1,6 +1,17 @@
 // Funções HTTP de fallback para quando Playwright não funciona
 import * as cheerio from 'cheerio';
 
+/** Converte fração + centavos do ML em número float.
+ *  Remove o ponto separador de milhar antes de montar a string.
+ *  Ex: fraction="2.969", cents="10" → "296910" / 100 = 2969.10
+ */
+function parseMlFraction(fraction: string, cents: string): number {
+  if (!fraction) return 0;
+  const cleanFraction = fraction.replace(/\./g, '');
+  const cleanCents = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
+  return parseFloat(`${cleanFraction}${cleanCents}`) / 100;
+}
+
 export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI) {
   console.log('[Scraper HTTP] Usando scraper HTTP do Mercado Livre...');
 
@@ -8,34 +19,65 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI) {
   const title = $('h1.ui-pdp-title').first().text().trim() || 
                 $('.ui-pdp-title').first().text().trim() || '';
 
-  // Preço final
   let finalPrice = 0;
-  const finalPriceText = $('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction').first().text().trim() ||
-                         $('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction').first().text().trim() || '0';
-  const finalPriceCents = $('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents').first().text().trim() ||
-                          $('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents').first().text().trim() || '00';
-  
-  if (finalPriceText) {
-    // Remove separador de milhar (ponto) antes de concatenar com centavos
-    // Ex: "1.699" + "00" geraria "1.69900" = 1.699 errado; sem o ponto: "169900" / 100 = 1699 correto
-    const cleanFinalPriceText = finalPriceText.replace(/\./g, '');
-    const finalPriceStr = `${cleanFinalPriceText}${finalPriceCents.padStart(2, '0')}`;
-    finalPrice = parseFloat(finalPriceStr) / 100;
-  }
-
-  // Preço original
   let originalPrice: number | null = null;
-  const originalPriceText = $('.andes-money-amount--previous .andes-money-amount__fraction').first().text().trim();
-  const originalPriceCents = $('.andes-money-amount--previous .andes-money-amount__cents').first().text().trim() || '00';
-  
-  if (originalPriceText) {
-    // Remove separador de milhar (ponto) antes de concatenar com centavos
-    const cleanOriginalPriceText = originalPriceText.replace(/\./g, '');
-    const originalPriceStr = `${cleanOriginalPriceText}${originalPriceCents.padStart(2, '0')}`;
-    originalPrice = parseFloat(originalPriceStr) / 100;
+
+  // ── Estratégia 1: JSON-LD (dados estruturados embutidos pelo ML) ─────────
+  // Muito mais confiável que seletores CSS que mudam com frequência
+  $('script[type="application/ld+json"]').each((_: number, el: any) => {
+    try {
+      const json = JSON.parse($(el).html() || '{}');
+      // Pode ser um único objeto ou um array com @graph
+      const items: any[] = json['@graph'] ? json['@graph'] : [json];
+      for (const item of items) {
+        if (item['@type'] === 'Product' && item.offers) {
+          const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+          if (offer && offer.price) {
+            finalPrice = parseFloat(String(offer.price).replace(',', '.')) || 0;
+          }
+        }
+      }
+    } catch (_e) { /* JSON mal-formado, ignorar */ }
+  });
+
+  console.log('[Scraper HTTP ML] Preço via JSON-LD:', finalPrice);
+
+  // ── Estratégia 2: CSS seletores com remoção de separador de milhar ───────
+  if (finalPrice === 0) {
+    // Seleciona o primeiro bloco de preço que NÃO seja o riscado
+    // Percorre todos os candidatos e pega o primeiro com valor > 0
+    const priceBlocks = $('.ui-pdp-price__main-price .andes-money-amount:not(.andes-money-amount--previous), .ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous), .ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous)');
+
+    priceBlocks.each((_: number, el: any) => {
+      if (finalPrice > 0) return false; // já achou
+      const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
+      const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
+      const val = parseMlFraction(fraction, cents);
+      if (val > 0) finalPrice = val;
+    });
+
+    // Fallback genérico: primeiro .andes-money-amount não riscado da página
+    if (finalPrice === 0) {
+      $('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
+        if (finalPrice > 0) return false;
+        const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
+        const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
+        const val = parseMlFraction(fraction, cents);
+        if (val > 0) finalPrice = val;
+      });
+    }
   }
 
-  // Calcular desconto
+  // ── Preço original (riscado) ─────────────────────────────────────────────
+  const prevEl = $('.andes-money-amount--previous').first();
+  if (prevEl.length) {
+    const fraction = prevEl.find('.andes-money-amount__fraction').first().text().trim();
+    const cents    = prevEl.find('.andes-money-amount__cents').first().text().trim() || '00';
+    const val = parseMlFraction(fraction, cents);
+    if (val > 0 && val !== finalPrice) originalPrice = val;
+  }
+
+  // ── Calcular desconto ─────────────────────────────────────────────────────
   let discount = 0;
   if (originalPrice && originalPrice > finalPrice) {
     discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
