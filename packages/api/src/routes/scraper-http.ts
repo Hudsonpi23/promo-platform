@@ -172,14 +172,28 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
         images: [mainImageFromHtml],
       };
     }
-    // API falhou → retorna sem preços (mostra erro ao usuário, não preços errados)
+    // API falhou → extrai título e imagem do HTML estático e retorna dados parciais.
+    // O HTML de catálogo tem meta tags mesmo sem JS (título, og:image).
+    const rawHtmlForMeta = $.html();
+    const metaTitle =
+      $('meta[property="og:title"]').attr('content') ||
+      $('meta[name="title"]').attr('content') ||
+      $('title').first().text().replace(/\s*\|\s*Mercado Livre.*$/i, '').trim() ||
+      rawHtmlForMeta.match(/<title[^>]*>([^<]{10,})<\/title>/i)?.[1]?.replace(/\s*\|\s*Mercado.*/i, '').trim() ||
+      '';
+    const metaImage =
+      $('meta[property="og:image"]').attr('content') ||
+      $('meta[name="image"]').attr('content') ||
+      '';
+    console.log('[ML HTTP] Dados parciais via meta:', { metaTitle: metaTitle?.substring(0, 50), metaImage: !!metaImage });
     return {
-      title: $('h1.ui-pdp-title').first().text().trim() || '',
+      title: metaTitle,
       finalPrice: 0,
       originalPrice: null,
       discount: 0,
-      mainImage: '',
-      images: [],
+      mainImage: metaImage,
+      images: metaImage ? [metaImage] : [],
+      partialData: true,  // sinaliza que preços precisam ser inseridos manualmente
     };
   }
 

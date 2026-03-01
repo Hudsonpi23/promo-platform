@@ -127,7 +127,11 @@ export default function OfertasPage() {
         setGalleryPreviews(productData.images.slice(1)); // Pular a primeira (mainImage)
       }
 
-      alert(`✅ Dados extraídos com sucesso!\n\n📦 Produto: ${productData.title}\n💰 Preço: R$ ${productData.finalPrice}\n🏪 Loja: ${data.store}\n\nConfira os dados e adicione mais imagens se quiser!`);
+      if (data.partialData) {
+        alert(`⚠️ Título e imagem carregados!\n\n📦 ${productData.title}\n\nEste tipo de anúncio (página de catálogo) não permite extração automática de preços.\n\nInsira o Preço Original e o Preço Final manualmente.`);
+      } else {
+        alert(`✅ Dados extraídos com sucesso!\n\n📦 Produto: ${productData.title}\n💰 Preço: R$ ${productData.finalPrice}\n🏪 Loja: ${data.store}\n\nConfira os dados e adicione mais imagens se quiser!`);
+      }
 
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error);

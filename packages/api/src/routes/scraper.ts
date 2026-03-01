@@ -229,7 +229,18 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o título do produto. A página pode não ser uma página de produto válida.');
         }
 
+        // Dados parciais (catálogo ML): título e imagem foram extraídos, mas preços
+        // precisam ser inseridos manualmente. Retorna sucesso com flag partialData.
         if (!productData.finalPrice || productData.finalPrice <= 0) {
+          if (productData.partialData) {
+            // Retorna 200 com dados parciais — frontend mostrará aviso para preencher preços
+            return reply.send({
+              success: true,
+              partialData: true,
+              data: productData,
+              store,
+            });
+          }
           throw new Error('Não foi possível extrair o preço do produto.');
         }
 
