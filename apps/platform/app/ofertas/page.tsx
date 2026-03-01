@@ -256,15 +256,7 @@ export default function OfertasPage() {
           // Caso contrário, manter como decimal
         }
         
-        const value = parseFloat(normalized) || 0;
-        
-        // Se o valor for muito grande (provavelmente está em centavos), dividir por 100
-        // Ex: 48318 -> 483.18, 25641 -> 256.41
-        if (value > 10000 && value < 1000000) {
-          return value / 100;
-        }
-        
-        return value;
+        return parseFloat(normalized) || 0;
       };
       
       const finalPriceValue = parsePrice(form.finalPrice);

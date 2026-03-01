@@ -16,7 +16,10 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI) {
                           $('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents').first().text().trim() || '00';
   
   if (finalPriceText) {
-    const finalPriceStr = `${finalPriceText}${finalPriceCents.padStart(2, '0')}`;
+    // Remove separador de milhar (ponto) antes de concatenar com centavos
+    // Ex: "1.699" + "00" geraria "1.69900" = 1.699 errado; sem o ponto: "169900" / 100 = 1699 correto
+    const cleanFinalPriceText = finalPriceText.replace(/\./g, '');
+    const finalPriceStr = `${cleanFinalPriceText}${finalPriceCents.padStart(2, '0')}`;
     finalPrice = parseFloat(finalPriceStr) / 100;
   }
 
@@ -26,7 +29,9 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI) {
   const originalPriceCents = $('.andes-money-amount--previous .andes-money-amount__cents').first().text().trim() || '00';
   
   if (originalPriceText) {
-    const originalPriceStr = `${originalPriceText}${originalPriceCents.padStart(2, '0')}`;
+    // Remove separador de milhar (ponto) antes de concatenar com centavos
+    const cleanOriginalPriceText = originalPriceText.replace(/\./g, '');
+    const originalPriceStr = `${cleanOriginalPriceText}${originalPriceCents.padStart(2, '0')}`;
     originalPrice = parseFloat(originalPriceStr) / 100;
   }
 
