@@ -62,72 +62,134 @@ async function fetchMlPricesFromAPI(url: string, htmlItemId?: string): Promise<{
     }
   }
 
-  // Produto: buscar via página de listagem do ML (server-rendered, tem IDs reais)
+  // Produto: buscar via múltiplas estratégias (catálogo ML)
   if (mlId?.type === 'product') {
-    // ── Estratégia A: página lista.mercadolivre.com.br/{slug} ─────────────
-    // Essa página É server-rendered e contém IDs de itens reais no HTML.
-    // A partir desses IDs, chamamos a items API (que funciona sem auth).
+    const catalogId = mlId.id; // ex: MLB44603836
+
+    // ── Estratégia A: Search API por catalog_product_id ───────────────────
+    // Busca exatamente os itens deste produto de catálogo — mais preciso que slug.
+    try {
+      const searchResp = await axios.get(
+        `https://api.mercadolibre.com/sites/MLB/search?catalog_product_id=${catalogId}&limit=10`,
+        { headers, timeout: 10000 }
+      );
+      const results: any[] = searchResp.data?.results || [];
+      const valid = results.filter((r: any) => r.price > 0);
+      if (valid.length > 0) {
+        const withDiscount = valid.filter((r: any) => r.original_price && r.original_price > r.price);
+        const best = (withDiscount.length > 0 ? withDiscount : valid)
+          .sort((a: any, b: any) => a.price - b.price)[0];
+        console.log(`[ML API] ✅ Search catalog_product_id ${catalogId}: ${valid.length} resultados, melhor=${best.price} orig=${best.original_price}`);
+        return {
+          finalPrice: best.price,
+          originalPrice: (best.original_price > best.price) ? best.original_price : null,
+          title: best.title || '',
+          mainImage: (best.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('-I.webp', '-O.webp'),
+        };
+      }
+    } catch (e: any) {
+      console.warn('[ML API] Search catalog_product_id falhou:', e.message);
+    }
+
+    // ── Estratégia B: catalog_products API direta ──────────────────────────
+    try {
+      const cpResp = await axios.get(
+        `https://api.mercadolibre.com/catalog_products/${catalogId}`,
+        { headers, timeout: 8000 }
+      );
+      const cp = cpResp.data;
+      if (cp?.buy_box_winner?.item_id) {
+        // Temos o item vencedor do buy box — buscar preço via items API
+        const winnerId = cp.buy_box_winner.item_id;
+        console.log(`[ML API] catalog_products buy_box_winner: ${winnerId}`);
+        const itemResp = await axios.get(`https://api.mercadolibre.com/items/${winnerId}`, { headers, timeout: 8000 });
+        const d = itemResp.data;
+        if (d?.price > 0) {
+          return {
+            finalPrice: d.price,
+            originalPrice: d.original_price && d.original_price > d.price ? d.original_price : null,
+            title: d.title || cp.name || '',
+            mainImage: (d.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('-I.webp', '-O.webp'),
+          };
+        }
+      }
+    } catch (e: any) {
+      console.warn('[ML API] catalog_products API falhou:', e.message);
+    }
+
+    // ── Estratégia C: lista.mercadolivre.com.br/{slug} ────────────────────
+    // Página server-rendered com IDs de itens reais no HTML.
     try {
       const urlObj = new URL(url);
-      // Slug = primeira parte do path (ex: "tablet-samsung-galaxy-tab-s10-fe-...")
       const slug = urlObj.pathname.split('/').filter(Boolean)[0] || '';
-      if (slug && slug.length > 5) {
-        const listingUrl = `https://lista.mercadolivre.com.br/${slug}`;
-        console.log('[ML API] Buscando IDs via lista:', listingUrl);
-        const listResp = await axios.get(listingUrl, { headers, timeout: 12000 });
-        const listHtml: string = listResp.data || '';
+      // Tentar primeiro com o catalogId (mais específico), depois com o slug
+      const listingUrls = [
+        slug && slug.length > 5 ? `https://lista.mercadolivre.com.br/${slug}` : null,
+      ].filter(Boolean) as string[];
 
-        // Extrair IDs únicos de itens MLB (9+ dígitos) do HTML da listagem
-        const rawIds = listHtml.match(/MLB\d{9,}/gi) || [];
-        const itemIds = [...new Set(rawIds.map((id: string) => id.toUpperCase()))].slice(0, 6);
-        console.log('[ML API] IDs encontrados na listagem:', itemIds);
+      for (const listingUrl of listingUrls) {
+        try {
+          console.log('[ML API] Buscando IDs via lista:', listingUrl);
+          const listResp = await axios.get(listingUrl, { headers, timeout: 12000 });
+          const listHtml: string = listResp.data || '';
 
-        if (itemIds.length > 0) {
-          // Buscar preços para todos os itens em paralelo
-          const itemResults = await Promise.allSettled(
-            itemIds.map((id: string) =>
-              axios.get(`https://api.mercadolibre.com/items/${id}`, { headers, timeout: 6000 })
-                .then((r: any) => r.data)
-            )
-          );
+          // Extrair IDs únicos de itens MLB (7+ dígitos) do HTML da listagem
+          const rawIds = listHtml.match(/MLB\d{7,}/gi) || [];
+          // Filtrar IDs que parecem de ITENS (9+ dígitos), não de catálogos (7-8 dígitos)
+          const itemIds = [...new Set(
+            rawIds.filter(id => id.replace(/MLB/i, '').length >= 9)
+                  .map((id: string) => id.toUpperCase())
+          )].slice(0, 8);
+          console.log('[ML API] IDs de itens encontrados na listagem:', itemIds);
 
-          // Coletar itens válidos com desconto (original_price > price)
-          const validItems: Array<{price: number; original_price: number; id: string; title: string; thumbnail: string}> = [];
-          for (const result of itemResults) {
-            if (result.status === 'fulfilled') {
-              const d = result.value;
-              if (d?.price > 0) {
-                validItems.push(d);
+          if (itemIds.length > 0) {
+            const itemResults = await Promise.allSettled(
+              itemIds.map((id: string) =>
+                axios.get(`https://api.mercadolibre.com/items/${id}`, { headers, timeout: 6000 })
+                  .then((r: any) => r.data)
+              )
+            );
+
+            const validItems: Array<{price: number; original_price: number; id: string; title: string; thumbnail: string}> = [];
+            for (const result of itemResults) {
+              if (result.status === 'fulfilled') {
+                const d = result.value;
+                if (d?.price > 0) validItems.push(d);
               }
             }
+
+            console.log('[ML API] Itens válidos:', validItems.map(d => `${d.id}:${d.price}/${d.original_price}`));
+
+            if (validItems.length > 0) {
+              // Preferir item com desconto; se vários, pegar o de preço mais próximo da mediana
+              // (evita pegar item aleatório muito barato ou muito caro)
+              const withDiscount = validItems.filter(d => d.original_price && d.original_price > d.price);
+              const candidates = withDiscount.length > 0 ? withDiscount : validItems;
+              candidates.sort((a, b) => a.price - b.price);
+              // Pegar o do meio (mediana) para evitar outliers
+              const medIdx = Math.floor(candidates.length / 2);
+              const best = candidates.length === 1 ? candidates[0] : candidates[medIdx];
+
+              return {
+                finalPrice: best.price,
+                originalPrice: best.original_price && best.original_price > best.price ? best.original_price : null,
+                title: best.title || '',
+                mainImage: (best.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('-I.webp', '-O.webp'),
+              };
+            }
           }
-
-          console.log('[ML API] Itens válidos:', validItems.map(d => `${d.id}:${d.price}/${d.original_price}`));
-
-          if (validItems.length > 0) {
-            // Preferir item com desconto (original_price > price); se não, pegar o mais barato
-            const withDiscount = validItems.filter(d => d.original_price && d.original_price > d.price);
-            const best = withDiscount.length > 0
-              ? withDiscount.sort((a, b) => a.price - b.price)[0]
-              : validItems.sort((a, b) => a.price - b.price)[0];
-
-            return {
-              finalPrice: best.price,
-              originalPrice: best.original_price && best.original_price > best.price ? best.original_price : null,
-              title: best.title || '',
-              mainImage: (best.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('-I.webp', '-O.webp'),
-            };
-          }
+        } catch (innerE: any) {
+          console.warn(`[ML API] Falha em ${listingUrl}:`, innerE.message);
         }
       }
     } catch (e: any) {
       console.warn('[ML API] Falha na estratégia lista.mercadolivre.com.br:', e.message);
     }
 
-    // ── Estratégia B: products API (geralmente 403, mas tentamos) ─────────
+    // ── Estratégia D: products/{id}/items (geralmente 403, mas tentamos) ──
     try {
       const resp = await axios.get(
-        `https://api.mercadolibre.com/products/${mlId.id}/items?limit=1`,
+        `https://api.mercadolibre.com/products/${catalogId}/items?limit=1`,
         { headers, timeout: 8000 }
       );
       const results = resp.data?.results || resp.data;
@@ -154,7 +216,22 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
     const htmlIdMatch = rawHtml.match(/"item_id"\s*:\s*"(MLB\d{7,})"/i) ||
                         rawHtml.match(/data-item-id="(MLB\d{7,})"/i);
     const htmlItemId = htmlIdMatch ? htmlIdMatch[1].toUpperCase() : undefined;
-    const apiData = await fetchMlPricesFromAPI(originalUrl!, htmlItemId);
+    // Tenta extrair item IDs do __NEXT_DATA__ inline no HTML da página de catálogo
+    // (Next.js embute o estado inicial da página no script __NEXT_DATA__)
+    let nextDataItemId: string | undefined;
+    try {
+      const nextDataMatch = rawHtml.match(/<script[^>]+id="__NEXT_DATA__"[^>]*>([\s\S]{50,}?)<\/script>/i);
+      if (nextDataMatch) {
+        // Buscar IDs de itens (9+ dígitos) dentro do JSON do __NEXT_DATA__
+        const idsInJson = nextDataMatch[1].match(/MLB\d{9,}/gi) || [];
+        if (idsInJson.length > 0) {
+          nextDataItemId = idsInJson[0].toUpperCase();
+          console.log('[ML HTTP] __NEXT_DATA__ item IDs encontrados:', idsInJson.slice(0, 3));
+        }
+      }
+    } catch (_e) { /* ignorar */ }
+
+    const apiData = await fetchMlPricesFromAPI(originalUrl!, nextDataItemId || htmlItemId);
     if (apiData && apiData.finalPrice > 0) {
       const discount = apiData.originalPrice && apiData.originalPrice > apiData.finalPrice
         ? Math.round(((apiData.originalPrice - apiData.finalPrice) / apiData.originalPrice) * 100)
