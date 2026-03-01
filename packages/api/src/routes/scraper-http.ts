@@ -22,64 +22,69 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI) {
   let finalPrice = 0;
   let originalPrice: number | null = null;
 
-  // ── Estratégia 1: JSON-LD (dados estruturados embutidos pelo ML) ─────────
-  // Muito mais confiável que seletores CSS que mudam com frequência
-  $('script[type="application/ld+json"]').each((_: number, el: any) => {
-    try {
-      const json = JSON.parse($(el).html() || '{}');
-      // Pode ser um único objeto ou um array com @graph
-      const items: any[] = json['@graph'] ? json['@graph'] : [json];
-      for (const item of items) {
-        if (item['@type'] === 'Product' && item.offers) {
-          const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
-          if (offer && offer.price) {
-            finalPrice = parseFloat(String(offer.price).replace(',', '.')) || 0;
-          }
-        }
-      }
-    } catch (_e) { /* JSON mal-formado, ignorar */ }
-  });
-
-  console.log('[Scraper HTTP ML] Preço via JSON-LD:', finalPrice);
-
-  // ── Estratégia 2: CSS seletores com remoção de separador de milhar ───────
-  if (finalPrice === 0) {
-    // Seleciona o primeiro bloco de preço que NÃO seja o riscado
-    // Percorre todos os candidatos e pega o primeiro com valor > 0
-    const priceBlocks = $('.ui-pdp-price__main-price .andes-money-amount:not(.andes-money-amount--previous), .ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous), .ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous)');
-
-    priceBlocks.each((_: number, el: any) => {
-      if (finalPrice > 0) return false; // já achou
-      const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
-      const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
-      const val = parseMlFraction(fraction, cents);
-      if (val > 0) finalPrice = val;
-    });
-
-    // Fallback genérico: primeiro .andes-money-amount não riscado da página
-    if (finalPrice === 0) {
-      $('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
-        if (finalPrice > 0) return false;
-        const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
-        const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
-        const val = parseMlFraction(fraction, cents);
-        if (val > 0) finalPrice = val;
-      });
-    }
-  }
-
-  // ── Preço original (riscado) ─────────────────────────────────────────────
+  // ── Preço original (riscado / tachado) ───────────────────────────────────
+  // Sempre buscar o tachado ANTES para ter referência ao filtrar o preço final
+  // O ML usa andes-money-amount--previous para o preço original riscado
   const prevEl = $('.andes-money-amount--previous').first();
   if (prevEl.length) {
     const fraction = prevEl.find('.andes-money-amount__fraction').first().text().trim();
     const cents    = prevEl.find('.andes-money-amount__cents').first().text().trim() || '00';
     const val = parseMlFraction(fraction, cents);
-    if (val > 0 && val !== finalPrice) originalPrice = val;
+    if (val > 0) originalPrice = val;
+  }
+
+  // ── Preço final (com desconto — Pix ou promoção) ─────────────────────────
+  // NUNCA usar JSON-LD do ML: nas páginas /p/ ele traz preço agregado de
+  // múltiplos vendedores (ex: lowPrice:3339) e não o preço com desconto Pix.
+  //
+  // Estratégia: percorrer os containers de preço em ordem de especificidade,
+  // pegando o primeiro valor que seja:
+  //   a) maior que zero
+  //   b) diferente do preço original (não é o riscado)
+  //   c) plausível como preço final (≥ 50% do original, para descartar parcelas)
+  const priceContainerSelectors = [
+    // Container específico do preço principal (mais confiável)
+    '.ui-pdp-price__main-price',
+    '.ui-pdp-price__second-line',
+    '.ui-pdp-price',
+  ];
+
+  for (const containerSel of priceContainerSelectors) {
+    if (finalPrice > 0) break;
+    const container = $(containerSel).first();
+    if (!container.length) continue;
+
+    // Dentro do container, pegar todos os blocos de preço que NÃO sejam riscados
+    container.find('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
+      if (finalPrice > 0) return false; // já achou, parar
+      const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
+      const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
+      const val = parseMlFraction(fraction, cents);
+      // Ignorar zero, igual ao original, e parcelas (< 50% do original)
+      const isValidFinal = val > 0
+        && val !== originalPrice
+        && (!originalPrice || val >= originalPrice * 0.5);
+      if (isValidFinal) finalPrice = val;
+    });
+  }
+
+  // ── Fallback: qualquer .andes-money-amount não riscado da página ──────────
+  if (finalPrice === 0) {
+    $('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
+      if (finalPrice > 0) return false;
+      const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
+      const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
+      const val = parseMlFraction(fraction, cents);
+      const isValidFinal = val > 0
+        && val !== originalPrice
+        && (!originalPrice || val >= originalPrice * 0.5);
+      if (isValidFinal) finalPrice = val;
+    });
   }
 
   // ── Calcular desconto ─────────────────────────────────────────────────────
   let discount = 0;
-  if (originalPrice && originalPrice > finalPrice) {
+  if (originalPrice && originalPrice > finalPrice && finalPrice > 0) {
     discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
   }
 
