@@ -101,28 +101,38 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
   const title = $('h1.ui-pdp-title').first().text().trim() ||
                 $('.ui-pdp-title').first().text().trim() || '';
 
+  const rawHtml = $.html();
+
   // ── Estratégia 1: API pública do ML ─────────────────────────────────────
-  // O Cheerio não executa JavaScript, então o preço Pix pode não aparecer no
-  // HTML estático. A API pública retorna price/original_price já corretos.
+  // Busca pelo ID do item "Comprar agora" no HTML — esse link aponta para o
+  // item da "Melhor preço", que é exatamente o que queremos.
   if (originalUrl) {
-    // Tentar extrair item ID do HTML (mais rápido e preciso que buscar via produto)
-    const rawHtml = $.html();
+    // Prioridade 1: link do botão "Comprar" (produto → item correto)
+    const buyHref = $('a[href*="MLB"][class*="buy"], a[href*="MLB"][class*="action"]').first().attr('href') ||
+                    $('a.ui-pdp-action-modal__target').first().attr('href') ||
+                    $('a[href*="/MLB"][href*="mercadolivre"]').first().attr('href') || '';
+    const buyIdMatch = buyHref.match(/\/(MLB\d{9,})/i) || buyHref.match(/\/MLB-(\d{9,})/i);
+    const buyItemId = buyIdMatch
+      ? (buyIdMatch[0].includes('-') ? `MLB${buyIdMatch[1]}` : buyIdMatch[1]).toUpperCase()
+      : undefined;
+
+    // Prioridade 2: item ID embutido no HTML (JSON/data-attribute)
     const htmlIdMatch =
       rawHtml.match(/"item_id"\s*:\s*"(MLB\d{7,})"/i) ||
       rawHtml.match(/data-item-id="(MLB\d{7,})"/i) ||
       rawHtml.match(/"itemId"\s*:\s*"(MLB\d{7,})"/i) ||
-      rawHtml.match(/"id"\s*:\s*"(MLB\d{9,})"/i) ||   // id com 9+ dígitos para evitar IDs curtos
-      rawHtml.match(/["'](MLB\d{9,})["']/i);            // qualquer MLB ID longo na página
+      rawHtml.match(/"id"\s*:\s*"(MLB\d{9,})"/i) ||
+      rawHtml.match(/["'](MLB\d{9,})["']/i);
     const htmlItemId = htmlIdMatch ? htmlIdMatch[1].toUpperCase() : undefined;
-    console.log('[ML HTTP] URL:', originalUrl, '| mlId:', extractMlId(originalUrl), '| htmlItemId:', htmlItemId);
 
-    const apiData = await fetchMlPricesFromAPI(originalUrl, htmlItemId);
+    console.log('[ML HTTP] URL:', originalUrl, '| mlId:', extractMlId(originalUrl), '| buyItemId:', buyItemId, '| htmlItemId:', htmlItemId);
+
+    const apiData = await fetchMlPricesFromAPI(originalUrl, buyItemId || htmlItemId);
     if (apiData && apiData.finalPrice > 0) {
       const discount = apiData.originalPrice && apiData.originalPrice > apiData.finalPrice
         ? Math.round(((apiData.originalPrice - apiData.finalPrice) / apiData.originalPrice) * 100)
         : 0;
 
-      // Imagem do HTML (melhor qualidade que thumbnail da API)
       const mainImageFromHtml = $('figure.ui-pdp-gallery__figure img').first().attr('src') ||
                                  $('.ui-pdp-image').first().attr('src') || apiData.mainImage;
 
@@ -143,34 +153,75 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
     }
   }
 
-  // ── Estratégia 2: CSS seletores (fallback para quando a API falha) ────────
-  console.log('[Scraper HTTP ML] API falhou, tentando CSS seletores...');
+  // ── Estratégia 2: Regex no HTML bruto (procura preço Pix e riscado) ──────
+  // Funciona mesmo sem JS — o preço Pix e o riscado são renderizados server-side.
+  console.log('[Scraper HTTP ML] API falhou, tentando extração por regex...');
   let finalPrice = 0;
   let originalPrice: number | null = null;
 
-  const prevEl = $('.andes-money-amount--previous').first();
-  if (prevEl.length) {
-    const fraction = prevEl.find('.andes-money-amount__fraction').first().text().trim();
-    const cents    = prevEl.find('.andes-money-amount__cents').first().text().trim() || '00';
-    const cleanF   = fraction.replace(/\./g, '');
-    const cleanC   = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
-    const val = parseFloat(`${cleanF}${cleanC}`) / 100;
-    if (val > 0) originalPrice = val;
+  // Helper: extrai valor de fração ML (ex: "2.969", "69") + centavos ("10", "90")
+  const parseMlFrac = (frac: string, cts: string) => {
+    const cleanF = frac.replace(/\./g, '');   // remove separador de milhar
+    const cleanC = (cts || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
+    return parseFloat(`${cleanF}.${cleanC}`) || 0;
+  };
+
+  // ── 2a: Preço Pix (preço final) ─────────────────────────────────────────
+  // Localiza "OFF no Pix" no HTML e extrai a fração/cents imediatamente antes.
+  const pixIdx = rawHtml.search(/OFF no Pix/i);
+  if (pixIdx > 0) {
+    const ctx = rawHtml.slice(Math.max(0, pixIdx - 600), pixIdx);
+    const fracs = [...ctx.matchAll(/andes-money-amount__fraction[^>]*>([\d.]+)<\/span>/gi)];
+    if (fracs.length > 0) {
+      const lastFrac = fracs[fracs.length - 1][1];
+      const centsMatches = [...ctx.matchAll(/andes-money-amount__cents[^>]*>(\d{1,2})<\/span>/gi)];
+      const lastCents = centsMatches.length > 0 ? centsMatches[centsMatches.length - 1][1] : '00';
+      finalPrice = parseMlFrac(lastFrac, lastCents);
+      console.log('[ML HTTP] Preço Pix via regex:', lastFrac, lastCents, '->', finalPrice);
+    }
   }
 
-  for (const sel of ['.ui-pdp-price__main-price', '.ui-pdp-price__second-line', '.ui-pdp-price']) {
-    if (finalPrice > 0) break;
-    $(sel).first().find('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
-      if (finalPrice > 0) return false;
-      const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
-      const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
-      const cleanF   = fraction.replace(/\./g, '');
-      const cleanC   = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
-      const val = parseFloat(`${cleanF}${cleanC}`) / 100;
-      if (val > 0 && val !== originalPrice && (!originalPrice || val >= originalPrice * 0.5)) {
-        finalPrice = val;
-      }
-    });
+  // ── 2b: Preço riscado / original ─────────────────────────────────────────
+  // Busca andes-money-amount--previous (preço antes do desconto).
+  const prevMatch = rawHtml.match(
+    /andes-money-amount--previous[^<]*(?:<[^>]*>)*[^<]*andes-money-amount__fraction[^>]*>([\d.]+)<\/span>(?:[^<]*(?:<[^>]*>)*[^<]*andes-money-amount__cents[^>]*>(\d{1,2})<\/span>)?/i
+  );
+  if (prevMatch) {
+    originalPrice = parseMlFrac(prevMatch[1], prevMatch[2] || '00');
+    console.log('[ML HTTP] Preço riscado via regex:', prevMatch[1], prevMatch[2], '->', originalPrice);
+  }
+
+  // ── 2c: Fallback CSS seletores ────────────────────────────────────────────
+  if (finalPrice === 0) {
+    const prevEl = $('.andes-money-amount--previous').first();
+    if (prevEl.length) {
+      const frac = prevEl.find('.andes-money-amount__fraction').first().text().trim();
+      const cts  = prevEl.find('.andes-money-amount__cents').first().text().trim() || '00';
+      originalPrice = parseMlFrac(frac, cts) || null;
+    }
+
+    for (const sel of ['.ui-pdp-price__main-price', '.ui-pdp-price__second-line', '.ui-pdp-price', '.poly-price__current']) {
+      if (finalPrice > 0) break;
+      $(sel).first().find('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
+        if (finalPrice > 0) return false;
+        const frac = $(el).find('.andes-money-amount__fraction').first().text().trim();
+        const cts  = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
+        const val  = parseMlFrac(frac, cts);
+        if (val > 0 && val !== originalPrice && (!originalPrice || val >= originalPrice * 0.5)) {
+          finalPrice = val;
+        }
+      });
+    }
+  }
+
+  // Se só temos o preço Pix mas não o riscado, o riscado é o final sem desconto.
+  // Tenta extrair o primeiro precio na página que seja >= finalPrice
+  if (finalPrice > 0 && !originalPrice) {
+    const allFracs = [...rawHtml.matchAll(/andes-money-amount__fraction[^>]*>([\d.]+)<\/span>(?:[^<]*(?:<[^>]*>)*[^<]*andes-money-amount__cents[^>]*>(\d{1,2})<\/span>)?/gi)];
+    for (const m of allFracs) {
+      const v = parseMlFrac(m[1], m[2] || '00');
+      if (v > finalPrice) { originalPrice = v; break; }
+    }
   }
 
   const discount = originalPrice && originalPrice > finalPrice && finalPrice > 0
