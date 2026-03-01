@@ -284,51 +284,73 @@ async function scrapeMercadoLivre(page: any) {
     .catch(() => page.$eval('.ui-pdp-title', (el: any) => el.textContent?.trim()))
     .catch(() => '');
 
-  // Preço original (riscado, se houver desconto) - pegar primeiro
-  let originalPrice: number | null = null;
-  try {
-    const originalPriceText = await page.$eval('.andes-money-amount--previous .andes-money-amount__fraction', (el: any) => el.textContent);
-    const originalPriceCents = await page.$eval('.andes-money-amount--previous .andes-money-amount__cents', (el: any) => el.textContent).catch(() => '00');
-    if (originalPriceText) {
-      // Corrigir parsing: juntar parte inteira e centavos corretamente
-      // Ex: "54" + "90" = "5490" centavos = 54.90 reais
-      const originalPriceStr = `${originalPriceText}${originalPriceCents.padStart(2, '0')}`;
-      originalPrice = parseFloat(originalPriceStr) / 100; // Converter centavos para reais
+  // Extrair preços via page.evaluate para máxima confiabilidade
+  // Lida com o novo formato ML (preço Pix, preço parcelado, preço original riscado)
+  const priceData = await page.evaluate(() => {
+    const parseFraction = (fraction: string, cents: string): number => {
+      if (!fraction) return 0;
+      // Remove separador de milhar (ponto) antes de concatenar com centavos
+      const cleanFraction = fraction.replace(/\./g, '');
+      const cleanCents = (cents || '00').padStart(2, '0');
+      return parseFloat(`${cleanFraction}${cleanCents}`) / 100;
+    };
+
+    // Preço original (riscado)
+    let originalPrice: number | null = null;
+    const prevEl = document.querySelector('.andes-money-amount--previous');
+    if (prevEl) {
+      const fraction = prevEl.querySelector('.andes-money-amount__fraction')?.textContent || '';
+      const cents = prevEl.querySelector('.andes-money-amount__cents')?.textContent || '00';
+      const val = parseFraction(fraction, cents);
+      if (val > 0) originalPrice = val;
     }
-  } catch (e) {
-    // Não tem preço original (sem desconto)
-  }
 
-  // Preço final (preço atual, não riscado) - pegar do container principal
-  // Usar seletor que exclui o preço riscado
-  let finalPrice = 0;
-  try {
-    // Tentar pegar do container de preço principal (sem a classe --previous)
-    const finalPriceText = await page.$eval('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
-      (el: any) => el.textContent)
-      .catch(() => page.$eval('.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
-        (el: any) => el.textContent))
-      .catch(() => page.$eval('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction', 
-        (el: any) => el.textContent))
-      .catch(() => page.$eval('.andes-money-amount__fraction', (el: any) => el.textContent))
-      .catch(() => '0');
+    // Preço final - tentar do container de preço principal, excluindo riscado e parcelado
+    let finalPrice = 0;
 
-    const finalPriceCents = await page.$eval('.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
-      (el: any) => el.textContent)
-      .catch(() => page.$eval('.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
-        (el: any) => el.textContent))
-      .catch(() => page.$eval('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents', 
-        (el: any) => el.textContent))
-      .catch(() => page.$eval('.andes-money-amount__cents', (el: any) => el.textContent))
-      .catch(() => '00');
+    // 1. Tentar o container específico do preço principal (exclui riscado)
+    const mainPriceSelectors = [
+      '.ui-pdp-price__main-price .andes-money-amount:not(.andes-money-amount--previous)',
+      '.ui-pdp-price__second-line .andes-money-amount:not(.andes-money-amount--previous)',
+      '.ui-pdp-price .andes-money-amount:not(.andes-money-amount--previous)',
+    ];
 
-    // Corrigir parsing: juntar parte inteira e centavos corretamente
-    // Ex: "36" + "90" = "3690" centavos = 36.90 reais
-    const finalPriceStr = `${finalPriceText}${finalPriceCents.padStart(2, '0')}`;
-    finalPrice = parseFloat(finalPriceStr) / 100; // Converter centavos para reais
-  } catch (e) {
-    console.error('[Scraper ML] Erro ao pegar preço final:', e);
-  }
+    for (const selector of mainPriceSelectors) {
+      const containers = document.querySelectorAll(selector);
+      for (const container of containers) {
+        const fraction = container.querySelector('.andes-money-amount__fraction')?.textContent || '';
+        if (!fraction) continue;
+        const cents = container.querySelector('.andes-money-amount__cents')?.textContent || '00';
+        const val = parseFraction(fraction, cents);
+        // Ignorar parcela (valor muito baixo comparado ao preço original)
+        if (val > 0 && (!originalPrice || val >= originalPrice * 0.5)) {
+          finalPrice = val;
+          break;
+        }
+      }
+      if (finalPrice > 0) break;
+    }
+
+    // 2. Fallback: primeiro .andes-money-amount__fraction não riscado
+    if (finalPrice === 0) {
+      const allFractions = document.querySelectorAll('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction');
+      for (const fractionEl of allFractions) {
+        const fraction = fractionEl.textContent || '';
+        const centsEl = fractionEl.closest('.andes-money-amount')?.querySelector('.andes-money-amount__cents');
+        const cents = centsEl?.textContent || '00';
+        const val = parseFraction(fraction, cents);
+        if (val > 0 && (!originalPrice || val >= originalPrice * 0.5)) {
+          finalPrice = val;
+          break;
+        }
+      }
+    }
+
+    return { originalPrice, finalPrice };
+  }).catch(() => ({ originalPrice: null, finalPrice: 0 }));
+
+  const originalPrice = priceData.originalPrice;
+  const finalPrice = priceData.finalPrice;
 
   // Calcular desconto
   let discount = 0;
