@@ -107,12 +107,14 @@ export default function OfertasPage() {
       });
 
       // Preencher formulário automaticamente
+      // Se o scraper não retornar affiliateUrl, usar a própria URL colada (preserva params de afiliado)
+      const resolvedAffiliateUrl = productData.affiliateUrl || productUrl || '';
       setForm(prev => ({
         ...prev,
         title: productData.title || prev.title,
         finalPrice: formatPriceForInput(productData.finalPrice),
         originalPrice: formatPriceForInput(productData.originalPrice),
-        affiliateUrl: productData.affiliateUrl || prev.affiliateUrl,
+        affiliateUrl: resolvedAffiliateUrl || prev.affiliateUrl,
         mainImage: productData.mainImage || prev.mainImage,
         images: productData.images || prev.images,
       }));

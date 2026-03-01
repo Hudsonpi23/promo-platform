@@ -229,6 +229,9 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o título do produto. A página pode não ser uma página de produto válida.');
         }
 
+        // Sempre preservar a URL como affiliateUrl (com parâmetros de rastreamento do afiliado)
+        productData.affiliateUrl = resolvedUrl;
+
         // Dados parciais (catálogo ML): título e imagem foram extraídos, mas preços
         // precisam ser inseridos manualmente. Retorna sucesso com flag partialData.
         if (!productData.finalPrice || productData.finalPrice <= 0) {
@@ -243,9 +246,6 @@ export async function scraperRoutes(app: FastifyInstance) {
           }
           throw new Error('Não foi possível extrair o preço do produto.');
         }
-
-        // Adicionar URL original (ou a resolvida se veio de link social)
-        productData.affiliateUrl = resolvedUrl;
 
         console.log('[Scraper] Dados extraídos:', {
           title: productData.title?.substring(0, 50),
