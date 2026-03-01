@@ -316,7 +316,7 @@ async function scrapeMercadoLivre(page: any) {
     ];
 
     for (const selector of mainPriceSelectors) {
-      const containers = document.querySelectorAll(selector);
+      const containers = Array.from(document.querySelectorAll(selector));
       for (const container of containers) {
         const fraction = container.querySelector('.andes-money-amount__fraction')?.textContent || '';
         if (!fraction) continue;
@@ -333,7 +333,7 @@ async function scrapeMercadoLivre(page: any) {
 
     // 2. Fallback: primeiro .andes-money-amount__fraction não riscado
     if (finalPrice === 0) {
-      const allFractions = document.querySelectorAll('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction');
+      const allFractions = Array.from(document.querySelectorAll('.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction'));
       for (const fractionEl of allFractions) {
         const fraction = fractionEl.textContent || '';
         const centsEl = fractionEl.closest('.andes-money-amount')?.querySelector('.andes-money-amount__cents');
