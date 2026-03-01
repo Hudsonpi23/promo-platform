@@ -861,7 +861,7 @@ export default function OfertasPage() {
                 type="text"
                 value={form.originalPrice}
                 onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
-                placeholder="Ex: 483,18 ou 483.18"
+                placeholder="Ex: 1.299,00 ou 1299,00"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
@@ -873,7 +873,7 @@ export default function OfertasPage() {
                 type="text"
                 value={form.finalPrice}
                 onChange={(e) => setForm({ ...form, finalPrice: e.target.value })}
-                placeholder="Ex: 256,41 ou 256.41"
+                placeholder="Ex: 999,90 ou 1.169,10"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
