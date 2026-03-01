@@ -1,105 +1,179 @@
 // Funções HTTP de fallback para quando Playwright não funciona
 import * as cheerio from 'cheerio';
+import axios from 'axios';
 
-/** Converte fração + centavos do ML em número float.
- *  Remove o ponto separador de milhar antes de montar a string.
- *  Ex: fraction="2.969", cents="10" → "296910" / 100 = 2969.10
+// ── ML API pública ────────────────────────────────────────────────────────────
+// api.mercadolibre.com retorna price/original_price já calculados corretamente,
+// incluindo o preço Pix. Muito mais confiável do que parsear o HTML.
+
+/**
+ * Extrai o ID do item ML (MLBxxxxxxxxxx) ou produto (/p/MLBxxxxx) de uma URL.
+ * Retorna { type: 'item'|'product', id: 'MLBxxxx' } ou null.
  */
-function parseMlFraction(fraction: string, cents: string): number {
-  if (!fraction) return 0;
-  const cleanFraction = fraction.replace(/\./g, '');
-  const cleanCents = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
-  return parseFloat(`${cleanFraction}${cleanCents}`) / 100;
+function extractMlId(url: string): { type: 'item' | 'product'; id: string } | null {
+  // Produto: /p/MLB47885
+  const productMatch = url.match(/\/p\/(MLB\d+)/i);
+  if (productMatch) return { type: 'product', id: productMatch[1].toUpperCase() };
+
+  // Item: /MLB3234567890 (9+ dígitos)
+  const itemMatch = url.match(/\/(MLB\d{9,})/i);
+  if (itemMatch) return { type: 'item', id: itemMatch[1].toUpperCase() };
+
+  return null;
 }
 
-export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI) {
+/**
+ * Busca preços diretamente na API pública do Mercado Livre.
+ * Tenta item API → product search → retorna null se falhar.
+ */
+async function fetchMlPricesFromAPI(url: string, htmlItemId?: string): Promise<{
+  finalPrice: number;
+  originalPrice: number | null;
+  title: string;
+  mainImage: string;
+} | null> {
+  const mlId = extractMlId(url);
+  const headers = { 'User-Agent': 'Mozilla/5.0' };
+
+  // Tentar item direto (URL de item ou ID extraído do HTML)
+  const itemId = (mlId?.type === 'item' ? mlId.id : null) || htmlItemId;
+  if (itemId) {
+    try {
+      const resp = await axios.get(`https://api.mercadolibre.com/items/${itemId}`, { headers, timeout: 8000 });
+      const d = resp.data;
+      if (d.price > 0) {
+        console.log(`[ML API] Item ${itemId}: price=${d.price} original_price=${d.original_price}`);
+        return {
+          finalPrice: d.price,
+          originalPrice: d.original_price || null,
+          title: d.title || '',
+          mainImage: (d.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('-I.webp', '-O.webp'),
+        };
+      }
+    } catch (e: any) {
+      console.warn('[ML API] Falha na items API:', e.message);
+    }
+  }
+
+  // Produto: buscar o melhor item associado
+  if (mlId?.type === 'product') {
+    try {
+      // Busca itens do produto ordenados por preço
+      const resp = await axios.get(
+        `https://api.mercadolibre.com/products/${mlId.id}/items?limit=1`,
+        { headers, timeout: 8000 }
+      );
+      const results = resp.data?.results || resp.data;
+      const first = Array.isArray(results) ? results[0] : null;
+      if (first?.id) {
+        // Recursão com o item ID encontrado
+        return fetchMlPricesFromAPI(url, first.id);
+      }
+    } catch (_e) { /* ignorar, cair no CSS */ }
+
+    // Alternativa: buscar via search API
+    try {
+      const resp = await axios.get(
+        `https://api.mercadolibre.com/sites/MLB/search?q=${mlId.id}&limit=1`,
+        { headers, timeout: 8000 }
+      );
+      const firstResult = resp.data?.results?.[0];
+      if (firstResult?.id) {
+        return fetchMlPricesFromAPI(url, firstResult.id);
+      }
+    } catch (_e) { /* ignorar */ }
+  }
+
+  return null;
+}
+
+export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?: string) {
   console.log('[Scraper HTTP] Usando scraper HTTP do Mercado Livre...');
 
-  // Título
-  const title = $('h1.ui-pdp-title').first().text().trim() || 
+  // Título (do HTML — sempre disponível mesmo sem JS)
+  const title = $('h1.ui-pdp-title').first().text().trim() ||
                 $('.ui-pdp-title').first().text().trim() || '';
 
+  // ── Estratégia 1: API pública do ML ─────────────────────────────────────
+  // O Cheerio não executa JavaScript, então o preço Pix pode não aparecer no
+  // HTML estático. A API pública retorna price/original_price já corretos.
+  if (originalUrl) {
+    // Tentar extrair item ID do HTML (mais rápido e preciso que buscar via produto)
+    const rawHtml = $.html();
+    const htmlIdMatch = rawHtml.match(/"item_id"\s*:\s*"(MLB\d{9,})"/i) ||
+                        rawHtml.match(/data-item-id="(MLB\d{9,})"/i) ||
+                        rawHtml.match(/"id"\s*:\s*"(MLB\d{9,})"/i);
+    const htmlItemId = htmlIdMatch ? htmlIdMatch[1].toUpperCase() : undefined;
+
+    const apiData = await fetchMlPricesFromAPI(originalUrl, htmlItemId);
+    if (apiData && apiData.finalPrice > 0) {
+      const discount = apiData.originalPrice && apiData.originalPrice > apiData.finalPrice
+        ? Math.round(((apiData.originalPrice - apiData.finalPrice) / apiData.originalPrice) * 100)
+        : 0;
+
+      // Imagem do HTML (melhor qualidade que thumbnail da API)
+      const mainImageFromHtml = $('figure.ui-pdp-gallery__figure img').first().attr('src') ||
+                                 $('.ui-pdp-image').first().attr('src') || apiData.mainImage;
+
+      const images: string[] = [];
+      $('figure img, .ui-pdp-gallery img').each((_, el) => {
+        const src = $(el).attr('src') || $(el).attr('data-src') || '';
+        if (src && src.startsWith('http') && !images.includes(src)) images.push(src);
+      });
+
+      return {
+        title: title || apiData.title,
+        finalPrice: apiData.finalPrice,
+        originalPrice: apiData.originalPrice,
+        discount,
+        mainImage: mainImageFromHtml,
+        images: images.length ? images.slice(0, 10) : [mainImageFromHtml],
+      };
+    }
+  }
+
+  // ── Estratégia 2: CSS seletores (fallback para quando a API falha) ────────
+  console.log('[Scraper HTTP ML] API falhou, tentando CSS seletores...');
   let finalPrice = 0;
   let originalPrice: number | null = null;
 
-  // ── Preço original (riscado / tachado) ───────────────────────────────────
-  // Sempre buscar o tachado ANTES para ter referência ao filtrar o preço final
-  // O ML usa andes-money-amount--previous para o preço original riscado
   const prevEl = $('.andes-money-amount--previous').first();
   if (prevEl.length) {
     const fraction = prevEl.find('.andes-money-amount__fraction').first().text().trim();
     const cents    = prevEl.find('.andes-money-amount__cents').first().text().trim() || '00';
-    const val = parseMlFraction(fraction, cents);
+    const cleanF   = fraction.replace(/\./g, '');
+    const cleanC   = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
+    const val = parseFloat(`${cleanF}${cleanC}`) / 100;
     if (val > 0) originalPrice = val;
   }
 
-  // ── Preço final (com desconto — Pix ou promoção) ─────────────────────────
-  // NUNCA usar JSON-LD do ML: nas páginas /p/ ele traz preço agregado de
-  // múltiplos vendedores (ex: lowPrice:3339) e não o preço com desconto Pix.
-  //
-  // Estratégia: percorrer os containers de preço em ordem de especificidade,
-  // pegando o primeiro valor que seja:
-  //   a) maior que zero
-  //   b) diferente do preço original (não é o riscado)
-  //   c) plausível como preço final (≥ 50% do original, para descartar parcelas)
-  const priceContainerSelectors = [
-    // Container específico do preço principal (mais confiável)
-    '.ui-pdp-price__main-price',
-    '.ui-pdp-price__second-line',
-    '.ui-pdp-price',
-  ];
-
-  for (const containerSel of priceContainerSelectors) {
+  for (const sel of ['.ui-pdp-price__main-price', '.ui-pdp-price__second-line', '.ui-pdp-price']) {
     if (finalPrice > 0) break;
-    const container = $(containerSel).first();
-    if (!container.length) continue;
-
-    // Dentro do container, pegar todos os blocos de preço que NÃO sejam riscados
-    container.find('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
-      if (finalPrice > 0) return false; // já achou, parar
-      const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
-      const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
-      const val = parseMlFraction(fraction, cents);
-      // Ignorar zero, igual ao original, e parcelas (< 50% do original)
-      const isValidFinal = val > 0
-        && val !== originalPrice
-        && (!originalPrice || val >= originalPrice * 0.5);
-      if (isValidFinal) finalPrice = val;
-    });
-  }
-
-  // ── Fallback: qualquer .andes-money-amount não riscado da página ──────────
-  if (finalPrice === 0) {
-    $('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
+    $(sel).first().find('.andes-money-amount:not(.andes-money-amount--previous)').each((_: number, el: any) => {
       if (finalPrice > 0) return false;
       const fraction = $(el).find('.andes-money-amount__fraction').first().text().trim();
       const cents    = $(el).find('.andes-money-amount__cents').first().text().trim() || '00';
-      const val = parseMlFraction(fraction, cents);
-      const isValidFinal = val > 0
-        && val !== originalPrice
-        && (!originalPrice || val >= originalPrice * 0.5);
-      if (isValidFinal) finalPrice = val;
+      const cleanF   = fraction.replace(/\./g, '');
+      const cleanC   = (cents || '00').replace(/\D/g, '').padStart(2, '0').slice(0, 2);
+      const val = parseFloat(`${cleanF}${cleanC}`) / 100;
+      if (val > 0 && val !== originalPrice && (!originalPrice || val >= originalPrice * 0.5)) {
+        finalPrice = val;
+      }
     });
   }
 
-  // ── Calcular desconto ─────────────────────────────────────────────────────
-  let discount = 0;
-  if (originalPrice && originalPrice > finalPrice && finalPrice > 0) {
-    discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
-  }
+  const discount = originalPrice && originalPrice > finalPrice && finalPrice > 0
+    ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+    : 0;
 
-  // Imagem principal
   const mainImage = $('figure.ui-pdp-gallery__figure img').first().attr('src') ||
                     $('.ui-pdp-image').first().attr('src') ||
                     $('img[data-zoom]').first().attr('src') || '';
 
-  // Galeria de imagens
   const images: string[] = [];
   $('figure img, .ui-pdp-gallery img').each((_, el) => {
     const src = $(el).attr('src') || $(el).attr('data-src') || '';
-    if (src && src.startsWith('http') && !images.includes(src)) {
-      images.push(src);
-    }
+    if (src && src.startsWith('http') && !images.includes(src)) images.push(src);
   });
 
   return {

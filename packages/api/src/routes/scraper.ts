@@ -183,7 +183,7 @@ export async function scraperRoutes(app: FastifyInstance) {
 
           // Scraping específico por loja usando Cheerio
           if (store === 'mercadolivre') {
-            productData = await scrapeMercadoLivreHTTP($);
+            productData = await scrapeMercadoLivreHTTP($, resolvedUrl);
           } else if (store === 'magalu') {
             productData = await scrapeMagaluHTTP($);
           } else if (store === 'amazon') {
