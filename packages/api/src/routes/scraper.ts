@@ -110,7 +110,16 @@ export async function scraperRoutes(app: FastifyInstance) {
             '--no-first-run',
             '--no-zygote',
             '--disable-gpu',
-          ], // Argumentos necessários para ambientes como Render
+            '--single-process',                    // economiza memória no Render free tier
+            '--disable-extensions',
+            '--disable-background-networking',
+            '--disable-default-apps',
+            '--disable-sync',
+            '--disable-translate',
+            '--hide-scrollbars',
+            '--mute-audio',
+            '--disable-renderer-backgrounding',
+          ],
         });
 
         const context = await browser.newContext({
@@ -126,7 +135,7 @@ export async function scraperRoutes(app: FastifyInstance) {
 
         // Navegar para a página (usar resolvedUrl se foi redirecionado de URL social)
         console.log('[Scraper] Usando Playwright...');
-        await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         // Esperar preços carregarem (ML renderiza via JS — pode demorar)
         try {
@@ -168,7 +177,8 @@ export async function scraperRoutes(app: FastifyInstance) {
         }
 
       } catch (playwrightError: any) {
-        console.warn('[Scraper] Playwright falhou, tentando com Cheerio (HTTP):', playwrightError.message);
+        console.warn('[Scraper] Playwright falhou:', playwrightError.message);
+        console.warn('[Scraper] Stack:', playwrightError.stack?.substring(0, 300));
         usePlaywright = false;
         
         // Fechar navegador se ainda estiver aberto

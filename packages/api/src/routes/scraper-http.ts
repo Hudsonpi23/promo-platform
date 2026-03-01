@@ -97,6 +97,47 @@ async function fetchMlPricesFromAPI(url: string, htmlItemId?: string): Promise<{
 export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?: string) {
   console.log('[Scraper HTTP] Usando scraper HTTP do Mercado Livre...');
 
+  // ── BLOQUEIO: páginas de catálogo /p/ não têm preços no HTML estático ────
+  // Os preços são 100% carregados por JavaScript. Tentar parsear o HTML dessas
+  // páginas resulta em preços completamente errados vindos do bundle JS.
+  // Retornar finalPrice=0 faz o sistema mostrar erro ao usuário (correto).
+  const mlIdFromUrl = extractMlId(originalUrl || '');
+  if (mlIdFromUrl?.type === 'product') {
+    console.log('[ML HTTP] BLOQUEADO: página de catálogo /p/ sem preços no HTML. Playwright necessário.');
+    // Tenta apenas a API — se falhar, retorna vazio (sem lixo do HTML)
+    const rawHtml = $.html();
+    const htmlIdMatch = rawHtml.match(/"item_id"\s*:\s*"(MLB\d{7,})"/i) ||
+                        rawHtml.match(/data-item-id="(MLB\d{7,})"/i);
+    const htmlItemId = htmlIdMatch ? htmlIdMatch[1].toUpperCase() : undefined;
+    const apiData = await fetchMlPricesFromAPI(originalUrl!, htmlItemId);
+    if (apiData && apiData.finalPrice > 0) {
+      const discount = apiData.originalPrice && apiData.originalPrice > apiData.finalPrice
+        ? Math.round(((apiData.originalPrice - apiData.finalPrice) / apiData.originalPrice) * 100)
+        : 0;
+      const title = $('h1.ui-pdp-title').first().text().trim() ||
+                    $('.ui-pdp-title').first().text().trim() || apiData.title;
+      const mainImageFromHtml = $('figure.ui-pdp-gallery__figure img').first().attr('src') ||
+                                 $('.ui-pdp-image').first().attr('src') || apiData.mainImage;
+      return {
+        title,
+        finalPrice: apiData.finalPrice,
+        originalPrice: apiData.originalPrice,
+        discount,
+        mainImage: mainImageFromHtml,
+        images: [mainImageFromHtml],
+      };
+    }
+    // API falhou → retorna sem preços (mostra erro ao usuário, não preços errados)
+    return {
+      title: $('h1.ui-pdp-title').first().text().trim() || '',
+      finalPrice: 0,
+      originalPrice: null,
+      discount: 0,
+      mainImage: '',
+      images: [],
+    };
+  }
+
   // Título (do HTML — sempre disponível mesmo sem JS)
   const title = $('h1.ui-pdp-title').first().text().trim() ||
                 $('.ui-pdp-title').first().text().trim() || '';
