@@ -7,15 +7,22 @@ import axios from 'axios';
 // incluindo o preço Pix. Muito mais confiável do que parsear o HTML.
 
 /**
- * Extrai o ID do item ML (MLBxxxxxxxxxx) ou produto (/p/MLBxxxxx) de uma URL.
- * Retorna { type: 'item'|'product', id: 'MLBxxxx' } ou null.
+ * Extrai o ID do item ML ou produto de uma URL.
+ * Suporta todos os formatos do ML:
+ *   - produto.mercadolivre.com.br/MLB-4087123643-...  → item MLB4087123643
+ *   - mercadolivre.com.br/.../MLB3234567890           → item MLB3234567890
+ *   - mercadolivre.com.br/.../p/MLB47885              → product MLB47885
  */
 function extractMlId(url: string): { type: 'item' | 'product'; id: string } | null {
-  // Produto: /p/MLB47885
+  // Produto: /p/MLB47885 (5-8 dígitos)
   const productMatch = url.match(/\/p\/(MLB\d+)/i);
   if (productMatch) return { type: 'product', id: productMatch[1].toUpperCase() };
 
-  // Item: /MLB3234567890 (9+ dígitos)
+  // Item com traço: /MLB-4087123643- (formato produto.mercadolivre.com.br)
+  const itemDashMatch = url.match(/\/MLB-(\d{7,})/i);
+  if (itemDashMatch) return { type: 'item', id: `MLB${itemDashMatch[1]}` };
+
+  // Item sem traço: /MLB3234567890 (9+ dígitos)
   const itemMatch = url.match(/\/(MLB\d{9,})/i);
   if (itemMatch) return { type: 'item', id: itemMatch[1].toUpperCase() };
 
@@ -100,10 +107,14 @@ export async function scrapeMercadoLivreHTTP($: cheerio.CheerioAPI, originalUrl?
   if (originalUrl) {
     // Tentar extrair item ID do HTML (mais rápido e preciso que buscar via produto)
     const rawHtml = $.html();
-    const htmlIdMatch = rawHtml.match(/"item_id"\s*:\s*"(MLB\d{9,})"/i) ||
-                        rawHtml.match(/data-item-id="(MLB\d{9,})"/i) ||
-                        rawHtml.match(/"id"\s*:\s*"(MLB\d{9,})"/i);
+    const htmlIdMatch =
+      rawHtml.match(/"item_id"\s*:\s*"(MLB\d{7,})"/i) ||
+      rawHtml.match(/data-item-id="(MLB\d{7,})"/i) ||
+      rawHtml.match(/"itemId"\s*:\s*"(MLB\d{7,})"/i) ||
+      rawHtml.match(/"id"\s*:\s*"(MLB\d{9,})"/i) ||   // id com 9+ dígitos para evitar IDs curtos
+      rawHtml.match(/["'](MLB\d{9,})["']/i);            // qualquer MLB ID longo na página
     const htmlItemId = htmlIdMatch ? htmlIdMatch[1].toUpperCase() : undefined;
+    console.log('[ML HTTP] URL:', originalUrl, '| mlId:', extractMlId(originalUrl), '| htmlItemId:', htmlItemId);
 
     const apiData = await fetchMlPricesFromAPI(originalUrl, htmlItemId);
     if (apiData && apiData.finalPrice > 0) {
