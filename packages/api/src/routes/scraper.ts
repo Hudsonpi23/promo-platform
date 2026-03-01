@@ -303,12 +303,71 @@ export async function scraperRoutes(app: FastifyInstance) {
 async function scrapeMercadoLivre(page: any) {
   console.log('[Scraper] Usando scraper do Mercado Livre...');
 
+  // ── Bloquear recursos desnecessários para acelerar carregamento ───────────
+  // Imagens, CSS e fontes não são necessários para extrair preços/título.
+  // Sem esse bloqueio, o ML carrega ~5-10MB de assets antes de mostrar preços.
+  await page.route('**/*', (route: any) => {
+    const type = route.request().resourceType();
+    if (['image', 'stylesheet', 'font', 'media', 'imageset'].includes(type)) {
+      route.abort();
+    } else {
+      route.continue();
+    }
+  });
+
+  // ── Interceptar chamadas de API do ML para capturar preços diretamente ────
+  // Quando a página carrega, o JavaScript do ML faz chamadas para sua própria
+  // API buscando dados do produto. Capturamos essas respostas.
+  let capturedApiPrices: { finalPrice: number; originalPrice: number | null } | null = null;
+
+  page.on('response', async (response: any) => {
+    try {
+      const url = response.url();
+      if (response.status() !== 200) return;
+      // Captura chamadas para a API pública do ML com item ID
+      if (url.includes('api.mercadolibre.com/items/MLB') ||
+          url.includes('api.mercadolibre.com/pdp/')) {
+        const json = await response.json().catch(() => null);
+        if (json?.price > 0) {
+          // Prefere o item de menor preço (Melhor preço)
+          if (!capturedApiPrices || json.price < capturedApiPrices.finalPrice) {
+            capturedApiPrices = {
+              finalPrice: json.price,
+              originalPrice: json.original_price || null,
+            };
+            console.log('[Scraper ML] Preço capturado da API via intercept:', json.price, json.original_price);
+          }
+        }
+      }
+    } catch { /* ignorar erros de parsing */ }
+  });
+
   // Título
   const title = await page.$eval('h1.ui-pdp-title', (el: any) => el.textContent?.trim())
     .catch(() => page.$eval('.ui-pdp-title', (el: any) => el.textContent?.trim()))
     .catch(() => '');
 
-  // Extrair preços via page.evaluate — página já renderizada com JS (Pix visível)
+  // ── Se capturamos preços via intercepção de API, usar esses valores ────────
+  if (capturedApiPrices && (capturedApiPrices as any).finalPrice > 0) {
+    const cp = capturedApiPrices as { finalPrice: number; originalPrice: number | null };
+    const discount = cp.originalPrice && cp.originalPrice > cp.finalPrice
+      ? Math.round(((cp.originalPrice - cp.finalPrice) / cp.originalPrice) * 100)
+      : 0;
+    console.log('[Scraper ML] Usando preços da API interceptada:', cp);
+    const mainImage = await page.$eval('figure.ui-pdp-gallery__figure img', (el: any) => el.src)
+      .catch(() => page.$eval('.ui-pdp-image', (el: any) => el.getAttribute('src')))
+      .catch(() => '');
+    return {
+      title,
+      finalPrice: cp.finalPrice,
+      originalPrice: cp.originalPrice !== cp.finalPrice ? cp.originalPrice : null,
+      discount,
+      mainImage,
+      images: mainImage ? [mainImage] : [],
+    };
+  }
+
+  // ── Extrair preços via page.evaluate — página já renderizada com JS ───────
   const priceData = await page.evaluate(() => {
     const parseFraction = (fraction: string, cents: string): number => {
       if (!fraction) return 0;
