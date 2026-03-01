@@ -62,32 +62,77 @@ async function fetchMlPricesFromAPI(url: string, htmlItemId?: string): Promise<{
     }
   }
 
-  // Produto: buscar o melhor item associado
+  // Produto: buscar via página de listagem do ML (server-rendered, tem IDs reais)
   if (mlId?.type === 'product') {
+    // ── Estratégia A: página lista.mercadolivre.com.br/{slug} ─────────────
+    // Essa página É server-rendered e contém IDs de itens reais no HTML.
+    // A partir desses IDs, chamamos a items API (que funciona sem auth).
     try {
-      // Busca itens do produto ordenados por preço
+      const urlObj = new URL(url);
+      // Slug = primeira parte do path (ex: "tablet-samsung-galaxy-tab-s10-fe-...")
+      const slug = urlObj.pathname.split('/').filter(Boolean)[0] || '';
+      if (slug && slug.length > 5) {
+        const listingUrl = `https://lista.mercadolivre.com.br/${slug}`;
+        console.log('[ML API] Buscando IDs via lista:', listingUrl);
+        const listResp = await axios.get(listingUrl, { headers, timeout: 12000 });
+        const listHtml: string = listResp.data || '';
+
+        // Extrair IDs únicos de itens MLB (9+ dígitos) do HTML da listagem
+        const rawIds = listHtml.match(/MLB\d{9,}/gi) || [];
+        const itemIds = [...new Set(rawIds.map((id: string) => id.toUpperCase()))].slice(0, 6);
+        console.log('[ML API] IDs encontrados na listagem:', itemIds);
+
+        if (itemIds.length > 0) {
+          // Buscar preços para todos os itens em paralelo
+          const itemResults = await Promise.allSettled(
+            itemIds.map((id: string) =>
+              axios.get(`https://api.mercadolibre.com/items/${id}`, { headers, timeout: 6000 })
+                .then((r: any) => r.data)
+            )
+          );
+
+          // Coletar itens válidos com desconto (original_price > price)
+          const validItems: Array<{price: number; original_price: number; id: string; title: string; thumbnail: string}> = [];
+          for (const result of itemResults) {
+            if (result.status === 'fulfilled') {
+              const d = result.value;
+              if (d?.price > 0) {
+                validItems.push(d);
+              }
+            }
+          }
+
+          console.log('[ML API] Itens válidos:', validItems.map(d => `${d.id}:${d.price}/${d.original_price}`));
+
+          if (validItems.length > 0) {
+            // Preferir item com desconto (original_price > price); se não, pegar o mais barato
+            const withDiscount = validItems.filter(d => d.original_price && d.original_price > d.price);
+            const best = withDiscount.length > 0
+              ? withDiscount.sort((a, b) => a.price - b.price)[0]
+              : validItems.sort((a, b) => a.price - b.price)[0];
+
+            return {
+              finalPrice: best.price,
+              originalPrice: best.original_price && best.original_price > best.price ? best.original_price : null,
+              title: best.title || '',
+              mainImage: (best.thumbnail || '').replace('-I.jpg', '-O.jpg').replace('-I.webp', '-O.webp'),
+            };
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn('[ML API] Falha na estratégia lista.mercadolivre.com.br:', e.message);
+    }
+
+    // ── Estratégia B: products API (geralmente 403, mas tentamos) ─────────
+    try {
       const resp = await axios.get(
         `https://api.mercadolibre.com/products/${mlId.id}/items?limit=1`,
         { headers, timeout: 8000 }
       );
       const results = resp.data?.results || resp.data;
       const first = Array.isArray(results) ? results[0] : null;
-      if (first?.id) {
-        // Recursão com o item ID encontrado
-        return fetchMlPricesFromAPI(url, first.id);
-      }
-    } catch (_e) { /* ignorar, cair no CSS */ }
-
-    // Alternativa: buscar via search API
-    try {
-      const resp = await axios.get(
-        `https://api.mercadolibre.com/sites/MLB/search?q=${mlId.id}&limit=1`,
-        { headers, timeout: 8000 }
-      );
-      const firstResult = resp.data?.results?.[0];
-      if (firstResult?.id) {
-        return fetchMlPricesFromAPI(url, firstResult.id);
-      }
+      if (first?.id) return fetchMlPricesFromAPI(url, first.id);
     } catch (_e) { /* ignorar */ }
   }
 
