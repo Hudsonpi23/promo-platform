@@ -1104,20 +1104,20 @@ function getDiscountEmoji(discountPct: number, title: string): string {
  * Gera copy para Telegram (≤ 350 caracteres) - TUDO EM MAIÚSCULAS + EMOJIS
  */
 function generateTelegramCopy(input: CopyInputData, seed: number): string {
-  // VALIDAÇÃO: Garantir que temos dados mínimos
-  if (!input.title || !input.price || !input.trackingUrl) {
+  // VALIDAÇÃO: Garantir que temos dados mínimos (link é opcional)
+  if (!input.title || !input.price) {
     console.error('[generateTelegramCopy] Dados inválidos:', { 
       hasTitle: !!input.title, 
       hasPrice: !!input.price, 
       hasTrackingUrl: !!input.trackingUrl 
     });
-    // Fallback mínimo no formato correto (link PRIMEIRO)
+    // Fallback mínimo no formato correto (link PRIMEIRO se disponível)
     const fallbackPrice = formatPrice(input.price || 0);
     const fallbackTitle = (input.title || 'PRODUTO').toUpperCase();
-    const trackingUrl = (input.trackingUrl || '').toLowerCase(); // Link sempre em minúsculas
+    const trackingUrl = (input.trackingUrl || '').toLowerCase();
     
-    // Link PRIMEIRO (garante preview do Telegram)
-    let fallbackText = `${trackingUrl}\n\nACHADO NÃO É ROUBADO\nPOR ${fallbackPrice}`;
+    let fallbackText = trackingUrl ? `${trackingUrl}\n\n` : '';
+    fallbackText += `ACHADO NÃO É ROUBADO\nPOR ${fallbackPrice}`;
     if (input.discountPct && input.discountPct >= 20) {
       fallbackText += ` 🔥 (-${Math.round(input.discountPct)}% OFF)`;
     }
@@ -1207,7 +1207,7 @@ function generateTelegramCopy(input: CopyInputData, seed: number): string {
   // 4. Link (DEPOIS - Telegram ainda gera preview mesmo no final)
   
   // IMPORTANTE: Link sempre em minúsculas (URLs devem ser minúsculas)
-  const normalizedUrl = input.trackingUrl.toLowerCase();
+  const normalizedUrl = (input.trackingUrl || '').toLowerCase();
   
   // VALIDAÇÃO CRÍTICA: Garantir que opening e priceLine existem ANTES de construir
   const finalOpening = (opening && opening.trim().length > 0) ? opening : 'ACHADO NÃO É ROUBADO';
@@ -1261,8 +1261,10 @@ function generateTelegramCopy(input: CopyInputData, seed: number): string {
     text = textWithTitle;
   }
   
-  // ADICIONAR LINK NO FINAL (depois do conteúdo)
-  text = text + `\n\n${normalizedUrl}`;
+  // ADICIONAR LINK NO FINAL (depois do conteúdo) — apenas se tiver link
+  if (normalizedUrl) {
+    text = text + `\n\n${normalizedUrl}`;
+  }
   
   // LOG: Verificar o texto antes de processar
   console.log('[generateTelegramCopy] 📝 Texto ANTES de processar:');
