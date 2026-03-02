@@ -37,6 +37,8 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
   const urgencyInfo = getUrgencyInfo(post.urgency);
   const hasDiscount = Boolean(post.discount && post.discount > 0);
   const slug = post.slug || post.id;
+  // Garante que sempre há um link válido — usa affiliateUrl ou rota /go/:id como fallback
+  const offerLink = post.affiliateUrl || `/go/${post.goCode || post.id}`;
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -139,7 +141,7 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
 
       {/* ── Imagem — clique vai direto para o link afiliado ── */}
       <a
-        href={post.affiliateUrl}
+        href={offerLink}
         target="_blank"
         rel="noopener noreferrer sponsored"
         className="block"
@@ -187,7 +189,7 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
 
         {/* Título — clique vai direto para o link afiliado */}
         <a
-          href={post.affiliateUrl}
+          href={offerLink}
           target="_blank"
           rel="noopener noreferrer sponsored"
           className="block mb-3"
@@ -236,7 +238,7 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
 
         {/* Botão VER OFERTA — vai direto para o afiliado */}
         <a
-          href={post.affiliateUrl}
+          href={offerLink}
           target="_blank"
           rel="noopener noreferrer sponsored"
           className="mt-auto block w-full text-center py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg"
