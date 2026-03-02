@@ -1,13 +1,18 @@
 'use client';
 
+import { useState } from 'react';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/api';
+import { fetchWithAuth } from '@/lib/auth';
 
 // Mesmo padrão da página de Ofertas — useSWR + fetcher
 // Quando o Auto Publicar cria uma oferta (curationStatus: 'APPROVED'),
 // ela aparece aqui automaticamente no próximo refresh.
 
 const APPROVED = ['APPROVED', 'AI_PROCESSING', 'AI_READY', 'AI_BLOCKED'];
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+type RepostState = 'idle' | 'loading' | 'ok' | 'error';
 
 function formatPrice(v?: string | number | null) {
   if (v === null || v === undefined || v === '') return '—';
@@ -22,6 +27,48 @@ function formatDate(iso: string) {
 }
 
 export default function HistoricoPage() {
+  // Estado dos botões de repost por oferta: { [offerId]: { tg, tw } }
+  const [repost, setRepost] = useState<Record<string, { tg: RepostState; tw: RepostState }>>({});
+
+  function setTg(id: string, s: RepostState) {
+    setRepost(prev => {
+      const cur = prev[id] ?? { tg: 'idle', tw: 'idle' };
+      return { ...prev, [id]: { ...cur, tg: s } };
+    });
+  }
+  function setTw(id: string, s: RepostState) {
+    setRepost(prev => {
+      const cur = prev[id] ?? { tg: 'idle', tw: 'idle' };
+      return { ...prev, [id]: { ...cur, tw: s } };
+    });
+  }
+
+  async function repostTelegram(offerId: string) {
+    setTg(offerId, 'loading');
+    try {
+      const r = await fetchWithAuth(`${API_URL}/api/telegram/post-offer/${offerId}`, { method: 'POST' });
+      const d = await r.json();
+      setTg(offerId, d.success ? 'ok' : 'error');
+      if (!d.success) alert(`❌ Telegram: ${d.error || 'Erro ao republicar'}`);
+    } catch (e: any) {
+      setTg(offerId, 'error');
+      alert(`❌ Telegram: ${e.message}`);
+    }
+  }
+
+  async function repostTwitter(offerId: string) {
+    setTw(offerId, 'loading');
+    try {
+      const r = await fetchWithAuth(`${API_URL}/api/twitter/post-offer/${offerId}`, { method: 'POST' });
+      const d = await r.json();
+      setTw(offerId, d.success ? 'ok' : 'error');
+      if (!d.success) alert(`❌ X (Twitter): ${d.error || 'Erro ao republicar'}`);
+    } catch (e: any) {
+      setTw(offerId, 'error');
+      alert(`❌ X (Twitter): ${e.message}`);
+    }
+  }
+
   // Mesmo endpoint e fetcher da página de Ofertas
   const { data, error, isLoading, mutate } = useSWR(
     '/api/offers?active=true',
@@ -103,6 +150,7 @@ export default function HistoricoPage() {
         <div className="grid gap-3">
           {offers.map((offer: any) => {
             const img = offer.mainImage || offer.imageUrl;
+            const st  = repost[offer.id] ?? { tg: 'idle' as RepostState, tw: 'idle' as RepostState };
             return (
               <div key={offer.id}
                 className="bg-[#1a1d27] border border-gray-800 hover:border-gray-600 rounded-xl p-4 flex gap-4 transition-colors">
@@ -159,15 +207,49 @@ export default function HistoricoPage() {
                   </div>
                 </div>
 
-                {/* Link */}
-                {offer.affiliateUrl && (
-                  <div className="flex-shrink-0 flex items-start">
+                {/* Ações */}
+                <div className="flex-shrink-0 flex flex-col items-end justify-between gap-2 min-w-[130px]">
+                  {offer.affiliateUrl && (
                     <a href={offer.affiliateUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:text-blue-300 underline whitespace-nowrap mt-1">
+                      className="text-xs text-blue-400 hover:text-blue-300 underline whitespace-nowrap">
                       Ver produto ↗
                     </a>
+                  )}
+
+                  {/* Republicar — Telegram */}
+                  <div className="flex items-center gap-1.5 w-full justify-end">
+                    {st.tg === 'loading' && <span className="text-xs text-yellow-400 animate-pulse">Enviando...</span>}
+                    {st.tg === 'ok'      && <span className="text-xs text-emerald-400">✓ Enviado</span>}
+                    {st.tg === 'error'   && <span className="text-xs text-red-400">✗ Falhou</span>}
+                    <button
+                      onClick={() => repostTelegram(offer.id)}
+                      disabled={st.tg === 'loading'}
+                      title="Republicar no Telegram"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/25 text-blue-400 text-xs rounded-lg font-medium transition-colors disabled:opacity-50 whitespace-nowrap">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.248l-2.01 9.474c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.873.747z" />
+                      </svg>
+                      Telegram
+                    </button>
                   </div>
-                )}
+
+                  {/* Republicar — X */}
+                  <div className="flex items-center gap-1.5 w-full justify-end">
+                    {st.tw === 'loading' && <span className="text-xs text-yellow-400 animate-pulse">Enviando...</span>}
+                    {st.tw === 'ok'      && <span className="text-xs text-emerald-400">✓ Enviado</span>}
+                    {st.tw === 'error'   && <span className="text-xs text-red-400">✗ Falhou</span>}
+                    <button
+                      onClick={() => repostTwitter(offer.id)}
+                      disabled={st.tw === 'loading'}
+                      title="Republicar no X (Twitter)"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-700/50 hover:bg-gray-700 border border-gray-600/50 text-gray-300 text-xs rounded-lg font-medium transition-colors disabled:opacity-50 whitespace-nowrap">
+                      <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                      X (Twitter)
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           })}
