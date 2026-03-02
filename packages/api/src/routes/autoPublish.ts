@@ -81,7 +81,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         const $ = cheerio.load(httpResp.data);
         let productData: any;
 
-        if (store === 'mercadolivre') productData = await scrapeMercadoLivreHTTP($, url);
+        if (store === 'mercadolivre') productData = await scrapeMercadoLivreHTTP($);
         else if (store === 'magalu') productData = await scrapeMagaluHTTP($);
         else if (store === 'amazon') productData = await scrapeAmazonHTTP($);
         else productData = await scrapeGenericHTTP($);
