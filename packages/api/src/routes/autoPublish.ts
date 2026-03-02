@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { authGuard } from '../lib/auth.js';
 import { prisma } from '../lib/prisma.js';
+import { nanoid } from 'nanoid';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import {
@@ -169,7 +170,56 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         });
 
         result.offerId = offer.id;
-        result.site = true;
+
+        // ── 7. PUBLICAR NO SITE (criar PublishedPost) ─────────────────────
+        try {
+          // Gerar slug único
+          const baseSlug = offer.title
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+            .substring(0, 60);
+
+          let slug = baseSlug;
+          let suffix = 0;
+          while (await prisma.publishedPost.findUnique({ where: { slug } })) {
+            suffix++;
+            slug = `${baseSlug}-${suffix}`;
+          }
+
+          const goCode = nanoid(8);
+          const discountLine = discountPct > 0
+            ? `${discountPct}% de desconto!`
+            : '';
+          const copyText = `🔥 ${offer.title}\n\nDe R$ ${offer.originalPrice ?? offer.finalPrice} por R$ ${offer.finalPrice}${discountLine ? '\n\n' + discountLine : ''}`;
+
+          await prisma.publishedPost.create({
+            data: {
+              offerId: offer.id,
+              slug,
+              goCode,
+              title: offer.title,
+              excerpt: offer.title,
+              copyText,
+              price: offer.finalPrice,
+              originalPrice: offer.originalPrice,
+              discountPct: offer.discountPct,
+              affiliateUrl: url,
+              imageUrl: mainImage,
+              urgency: 'NORMAL',
+              nicheId,
+              storeId,
+              isActive: true,
+            },
+          });
+
+          result.site = true;
+        } catch (siteErr: any) {
+          console.warn('[AutoPublish] Falha ao publicar no site:', siteErr.message);
+          result.site = false;
+        }
 
         // ── 7. GERAR COPY COM IA ───────────────────────────────────────────
         const copies = generateCopies({
