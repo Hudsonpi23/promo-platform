@@ -20,19 +20,17 @@ export function FiltersBar({ niches, activeNiche, totalCount, showSearch = true,
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
-    if (search) {
-      params.set('q', search);
-    } else {
-      params.delete('q');
-    }
-    router.push(`/?${params.toString()}`);
+    const params = new URLSearchParams();
+    if (search.trim()) params.set('q', search.trim());
+    const currentSort = searchParams.get('sort');
+    if (currentSort) params.set('sort', currentSort);
+    router.replace(`/?${params.toString()}`);
   };
 
   const handleSortChange = (sort: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('sort', sort);
-    router.push(`/?${params.toString()}`);
+    router.replace(`/?${params.toString()}`);
   };
 
   return (
@@ -59,7 +57,7 @@ export function FiltersBar({ niches, activeNiche, totalCount, showSearch = true,
                     setSearch('');
                     const params = new URLSearchParams(searchParams.toString());
                     params.delete('q');
-                    router.push(`/?${params.toString()}`);
+                    router.replace(`/?${params.toString()}`);
                   }}
                   className="absolute right-12 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-blue-100 text-blue-500 hover:bg-blue-200 flex items-center justify-center transition-colors"
                 >

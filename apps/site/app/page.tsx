@@ -186,7 +186,9 @@ export default async function Home({ searchParams }: PageProps) {
 
       {/* Grid de Ofertas — com "Carregar mais" funcional */}
       <section className="max-w-7xl mx-auto px-4 pb-16">
+        {/* key força remontagem quando busca/sort mudam → useState reinicializa com posts filtrados */}
         <OffersFeed
+          key={`${searchQuery || ''}-${searchParams.sort || 'recent'}`}
           initialPosts={posts}
           initialHasMore={hasMore}
           searchQuery={searchQuery}
