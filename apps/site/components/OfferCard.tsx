@@ -130,120 +130,134 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
     }
   };
 
-  return (
-    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative ${featured ? 'md:p-5' : ''}`}>
+  const economy = hasDiscount && post.originalPrice && post.originalPrice > post.price
+    ? post.originalPrice - post.price
+    : null;
 
-      {/* Imagem do produto */}
-      <Link href={`/oferta/${slug}`} className="block">
+  return (
+    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative flex flex-col`}>
+
+      {/* ── Imagem — clique vai direto para o link afiliado ── */}
+      <a
+        href={post.affiliateUrl}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        className="block"
+      >
         <div className={`relative w-full bg-gray-50 overflow-hidden rounded-t-2xl ${featured ? 'h-56' : 'h-44'}`}>
           {post.imageUrl && (
             <Image
               src={post.imageUrl}
               alt={post.title}
               fill
-              className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+              className="object-contain p-3 group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 768px) 100vw, 33vw"
             />
           )}
 
-          {/* Badge de desconto — dentro da imagem, bem visível */}
+          {/* Badge de desconto — canto superior esquerdo */}
           {hasDiscount && (
-            <div className="absolute top-2 left-2 z-10">
-              <div className="flex flex-col items-center bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-xl shadow-lg px-2.5 py-1.5 leading-none">
-                <span className="text-[10px] font-bold uppercase tracking-wide opacity-90">OFF</span>
-                <span className="text-2xl font-black leading-none">{post.discount}%</span>
-                <span className="text-[9px] font-bold uppercase tracking-wide opacity-90">🔥 queimado</span>
-              </div>
+            <div className="absolute top-2 left-2 z-10 flex flex-col items-center bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-xl shadow-lg px-2.5 py-1.5 leading-none">
+              <span className="text-[10px] font-bold uppercase tracking-wide opacity-90">OFF</span>
+              <span className="text-xl font-black leading-none">{post.discount}%</span>
+              <span className="text-[9px] font-bold opacity-80">🔥 queimado</span>
             </div>
           )}
 
-          {/* Badge de urgência sobre a imagem */}
+          {/* Badge urgência — canto superior direito */}
           {urgencyInfo && (
-            <div className={`absolute top-2 right-2 z-10 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${urgencyInfo.bg} ${urgencyInfo.text} shadow-md`}>
+            <div className={`absolute top-2 right-2 z-10 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold shadow-md ${urgencyInfo.bg} ${urgencyInfo.text}`}>
               {urgencyInfo.label}
             </div>
           )}
         </div>
-      </Link>
-
-      <div className="p-4">
-
-      {/* Nicho + Loja */}
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
-          {post.nicheIcon && <span>{post.nicheIcon}</span>}
-          {post.niche}
-        </span>
-        <span className="text-gray-400 text-xs">•</span>
-        <span className="text-gray-500 text-xs font-medium">{post.store}</span>
-      </div>
-
-      {/* Headline estilo Manu (se disponível) */}
-      {post.headline && (
-        <p className="text-sm text-gray-600 italic mb-2">
-          "{post.headline}"
-        </p>
-      )}
-
-      {/* Título */}
-      <Link href={`/oferta/${slug}`} className="block group/link">
-        <h3 className={`font-bold text-blue-900 group-hover/link:text-blue-600 transition-colors line-clamp-2 mb-4 ${featured ? 'text-lg' : 'text-base'}`}>
-          {post.title}
-        </h3>
-      </Link>
-
-      {/* Preços */}
-      <div className="mb-4">
-        {post.originalPrice && post.originalPrice > post.price && (
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="text-gray-400 text-sm line-through">
-              De {formatPrice(post.originalPrice)}
-            </span>
-          </div>
-        )}
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span className={`font-extrabold text-blue-600 ${featured ? 'text-2xl' : 'text-xl'}`}>
-            {formatPrice(post.price)}
-          </span>
-          {hasDiscount && post.originalPrice && post.originalPrice > post.price && (
-            <span className="text-xs font-black text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
-              🔥 Economia de {formatPrice(post.originalPrice - post.price)}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Botão */}
-      <a
-        href={post.affiliateUrl}
-        target="_blank"
-        rel="noopener noreferrer sponsored"
-        className="block w-full text-center py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg mb-2"
-      >
-        VER OFERTA →
       </a>
 
-      {/* Botão deletar - apenas para admin */}
-      {isLoggedIn && (
-        <button
-          onClick={handleDelete}
-          disabled={isDeleting}
-          className="w-full text-center py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-          title="Deletar post"
+      <div className="p-4 flex flex-col flex-1">
+
+        {/* Nicho + Loja */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold">
+            {post.nicheIcon && <span>{post.nicheIcon}</span>}
+            {post.niche}
+          </span>
+          <span className="text-gray-300 text-xs">•</span>
+          <span className="text-gray-500 text-xs font-medium">{post.store}</span>
+        </div>
+
+        {/* Título — clique vai direto para o link afiliado */}
+        <a
+          href={post.affiliateUrl}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className="block mb-3"
         >
-          {isDeleting ? (
-            <>
-              <span className="animate-spin">⏳</span>
-              <span>Deletando...</span>
-            </>
-          ) : (
-            <>
-              <span>🗑️</span>
-              <span>Deletar</span>
-            </>
+          <h3 className={`font-bold text-blue-900 hover:text-blue-600 transition-colors line-clamp-2 ${featured ? 'text-lg' : 'text-sm'}`}>
+            {post.title}
+          </h3>
+        </a>
+
+        {/* ── Preços — estilo página de detalhe ── */}
+        <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 mb-3">
+          {/* Linha: preço original riscado + badge desconto */}
+          {post.originalPrice && post.originalPrice > post.price && (
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-gray-400 text-xs line-through">
+                {formatPrice(post.originalPrice)}
+              </span>
+              {hasDiscount && (
+                <span className="bg-green-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                  -{post.discount}% OFF
+                </span>
+              )}
+            </div>
           )}
-        </button>
-      )}
+
+          {/* Preço atual */}
+          <div className={`font-extrabold text-green-600 leading-none ${featured ? 'text-2xl' : 'text-2xl'}`}>
+            {formatPrice(post.price)}
+          </div>
+
+          {/* Melhor preço verificado */}
+          <p className="text-green-600 text-[10px] font-semibold mt-1 flex items-center gap-1">
+            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
+            Melhor preço verificado
+          </p>
+        </div>
+
+        {/* Economia */}
+        {economy && economy > 0 && (
+          <p className="text-red-500 text-xs font-bold mb-3">
+            🔥 Economia de {formatPrice(economy)}
+          </p>
+        )}
+
+        {/* Botão VER OFERTA — vai direto para o afiliado */}
+        <a
+          href={post.affiliateUrl}
+          target="_blank"
+          rel="noopener noreferrer sponsored"
+          className="mt-auto block w-full text-center py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg"
+        >
+          VER OFERTA →
+        </a>
+
+        {/* Botão deletar — apenas para admin */}
+        {isLoggedIn && (
+          <button
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="w-full text-center py-2 mt-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          >
+            {isDeleting ? (
+              <><span className="animate-spin">⏳</span><span>Deletando...</span></>
+            ) : (
+              <><span>🗑️</span><span>Deletar</span></>
+            )}
+          </button>
+        )}
       </div>
     </article>
   );
