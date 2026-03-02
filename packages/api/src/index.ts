@@ -33,6 +33,7 @@ import { autoPromoterRoutes } from './routes/autoPromoterFastify';
 import { mlAuthRoutes } from './routes/mlAuth';
 import { scraperRoutes } from './routes/scraper';
 import { customPhrasesRoutes } from './routes/customPhrases';
+import { autoPublishRoutes } from './routes/autoPublish';
 
 async function main() {
   const server = Fastify({
@@ -253,6 +254,9 @@ async function main() {
   
   // 📝 Frases Personalizadas (salvar frases criadas manualmente)
   server.register(customPhrasesRoutes, { prefix: '/api/custom-phrases' });
+
+  // ⚡ Auto Publicar (colar links → IA cria e publica automaticamente)
+  server.register(autoPublishRoutes, { prefix: '/api/auto-publish' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

@@ -33,6 +33,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
           <nav className="flex-1 space-y-1">
             {/* PRINCIPAL */}
             <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-2 pb-1">Principal</p>
+
+            <a
+              href="/auto-publicar"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/auto-publicar'
+                  ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">⚡</span>
+              <span className="font-semibold">Auto Publicar</span>
+            </a>
             
             <a 
               href="/" 
