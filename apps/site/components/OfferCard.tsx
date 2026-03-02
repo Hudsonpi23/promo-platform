@@ -131,20 +131,12 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
   };
 
   return (
-    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative overflow-hidden ${featured ? 'md:p-5' : ''}`}>
-      {/* Badge de desconto */}
-      {hasDiscount && (
-        <div className="absolute -top-2 -right-2 z-10">
-          <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl shadow-lg border-2 border-white transform rotate-3 group-hover:rotate-0 transition-transform">
-            -{post.discount}%
-          </div>
-        </div>
-      )}
+    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative ${featured ? 'md:p-5' : ''}`}>
 
       {/* Imagem do produto */}
-      {post.imageUrl && (
-        <Link href={`/oferta/${slug}`} className="block">
-          <div className={`relative w-full bg-gray-50 overflow-hidden ${featured ? 'h-56' : 'h-44'}`}>
+      <Link href={`/oferta/${slug}`} className="block">
+        <div className={`relative w-full bg-gray-50 overflow-hidden rounded-t-2xl ${featured ? 'h-56' : 'h-44'}`}>
+          {post.imageUrl && (
             <Image
               src={post.imageUrl}
               alt={post.title}
@@ -152,17 +144,29 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
               className="object-contain p-2 group-hover:scale-105 transition-transform duration-300"
               sizes="(max-width: 768px) 100vw, 33vw"
             />
-          </div>
-        </Link>
-      )}
+          )}
+
+          {/* Badge de desconto — dentro da imagem, bem visível */}
+          {hasDiscount && (
+            <div className="absolute top-2 left-2 z-10">
+              <div className="flex flex-col items-center bg-gradient-to-br from-red-500 to-orange-500 text-white rounded-xl shadow-lg px-2.5 py-1.5 leading-none">
+                <span className="text-[10px] font-bold uppercase tracking-wide opacity-90">OFF</span>
+                <span className="text-2xl font-black leading-none">{post.discount}%</span>
+                <span className="text-[9px] font-bold uppercase tracking-wide opacity-90">🔥 queimado</span>
+              </div>
+            </div>
+          )}
+
+          {/* Badge de urgência sobre a imagem */}
+          {urgencyInfo && (
+            <div className={`absolute top-2 right-2 z-10 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${urgencyInfo.bg} ${urgencyInfo.text} shadow-md`}>
+              {urgencyInfo.label}
+            </div>
+          )}
+        </div>
+      </Link>
 
       <div className="p-4">
-      {/* Urgência */}
-      {urgencyInfo && (
-        <div className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold ${urgencyInfo.bg} ${urgencyInfo.text} mb-3`}>
-          {urgencyInfo.label}
-        </div>
-      )}
 
       {/* Nicho + Loja */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
@@ -191,19 +195,19 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
       {/* Preços */}
       <div className="mb-4">
         {post.originalPrice && post.originalPrice > post.price && (
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-0.5">
             <span className="text-gray-400 text-sm line-through">
-              {formatPrice(post.originalPrice)}
+              De {formatPrice(post.originalPrice)}
             </span>
           </div>
         )}
-        <div className="flex items-baseline gap-2">
+        <div className="flex items-baseline gap-2 flex-wrap">
           <span className={`font-extrabold text-blue-600 ${featured ? 'text-2xl' : 'text-xl'}`}>
             {formatPrice(post.price)}
           </span>
-          {hasDiscount && (
-            <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded-md">
-              ECONOMIA {formatPrice((post.originalPrice || post.price) - post.price)}
+          {hasDiscount && post.originalPrice && post.originalPrice > post.price && (
+            <span className="text-xs font-black text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
+              🔥 Economia de {formatPrice(post.originalPrice - post.price)}
             </span>
           )}
         </div>
