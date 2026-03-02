@@ -80,9 +80,16 @@ export async function publicRoutes(app: FastifyInstance) {
     const sort = query.sort || 'recent';
     const niche = query.niche;
 
+    const q = query.q as string | undefined;
     const where: any = { isActive: true };
     if (niche) {
       where.niche = { name: { contains: niche, mode: 'insensitive' } };
+    }
+    if (q) {
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { excerpt: { contains: q, mode: 'insensitive' } },
+      ];
     }
 
     const orderBy = sort === 'discount' 

@@ -1,9 +1,8 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { getPosts, getNiches, getHighlights, PublicPost, Niche, FeedResponse, HighlightItem } from '@/lib/api';
-import { OfferCard } from '@/components/OfferCard';
-import { OfferGrid } from '@/components/OfferGrid';
+import { getFeed, getNiches, getHighlights, Niche, FeedResponse, HighlightItem } from '@/lib/api';
 import { FiltersBar } from '@/components/FiltersBar';
+import { OffersFeed } from '@/components/OffersFeed';
 import Link from 'next/link';
 
 // Desabilitar revalidação automática para evitar loops quando API não responde
@@ -32,8 +31,8 @@ export default async function Home({ searchParams }: PageProps) {
   let highlights: HighlightItem[] = [];
   try {
     [postsData, niches, highlights] = await Promise.all([
-      getPosts({ 
-        limit: 24, 
+      getFeed({
+        limit: 24,
         sort: (searchParams.sort as 'recent' | 'discount') || 'recent',
         q: searchParams.q,
       }),
@@ -185,21 +184,14 @@ export default async function Home({ searchParams }: PageProps) {
         </Suspense>
       </section>
 
-      {/* Grid de Ofertas */}
+      {/* Grid de Ofertas — com "Carregar mais" funcional */}
       <section className="max-w-7xl mx-auto px-4 pb-16">
-        <OfferGrid 
-          posts={posts} 
-          emptyMessage={searchQuery ? `Nenhuma oferta encontrada para "${searchQuery}"` : 'Nenhuma oferta disponível'}
+        <OffersFeed
+          initialPosts={posts}
+          initialHasMore={hasMore}
+          searchQuery={searchQuery}
+          sort={searchParams.sort || 'recent'}
         />
-
-        {/* Carregar Mais */}
-        {hasMore && (
-          <div className="text-center mt-12">
-            <button className="px-8 py-4 rounded-2xl bg-blue-100 text-blue-700 font-bold hover:bg-blue-200 transition-colors">
-              Carregar mais ofertas
-            </button>
-          </div>
-        )}
       </section>
 
       {/* CTA Final */}

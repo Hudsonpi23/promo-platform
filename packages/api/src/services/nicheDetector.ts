@@ -11,7 +11,9 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     // Celulares e smartphones
     'celular', 'smartphone', 'iphone', 'galaxy', 'moto g', 'redmi', 'xiaomi',
     'motorola', 'samsung galaxy', 'poco', 'realme', 'oneplus', 'nokia',
-    'telefone', 'aparelho celular',
+    'telefone', 'aparelho celular', 'tcl ', 'infinix', 'itel ', 'positivo twist',
+    'lg k', 'lg q', 'lg velvet', 'galaxy a', 'galaxy s', 'galaxy m', 'galaxy f',
+    'iphone 11', 'iphone 12', 'iphone 13', 'iphone 14', 'iphone 15', 'iphone 16',
     // Computadores e periféricos
     'notebook', 'laptop', 'ultrabook', 'macbook', 'chromebook', 'netbook',
     'computador', 'pc ', 'desktop', 'all in one', 'mini pc',
@@ -43,6 +45,16 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'impressora', 'multifuncional', 'scanner', 'projeção',
     'fritadeira elétrica', 'air fryer', 'cafeteira', 'chaleira elétrica',
     'robô aspirador', 'aspirador robô',
+    // Mais marcas e modelos populares
+    'echo dot', 'alexa ', 'google home', 'chromecast', 'apple tv',
+    'kindle paperwhite', 'kindle oasis',
+    'ps5 ', 'playstation 5', 'xbox series',
+    'hp ', 'dell ', 'lenovo ', 'acer ', 'asus notebook', 'positivo notebook',
+    'amd ryzen', 'intel core', 'rtx ', 'gtx ',
+    'ssd nvme', 'ssd sata', 'hd 1tb', 'hd 2tb',
+    'cabo tipo-c', 'cabo lightning', 'carregador turbo', 'carregador rápido',
+    'fone sem fio', 'fone bluetooth', 'tws ', 'earbuds',
+    'ring doorbell', 'câmera ip', 'câmera wifi',
   ],
 
   // ─── GAMES ──────────────────────────────────────────────────────────────────
@@ -56,6 +68,12 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'jogo de tabuleiro', 'card game', 'jogo de cartas',
     'action figure', 'funko pop', 'boneco action', 'figura de ação',
     'lego ', 'quebra-cabeça', 'quebra cabeça', 'puzzle',
+    // Mais termos populares
+    'gta ', 'fifa ', 'call of duty', 'minecraft', 'fortnite', 'roblox',
+    'god of war', 'spider-man', 'zelda ', 'mario ', 'pokemon',
+    'controle dualsense', 'dualsense', 'joy-con',
+    'headset rgb', 'cadeira ergonômica gamer', 'mesa gamer',
+    'placa de vídeo rtx', 'placa de vídeo rx',
   ],
 
   // ─── CASA E MÓVEIS ───────────────────────────────────────────────────────────
@@ -140,6 +158,16 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'chapéu ', 'boné ', 'touca ', 'cachecol ', 'luvas de inverno',
     'kit meias', 'kit cuecas', 'kit camisetas',
     'roupinha para pet', 'roupa para cachorro', 'roupa para gato',
+    // Mais termos populares de moda
+    'tênis nike', 'tênis adidas', 'tênis puma', 'tênis vans', 'tênis converse',
+    'tênis fila', 'tênis mizuno', 'tênis new balance', 'tênis asics',
+    'air force', 'air max', 'ultraboost', 'campus adidas',
+    'bolsa guess', 'bolsa coach', 'bolsa michael kors', 'bolsa santa lolla',
+    'vestido longo', 'vestido curto', 'vestido festa', 'vestido casual',
+    'calça jeans feminina', 'calça jeans masculina', 'calça jogger',
+    'moletom feminino', 'moletom masculino', 'conjunto de moletom',
+    'kit camisetas', 'pack camisetas',
+    'underwear ', 'cueca kit', 'calcinha kit',
   ],
 
   // ─── BELEZA E CUIDADOS PESSOAIS ──────────────────────────────────────────────
@@ -179,6 +207,14 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'fio dental', 'escova de dente', 'creme dental', 'enxaguante',
     // Spa e relaxamento
     'kit spa', 'kit beleza', 'kit cuidados',
+    // Marcas populares no Brasil
+    'o boticário', 'natura ', 'avon ', 'l\'oreal', 'loreal',
+    'nivea ', 'dove ', 'pantene', 'seda ', 'tresemmé',
+    'maybelline', 'ruby rose', 'yes cosmetics', 'mac cosméticos',
+    'quem disse berenice', 'vult ', 'dailus',
+    'vichy ', 'la roche-posay', 'neutrogena', 'cerave',
+    'salon line', 'lola cosmetics', 'wella ', 'schwarzkopf',
+    'bioderma ', 'eucerin', 'hidra ',
   ],
 
   // ─── ESPORTES E FITNESS ──────────────────────────────────────────────────────
@@ -212,6 +248,15 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'luva de treino', 'luva de boxe', 'capacete esportivo',
     'fitness ', 'treino ', 'workout',
     'escalada', 'corda de escalada', 'capacete escalada',
+    // Mais marcas e termos populares
+    'mizuno wave', 'asics gel', 'new balance fresh',
+    'nike air', 'adidas ultraboost', 'puma rs',
+    'oakley ', 'speedo ', 'penalty ', 'topper ',
+    'meia esportiva', 'cinto de academia', 'colete esportivo',
+    'proteína', 'albumina', 'maltodextrina',
+    'smartband', 'polar ', 'garmin ',
+    'crossfit', 'funcional ', 'aeróbico',
+    'box de crossfit', 'slam ball', 'medicine ball',
   ],
 
   // ─── BRINQUEDOS ──────────────────────────────────────────────────────────────
@@ -274,6 +319,20 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'infantil livro', 'livro infantil', 'livro escolar',
   ],
 
+  // ─── VIAGEM E TURISMO ────────────────────────────────────────────────────────
+  viagem: [
+    'mala de viagem', 'mala de bordo', 'mala executiva', 'mala de rodas',
+    'mochila de viagem', 'mochila trekking', 'mochila camping',
+    'necessaire ', 'bolsa de viagem', 'porta-passaporte',
+    'fone de ouvido com cancelamento', 'travesseiro de viagem',
+    'adaptador de tomada viagem', 'carregador universal',
+    'tenda de camping', 'barraca de camping', 'saco de dormir',
+    'lanterna de camping', 'canivete ', 'kit camping',
+    'bota de trilha', 'sandália de trekking',
+    'repelente ', 'protetor solar de viagem',
+    'passagem aérea', 'hotel ', 'hostel ', 'pousada',
+  ],
+
   // ─── MERCADO / ALIMENTOS ─────────────────────────────────────────────────────
   mercado: [
     'alimento ', 'alimentos ', 'comida ', 'bebida ', 'bebidas ',
@@ -292,6 +351,15 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'farinha lacta', 'leite ninho', 'danone ', 'nestlé',
     'whiskás', 'purina ', 'golden pet',
     'kit lanche', 'cesta básica', 'kit alimentar',
+    // Mais termos populares
+    'whey cookie', 'barra proteica', 'granola ', 'aveia ',
+    'pasta de amendoim', 'proteína vegana', 'zero lactose',
+    'vinho ', 'cerveja ', 'whisky ', 'vodka ', 'gin ',
+    'café especial', 'café premium', 'nespresso cápsula',
+    'kombucha ', 'kefir ', 'probiótico',
+    'azeite extra virgem', 'mel puro',
+    'kit vinho', 'taça de vinho',
+    'bebida alcoólica', 'destilado',
   ],
 
   // ─── SAÚDE E MEDICAMENTOS ────────────────────────────────────────────────────
@@ -309,6 +377,13 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'massageador ', 'almofada ortopédica',
     'protetor auricular', 'óculos de grau',
     'cinto ortopédico', 'suporte lombar',
+    // Mais termos populares
+    'suplemento vitamínico', 'colágeno hidrolisado', 'magnésio',
+    'melatonina ', 'vitamina d', 'vitamina b12', 'zinco ',
+    'ômega 3 fish oil', 'óleo de peixe',
+    'aparelho de pressão digital', 'monitor cardíaco',
+    'kit primeiros socorros completo',
+    'imunidade ', 'antioxidante', 'probiótico saúde',
   ],
 
   // ─── PAPELARIA E ESCRITÓRIO ──────────────────────────────────────────────────
@@ -323,6 +398,14 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'tinta para impressora', 'cartucho impressora', 'toner ',
     'papel a4', 'papel fotográfico',
     'kit escolar', 'material escolar',
+    // Mais termos
+    'notebook escolar', 'mochila notebook', 'pasta executiva',
+    'quadro branco', 'flip chart', 'projetor escritório',
+    'suporte monitor', 'suporte notebook', 'mesa digitalizadora',
+    'scanner portátil', 'impressora wireless',
+    'kit papelaria', 'kit escritório',
+    'carimbo ', 'envelopes ', 'cartão de visita',
+    'burocrático', 'escritório em casa', 'home office',
   ],
 
   // ─── INFANTIL / BEBÊ ─────────────────────────────────────────────────────────
