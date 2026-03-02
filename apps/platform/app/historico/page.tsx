@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithAuth } from '@/lib/auth';
+
+const AUTO_REFRESH_MS = 60_000; // verifica novos aprovados a cada 60 segundos
 
 interface HistoryItem {
   id: string;
@@ -73,21 +75,35 @@ function SourceBadge({ source }: { source: HistoryItem['source'] }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 
 export default function HistoricoPage() {
-  const [items, setItems]           = useState<HistoryItem[]>([]);
-  const [pagination, setPagination] = useState<Pagination | null>(null);
-  const [loading, setLoading]       = useState(false);
+  const [items, setItems]             = useState<HistoryItem[]>([]);
+  const [pagination, setPagination]   = useState<Pagination | null>(null);
+  const [loading, setLoading]         = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError]           = useState<string | null>(null);
+  const [refreshing, setRefreshing]   = useState(false);
+  const [error, setError]             = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [newCount, setNewCount]       = useState(0); // novos itens detectados desde última carga
 
   // Filtros
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch]           = useState('');
-  const [fromDate, setFromDate]       = useState('2026-02-28'); // pré-definido: 28/02
+  const [fromDate, setFromDate]       = useState('2026-02-28');
   const [toDate, setToDate]           = useState(toInputDate(new Date()));
 
   // Repost status: { [itemId]: { telegram, twitter } }
   const [repostStatus, setRepostStatus] = useState<Record<string, { telegram: RepostState; twitter: RepostState }>>({});
+
+  // Refs para o auto-refresh não depender de closures desatualizadas
+  const itemsRef    = useRef<HistoryItem[]>([]);
+  const searchRef   = useRef(search);
+  const fromRef     = useRef(fromDate);
+  const toRef       = useRef(toDate);
+
+  itemsRef.current  = items;
+  searchRef.current = search;
+  fromRef.current   = fromDate;
+  toRef.current     = toDate;
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -98,27 +114,50 @@ export default function HistoricoPage() {
     from: string,
     to: string,
     append: boolean,
+    silent = false,    // true = background check (auto-refresh)
   ) => {
-    if (append) setLoadingMore(true);
-    else { setLoading(true); setError(null); }
+    if (append)       setLoadingMore(true);
+    else if (!silent) { setLoading(true); setError(null); }
+    else              setRefreshing(true);
 
     try {
       const params = new URLSearchParams({ page: String(page), limit: '50' });
       if (q)    params.set('q', q);
       if (from) params.set('from', from + 'T00:00:00.000Z');
-      if (to)   params.set('to',   to   + 'T23:59:59.999Z');
+      // Para o "até": usa a data atual para o auto-refresh sempre pegar novos aprovados
+      const toFinal = silent ? toInputDate(new Date()) : to;
+      if (toFinal) params.set('to', toFinal + 'T23:59:59.999Z');
 
       const res = await fetchWithAuth(`${apiBase}/api/history?${params}`);
       if (!res.ok) throw new Error('Erro ao buscar histórico');
       const data = await res.json();
 
-      setItems(prev => append ? [...prev, ...data.data] : data.data);
-      setPagination(data.pagination);
+      if (silent) {
+        // Detecta se há itens novos comparando IDs
+        const knownIds = new Set(itemsRef.current.map(i => i.id));
+        const fresh    = (data.data as HistoryItem[]).filter(i => !knownIds.has(i.id));
+        if (fresh.length > 0) {
+          setNewCount(fresh.length);
+          // Insere novos no topo sem reordenar o restante
+          setItems(prev => {
+            const merged = [...fresh, ...prev];
+            return merged;
+          });
+          setPagination(data.pagination);
+        }
+        setLastRefresh(new Date());
+      } else {
+        setItems(prev => append ? [...prev, ...data.data] : data.data);
+        setPagination(data.pagination);
+        setNewCount(0);
+        setLastRefresh(new Date());
+      }
     } catch (err: any) {
-      setError(err.message || 'Erro desconhecido');
+      if (!silent) setError(err.message || 'Erro desconhecido');
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
+      if (append)       setLoadingMore(false);
+      else if (!silent) setLoading(false);
+      else              setRefreshing(false);
     }
   }, [apiBase]);
 
@@ -127,6 +166,16 @@ export default function HistoricoPage() {
     setCurrentPage(1);
     fetchItems(1, search, fromDate, toDate, false);
   }, [search, fromDate, toDate]);
+
+  // ── Auto-refresh: verifica novos aprovados a cada 60 segundos ──────────────
+  useEffect(() => {
+    const timer = setInterval(() => {
+      // Atualiza o "toDate" para agora, garantindo que novos aprovados entrem
+      setToDate(toInputDate(new Date()));
+      fetchItems(1, searchRef.current, fromRef.current, toInputDate(new Date()), false, true);
+    }, AUTO_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [fetchItems]);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -137,6 +186,14 @@ export default function HistoricoPage() {
     const next = currentPage + 1;
     setCurrentPage(next);
     fetchItems(next, search, fromDate, toDate, true);
+  }
+
+  function manualRefresh() {
+    const nowDate = toInputDate(new Date());
+    setToDate(nowDate);
+    setCurrentPage(1);
+    setNewCount(0);
+    fetchItems(1, search, fromDate, nowDate, false);
   }
 
   // ── Repost ─────────────────────────────────────────────────────────────────
@@ -186,10 +243,43 @@ export default function HistoricoPage() {
         <div className="flex items-center gap-3 mb-1">
           <span className="text-3xl">📋</span>
           <h1 className="text-2xl font-bold">Histórico de Posts</h1>
+
+          {/* Badge novos posts */}
+          {newCount > 0 && (
+            <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold animate-pulse">
+              +{newCount} novo{newCount > 1 ? 's' : ''}
+            </span>
+          )}
+
+          {/* Spinner auto-refresh */}
+          {refreshing && (
+            <span className="flex items-center gap-1.5 text-xs text-gray-500">
+              <span className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin inline-block" />
+              Verificando...
+            </span>
+          )}
+
+          {/* Botão atualizar manual */}
+          <button
+            onClick={manualRefresh}
+            disabled={loading || refreshing}
+            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1d27] hover:bg-[#22263a] border border-gray-700 hover:border-gray-500 rounded-lg text-xs text-gray-400 hover:text-white transition-all disabled:opacity-50"
+            title="Buscar posts aprovados agora"
+          >
+            <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Atualizar
+          </button>
         </div>
         <p className="text-gray-400 text-sm">
           Todos os posts aprovados e publicados — manualmente ou pela IA.
-          Clique em <strong className="text-white">Repostar</strong> para enviar novamente a qualquer canal.
+          Atualiza automaticamente a cada 60 segundos.
+          {lastRefresh && (
+            <span className="text-gray-600 ml-2">
+              Última verificação: {lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+          )}
         </p>
       </div>
 
