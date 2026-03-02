@@ -141,10 +141,10 @@ export default function HistoricoPage() {
 
   // ── Repost ─────────────────────────────────────────────────────────────────
   function setChannelState(id: string, channel: 'telegram' | 'twitter', state: RepostState) {
-    setRepostStatus(prev => ({
-      ...prev,
-      [id]: { telegram: 'idle', twitter: 'idle', ...prev[id], [channel]: state },
-    }));
+    setRepostStatus(prev => {
+      const current = prev[id] ?? { telegram: 'idle' as RepostState, twitter: 'idle' as RepostState };
+      return { ...prev, [id]: { ...current, [channel]: state } };
+    });
   }
 
   async function repostTelegram(item: HistoryItem) {
