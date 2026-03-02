@@ -343,17 +343,95 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
 
   // ─── AUTOMOTIVO ──────────────────────────────────────────────────────────────
   automotivo: [
-    'carro ', 'automóvel', 'veículo ',
-    'pneu ', 'roda ', 'calota ',
-    'som automotivo', 'alto-falante carro',
-    'câmera para carro', 'câmera de ré',
-    'carregador veicular', 'suporte veicular', 'suporte celular carro',
-    'tapete automotivo', 'tapete para carro',
-    'capa de banco', 'capa de volante',
-    'alarme automotivo', 'rastreador veicular',
-    'extrator de óleo', 'kit revisão',
-    'lanterna automotiva', 'lâmpada automotiva',
-    'moto ', 'motocicleta ', 'capacete ',
+    // Veículos
+    'carro ', 'carros ', 'automóvel', 'veículo ', 'veículos ',
+    'sedan ', 'hatch ', 'suv ', 'pickup ', 'caminhonete',
+    'moto ', 'motocicleta ', 'scooter ', 'motoneta ', 'ciclomotor',
+    'caminhão ', 'van ', 'utilitário',
+
+    // Pneus e rodas
+    'pneu ', 'pneus ', 'pneu aro', 'pneu para carro', 'pneu moto',
+    'pneu remold', 'pneu recauchutado', 'pneu off-road', 'pneu slick',
+    'roda ', 'rodas ', 'roda liga leve', 'roda esportiva', 'aro ',
+    'calota ', 'calotas ', 'parafuso de roda', 'porca de roda',
+    'câmara de ar', 'válvula de pneu',
+
+    // Peças do motor e mecânica
+    'peça automotiva', 'peças para carro', 'peças auto',
+    'filtro de óleo', 'filtro de ar', 'filtro de combustível', 'filtro de cabine',
+    'vela de ignição', 'vela de platina', 'bobina de ignição',
+    'correia dentada', 'correia serpentina', 'kit correia',
+    'amortecedor ', 'mola suspensão', 'kit amortecedor', 'buchas suspensão',
+    'pastilha de freio', 'disco de freio', 'lona de freio', 'kit freio',
+    'bateria automotiva', 'bateria de carro', 'bateria 60ah', 'bateria 70ah',
+    'alternador ', 'motor de arranque', 'virabrequim', 'bomba de combustível',
+    'radiador ', 'mangueira do radiador', 'tampa do radiador',
+    'embreagem ', 'kit embreagem', 'disco de embreagem',
+    'junta homocinética', 'semi-eixo ', 'pivô ',
+    'rolamento ', 'kit rolamento',
+    'bujão de óleo', 'cárter ', 'bloco do motor',
+    'sensor de temperatura', 'sensor de oxigênio', 'sensor abs',
+
+    // Revisão e lubrificantes
+    'óleo motor', 'óleo de motor', 'lubrificante automotivo',
+    'kit revisão', 'kit troca de óleo',
+    'aditivo para combustível', 'aditivo para motor',
+    'fluido de freio', 'fluido de direção', 'fluido de transmissão',
+    'graxa automotiva', 'silicone automotivo',
+
+    // Elétrica e eletrônica automotiva
+    'som automotivo', 'radio automotivo', 'rádio automotivo',
+    'alto-falante automotivo', 'subwoofer automotivo', 'módulo de potência',
+    'câmera de ré', 'câmera frontal carro', 'sensor de estacionamento',
+    'central multimídia', 'dvd automotivo', 'gps automotivo',
+    'carregador veicular', 'inversor de tensão veicular',
+    'rastreador veicular', 'alarme automotivo', 'trava elétrica',
+    'modulo de vidro', 'limpador de para-brisa', 'motor do limpador',
+
+    // Iluminação
+    'lâmpada automotiva', 'lâmpada para carro', 'farol automotivo',
+    'led automotivo', 'kit led carro', 'lâmpada h1', 'lâmpada h4', 'lâmpada h7',
+    'lanterna automotiva', 'milha automotiva', 'luz de freio',
+    'xenon automotivo', 'led de placa', 'led interior carro',
+
+    // Acessórios externos
+    'suporte celular carro', 'suporte veicular', 'suporte para moto',
+    'tapete automotivo', 'tapete para carro', 'tapete emborrachado',
+    'capa de carro', 'protetor de carro', 'coberta para carro',
+    'capa de banco', 'banco automotivo', 'estofado automotivo',
+    'capa de volante', 'volante esportivo',
+    'calço de roda', 'spoiler ', 'aerofólio',
+    'engate reboque', 'bola de engate',
+    'grade dianteira', 'para-choque ', 'protetor de para-choque',
+    'estribo ', 'rack de teto', 'bagageiro para carro',
+
+    // Acessórios internos
+    'organizador automotivo', 'bolsa para porta-malas',
+    'câmbio automotivo', 'manopla de câmbio', 'pedaleira automotiva',
+    'película automotiva', 'película para vidro', 'película insulfilm',
+    'ar condicionado automotivo', 'compressor ar carro',
+
+    // Ferramentas automotivas
+    'macaco automotivo', 'macaco hidráulico', 'macaco de garrafa',
+    'chave de roda', 'chave de porca', 'torquímetro ',
+    'compressor de ar', 'inflador de pneu', 'calibrador de pneu',
+    'extrator de óleo', 'bomba de óleo',
+    'estetoscópio automotivo', 'scanner automotivo', 'leitor de falhas',
+    'multímetro automotivo',
+
+    // Limpeza automotiva
+    'cera automotiva', 'polish automotivo', 'produto para carro',
+    'shampoo automotivo', 'espuma automotiva', 'pretinho automotivo',
+    'renovador de plástico', 'cristalizador de vidro',
+    'aspirador automotivo', 'aspirador de carro',
+    'flanela automotiva', 'esponja automotiva',
+
+    // Moto específico
+    'capacete moto', 'capacete de moto', 'capacete aberto', 'capacete fechado',
+    'luva moto', 'jaqueta moto', 'bota moto', 'calça moto',
+    'baú moto', 'bauleto moto', 'bagageiro moto',
+    'espelho retrovisor moto', 'manopla moto', 'guidão moto',
+    'protetor de motor moto', 'slider moto',
   ],
 };
 
