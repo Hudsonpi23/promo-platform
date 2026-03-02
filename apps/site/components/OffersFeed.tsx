@@ -15,74 +15,82 @@ interface OffersFeedProps {
 }
 
 export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: OffersFeedProps) {
-  const router = useRouter();
-  const [posts, setPosts]         = useState<PublicPost[]>(initialPosts);
-  const [hasMore, setHasMore]     = useState(initialHasMore);
-  const [page, setPage]           = useState(1);
-  const [loading, setLoading]     = useState(false);
+  const router    = useRouter();
+  const [posts, setPosts]     = useState<PublicPost[]>(initialPosts);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [page, setPage]       = useState(1);
+  const [loading, setLoading] = useState(false);
 
+  // ── Carregar mais (próxima página) ──────────────────────────────────────────
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
-
     try {
       const nextPage = page + 1;
       const params = new URLSearchParams({ page: String(nextPage), limit: '24' });
       if (searchQuery) params.set('q', searchQuery);
-      if (sort)        params.set('sort', sort);
+      if (sort && sort !== 'recent') params.set('sort', sort);
 
       const res = await fetch(`${API_URL}/public/posts?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const data: FeedResponse = await res.json();
-      setPosts(prev => {
-        const existingIds = new Set(prev.map(p => p.id));
-        const fresh = (data.items || []).filter(p => !existingIds.has(p.id));
-        return [...prev, ...fresh];
-      });
+
+      const existingIds = new Set(posts.map(p => p.id));
+      const fresh = (data.items || []).filter(p => !existingIds.has(p.id));
+      setPosts(prev => [...prev, ...fresh]);
       setHasMore(data.hasMore);
       setPage(nextPage);
     } catch (err) {
-      console.error('[OffersFeed] loadMore error:', err);
+      console.error('[OffersFeed] Erro ao carregar mais:', err);
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, page, searchQuery, sort]);
+  }, [loading, hasMore, page, posts, searchQuery, sort]);
 
-  // Nenhum resultado encontrado — mostrar botão para limpar busca
+  // ── Sem resultados na busca ──────────────────────────────────────────────────
   if (posts.length === 0 && searchQuery) {
     return (
       <div className="bg-white rounded-2xl border-2 border-blue-100 py-16 text-center px-6">
         <div className="text-6xl mb-4">🔍</div>
         <h3 className="text-xl font-bold text-blue-800 mb-2">
-          Nenhuma oferta encontrada para &quot;{searchQuery}&quot;
+          Nenhuma oferta para &ldquo;{searchQuery}&rdquo;
         </h3>
-        <p className="text-gray-500 mb-6">
-          Tente outro termo ou veja todas as ofertas disponíveis.
+        <p className="text-gray-500 mb-8 max-w-sm mx-auto">
+          Não encontramos produtos com esse nome. Tente outro termo ou veja todas as ofertas.
         </p>
         <button
           onClick={() => router.replace('/')}
-          className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-md"
+          className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold transition-all shadow-md text-base"
         >
-          ✕ Limpar busca — Ver todas as ofertas
+          🏠 Ver todas as ofertas
         </button>
       </div>
     );
   }
 
+  // ── Sem ofertas em geral ─────────────────────────────────────────────────────
+  if (posts.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border-2 border-blue-100 py-16 text-center px-6">
+        <div className="text-6xl mb-4">📭</div>
+        <h3 className="text-xl font-bold text-blue-800 mb-2">Nenhuma oferta no momento</h3>
+        <p className="text-gray-500">Novas ofertas chegam em breve. Siga a Manu no Telegram!</p>
+      </div>
+    );
+  }
+
+  // ── Feed normal ──────────────────────────────────────────────────────────────
   return (
     <>
-      <OfferGrid
-        posts={posts}
-        emptyMessage="Nenhuma oferta disponível no momento"
-      />
+      <OfferGrid posts={posts} />
 
+      {/* Carregar mais */}
       {hasMore && (
         <div className="text-center mt-12">
           <button
             onClick={loadMore}
             disabled={loading}
-            className="inline-flex items-center gap-3 px-10 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-3 px-10 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {loading ? (
               <>
@@ -104,6 +112,7 @@ export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: 
         </div>
       )}
 
+      {/* Fim do feed */}
       {!hasMore && posts.length > 0 && (
         <p className="mt-10 text-center text-gray-400 text-sm font-medium">
           ✓ Você viu todas as {posts.length} ofertas disponíveis
