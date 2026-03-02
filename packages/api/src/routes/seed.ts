@@ -2,11 +2,54 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { hashPassword } from '../lib/auth.js';
 
+const ALL_NICHES = [
+  { name: 'Eletrônicos',  slug: 'eletronicos', icon: '📱' },
+  { name: 'Moda',         slug: 'moda',        icon: '👗' },
+  { name: 'Casa',         slug: 'casa',        icon: '🏠' },
+  { name: 'Beleza',       slug: 'beleza',      icon: '💄' },
+  { name: 'Mercado',      slug: 'mercado',     icon: '🛒' },
+  { name: 'Games',        slug: 'games',       icon: '🎮' },
+  { name: 'Esportes',     slug: 'esportes',    icon: '⚽' },
+  { name: 'Livros',       slug: 'livros',      icon: '📚' },
+  { name: 'Brinquedos',   slug: 'brinquedos',  icon: '🧸' },
+  { name: 'Pets',         slug: 'pets',        icon: '🐾' },
+  { name: 'Saúde',        slug: 'saude',       icon: '💊' },
+  { name: 'Bebê',         slug: 'bebe',        icon: '👶' },
+  { name: 'Automotivo',   slug: 'automotivo',  icon: '🚗' },
+  { name: 'Papelaria',    slug: 'papelaria',   icon: '✏️' },
+];
+
 export async function seedRoutes(app: FastifyInstance) {
+
+  /**
+   * POST /api/seed/niches
+   * Garante que todos os nichos existam no banco (upsert — não apaga nada).
+   */
+  app.post('/niches', async (_request, reply) => {
+    try {
+      let created = 0;
+      for (const n of ALL_NICHES) {
+        const existing = await prisma.niche.findFirst({ where: { slug: n.slug } });
+        if (!existing) {
+          await prisma.niche.create({ data: { ...n, isActive: true } });
+          created++;
+          console.log(`[Seed] Nicho criado: ${n.name}`);
+        }
+      }
+      const all = await prisma.niche.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+      return reply.send({
+        success: true,
+        message: `${created} nicho(s) criado(s). Total: ${all.length}`,
+        niches: all.map(n => ({ id: n.id, name: n.name, slug: n.slug })),
+      });
+    } catch (error: any) {
+      return reply.status(500).send({ success: false, error: error.message });
+    }
+  });
+
   /**
    * POST /api/seed
-   * Endpoint temporário para executar seed do banco de dados
-   * ATENÇÃO: Este endpoint deve ser protegido em produção!
+   * Endpoint para executar seed do banco de dados
    */
   app.post('/seed', async (request, reply) => {
     try {
