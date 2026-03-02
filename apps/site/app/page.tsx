@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import Image from 'next/image';
-import { getFeed, getNiches, getHighlights, Niche, FeedResponse, HighlightItem } from '@/lib/api';
+import { getPosts, getNiches, getHighlights, Niche, FeedResponse, HighlightItem } from '@/lib/api';
 import { FiltersBar } from '@/components/FiltersBar';
 import { OffersFeed } from '@/components/OffersFeed';
 import Link from 'next/link';
@@ -31,7 +31,7 @@ export default async function Home({ searchParams }: PageProps) {
   let highlights: HighlightItem[] = [];
   try {
     [postsData, niches, highlights] = await Promise.all([
-      getFeed({
+      getPosts({
         limit: 24,
         sort: (searchParams.sort as 'recent' | 'discount') || 'recent',
         q: searchParams.q,

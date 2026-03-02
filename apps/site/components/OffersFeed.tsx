@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { PublicPost, FeedResponse } from '@/lib/api';
 import { OfferGrid } from './OfferGrid';
 
@@ -14,6 +15,7 @@ interface OffersFeedProps {
 }
 
 export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: OffersFeedProps) {
+  const router = useRouter();
   const [posts, setPosts]         = useState<PublicPost[]>(initialPosts);
   const [hasMore, setHasMore]     = useState(initialHasMore);
   const [page, setPage]           = useState(1);
@@ -29,7 +31,7 @@ export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: 
       if (searchQuery) params.set('q', searchQuery);
       if (sort)        params.set('sort', sort);
 
-      const res = await fetch(`${API_URL}/public/feed?${params}`);
+      const res = await fetch(`${API_URL}/public/posts?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data: FeedResponse = await res.json();
@@ -47,11 +49,32 @@ export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: 
     }
   }, [loading, hasMore, page, searchQuery, sort]);
 
+  // Nenhum resultado encontrado — mostrar botão para limpar busca
+  if (posts.length === 0 && searchQuery) {
+    return (
+      <div className="bg-white rounded-2xl border-2 border-blue-100 py-16 text-center px-6">
+        <div className="text-6xl mb-4">🔍</div>
+        <h3 className="text-xl font-bold text-blue-800 mb-2">
+          Nenhuma oferta encontrada para &quot;{searchQuery}&quot;
+        </h3>
+        <p className="text-gray-500 mb-6">
+          Tente outro termo ou veja todas as ofertas disponíveis.
+        </p>
+        <button
+          onClick={() => router.replace('/')}
+          className="inline-flex items-center gap-2 px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-all shadow-md"
+        >
+          ✕ Limpar busca — Ver todas as ofertas
+        </button>
+      </div>
+    );
+  }
+
   return (
     <>
       <OfferGrid
         posts={posts}
-        emptyMessage={searchQuery ? `Nenhuma oferta encontrada para "${searchQuery}"` : 'Nenhuma oferta disponível'}
+        emptyMessage="Nenhuma oferta disponível no momento"
       />
 
       {hasMore && (
