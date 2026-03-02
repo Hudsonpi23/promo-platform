@@ -89,13 +89,14 @@ export async function offersRoutes(app: FastifyInstance) {
   app.get('/', { preHandler: [authGuard] }, async (request, reply) => {
     try {
       const query = offersFilterSchema.parse(request.query);
-      const { page, limit, nicheId, storeId, status, minDiscount, q, dateFrom, dateTo } = query;
+      const { page, limit, nicheId, storeId, status, curationStatus, minDiscount, q, dateFrom, dateTo } = query;
       const skip = (page - 1) * limit;
 
       const where: any = {};
       
       if (nicheId) where.nicheId = nicheId;
       if (storeId) where.storeId = storeId;
+      if (curationStatus) where.curationStatus = curationStatus;
       if (status) where.status = status;
       else where.status = { not: 'ARCHIVED' }; // 🗑️ Não mostrar ofertas arquivadas por padrão
       if (minDiscount) where.discountPct = { gte: minDiscount };

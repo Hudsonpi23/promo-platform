@@ -89,6 +89,7 @@ export const offersFilterSchema = paginationSchema.extend({
   nicheId: z.string().optional(),
   storeId: z.string().optional(),
   status: z.enum(['ACTIVE', 'ARCHIVED']).optional(),
+  curationStatus: z.enum(['DRAFT', 'PENDING_REVIEW', 'APPROVED', 'AI_PROCESSING', 'AI_READY', 'AI_BLOCKED']).optional(),
   minDiscount: z.coerce.number().int().min(0).max(100).optional(),
   q: z.string().optional(),
   dateFrom: z.coerce.date().optional(),
