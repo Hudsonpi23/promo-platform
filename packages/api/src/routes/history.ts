@@ -67,33 +67,40 @@ export async function historyRoutes(app: FastifyInstance) {
       if (to)   ppWhere.publishedAt.lte = to;
     }
 
-    const publishedPosts = await prisma.publishedPost.findMany({
-      where: ppWhere,
-      orderBy: { publishedAt: 'desc' },
-      select: {
-        id: true,
-        offerId: true,
-        title: true,
-        price: true,
-        originalPrice: true,
-        discountPct: true,
-        imageUrl: true,
-        affiliateUrl: true,
-        publishedAt: true,
-        niche: { select: { name: true, slug: true, icon: true } },
-        store: { select: { name: true, slug: true } },
-        offer: { select: { mainImage: true } },
-      },
-    });
+    let publishedPosts: any[] = [];
+    try {
+      publishedPosts = await prisma.publishedPost.findMany({
+        where: ppWhere,
+        orderBy: { publishedAt: 'desc' },
+        select: {
+          id: true,
+          offerId: true,
+          title: true,
+          price: true,
+          originalPrice: true,
+          discountPct: true,
+          imageUrl: true,
+          affiliateUrl: true,
+          publishedAt: true,
+          niche: { select: { name: true, slug: true, icon: true } },
+          store: { select: { name: true, slug: true } },
+          offer: { select: { mainImage: true } },
+        },
+      });
+    } catch (e: any) {
+      console.error('[History] Erro ao buscar PublishedPosts:', e.message);
+    }
 
     // Conjunto de offerIds já cobertos por PublishedPost
-    const coveredOfferIds = new Set(publishedPosts.map(p => p.offerId));
+    const coveredOfferIds = new Set(publishedPosts.map((p: any) => p.offerId));
 
     // ── 2. Approved Offers (sem PublishedPost correspondente) ────────────────
     const offerWhere: any = {
       curationStatus: { in: APPROVED_STATUSES },
-      id: { notIn: Array.from(coveredOfferIds) },
     };
+    if (coveredOfferIds.size > 0) {
+      offerWhere.id = { notIn: Array.from(coveredOfferIds) };
+    }
     if (q) offerWhere.title = { contains: q, mode: 'insensitive' };
     if (from || to) {
       offerWhere.updatedAt = {};
@@ -101,23 +108,28 @@ export async function historyRoutes(app: FastifyInstance) {
       if (to)   offerWhere.updatedAt.lte = to;
     }
 
-    const approvedOffers = await prisma.offer.findMany({
-      where: offerWhere,
-      orderBy: { updatedAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        finalPrice: true,
-        originalPrice: true,
-        discountPct: true,
-        mainImage: true,
-        imageUrl: true,
-        affiliateUrl: true,
-        updatedAt: true,
-        niche: { select: { name: true, slug: true, icon: true } },
-        store: { select: { name: true, slug: true } },
-      },
-    });
+    let approvedOffers: any[] = [];
+    try {
+      approvedOffers = await prisma.offer.findMany({
+        where: offerWhere,
+        orderBy: { updatedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          finalPrice: true,
+          originalPrice: true,
+          discountPct: true,
+          mainImage: true,
+          imageUrl: true,
+          affiliateUrl: true,
+          updatedAt: true,
+          niche: { select: { name: true, slug: true, icon: true } },
+          store: { select: { name: true, slug: true } },
+        },
+      });
+    } catch (e: any) {
+      console.error('[History] Erro ao buscar Offers aprovadas:', e.message);
+    }
 
     // ── 3. Normalizar em HistoryItem ─────────────────────────────────────────
     const fromPublished: HistoryItem[] = publishedPosts.map(p => ({
