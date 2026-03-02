@@ -13,6 +13,7 @@ import { sendTelegramMessage, isTelegramConfigured } from '../services/telegram.
 import { postOfferToTwitter } from '../services/twitter.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
 import { uploadFromUrl } from '../services/cloudinary.js';
+import { resolveNicheFromTitle } from '../services/nicheDetector.js';
 
 interface PublishResult {
   url: string;
@@ -130,8 +131,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           storeId = firstStore?.id || null;
         }
 
-        const firstNiche = await prisma.niche.findFirst({ where: { isActive: true } });
-        const nicheId = firstNiche?.id || null;
+        const nicheId = await resolveNicheFromTitle(productData.title || '');
 
         if (!storeId || !nicheId) {
           result.error = 'Configuração necessária: verifique se existem Lojas e Nichos cadastrados.';

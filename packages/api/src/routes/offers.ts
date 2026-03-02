@@ -5,6 +5,7 @@ import { createOfferSchema, updateOfferSchema, offersFilterSchema } from '../lib
 import { sendError, Errors } from '../lib/errors.js';
 import { processOffer, calculateScore } from '../services/offerScoring.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
+import { detectNicheSlug as detectNicheSlugShared, resolveNicheFromTitle } from '../services/nicheDetector.js';
 
 // ── Mapeamento de palavras-chave → slug de nicho ──────────────────────────────
 // Ordem importa: os nichos mais específicos devem vir ANTES dos genéricos
@@ -76,22 +77,11 @@ const NICHE_KEYWORDS: Record<string, string[]> = {
 
 /** Detecta o slug do nicho mais adequado a partir do título do produto */
 function detectNicheSlug(title: string): string | null {
-  const t = title.toLowerCase();
-  for (const [slug, keywords] of Object.entries(NICHE_KEYWORDS)) {
-    if (keywords.some(kw => t.includes(kw))) return slug;
-  }
-  return null;
+  return detectNicheSlugShared(title);
 }
 
-/** Resolve o nicheId a partir do título, consultando os nichos do banco */
 async function resolveNicheIdFromTitle(title: string): Promise<string | null> {
-  const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
-  const slug = detectNicheSlug(title);
-  if (slug) {
-    const matched = allNiches.find(n => n.slug === slug);
-    if (matched) return matched.id;
-  }
-  return allNiches[0]?.id || null;
+  return resolveNicheFromTitle(title);
 }
 
 export async function offersRoutes(app: FastifyInstance) {
