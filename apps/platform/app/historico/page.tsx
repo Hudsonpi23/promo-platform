@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { fetchWithAuth } from '@/lib/auth';
 
 const APPROVED  = ['APPROVED', 'AI_PROCESSING', 'AI_READY', 'AI_BLOCKED'];
-const API_URL   = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const PAGE_SIZE = 50; // 50 por página — ilimitado via paginação
 
 type RepostState = 'idle' | 'loading' | 'ok' | 'error';
@@ -60,7 +59,8 @@ export default function HistoricoPage() {
         limit: String(PAGE_SIZE),
         curationStatus: 'APPROVED',
       });
-      const res = await fetchWithAuth(`${API_URL}/api/offers?${params}`);
+      // fetchWithAuth já prepend o API_URL — usar apenas path relativo
+      const res = await fetchWithAuth(`/api/offers?${params}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
 
@@ -92,7 +92,7 @@ export default function HistoricoPage() {
     if (!confirm(`🗑️ Deletar este post?\n\n"${title}"\n\nEsta ação não pode ser desfeita.`)) return;
     setDeleting(prev => ({ ...prev, [id]: true }));
     try {
-      const res = await fetchWithAuth(`${API_URL}/api/offers/${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`/api/offers/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
         throw new Error(d.error?.message || d.message || `HTTP ${res.status}`);
@@ -115,7 +115,7 @@ export default function HistoricoPage() {
   async function repostTelegram(id: string) {
     setTg(id, 'loading');
     try {
-      const r = await fetchWithAuth(`${API_URL}/api/telegram/post-offer/${id}`, { method: 'POST' });
+      const r = await fetchWithAuth(`/api/telegram/post-offer/${id}`, { method: 'POST' });
       const d = await r.json();
       setTg(id, d.success ? 'ok' : 'error');
       if (!d.success) alert(`❌ Telegram: ${d.error || 'Erro'}`);
@@ -125,7 +125,7 @@ export default function HistoricoPage() {
   async function repostTwitter(id: string) {
     setTw(id, 'loading');
     try {
-      const r = await fetchWithAuth(`${API_URL}/api/twitter/post-offer/${id}`, { method: 'POST' });
+      const r = await fetchWithAuth(`/api/twitter/post-offer/${id}`, { method: 'POST' });
       const d = await r.json();
       setTw(id, d.success ? 'ok' : 'error');
       if (!d.success) alert(`❌ X: ${d.error || 'Erro'}`);
