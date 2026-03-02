@@ -34,6 +34,7 @@ import { mlAuthRoutes } from './routes/mlAuth';
 import { scraperRoutes } from './routes/scraper';
 import { customPhrasesRoutes } from './routes/customPhrases';
 import { autoPublishRoutes } from './routes/autoPublish';
+import { historyRoutes } from './routes/history';
 
 async function main() {
   const server = Fastify({
@@ -257,6 +258,9 @@ async function main() {
 
   // ⚡ Auto Publicar (colar links → IA cria e publica automaticamente)
   server.register(autoPublishRoutes, { prefix: '/api/auto-publish' });
+
+  // 📋 Histórico de Posts (posts já publicados, com opção de repostar)
+  server.register(historyRoutes, { prefix: '/api/history' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

@@ -45,6 +45,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="text-lg">⚡</span>
               <span className="font-semibold">Auto Publicar</span>
             </a>
+
+            <a
+              href="/historico"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/historico'
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">📋</span>
+              <span className="font-semibold">Histórico</span>
+            </a>
             
             <a 
               href="/" 
