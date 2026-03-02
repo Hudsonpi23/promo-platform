@@ -3,7 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWithAuth } from '@/lib/auth';
 
-const AUTO_REFRESH_MS = 60_000; // verifica novos aprovados a cada 60 segundos
+// Verifica novos posts a cada 30s; se há erro de rede, tenta reconectar a cada 15s
+const POLL_INTERVAL_MS  = 30_000;
+const RETRY_INTERVAL_MS = 15_000;
 
 interface HistoryItem {
   id: string;
@@ -61,7 +63,7 @@ function SourceBadge({ source }: { source: HistoryItem['source'] }) {
   if (source === 'published_post') {
     return (
       <span className="text-xs bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 rounded px-2 py-0.5">
-        ✓ Publicado no Site
+        ✓ Auto Publicado
       </span>
     );
   }
@@ -77,105 +79,145 @@ function SourceBadge({ source }: { source: HistoryItem['source'] }) {
 export default function HistoricoPage() {
   const [items, setItems]             = useState<HistoryItem[]>([]);
   const [pagination, setPagination]   = useState<Pagination | null>(null);
-  const [loading, setLoading]         = useState(false);
+  const [loading, setLoading]         = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing]   = useState(false);
-  const [error, setError]             = useState<string | null>(null);
+  const [hasError, setHasError]       = useState(false);
+  const [retryIn, setRetryIn]         = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
-  const [newCount, setNewCount]       = useState(0); // novos itens detectados desde última carga
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [newCount, setNewCount]       = useState(0);
 
-  // Filtros
+  // Filtro de busca (data é opcional — por padrão mostra TUDO)
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch]           = useState('');
-  const [fromDate, setFromDate]       = useState('2026-02-28');
-  const [toDate, setToDate]           = useState(toInputDate(new Date()));
+  const [filterFrom, setFilterFrom]   = useState('');
+  const [filterTo, setFilterTo]       = useState('');
 
-  // Repost status: { [itemId]: { telegram, twitter } }
-  const [repostStatus, setRepostStatus] = useState<Record<string, { telegram: RepostState; twitter: RepostState }>>({});
+  // Repost: { [itemId]: { telegram, twitter } }
+  const [repostStatus, setRepostStatus] = useState<
+    Record<string, { telegram: RepostState; twitter: RepostState }>
+  >({});
 
-  // Refs para o auto-refresh não depender de closures desatualizadas
-  const itemsRef    = useRef<HistoryItem[]>([]);
-  const searchRef   = useRef(search);
-  const fromRef     = useRef(fromDate);
-  const toRef       = useRef(toDate);
+  // Refs para usar dentro dos intervals sem closures velhas
+  const itemsRef  = useRef<HistoryItem[]>([]);
+  const searchRef = useRef('');
+  const fromRef   = useRef('');
+  const toRef     = useRef('');
+  const errorRef  = useRef(false);
 
   itemsRef.current  = items;
   searchRef.current = search;
-  fromRef.current   = fromDate;
-  toRef.current     = toDate;
+  fromRef.current   = filterFrom;
+  toRef.current     = filterTo;
+  errorRef.current  = hasError;
 
   const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-  // ── Fetch ──────────────────────────────────────────────────────────────────
-  const fetchItems = useCallback(async (
-    page: number,
-    q: string,
-    from: string,
-    to: string,
-    append: boolean,
-    silent = false,    // true = background check (auto-refresh)
-  ) => {
-    if (append)       setLoadingMore(true);
-    else if (!silent) { setLoading(true); setError(null); }
-    else              setRefreshing(true);
+  // ── Core fetch ─────────────────────────────────────────────────────────────
+  const doFetch = useCallback(async (opts: {
+    page: number;
+    q: string;
+    from: string;
+    to: string;
+    mode: 'full' | 'append' | 'silent';
+  }) => {
+    const { page, q, from, to, mode } = opts;
+
+    if (mode === 'full')   { setLoading(true); setHasError(false); }
+    if (mode === 'append') setLoadingMore(true);
+    if (mode === 'silent') setRefreshing(true);
 
     try {
       const params = new URLSearchParams({ page: String(page), limit: '50' });
       if (q)    params.set('q', q);
       if (from) params.set('from', from + 'T00:00:00.000Z');
-      // Para o "até": usa a data atual para o auto-refresh sempre pegar novos aprovados
-      const toFinal = silent ? toInputDate(new Date()) : to;
+      // "to" em modo silent é sempre agora, para capturar posts novos
+      const toFinal = mode === 'silent' ? toInputDate(new Date()) : to;
       if (toFinal) params.set('to', toFinal + 'T23:59:59.999Z');
 
       const res = await fetchWithAuth(`${apiBase}/api/history?${params}`);
-      if (!res.ok) throw new Error('Erro ao buscar histórico');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      if (silent) {
-        // Detecta se há itens novos comparando IDs
-        const knownIds = new Set(itemsRef.current.map(i => i.id));
-        const fresh    = (data.data as HistoryItem[]).filter(i => !knownIds.has(i.id));
+      setHasError(false);
+      setRetryIn(null);
+      setLastRefresh(new Date());
+
+      if (mode === 'silent') {
+        // Detecta itens novos (não vistos ainda)
+        const known = new Set(itemsRef.current.map(i => i.id));
+        const fresh = (data.data as HistoryItem[]).filter(i => !known.has(i.id));
         if (fresh.length > 0) {
-          setNewCount(fresh.length);
-          // Insere novos no topo sem reordenar o restante
-          setItems(prev => {
-            const merged = [...fresh, ...prev];
-            return merged;
-          });
+          setNewCount(n => n + fresh.length);
+          setItems(prev => [...fresh, ...prev]);
           setPagination(data.pagination);
         }
-        setLastRefresh(new Date());
+      } else if (mode === 'append') {
+        setItems(prev => [...prev, ...data.data]);
+        setPagination(data.pagination);
       } else {
-        setItems(prev => append ? [...prev, ...data.data] : data.data);
+        setItems(data.data);
         setPagination(data.pagination);
         setNewCount(0);
-        setLastRefresh(new Date());
       }
-    } catch (err: any) {
-      if (!silent) setError(err.message || 'Erro desconhecido');
+    } catch {
+      if (mode !== 'silent') {
+        setHasError(true);
+      }
     } finally {
-      if (append)       setLoadingMore(false);
-      else if (!silent) setLoading(false);
-      else              setRefreshing(false);
+      if (mode === 'full')   setLoading(false);
+      if (mode === 'append') setLoadingMore(false);
+      if (mode === 'silent') setRefreshing(false);
     }
   }, [apiBase]);
 
-  // Carga inicial + ao trocar filtros
+  // ── Carga inicial ─────────────────────────────────────────────────────────
   useEffect(() => {
     setCurrentPage(1);
-    fetchItems(1, search, fromDate, toDate, false);
-  }, [search, fromDate, toDate]);
+    doFetch({ page: 1, q: search, from: filterFrom, to: filterTo, mode: 'full' });
+  }, [search, filterFrom, filterTo]);
 
-  // ── Auto-refresh: verifica novos aprovados a cada 60 segundos ──────────────
+  // ── Polling: 30s normal, 15s quando há erro ────────────────────────────────
   useEffect(() => {
-    const timer = setInterval(() => {
-      // Atualiza o "toDate" para agora, garantindo que novos aprovados entrem
-      setToDate(toInputDate(new Date()));
-      fetchItems(1, searchRef.current, fromRef.current, toInputDate(new Date()), false, true);
-    }, AUTO_REFRESH_MS);
-    return () => clearInterval(timer);
-  }, [fetchItems]);
+    let countdown = 0;
+    let countdownTimer: ReturnType<typeof setInterval>;
+
+    const tick = () => {
+      const isErr = errorRef.current;
+      const interval = isErr ? RETRY_INTERVAL_MS : POLL_INTERVAL_MS;
+
+      if (isErr) {
+        // Exibe contador regressivo para o usuário saber que vai tentar de novo
+        countdown = Math.ceil(interval / 1000);
+        setRetryIn(countdown);
+        countdownTimer = setInterval(() => {
+          countdown -= 1;
+          setRetryIn(Math.max(0, countdown));
+          if (countdown <= 0) clearInterval(countdownTimer);
+        }, 1000);
+      }
+
+      doFetch({
+        page: 1,
+        q: searchRef.current,
+        from: fromRef.current,
+        to: toRef.current,
+        mode: isErr ? 'full' : 'silent',
+      });
+
+      // Reprograma próximo tick
+      pollingTimer = setTimeout(tick, interval);
+    };
+
+    let pollingTimer = setTimeout(tick, POLL_INTERVAL_MS);
+    return () => {
+      clearTimeout(pollingTimer);
+      clearInterval(countdownTimer);
+    };
+  }, [doFetch]);
+
+  // ── Ações ─────────────────────────────────────────────────────────────────
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -185,18 +227,20 @@ export default function HistoricoPage() {
   function loadMore() {
     const next = currentPage + 1;
     setCurrentPage(next);
-    fetchItems(next, search, fromDate, toDate, true);
+    doFetch({ page: next, q: search, from: filterFrom, to: filterTo, mode: 'append' });
   }
 
   function manualRefresh() {
-    const nowDate = toInputDate(new Date());
-    setToDate(nowDate);
     setCurrentPage(1);
     setNewCount(0);
-    fetchItems(1, search, fromDate, nowDate, false);
+    doFetch({ page: 1, q: search, from: filterFrom, to: filterTo, mode: 'full' });
   }
 
-  // ── Repost ─────────────────────────────────────────────────────────────────
+  function clearDateFilter() {
+    setFilterFrom('');
+    setFilterTo('');
+  }
+
   function setChannelState(id: string, channel: 'telegram' | 'twitter', state: RepostState) {
     setRepostStatus(prev => {
       const current = prev[id] ?? { telegram: 'idle' as RepostState, twitter: 'idle' as RepostState };
@@ -239,53 +283,55 @@ export default function HistoricoPage() {
     <div className="min-h-screen bg-[#0f1117] text-white p-6">
 
       {/* Cabeçalho */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <span className="text-3xl">📋</span>
-          <h1 className="text-2xl font-bold">Histórico de Posts</h1>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-1 flex-wrap">
+            <span className="text-3xl">📋</span>
+            <h1 className="text-2xl font-bold">Histórico de Posts</h1>
 
-          {/* Badge novos posts */}
-          {newCount > 0 && (
-            <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold animate-pulse">
-              +{newCount} novo{newCount > 1 ? 's' : ''}
-            </span>
-          )}
+            {newCount > 0 && (
+              <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full text-xs font-semibold animate-pulse">
+                +{newCount} novo{newCount > 1 ? 's' : ''}
+              </span>
+            )}
 
-          {/* Spinner auto-refresh */}
-          {refreshing && (
-            <span className="flex items-center gap-1.5 text-xs text-gray-500">
-              <span className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin inline-block" />
-              Verificando...
-            </span>
-          )}
+            {refreshing && !hasError && (
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin inline-block" />
+                Verificando...
+              </span>
+            )}
+          </div>
 
-          {/* Botão atualizar manual */}
-          <button
-            onClick={manualRefresh}
-            disabled={loading || refreshing}
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-[#1a1d27] hover:bg-[#22263a] border border-gray-700 hover:border-gray-500 rounded-lg text-xs text-gray-400 hover:text-white transition-all disabled:opacity-50"
-            title="Buscar posts aprovados agora"
-          >
-            <svg className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Atualizar
-          </button>
+          <p className="text-gray-400 text-sm">
+            Arquivo completo de todos os posts publicados via Auto Publicar.
+            {lastRefresh && !hasError && (
+              <span className="text-gray-600 ml-2">
+                Atualizado: {lastRefresh.toLocaleTimeString('pt-BR')}
+              </span>
+            )}
+            {hasError && retryIn !== null && (
+              <span className="text-red-400 ml-2">
+                API indisponível — reconectando em {retryIn}s...
+              </span>
+            )}
+          </p>
         </div>
-        <p className="text-gray-400 text-sm">
-          Todos os posts aprovados e publicados — manualmente ou pela IA.
-          Atualiza automaticamente a cada 60 segundos.
-          {lastRefresh && (
-            <span className="text-gray-600 ml-2">
-              Última verificação: {lastRefresh.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          )}
-        </p>
+
+        <button
+          onClick={manualRefresh}
+          disabled={loading || refreshing}
+          className="flex items-center gap-1.5 px-4 py-2 bg-[#1a1d27] hover:bg-[#22263a] border border-gray-700 hover:border-gray-500 rounded-lg text-sm text-gray-400 hover:text-white transition-all disabled:opacity-50 whitespace-nowrap"
+        >
+          <svg className={`w-4 h-4 ${loading && !loadingMore ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Atualizar agora
+        </button>
       </div>
 
-      {/* Filtros */}
-      <div className="bg-[#1a1d27] border border-gray-800 rounded-xl p-4 mb-6 space-y-3">
-        {/* Busca */}
+      {/* Barra de filtros */}
+      <div className="bg-[#1a1d27] border border-gray-800 rounded-xl p-4 mb-5 space-y-3">
         <form onSubmit={handleSearch} className="flex gap-2">
           <input
             type="text"
@@ -300,76 +346,90 @@ export default function HistoricoPage() {
           </button>
           {search && (
             <button type="button" onClick={() => { setSearchInput(''); setSearch(''); }}
-              className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">
-              ✕
-            </button>
+              className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">✕</button>
           )}
         </form>
 
-        {/* Datas */}
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-xs text-gray-400 font-medium uppercase tracking-wide">Período:</span>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-xs text-gray-500 uppercase tracking-wide font-medium">Filtrar por data:</span>
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-500">De</label>
-            <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+            <input type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)}
               className="bg-[#0f1117] border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
             />
           </div>
           <div className="flex items-center gap-2">
             <label className="text-xs text-gray-500">Até</label>
-            <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+            <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)}
               className="bg-[#0f1117] border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-blue-500"
             />
           </div>
-          <button
-            onClick={() => { setFromDate('2026-02-28'); setToDate(toInputDate(new Date())); }}
-            className="text-xs text-blue-400 hover:text-blue-300 underline"
-          >
-            Resetar
-          </button>
+          {(filterFrom || filterTo) && (
+            <button onClick={clearDateFilter}
+              className="text-xs text-blue-400 hover:text-blue-300 underline">
+              Limpar filtro
+            </button>
+          )}
 
-          {/* Contador */}
           <div className="ml-auto">
-            <span className="text-sm text-gray-400">
-              {loading ? '...' : (
-                <><span className="text-white font-semibold">{total.toLocaleString('pt-BR')}</span> posts encontrados</>
-              )}
-            </span>
+            {!loading && (
+              <span className="text-gray-400 text-sm">
+                <span className="text-white font-bold">{total.toLocaleString('pt-BR')}</span> posts no histórico
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Erro */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">{error}</div>
+      {/* Erro com retry */}
+      {hasError && (
+        <div className="mb-5 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
+          <span className="text-red-400 text-xl">⚠️</span>
+          <div className="flex-1">
+            <p className="text-red-400 text-sm font-medium">
+              Não foi possível conectar à API
+            </p>
+            <p className="text-red-400/70 text-xs mt-0.5">
+              {retryIn !== null && retryIn > 0
+                ? `Tentando reconectar em ${retryIn} segundo${retryIn !== 1 ? 's' : ''}...`
+                : 'Reconectando agora...'}
+            </p>
+          </div>
+          <button onClick={manualRefresh}
+            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs rounded-lg font-medium transition-colors">
+            Tentar agora
+          </button>
+        </div>
       )}
 
-      {/* Loading */}
-      {loading && (
-        <div className="flex justify-center items-center py-20 gap-3 text-gray-400">
+      {/* Loading inicial */}
+      {loading && !hasError && (
+        <div className="flex justify-center items-center py-24 gap-3 text-gray-400">
           <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          Carregando histórico...
+          Carregando histórico completo...
         </div>
       )}
 
       {/* Vazio */}
-      {!loading && items.length === 0 && !error && (
-        <div className="text-center py-20 text-gray-500">
+      {!loading && !hasError && items.length === 0 && (
+        <div className="text-center py-24 text-gray-500">
           <span className="text-5xl block mb-4">📭</span>
           <p className="text-lg font-medium text-gray-400">Nenhum post encontrado</p>
           <p className="text-sm mt-2">
             {search
               ? `Nenhum resultado para "${search}"`
-              : 'Tente ajustar o período ou busque por outro título.'}
+              : filterFrom || filterTo
+                ? 'Nenhum post no período selecionado. Limpe o filtro de data.'
+                : 'Posts do Auto Publicar aparecerão aqui automaticamente.'}
           </p>
         </div>
       )}
 
-      {/* Lista */}
+      {/* Lista de posts */}
       {!loading && items.length > 0 && (
         <div className="grid gap-3">
           {items.map(item => {
-            const st = repostStatus[item.id] || { telegram: 'idle', twitter: 'idle' };
+            const st = repostStatus[item.id] ?? { telegram: 'idle' as RepostState, twitter: 'idle' as RepostState };
             return (
               <div key={item.id}
                 className="bg-[#1a1d27] border border-gray-800 hover:border-gray-600 rounded-xl p-4 flex gap-4 transition-colors">
@@ -387,7 +447,6 @@ export default function HistoricoPage() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  {/* Tags */}
                   <div className="flex flex-wrap gap-1.5 mb-1.5">
                     <SourceBadge source={item.source} />
                     {item.niche && (
@@ -402,12 +461,10 @@ export default function HistoricoPage() {
                     )}
                   </div>
 
-                  {/* Título */}
                   <h3 className="text-sm font-semibold text-white leading-snug line-clamp-2 mb-2">
                     {item.title}
                   </h3>
 
-                  {/* Preços */}
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span className="text-emerald-400 font-bold">{formatPrice(item.price)}</span>
                     {item.originalPrice && (
@@ -420,7 +477,6 @@ export default function HistoricoPage() {
                     )}
                   </div>
 
-                  {/* Data */}
                   <div className="flex items-center gap-1 text-xs text-gray-500">
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -438,7 +494,6 @@ export default function HistoricoPage() {
                   </a>
 
                   <div className="flex flex-col gap-1.5 items-end">
-                    {/* Telegram */}
                     <div className="flex items-center gap-2">
                       <RepostFeedback state={st.telegram} />
                       <button onClick={() => repostTelegram(item)}
@@ -451,7 +506,6 @@ export default function HistoricoPage() {
                       </button>
                     </div>
 
-                    {/* X (Twitter) */}
                     <div className="flex items-center gap-2">
                       <RepostFeedback state={st.twitter} />
                       <button onClick={() => repostTwitter(item)}
@@ -464,7 +518,6 @@ export default function HistoricoPage() {
                       </button>
                     </div>
 
-                    {/* Futuros canais — placeholder visual */}
                     <div className="flex gap-1">
                       <span title="Instagram — em breve"
                         className="px-2 py-1 text-xs rounded bg-gray-800 text-gray-600 border border-gray-700 cursor-not-allowed">
@@ -488,16 +541,14 @@ export default function HistoricoPage() {
         <div className="mt-8 flex justify-center">
           <button onClick={loadMore} disabled={loadingMore}
             className="px-8 py-3 bg-[#1a1d27] hover:bg-[#22263a] border border-gray-700 hover:border-gray-500 rounded-xl text-sm font-medium text-gray-300 transition-all disabled:opacity-50 flex items-center gap-2">
-            {loadingMore ? (
-              <><div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />Carregando...</>
-            ) : (
-              <>Carregar mais <span className="text-gray-500 text-xs">({items.length.toLocaleString('pt-BR')} de {total.toLocaleString('pt-BR')})</span></>
-            )}
+            {loadingMore
+              ? <><div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />Carregando...</>
+              : <>Carregar mais <span className="text-gray-500 text-xs">({items.length.toLocaleString('pt-BR')} de {total.toLocaleString('pt-BR')})</span></>
+            }
           </button>
         </div>
       )}
 
-      {/* Fim da lista */}
       {!loading && items.length > 0 && !pagination?.hasMore && (
         <div className="mt-8 text-center text-gray-600 text-sm">
           ✓ Todos os {items.length.toLocaleString('pt-BR')} posts exibidos
