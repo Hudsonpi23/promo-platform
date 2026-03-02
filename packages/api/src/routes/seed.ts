@@ -25,7 +25,7 @@ export async function seedRoutes(app: FastifyInstance) {
    * POST /api/seed/niches
    * Garante que todos os nichos existam no banco (upsert — não apaga nada).
    */
-  app.post('/niches', async (_request, reply) => {
+  app.post('/seed/add-niches', async (_request, reply) => {
     try {
       let created = 0;
       for (const n of ALL_NICHES) {
