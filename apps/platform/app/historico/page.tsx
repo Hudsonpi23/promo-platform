@@ -46,6 +46,7 @@ export default function HistoricoPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [checking, setChecking]     = useState(false);
   const [hasError, setHasError]     = useState(false);
+  const [errorMsg, setErrorMsg]     = useState('');
   const [retryIn, setRetryIn]       = useState<number | null>(null);
   const [newCount, setNewCount]     = useState(0);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -83,18 +84,24 @@ export default function HistoricoPage() {
     if (mode === 'poll') setChecking(true);
 
     try {
-      // Usa /api/offers com filtro curationStatus — mesmo endpoint que a página de Ofertas
-      const params = new URLSearchParams({ page: String(pg), limit: '50' });
-      params.set('curationStatus', 'APPROVED'); // só posts aprovados (auto-publicados)
+      // Usa EXATAMENTE o mesmo endpoint da página de Ofertas — sem nenhum parâmetro novo
+      const params = new URLSearchParams({ page: String(pg), limit: '100' });
       if (q)    params.set('q', q);
       if (from) params.set('dateFrom', from);
       if (to)   params.set('dateTo', to);
 
       const res = await fetchWithAuth(`${apiBase}/api/offers?${params}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status}${errText ? ': ' + errText.slice(0, 120) : ''}`);
+      }
       const data = await res.json();
 
-      const items: Offer[] = data.data || [];
+      // Filtra client-side: só ofertas aprovadas (criadas via Auto Publicar)
+      const allItems: Offer[] = data.data || [];
+      const items = allItems.filter((o: any) =>
+        ['APPROVED', 'AI_PROCESSING', 'AI_READY', 'AI_BLOCKED'].includes(o.curationStatus)
+      );
       const meta  = data.meta  || {};
 
       setHasError(false);
@@ -119,8 +126,11 @@ export default function HistoricoPage() {
         setHasMore((pg * 50) < (meta.total ?? 0));
         setNewCount(0);
       }
-    } catch {
-      if (mode !== 'poll') setHasError(true);
+    } catch (err: any) {
+      if (mode !== 'poll') {
+        setHasError(true);
+        setErrorMsg(err?.message || 'Erro desconhecido');
+      }
     } finally {
       if (mode === 'full') setLoading(false);
       if (mode === 'more') setLoadingMore(false);
@@ -295,16 +305,19 @@ export default function HistoricoPage() {
 
       {/* Erro */}
       {hasError && (
-        <div className="mb-5 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3">
-          <span className="text-xl">⚠️</span>
+        <div className="mb-5 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
+          <span className="text-xl mt-0.5">⚠️</span>
           <div className="flex-1">
-            <p className="text-red-400 text-sm font-medium">Não foi possível conectar à API</p>
-            <p className="text-red-400/60 text-xs mt-0.5">
+            <p className="text-red-400 text-sm font-medium">Não foi possível carregar o histórico</p>
+            {errorMsg && (
+              <p className="text-red-300/80 text-xs mt-1 font-mono bg-red-900/20 px-2 py-1 rounded">{errorMsg}</p>
+            )}
+            <p className="text-red-400/60 text-xs mt-1">
               {retryIn && retryIn > 0 ? `Reconectando em ${retryIn}s...` : 'Reconectando agora...'}
             </p>
           </div>
           <button onClick={refresh}
-            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs rounded-lg font-medium transition-colors">
+            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 text-red-400 text-xs rounded-lg font-medium transition-colors flex-shrink-0">
             Tentar agora
           </button>
         </div>
