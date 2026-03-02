@@ -200,10 +200,16 @@ export default function HistoricoPage() {
   }
 
   function setTg(id: string, s: RepostState) {
-    setRepost(prev => ({ ...prev, [id]: { tg: 'idle', tw: 'idle', ...prev[id], tg: s } }));
+    setRepost(prev => {
+      const cur = prev[id] ?? { tg: 'idle' as RepostState, tw: 'idle' as RepostState };
+      return { ...prev, [id]: { ...cur, tg: s } };
+    });
   }
   function setTw(id: string, s: RepostState) {
-    setRepost(prev => ({ ...prev, [id]: { tg: 'idle', tw: 'idle', ...prev[id], tw: s } }));
+    setRepost(prev => {
+      const cur = prev[id] ?? { tg: 'idle' as RepostState, tw: 'idle' as RepostState };
+      return { ...prev, [id]: { ...cur, tw: s } };
+    });
   }
 
   async function repostTelegram(post: Post) {
