@@ -58,17 +58,20 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
   ],
 
   // ─── GAMES ──────────────────────────────────────────────────────────────────
+  // ATENÇÃO: NÃO usar 'jogo ' genérico — em pt-BR "jogo" também significa conjunto/kit de ferramentas
   games: [
-    'game ', 'games ', 'jogo ', 'jogos ', 'videogame', 'video game',
+    'videogame', 'video game', 'game ', 'games ',
     'playstation', 'ps4 ', 'ps5 ', 'xbox ', 'nintendo', 'switch ',
     'controle gamer', 'controle playstation', 'controle xbox', 'controle sem fio',
     'joystick', 'gamepad', 'gamer ',
     'headset gamer', 'cadeira gamer', 'rgb gamer', 'pc gamer', 'setup gamer',
     'teclado gamer', 'mouse gamer', 'monitor gamer', 'placa de captura',
     'jogo de tabuleiro', 'card game', 'jogo de cartas',
+    'jogo de videogame', 'jogo de video game', 'jogo de console',
+    'jogo ps4', 'jogo ps5', 'jogo xbox', 'jogo nintendo', 'jogo switch',
     'action figure', 'funko pop', 'boneco action', 'figura de ação',
     'lego ', 'quebra-cabeça', 'quebra cabeça', 'puzzle',
-    // Mais termos populares
+    // Títulos e franquias populares
     'gta ', 'fifa ', 'call of duty', 'minecraft', 'fortnite', 'roblox',
     'god of war', 'spider-man', 'zelda ', 'mario ', 'pokemon',
     'controle dualsense', 'dualsense', 'joy-con',
@@ -109,7 +112,13 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'geladeira', 'refrigerador', 'freezer',
     'máquina de lavar', 'lava e seca', 'secadora de roupas',
     'lava-louças', 'lava louças',
-    'ventilador ', 'climatizador', 'ar condicionado', 'purificador de ar',
+    'ventilador ', 'climatizador', 'ar condicionado', 'ar-condicionado',
+    'split ', 'split inverter', 'ar split', 'mini split', 'multi split',
+    'inverter windfree', 'inverter wifi', 'split piso teto',
+    'purificador de ar', 'umidificador', 'desumidificador',
+    'aromatizador', 'difusor de aroma', 'difusor de essência', 'difusor essencia',
+    'difusor ultrassônico', 'difusor ultrasonico', 'difusor ambiente',
+    'aromaterapia', 'nebulizador de essência', 'nebulizador ambiente',
     'aspirador de pó', 'vassoura elétrica',
     // Limpeza e organização
     'vassoura ', 'rodo ', 'mop ', 'balde ', 'esfregão',
@@ -443,8 +452,15 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'picareta ', 'cavadeira ', 'rastelo ', 'ancinho ', 'garfo de jardim',
     'foice ', 'machado ', 'serrote ', 'serra manual', 'arco de serra',
     'martelo ', 'marreta ', 'maçarico ', 'cinzel ', 'ponteiro ',
-    'chave de fenda', 'chave philips', 'chave estrela', 'chave inglesa',
-    'chave allen', 'chave torx', 'jogo de chaves', 'kit de chaves',
+    'chave de fenda', 'chave fenda', 'chaves fenda',
+    'chave philips', 'chaves philips',
+    'chave estrela', 'chaves estrela',
+    'chave inglesa', 'chave allen', 'chave torx', 'chave combinada', 'chave de boca', 'chaves de boca',
+    'jogo de chaves', 'jogo de chave', 'jogo chave', 'jogo chaves',
+    'kit de chaves', 'kit chave', 'kit chaves',
+    'conjunto de chaves', 'conjunto chave', 'jogo de ferramentas', 'combo ferramentas',
+    'catraca ', 'soquete ', 'chave soquete', 'chave de impacto', 'ponteira de chave',
+    'chave de roda manual', 'torquimetro ', 'torquímetro manual',
     'alicate ', 'alicates ', 'alicate de bico', 'alicate universal', 'alicate de corte',
     'tesoura de poda', 'podão ', 'poda-galhos',
     // Ferramentas elétricas e a bateria
@@ -637,7 +653,27 @@ export function detectNicheSlug(title: string): string | null {
 
   // Retornar o nicho com maior pontuação
   scores.sort((a, b) => b.score - a.score);
-  return scores[0].slug;
+
+  // Desambiguação: "jogo de chave/ferramenta" não é Games
+  // Se o vencedor for 'games' e o título contém palavras de ferramentas, ceder para ferramentas
+  const winner = scores[0];
+  if (winner.slug === 'games') {
+    const toolSignals = ['chave', 'chaves', 'ferramenta', 'ferramentas', 'soquete', 'catraca',
+      'alicate', 'parafuso', 'furadeira', 'broca', 'torquimetro', 'torquimetro', 'eletricista',
+      'fenda', 'philips', 'allen', 'torx', 'estrela', 'boca'];
+    const hasToolSignal = toolSignals.some(w => t.includes(w));
+    if (hasToolSignal) {
+      const ferramentasScore = scores.find(s => s.slug === 'ferramentas');
+      if (ferramentasScore || hasToolSignal) {
+        // Preferir ferramentas se houver qualquer sinal de ferramenta
+        const alt = scores.find(s => s.slug === 'ferramentas' || s.slug === 'automotivo' || s.slug === 'casa');
+        if (alt) return alt.slug;
+        return 'ferramentas';
+      }
+    }
+  }
+
+  return winner.slug;
 }
 
 /**
@@ -654,6 +690,10 @@ export async function resolveNicheFromTitle(title: string): Promise<string | nul
     if (matched) return matched.id;
   }
 
-  // Fallback: retornar primeiro nicho disponível
-  return allNiches[0].id;
+  // Fallback: usar 'eletronicos' como padrão (mais neutro que depender da ordem do DB)
+  const defaultNiche =
+    allNiches.find(n => n.slug === 'eletronicos') ||
+    allNiches.find(n => n.slug === 'casa') ||
+    allNiches[0];
+  return defaultNiche?.id ?? null;
 }
