@@ -878,6 +878,67 @@ const X_HOOKS_ALL = [
   ...X_HOOKS_CURIOSIDADE,
 ];
 
+// ── Frases complementares por categoria ────────────────────────────────────
+// Aparecem logo abaixo do gancho, sem linha em branco entre eles.
+// Reforçam a emoção do gancho e estimulam o clique.
+
+// Complementares de URGÊNCIA — reforçam pressa/limite
+const X_SUBTITLES_URGENCIA = [
+  'Corre antes que acabe!',
+  'Aproveite enquanto dura!',
+  'Pode acabar a qualquer momento!',
+  'Estoque limitado, não perca!',
+  'Hoje pode ser o último dia!',
+  'Não vai durar muito não!',
+  'Por tempo limitado!',
+  'Já estão acabando as unidades!',
+  'Essa oferta não espera!',
+  'Quem chega primeiro leva!',
+  'Não deixa pra amanhã!',
+  'Enquanto tiver em estoque!',
+  'É agora ou nunca!',
+  'Não perca essa chance!',
+  'Oferta por tempo limitado!',
+];
+
+// Complementares de SURPRESA — reforçam o choque/impacto
+const X_SUBTITLES_SURPRESA = [
+  'Nunca vi tão barato assim!',
+  'Esse preço não vai durar!',
+  'Olha o valor que chegou...',
+  'Raramente vejo desconto assim!',
+  'Tô chocado com esse preço!',
+  'Difícil ver desconto desse nível!',
+  'Isso é impressionante demais!',
+  'Não acredito no que estou vendo!',
+  'Esse desconto é absurdo mesmo!',
+  'Preço que aparece uma vez na vida!',
+  'Me surpreendeu essa promoção!',
+  'Quase não acreditei quando vi!',
+  'Isso dificilmente se repete!',
+  'Desconto que vale a pena demais!',
+  'Que oferta ridícula de boa!',
+];
+
+// Complementares de CURIOSIDADE — instigam a conferir
+const X_SUBTITLES_CURIOSIDADE = [
+  'Você não vai acreditar no preço...',
+  'Olha só o que achei pra você',
+  'Dá uma olhada nisso...',
+  'Um achado que você precisa ver',
+  'Confira antes que suma do ar',
+  'O preço vai te surpreender',
+  'Vai querer saber quanto ficou?',
+  'Olha o que apareceu hoje...',
+  'Esse é aquele produto que você queria',
+  'Acho que esse é pra você',
+  'Achei e já vim te avisar',
+  'Viu que oferta boa?',
+  'Esse eu não consegui ignorar',
+  'Precisei te mostrar isso',
+  'Que achado é esse...',
+];
+
 // CTAs variados
 const X_CTAS = [
   '👉 aproveitar oferta',
@@ -1635,18 +1696,24 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Escolher gancho: alternar entre os 3 tipos conforme seed ──
   // seed % 3 == 0 → urgência | == 1 → surpresa | == 2 → curiosidade
   let hook: string;
+  let subtitle: string;
   const hookType = seed % 3;
+
   if (hookType === 0) {
-    hook = pickRandom(X_HOOKS_URGENCIA, seed);
+    hook     = pickRandom(X_HOOKS_URGENCIA,      seed);
+    subtitle = pickRandom(X_SUBTITLES_URGENCIA,  seed + 1);
   } else if (hookType === 1) {
-    hook = pickRandom(X_HOOKS_SURPRESA, seed);
+    hook     = pickRandom(X_HOOKS_SURPRESA,      seed);
+    subtitle = pickRandom(X_SUBTITLES_SURPRESA,  seed + 1);
   } else {
-    hook = pickRandom(X_HOOKS_CURIOSIDADE, seed);
+    hook     = pickRandom(X_HOOKS_CURIOSIDADE,   seed);
+    subtitle = pickRandom(X_SUBTITLES_CURIOSIDADE, seed + 1);
   }
 
   // Para descontos altos (≥30%), preferir ganchos de surpresa (mais impacto)
   if (discountPct >= 30) {
-    hook = pickRandom(X_HOOKS_SURPRESA, seed);
+    hook     = pickRandom(X_HOOKS_SURPRESA,     seed);
+    subtitle = pickRandom(X_SUBTITLES_SURPRESA, seed + 1);
   }
 
   // ── Escolher CTA ──
@@ -1670,9 +1737,21 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     : '';
 
   // ── Montar post linha a linha ──
-  // Regra: gancho → produto → preços → desconto (linha própria) → CTA (linha própria)
+  // Estrutura:
+  //   🔥 GANCHO            ← linha 1 (hook)
+  //   Frase complementar   ← linha 2 (subtitle — sem linha em branco entre hook e subtitle)
+  //                        ← linha em branco
+  //   Nome do Produto
+  //                        ← linha em branco
+  //   De R$ XX,XX
+  //   por R$ YY,YY
+  //                        ← linha em branco
+  //   🔥 -35% OFF          ← desconto em linha própria
+  //                        ← linha em branco
+  //   👉 aproveitar oferta ← CTA em linha própria
   const lines: string[] = [
     hook,
+    subtitle,   // frase complementar colada ao gancho (sem linha em branco)
     '',
     shortTitle,
     '',
@@ -1692,8 +1771,8 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     finalText += `\n🌐 ${input.siteUrl}`;
   }
 
-  console.log('[generateXCopy] Gancho:', hook, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType]);
-  console.log('[generateXCopy] Texto final:', finalText.substring(0, 200));
+  console.log('[generateXCopy] Gancho:', hook, '| Subtitle:', subtitle, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType]);
+  console.log('[generateXCopy] Texto final:', finalText.substring(0, 250));
   return finalText;
 }
 
