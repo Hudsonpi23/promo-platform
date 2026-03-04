@@ -556,6 +556,7 @@ export function generateTweetText(offer: {
   discount?: number;
   affiliateUrl?: string;
   storeName?: string;
+  siteUrl?: string;
 }): string {
   const copies = generateCopies({
     title: offer.title,
@@ -566,6 +567,7 @@ export function generateTweetText(offer: {
     storeName: offer.storeName,
     category: undefined,
     trackingUrl: offer.affiliateUrl ?? '',
+    siteUrl: offer.siteUrl,
   });
 
   // copies.x já vem no formato correto para o X (frases sarcásticas, MAIÚSCULAS, emojis, link no final)
@@ -584,6 +586,7 @@ export async function postOfferToTwitter(offer: {
   storeName?: string;
   imageUrl?: string;
   images?: string[];
+  siteUrl?: string;
 }): Promise<TweetResponse> {
   const tweetText = generateTweetText(offer);
 

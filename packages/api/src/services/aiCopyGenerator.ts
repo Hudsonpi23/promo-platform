@@ -31,6 +31,8 @@ export interface CopyInputData {
   storeName?: string | null;
   category?: string | null;
   trackingUrl: string;
+  /** Link do produto no site vitrine — adicionado separado do link de afiliado */
+  siteUrl?: string | null;
 }
 
 export interface GeneratedCopies {
@@ -1402,6 +1404,11 @@ function generateTelegramCopy(input: CopyInputData, seed: number): string {
   // INVERTER ORDEM: Conteúdo PRIMEIRO, link DEPOIS
   // Isso faz o texto aparecer ANTES do preview do Telegram
   let finalText = content + '\n\n' + link;
+
+  // Adicionar link do site vitrine separado do link de afiliado
+  if (input.siteUrl) {
+    finalText += `\n\n🌐 ${input.siteUrl}`;
+  }
   
   // LOG: Verificar o que está sendo gerado
   console.log('[generateTelegramCopy] ✅ Texto gerado com sucesso');
@@ -1589,7 +1596,11 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     }
   }
 
-  const finalText = `${content}\n\n${link}`;
+  // Twitter conta cada URL como 23 chars (t.co) — duas URLs = 46 chars encurtados
+  let finalText = `${content}\n\n${link}`;
+  if (input.siteUrl) {
+    finalText += `\n🌐 ${input.siteUrl}`;
+  }
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 200));
   return finalText;
 }

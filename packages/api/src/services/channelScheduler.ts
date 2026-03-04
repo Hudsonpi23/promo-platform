@@ -15,6 +15,9 @@ import { prisma } from '../lib/prisma.js';
 import { Channel, ChannelPostStatus, AutomationLevel } from '@prisma/client';
 import crypto from 'crypto';
 
+// URL do site vitrine — atualizar quando tiver domínio próprio
+const SITE_URL = process.env.SITE_URL || 'https://manu-promocoes.vercel.app';
+
 // ==================== CONFIGURAÇÃO PADRÃO POR CANAL ====================
 
 export const DEFAULT_CHANNEL_RULES: Record<string, {
@@ -268,6 +271,35 @@ async function getLastHourPostCount(channel: Channel): Promise<number> {
 // ==================== PUBLISHERS ====================
 
 /**
+ * Busca o link do produto no site vitrine a partir do offerId.
+ * Retorna o link específico do produto (goCode) ou o homepage como fallback.
+ */
+async function getSitePostUrl(offerId: string): Promise<string> {
+  try {
+    const published = await prisma.publishedPost.findFirst({
+      where: { offerId, isActive: true },
+      select: { goCode: true },
+      orderBy: { publishedAt: 'desc' },
+    });
+    if (published?.goCode) {
+      return `${SITE_URL}/go/${published.goCode}`;
+    }
+  } catch {
+    // silencioso — fallback abaixo
+  }
+  return SITE_URL;
+}
+
+/**
+ * Acrescenta o link do site ao final do texto, separado do link de afiliado.
+ * Não adiciona caso o link já esteja presente no texto.
+ */
+function appendSiteLink(text: string, siteLink: string): string {
+  if (text.includes(siteLink) || text.includes(SITE_URL)) return text;
+  return `${text}\n\n🌐 ${siteLink}`;
+}
+
+/**
  * Publica no Telegram
  */
 async function publishToTelegram(channelRecord: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
@@ -279,7 +311,9 @@ async function publishToTelegram(channelRecord: any): Promise<{ success: boolean
       return { success: false, error: 'Telegram não configurado' };
     }
 
-    const text = channelRecord.copyText;
+    const offerId = channelRecord.draft?.offer?.id || channelRecord.draft?.offerId;
+    const siteLink = offerId ? await getSitePostUrl(offerId) : SITE_URL;
+    const text = appendSiteLink(channelRecord.copyText, siteLink);
     
     const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -369,10 +403,11 @@ async function publishToSite(channelRecord: any): Promise<{ success: boolean; ex
  */
 async function publishToTwitter(channelRecord: any): Promise<{ success: boolean; externalId?: string; error?: string }> {
   try {
-    // Importar serviço de Twitter
     const { postTweet } = await import('./twitter.js');
-    
-    const text = channelRecord.copyText;
+
+    const offerId = channelRecord.draft?.offer?.id || channelRecord.draft?.offerId;
+    const siteLink = offerId ? await getSitePostUrl(offerId) : SITE_URL;
+    const text = appendSiteLink(channelRecord.copyText, siteLink);
 
     const result = await postTweet(text);
     
@@ -403,7 +438,10 @@ async function publishToFacebook(channelRecord: any): Promise<{ success: boolean
       return { success: false, error: 'Draft ou oferta não encontrada' };
     }
 
-    const text = channelRecord.copyText || draft.copyText;
+    const offerId = draft.offer.id;
+    const siteLink = await getSitePostUrl(offerId);
+    const rawText = channelRecord.copyText || draft.copyText;
+    const text = appendSiteLink(rawText, siteLink);
     const imageUrl = draft.offer.imageUrl;
 
     let result;

@@ -16,6 +16,8 @@ import { generateCopies } from '../services/aiCopyGenerator.js';
 import { uploadFromUrl } from '../services/cloudinary.js';
 import { resolveNicheFromTitle } from '../services/nicheDetector.js';
 
+const SITE_URL = process.env.SITE_URL || 'https://manu-promocoes.vercel.app';
+
 interface PublishResult {
   url: string;
   status: 'success' | 'partial' | 'error';
@@ -172,6 +174,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         result.offerId = offer.id;
 
         // ── 7. PUBLICAR NO SITE (criar PublishedPost) ─────────────────────
+        let goCode = '';
         try {
           // Gerar slug único
           const baseSlug = offer.title
@@ -189,7 +192,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
             slug = `${baseSlug}-${suffix}`;
           }
 
-          const goCode = nanoid(8);
+          goCode = nanoid(8);
           const discountLine = discountPct > 0
             ? `${discountPct}% de desconto!`
             : '';
@@ -222,6 +225,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         }
 
         // ── 7. GERAR COPY COM IA ───────────────────────────────────────────
+        // siteLink aponta para a página do produto (goCode criado acima)
+        const siteLink = result.site ? `${SITE_URL}/go/${goCode}` : SITE_URL;
+
         const copies = generateCopies({
           title: offer.title,
           price: Number(offer.finalPrice),
@@ -229,6 +235,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
           storeName: offer.store?.name,
           trackingUrl: url,
+          siteUrl: siteLink,
         });
 
         // ── 8. POSTAR NO TELEGRAM ─────────────────────────────────────────
@@ -257,6 +264,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               affiliateUrl: url,
               storeName: offer.store?.name,
               imageUrl: mainImage || undefined,
+              siteUrl: siteLink,
             });
             result.twitter = { success: twitterRes.success, error: twitterRes.error };
           } catch (e: any) {
