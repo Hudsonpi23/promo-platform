@@ -939,18 +939,20 @@ const X_SUBTITLES_CURIOSIDADE = [
   'Que achado é esse...',
 ];
 
-// CTAs variados
+// CTAs variados — diretos, com senso de ação imediata
 const X_CTAS = [
-  '👉 aproveitar oferta',
-  '👉 pegar promoção',
-  '👉 ver oferta',
-  '👉 garantir o meu',
   '👉 aproveitar agora',
-  '👉 pegar agora',
-  '👉 quero essa oferta',
-  '👉 comprar com desconto',
+  '👉 ver promoção',
+  '👉 conferir oferta',
+  '👉 ver desconto',
+  '👉 garantir o meu',
+  '👉 pegar essa oferta',
   '👉 aproveitar enquanto tem',
+  '👉 quero essa promoção',
+  '👉 comprar com desconto',
   '👉 ver oferta completa',
+  '👉 correr pra aproveitar',
+  '👉 não perder essa',
 ];
 
 // Templates de preço em MAIÚSCULAS
@@ -970,10 +972,13 @@ const PRICE_TEMPLATES_NO_OLD = [
 // ==================== HELPERS ====================
 
 function formatPrice(value: number): string {
+  // Se o valor tem centavos, sempre mostrar 2 casas (ex: R$ 67,90 e não R$ 67,9)
+  // Se o valor é inteiro, não mostrar casas (ex: R$ 97 e não R$ 97,00)
+  const hasDecimals = value % 1 !== 0;
   return value.toLocaleString('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-    minimumFractionDigits: 0,
+    minimumFractionDigits: hasDecimals ? 2 : 0,
     maximumFractionDigits: 2,
   });
 }
@@ -1717,8 +1722,8 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Escolher CTA também de forma aleatória ──
   const cta = X_CTAS[Math.floor(Math.random() * X_CTAS.length)];
 
-  // ── Nome curto do produto ──
-  const shortTitle = getShortTitle(input.title, 40);
+  // ── Nome curto do produto (52 chars para incluir specs como 100ml, tamanho etc.) ──
+  const shortTitle = getShortTitle(input.title, 52);
 
   // ── Bloco de preço ──
   const priceBlock: string[] = [];
@@ -1731,7 +1736,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   // ── Linha de desconto ──
   const discountLine = discountPct > 0
-    ? `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% OFF`
+    ? `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% DE DESCONTO`
     : '';
 
   // ── Montar post linha a linha ──
