@@ -776,33 +776,106 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
 };
 
 // ==================== FRASES DE VENDAS PARA X/TWITTER ====================
-// Ganchos de urgência/surpresa para linha 1 do post
-const X_HOOKS = [
+// Ganchos organizados em 3 categorias: urgência, surpresa e curiosidade
+// Isso aumenta o alcance pois atinge perfis diferentes de leitores
+
+// 1️⃣ URGÊNCIA — transmite pressa, sensação de perder a oportunidade
+const X_HOOKS_URGENCIA = [
   '🔥 ALERTA DE PROMOÇÃO',
-  '⚠️ PREÇO DESPENCOU',
-  '😱 OFERTA INSANA',
-  '🔥 PREÇO HISTÓRICO',
-  '⚠️ PROMOÇÃO RELÂMPAGO',
-  '💰 DESCONTO PESADO',
-  '🔥 PREÇO BAIXOU HOJE',
-  '🛒 PROMOÇÃO QUE VALE',
-  '😱 QUE PREÇO É ESSE',
-  '🔥 QUEIMOU O ESTOQUE',
-  '⚠️ CORRE QUE TÁ BARATO',
-  '💰 OLHA ESSE DESCONTO',
+  '🔥 ALERTA DE DESCONTO',
+  '🔥 ALERTA DE OFERTA',
+  '🔥 PROMOÇÃO CHEGANDO',
+  '🔥 PROMOÇÃO QUENTE',
+  '🔥 PROMOÇÃO FORTE',
+  '🔥 DESCONTO ATIVO',
   '🔥 OFERTA DO DIA',
-  '😱 PREÇO ABSURDO',
-  '⚠️ IMPERDÍVEL',
+  '🔥 OFERTA QUENTE',
+  '🔥 OFERTA ESPECIAL',
+  '⚡ PROMOÇÃO RELÂMPAGO',
+  '⚡ PROMOÇÃO RÁPIDA',
+  '⚡ PROMOÇÃO LIMITADA',
+  '⚡ PROMOÇÃO ATIVA',
+  '⚡ PROMOÇÃO DO MOMENTO',
+  '⚡ PROMOÇÃO TEMPORÁRIA',
+  '⚡ PROMOÇÃO EM ANDAMENTO',
+  '⚡ PROMOÇÃO LIBERADA',
+  '⚡ PROMOÇÃO HOJE',
+  '⚡ PROMOÇÃO ONLINE',
+  '📢 ATENÇÃO PARA ESSA OFERTA',
+  '📢 ATENÇÃO PARA ESSE PREÇO',
+  '📢 ATENÇÃO PROMOÇÃO',
+  '📢 ATENÇÃO DESCONTO',
+  '📢 ATENÇÃO PREÇO BAIXO',
+  '📢 ATENÇÃO PROMOÇÃO ATIVA',
+  '📢 ATENÇÃO PREÇO REDUZIDO',
+  '📢 ATENÇÃO OFERTA',
+  '📢 ATENÇÃO DESCONTO HOJE',
+  '📢 ATENÇÃO OPORTUNIDADE',
 ];
 
-// Ganchos específicos para descontos altos (≥30%)
-const X_HIGH_DISCOUNT_HOOKS = [
-  '🔥 PREÇO HISTÓRICO',
-  '😱 DESCONTO ABSURDO',
-  '💰 DESCONTO PESADO',
-  '⚠️ PROMOÇÃO INSANA',
-  '🔥 QUEIMOU O ESTOQUE',
+// 2️⃣ SURPRESA — gera impacto, estimula clique por choque
+const X_HOOKS_SURPRESA = [
+  '😱 OFERTA INSANA',
+  '😱 OFERTA ABSURDA',
+  '😱 DESCONTO LOUCO',
+  '😱 DESCONTO GIGANTE',
+  '😱 DESCONTO PESADO',
   '😱 OFERTA IMPERDÍVEL',
+  '😱 PREÇO SURPREENDENTE',
+  '😱 DESCONTO FORTE',
+  '😱 PREÇO MALUCO',
+  '😱 OFERTA INACREDITÁVEL',
+  '⚠️ PREÇO DESPENCOU',
+  '⚠️ PREÇO CAIU',
+  '⚠️ PREÇO BAIXOU',
+  '⚠️ PREÇO DERRETEU',
+  '⚠️ PREÇO REDUZIDO',
+  '⚠️ PREÇO EM QUEDA',
+  '⚠️ PREÇO ATUALIZADO',
+  '⚠️ PREÇO CAIU HOJE',
+  '⚠️ PREÇO REBAIXADO',
+  '⚠️ PREÇO AJUSTADO',
+  '💰 DESCONTO PESADO',
+  '💰 DESCONTO ATIVO',
+  '💰 DESCONTO LIBERADO',
+  '💰 DESCONTO FORTE',
+  '💰 DESCONTO ESPECIAL',
+  '💰 DESCONTO DO DIA',
+  '💰 DESCONTO IMPERDÍVEL',
+  '💰 SUPER DESCONTO',
+  '💰 ECONOMIA REAL',
+  '💰 DESCONTO GRANDE',
+];
+
+// 3️⃣ CURIOSIDADE — instiga o clique para saber o preço/produto
+const X_HOOKS_CURIOSIDADE = [
+  '🔥 PREÇO HISTÓRICO',
+  '🔥 MENOR PREÇO',
+  '🔥 PREÇO MÍNIMO',
+  '🔥 PREÇO BAIXO',
+  '🔥 PREÇO DIFERENCIADO',
+  '🔥 PREÇO ESPECIAL',
+  '🔥 PREÇO PROMOCIONAL',
+  '🔥 PREÇO REDUZIDO',
+  '🔥 PREÇO BAIXO HOJE',
+  '🔥 PREÇO AJUSTADO',
+  '🛒 OPORTUNIDADE',
+  '🛒 OPORTUNIDADE HOJE',
+  '🛒 OPORTUNIDADE DE COMPRA',
+  '🛒 BOA OFERTA',
+  '🛒 VALE A PENA',
+  '🛒 OFERTA INTERESSANTE',
+  '🛒 ACHADO DO DIA',
+  '🛒 PREÇO BOM',
+  '🛒 PREÇO LEGAL',
+  '🛒 COMPRA INTELIGENTE',
+];
+
+// Pool completo (usado como fallback)
+const X_HOOKS_ALL = [
+  ...X_HOOKS_URGENCIA,
+  ...X_HOOKS_SURPRESA,
+  ...X_HOOKS_CURIOSIDADE,
 ];
 
 // CTAs variados
@@ -815,6 +888,8 @@ const X_CTAS = [
   '👉 pegar agora',
   '👉 quero essa oferta',
   '👉 comprar com desconto',
+  '👉 aproveitar enquanto tem',
+  '👉 ver oferta completa',
 ];
 
 // Templates de preço em MAIÚSCULAS
@@ -1532,18 +1607,19 @@ function generateSiteCopy(input: CopyInputData, seed: number): string {
 }
 
 /**
- * Gera copy para X/Twitter no formato estruturado por linhas:
+ * Gera copy para X/Twitter no formato estruturado por linhas.
+ * Mistura 3 tipos de ganchos: urgência, surpresa e curiosidade.
  *
- *  🔥 ALERTA DE PROMOÇÃO
+ *  🔥 ALERTA DE PROMOÇÃO          ← gancho (linha 1)
  *
- *  Nome do Produto
+ *  Nome do Produto                ← linha 2
  *
- *  De R$ XX,XX
- *  por R$ YY,YY
+ *  De R$ XX,XX                    ← linha 3
+ *  por R$ YY,YY                   ← linha 4
  *
- *  💰 -35% OFF
+ *  🔥 -35% OFF                    ← linha 5 (desconto)
  *
- *  👉 aproveitar oferta
+ *  👉 aproveitar oferta           ← linha 6 (CTA — sempre em linha própria)
  *
  *  https://link-afiliado
  *  🌐 https://link-site
@@ -1556,18 +1632,30 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       : 0
   ));
 
-  // ── Escolher gancho ──
-  const hook = discountPct >= 30
-    ? pickRandom(X_HIGH_DISCOUNT_HOOKS, seed)
-    : pickRandom(X_HOOKS, seed);
+  // ── Escolher gancho: alternar entre os 3 tipos conforme seed ──
+  // seed % 3 == 0 → urgência | == 1 → surpresa | == 2 → curiosidade
+  let hook: string;
+  const hookType = seed % 3;
+  if (hookType === 0) {
+    hook = pickRandom(X_HOOKS_URGENCIA, seed);
+  } else if (hookType === 1) {
+    hook = pickRandom(X_HOOKS_SURPRESA, seed);
+  } else {
+    hook = pickRandom(X_HOOKS_CURIOSIDADE, seed);
+  }
+
+  // Para descontos altos (≥30%), preferir ganchos de surpresa (mais impacto)
+  if (discountPct >= 30) {
+    hook = pickRandom(X_HOOKS_SURPRESA, seed);
+  }
 
   // ── Escolher CTA ──
-  const cta = pickRandom(X_CTAS, seed + 3);
+  const cta = pickRandom(X_CTAS, seed + 7);
 
   // ── Nome curto do produto ──
   const shortTitle = getShortTitle(input.title, 40);
 
-  // ── Montar bloco de preço ──
+  // ── Bloco de preço ──
   const priceBlock: string[] = [];
   if (input.oldPrice && input.oldPrice > input.price) {
     priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
@@ -1581,7 +1669,8 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     ? `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% OFF`
     : '';
 
-  // ── Montar texto final ──
+  // ── Montar post linha a linha ──
+  // Regra: gancho → produto → preços → desconto (linha própria) → CTA (linha própria)
   const lines: string[] = [
     hook,
     '',
@@ -1592,17 +1681,18 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   if (discountLine) {
     lines.push('');
-    lines.push(discountLine);
+    lines.push(discountLine);  // desconto em linha própria
   }
 
   lines.push('');
-  lines.push(cta);
+  lines.push(cta);             // CTA sempre em linha própria, separado do desconto
 
   let finalText = lines.join('\n') + `\n\n${input.trackingUrl}`;
   if (input.siteUrl) {
     finalText += `\n🌐 ${input.siteUrl}`;
   }
 
+  console.log('[generateXCopy] Gancho:', hook, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType]);
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 200));
   return finalText;
 }
