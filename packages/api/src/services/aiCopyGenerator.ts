@@ -1693,31 +1693,29 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       : 0
   ));
 
-  // ── Escolher gancho: alternar entre os 3 tipos conforme seed ──
-  // seed % 3 == 0 → urgência | == 1 → surpresa | == 2 → curiosidade
+  // ── Escolher gancho com aleatoriedade real ──
+  // Usamos Math.random() em vez da seed determinística para garantir que
+  // posts consecutivos NUNCA repitam o mesmo gancho ou frase.
   let hook: string;
   let subtitle: string;
-  const hookType = seed % 3;
+
+  // Para descontos altos (≥30%) forçar categoria surpresa (mais impacto);
+  // caso contrário, sortear entre as 3 categorias de forma aleatória.
+  const hookType = discountPct >= 30 ? 1 : Math.floor(Math.random() * 3);
 
   if (hookType === 0) {
-    hook     = pickRandom(X_HOOKS_URGENCIA,      seed);
-    subtitle = pickRandom(X_SUBTITLES_URGENCIA,  seed + 1);
+    hook     = X_HOOKS_URGENCIA[Math.floor(Math.random() * X_HOOKS_URGENCIA.length)];
+    subtitle = X_SUBTITLES_URGENCIA[Math.floor(Math.random() * X_SUBTITLES_URGENCIA.length)];
   } else if (hookType === 1) {
-    hook     = pickRandom(X_HOOKS_SURPRESA,      seed);
-    subtitle = pickRandom(X_SUBTITLES_SURPRESA,  seed + 1);
+    hook     = X_HOOKS_SURPRESA[Math.floor(Math.random() * X_HOOKS_SURPRESA.length)];
+    subtitle = X_SUBTITLES_SURPRESA[Math.floor(Math.random() * X_SUBTITLES_SURPRESA.length)];
   } else {
-    hook     = pickRandom(X_HOOKS_CURIOSIDADE,   seed);
-    subtitle = pickRandom(X_SUBTITLES_CURIOSIDADE, seed + 1);
+    hook     = X_HOOKS_CURIOSIDADE[Math.floor(Math.random() * X_HOOKS_CURIOSIDADE.length)];
+    subtitle = X_SUBTITLES_CURIOSIDADE[Math.floor(Math.random() * X_SUBTITLES_CURIOSIDADE.length)];
   }
 
-  // Para descontos altos (≥30%), preferir ganchos de surpresa (mais impacto)
-  if (discountPct >= 30) {
-    hook     = pickRandom(X_HOOKS_SURPRESA,     seed);
-    subtitle = pickRandom(X_SUBTITLES_SURPRESA, seed + 1);
-  }
-
-  // ── Escolher CTA ──
-  const cta = pickRandom(X_CTAS, seed + 7);
+  // ── Escolher CTA também de forma aleatória ──
+  const cta = X_CTAS[Math.floor(Math.random() * X_CTAS.length)];
 
   // ── Nome curto do produto ──
   const shortTitle = getShortTitle(input.title, 40);
@@ -1771,7 +1769,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     finalText += `\n🌐 ${input.siteUrl}`;
   }
 
-  console.log('[generateXCopy] Gancho:', hook, '| Subtitle:', subtitle, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType]);
+  console.log('[generateXCopy] Gancho:', hook, '| Subtitle:', subtitle, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType] ?? 'surpresa(alto desconto)');
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 250));
   return finalText;
 }
