@@ -297,4 +297,75 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       results,
     });
   });
+
+  /**
+   * POST /api/auto-publish/scrape
+   * Raspa os dados de um produto a partir de uma URL afiliada (sem publicar nada).
+   * Usado pela página de Vídeos para obter título, preço e imagem do produto.
+   */
+  app.post('/scrape', { preHandler: [authGuard] }, async (request, reply) => {
+    const { url } = request.body as { url?: string };
+
+    if (!url || !url.trim()) {
+      return reply.status(400).send({ error: 'URL é obrigatória.' });
+    }
+
+    try {
+      new URL(url);
+    } catch {
+      return reply.status(400).send({ error: 'URL inválida.' });
+    }
+
+    try {
+      const urlLower = url.toLowerCase();
+      let store = 'unknown';
+      if (urlLower.includes('mercadolivre') || urlLower.includes('mercadolibre')) store = 'mercadolivre';
+      else if (urlLower.includes('magazineluiza') || urlLower.includes('magalu')) store = 'magalu';
+      else if (urlLower.includes('amazon')) store = 'amazon';
+
+      const httpResp = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8',
+        },
+        timeout: 30000,
+      });
+
+      const $ = cheerio.load(httpResp.data);
+      let productData: any;
+
+      if (store === 'mercadolivre') productData = await scrapeMercadoLivreHTTP($);
+      else if (store === 'magalu')   productData = await scrapeMagaluHTTP($);
+      else if (store === 'amazon')   productData = await scrapeAmazonHTTP($);
+      else                           productData = await scrapeGenericHTTP($);
+
+      if (!productData.title?.trim()) {
+        return reply.status(422).send({ error: 'Não foi possível extrair o título do produto.' });
+      }
+      if (!productData.finalPrice || productData.finalPrice <= 0) {
+        return reply.status(422).send({ error: 'Não foi possível extrair o preço do produto.' });
+      }
+
+      const discountPct = productData.discount ||
+        (productData.originalPrice && productData.originalPrice > productData.finalPrice
+          ? Math.round(((productData.originalPrice - productData.finalPrice) / productData.originalPrice) * 100)
+          : 0);
+
+      return reply.send({
+        success: true,
+        title:         productData.title,
+        finalPrice:    productData.finalPrice,
+        originalPrice: productData.originalPrice || null,
+        discountPct,
+        mainImage:     productData.mainImage || null,
+        images:        productData.images || [],
+        affiliateUrl:  url,
+        store,
+      });
+    } catch (err: any) {
+      console.error('[AutoPublish/scrape] Erro:', err.message);
+      return reply.status(500).send({ error: `Falha ao acessar o produto: ${err.message}` });
+    }
+  });
 }
