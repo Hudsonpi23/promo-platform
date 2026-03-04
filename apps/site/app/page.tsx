@@ -50,6 +50,7 @@ export default async function Home({ searchParams }: PageProps) {
   const posts = postsData.items;
   const displayNiches = niches.length > 0 ? niches : DEFAULT_NICHES;
   const hasMore = postsData.hasMore;
+  const nextCursor = postsData.nextCursor ?? null;
   const isEmpty = postsData.items.length === 0;
   const searchQuery = searchParams.q;
 
@@ -191,6 +192,7 @@ export default async function Home({ searchParams }: PageProps) {
           key={`${searchQuery || ''}-${searchParams.sort || 'recent'}`}
           initialPosts={posts}
           initialHasMore={hasMore}
+          initialNextCursor={nextCursor}
           searchQuery={searchQuery}
           sort={searchParams.sort || 'recent'}
         />

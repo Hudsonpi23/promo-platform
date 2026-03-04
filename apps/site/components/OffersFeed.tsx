@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { PublicPost, FeedResponse } from '@/lib/api';
 import { OfferGrid } from './OfferGrid';
@@ -10,24 +10,26 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 interface OffersFeedProps {
   initialPosts: PublicPost[];
   initialHasMore: boolean;
+  initialNextCursor?: string | null;
   searchQuery?: string;
   sort?: string;
 }
 
-export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: OffersFeedProps) {
-  const router    = useRouter();
+export function OffersFeed({ initialPosts, initialHasMore, initialNextCursor, searchQuery, sort }: OffersFeedProps) {
+  const router      = useRouter();
   const [posts, setPosts]     = useState<PublicPost[]>(initialPosts);
   const [hasMore, setHasMore] = useState(initialHasMore);
-  const [page, setPage]       = useState(1);
+  const [cursor, setCursor]   = useState<string | null>(initialNextCursor ?? null);
   const [loading, setLoading] = useState(false);
+  const sentinelRef           = useRef<HTMLDivElement>(null);
 
-  // ── Carregar mais (próxima página) ──────────────────────────────────────────
+  // ── Carregar próxima página via cursor ──────────────────────────────────────
   const loadMore = useCallback(async () => {
     if (loading || !hasMore) return;
     setLoading(true);
     try {
-      const nextPage = page + 1;
-      const params = new URLSearchParams({ page: String(nextPage), limit: '24' });
+      const params = new URLSearchParams({ limit: '24' });
+      if (cursor) params.set('cursor', cursor);
       if (searchQuery) params.set('q', searchQuery);
       if (sort && sort !== 'recent') params.set('sort', sort);
 
@@ -39,13 +41,31 @@ export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: 
       const fresh = (data.items || []).filter(p => !existingIds.has(p.id));
       setPosts(prev => [...prev, ...fresh]);
       setHasMore(data.hasMore);
-      setPage(nextPage);
+      setCursor(data.nextCursor ?? null);
     } catch (err) {
       console.error('[OffersFeed] Erro ao carregar mais:', err);
     } finally {
       setLoading(false);
     }
-  }, [loading, hasMore, page, posts, searchQuery, sort]);
+  }, [loading, hasMore, cursor, posts, searchQuery, sort]);
+
+  // ── Scroll infinito via IntersectionObserver ────────────────────────────────
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          loadMore();
+        }
+      },
+      { rootMargin: '300px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadMore]);
 
   // ── Sem resultados na busca ──────────────────────────────────────────────────
   if (posts.length === 0 && searchQuery) {
@@ -79,36 +99,22 @@ export function OffersFeed({ initialPosts, initialHasMore, searchQuery, sort }: 
     );
   }
 
-  // ── Feed normal ──────────────────────────────────────────────────────────────
+  // ── Feed com scroll infinito ─────────────────────────────────────────────────
   return (
     <>
       <OfferGrid posts={posts} />
 
-      {/* Carregar mais */}
-      {hasMore && (
-        <div className="text-center mt-12">
-          <button
-            onClick={loadMore}
-            disabled={loading}
-            className="inline-flex items-center gap-3 px-10 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-base shadow-lg hover:shadow-xl transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            {loading ? (
-              <>
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                Carregando...
-              </>
-            ) : (
-              <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                Carregar mais ofertas
-              </>
-            )}
-          </button>
+      {/* Sentinel para o IntersectionObserver */}
+      <div ref={sentinelRef} className="h-px" aria-hidden="true" />
+
+      {/* Indicador de carregamento */}
+      {loading && (
+        <div className="flex justify-center items-center gap-3 py-10 text-blue-600 font-medium">
+          <svg className="w-6 h-6 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          Carregando mais ofertas...
         </div>
       )}
 

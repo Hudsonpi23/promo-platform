@@ -6,6 +6,7 @@
  */
 
 import { runScheduler, runBurstScheduler } from '../services/channelScheduler.js';
+import { prisma } from '../lib/prisma.js';
 
 // Intervalo em ms (1 minuto)
 const INTERVAL_MS = 60 * 1000;
@@ -13,9 +14,37 @@ const INTERVAL_MS = 60 * 1000;
 // Intervalo do burst check (5 minutos)
 const BURST_CHECK_INTERVAL_MS = 5 * 60 * 1000;
 
+// Intervalo da limpeza de posts expirados (24 horas)
+const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
 let schedulerInterval: NodeJS.Timeout | null = null;
 let burstCheckInterval: NodeJS.Timeout | null = null;
+let cleanupInterval: NodeJS.Timeout | null = null;
 let isRunning = false;
+
+/**
+ * Desativa (soft-delete) posts publicados há mais de 30 dias
+ */
+async function deleteExpiredPosts(): Promise<void> {
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+  try {
+    const result = await prisma.publishedPost.updateMany({
+      where: {
+        isActive: true,
+        publishedAt: { lt: thirtyDaysAgo },
+      },
+      data: { isActive: false },
+    });
+
+    if (result.count > 0) {
+      console.log(`[Worker] 🗑️  ${result.count} post(s) expirado(s) desativado(s) (>30 dias)`);
+    }
+  } catch (error: any) {
+    console.error('[Worker] Erro ao limpar posts expirados:', error.message);
+  }
+}
 
 /**
  * Executa uma rodada do scheduler
@@ -100,6 +129,11 @@ export function startScheduler(): void {
   
   // Agendar verificação de burst
   burstCheckInterval = setInterval(checkBurstSchedule, BURST_CHECK_INTERVAL_MS);
+
+  // Limpeza de posts expirados: executar na inicialização e a cada 24h
+  setTimeout(deleteExpiredPosts, 10000);
+  cleanupInterval = setInterval(deleteExpiredPosts, CLEANUP_INTERVAL_MS);
+  console.log('[Worker] 🗑️  Limpeza automática de posts (>30 dias): ATIVA (a cada 24h)');
 }
 
 /**
@@ -114,6 +148,11 @@ export function stopScheduler(): void {
   if (burstCheckInterval) {
     clearInterval(burstCheckInterval);
     burstCheckInterval = null;
+  }
+
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
   }
   
   console.log('[Worker] Scheduler parado');
