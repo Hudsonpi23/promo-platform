@@ -388,24 +388,36 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
 
   // ─── PAPELARIA E ESCRITÓRIO ──────────────────────────────────────────────────
   papelaria: [
-    'caneta ', 'lápis ', 'lapiseira ', 'marca-texto',
-    'caderno ', 'agenda ', 'planner ', 'bloco de notas',
-    'post-it ', 'papel ', 'folha ',
-    'mochila escolar', 'lancheira ', 'estojo ',
-    'cola ', 'fita adesiva', 'grampeador', 'perfurador',
-    'calculadora ', 'régua ', 'compasso ',
-    'caixa arquivo', 'pasta ', 'porta-caneta',
+    // Escrita
+    'caneta ', 'lápis ', 'lapiseira ', 'marca-texto', 'marcador ',
+    'canetinha ', 'giz de cera', 'lápis de cor', 'aquarela ',
+    'nanquim ', 'caneta tinteiro', 'caneta gel',
+    // Cadernos e organização
+    'caderno ', 'caderninho', 'agenda ', 'planner ', 'bloco de notas',
+    'post-it ', 'papel ', 'folha ', 'caderno universitário',
+    'caderno espiral', 'caderno argolado', 'caderno 16 materias',
+    'caderno 10 materias', 'caderno 5 materias',
+    // Material escolar
+    'kit escolar', 'material escolar', 'volta às aulas', 'volta aulas',
+    'kit volta aulas', 'kit escolar completo', 'material de volta',
+    'estojo ', 'estojo escolar', 'kit estojo', 'lápis de cor',
+    'mochila escolar', 'lancheira escolar', 'lancheira ',
+    // Papelaria artística
+    'kit papelaria', 'papelaria fofa', 'papelaria kawaii',
+    'kit de papelaria', 'papelaria criativa', 'papelaria tumblr',
+    'canetas coloridas', 'canetas fofas', 'kit canetas',
+    // Escritório
+    'cola ', 'fita adesiva', 'grampeador', 'perfurador', 'grampo ',
+    'calculadora ', 'régua ', 'compasso ', 'transferidor',
+    'caixa arquivo', 'pasta ', 'porta-caneta', 'fichário ',
     'tinta para impressora', 'cartucho impressora', 'toner ',
     'papel a4', 'papel fotográfico',
-    'kit escolar', 'material escolar',
-    // Mais termos
-    'notebook escolar', 'mochila notebook', 'pasta executiva',
-    'quadro branco', 'flip chart', 'projetor escritório',
-    'suporte monitor', 'suporte notebook', 'mesa digitalizadora',
-    'scanner portátil', 'impressora wireless',
-    'kit papelaria', 'kit escritório',
-    'carimbo ', 'envelopes ', 'cartão de visita',
-    'burocrático', 'escritório em casa', 'home office',
+    'quadro branco', 'flip chart', 'lousa ',
+    'kit escritório', 'carimbo ', 'envelopes ', 'cartão de visita',
+    'home office papelaria', 'organizador de mesa',
+    // Artesanato
+    'glitter ', 'washi tape', 'fita decorativa', 'sticker ', 'adesivo ',
+    'scrapbook ', 'origami ', 'dobradura ',
   ],
 
   // ─── INFANTIL / BEBÊ ─────────────────────────────────────────────────────────
@@ -422,6 +434,86 @@ export const NICHE_KEYWORDS: Record<string, string[]> = {
     'andador bebê', 'cadeira para carro infantil', 'bebê conforto',
     'body bebê', 'macacão bebê', 'pijama bebê',
     'kit bebê', 'enxoval bebê',
+  ],
+
+  // ─── FERRAMENTAS E CONSTRUÇÃO ────────────────────────────────────────────────
+  ferramentas: [
+    // Ferramentas manuais
+    'pá ', 'pa de', 'pá de bico', 'pá quadrada', 'pá de jardim', 'enxada ', 'enxadão',
+    'picareta ', 'cavadeira ', 'rastelo ', 'ancinho ', 'garfo de jardim',
+    'foice ', 'machado ', 'serrote ', 'serra manual', 'arco de serra',
+    'martelo ', 'marreta ', 'maçarico ', 'cinzel ', 'ponteiro ',
+    'chave de fenda', 'chave philips', 'chave estrela', 'chave inglesa',
+    'chave allen', 'chave torx', 'jogo de chaves', 'kit de chaves',
+    'alicate ', 'alicates ', 'alicate de bico', 'alicate universal', 'alicate de corte',
+    'tesoura de poda', 'podão ', 'poda-galhos',
+    // Ferramentas elétricas e a bateria
+    'furadeira ', 'parafusadeira', 'furadeira de impacto',
+    'esmerilhadeira', 'lixadeira ', 'policadeira ',
+    'serra circular', 'serra tico-tico', 'serra meia-lua',
+    'plaina elétrica', 'tupia ', 'fresadora',
+    'compressor de ar', 'mangueira compressor', 'pistola de pintura',
+    'soldador ', 'solda elétrica', 'solda mig', 'eletrodo ',
+    'soprador de ar', 'lavadora de alta pressão', 'lavadora karcher',
+    'roçadeira ', 'cortador de grama', 'aparador de grama',
+    // Caixa e organização de ferramentas
+    'caixa de ferramentas', 'kit ferramentas', 'maleta de ferramentas',
+    'gaveteiro de ferramentas', 'painel de ferramentas',
+    // Construção e obra
+    'andaime ', 'escada ', 'escada de alumínio', 'escada extensível',
+    'nível de bolha', 'trena ', 'fita métrica', 'esquadro ',
+    'pá de pedreiro', 'desempenadeira', 'colher de pedreiro',
+    'betoneira ', 'vibrador de concreto', 'cortador de piso',
+    'lixo de obra', 'saco de cimento', 'cimento ', 'rejunte ',
+    'impermeabilizante', 'tinta para parede', 'rolo de pintura',
+    'brocha ', 'trincha ', 'espátula ', 'raspador ',
+    'fita isolante', 'fita veda-rosca', 'silicone vedação',
+    // Jardinagem
+    'jardim ', 'jardinagem', 'mangueira de jardim', 'esguicho de jardim',
+    'regador ', 'vaso de planta', 'terra para plantas', 'substrato ',
+    'adubo ', 'fertilizante ', 'herbicida ', 'inseticida jardim',
+    'tela de sombreamento', 'cobertura de solo', 'mulching ',
+    // EPIs e segurança
+    'capacete de obra', 'luva de trabalho', 'bota de segurança',
+    'óculos de proteção', 'protetor facial', 'máscara de solda',
+    'cinto de segurança obra',
+  ],
+
+  // ─── ACESSÓRIOS E PRESENTES ──────────────────────────────────────────────────
+  acessorios: [
+    // Chaveiros e presentes
+    'chaveiro ', 'chaveiros ', 'porta-chaves', 'argola chaveiro',
+    'kit chaveiros', 'chaveiro personalizado', 'chaveiro de borracha',
+    'chaveiro de silicone', 'chaveiro decorativo', 'chaveiro lembrança',
+    // Presentes e kits presente
+    'kit presente', 'kit presenteável', 'kit mimo', 'presente criativo',
+    'caixa presente', 'cesta presente', 'presente personalizado',
+    'kit lembrança', 'brinde ', 'mimo ',
+    // Papelão e stationery estética
+    'kawaii ', 'cute ', 'fofo ', 'fofinho',
+    // Bijuterias e acessórios (não moda)
+    'pulseira de couro', 'pulseira masculina', 'bracelete ',
+    'pingente ', 'corrente aço', 'aliança ', 'anel de aço',
+    'brinco de resina', 'colar de pedra', 'pedra natural',
+    // Porta-tudo
+    'porta-chaves', 'porta-moedas', 'porta-cartão',
+    'porta-documentos', 'carteira masculina', 'carteira slim',
+    // Itens de decoração pessoal / lifestyle
+    'squeeze ', 'garrafa personalizada', 'caneca personalizada',
+    'copo personalizado', 'placa decorativa', 'quadro personalizado',
+    // Capinhas e proteção para dispositivos
+    'capinha ', 'case celular', 'capa de celular', 'case iphone', 'case samsung',
+    'película de vidro', 'suporte celular',
+    // Acessórios femininos não-moda
+    'scrunchie ', 'elástico de cabelo', 'tiara ', 'presilha de cabelo',
+    'grampo de cabelo', 'fivela ',
+    // Colecionáveis e decoração temática
+    'miniaturas ', 'colecionável', 'decoração geek', 'decoração nerd',
+    'poster ', 'adesivo decorativo', 'adesivo parede',
+    // Relógios simples
+    'relógio de pulso', 'relógio analógico', 'relógio digital básico',
+    // Óculos
+    'armação de óculos', 'óculos de leitura',
   ],
 
   // ─── AUTOMOTIVO ──────────────────────────────────────────────────────────────

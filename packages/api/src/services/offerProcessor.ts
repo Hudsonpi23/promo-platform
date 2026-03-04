@@ -227,18 +227,72 @@ async function getOrCreateNiche(
 ): Promise<string> {
   // Mapping de categoria para nicho
   const categoryToNiche: Record<string, string> = {
-    'eletronicos': 'eletronicos',
-    'eletrônicos': 'eletronicos',
-    'celulares': 'eletronicos',
-    'computadores': 'eletronicos',
-    'tvs': 'eletronicos',
-    'casa': 'casa',
-    'cozinha': 'casa',
-    'moda': 'moda',
-    'roupas': 'moda',
-    'games': 'games',
-    'jogos': 'games',
-    'beleza': 'beleza',
+    // Eletrônicos
+    'eletronicos': 'eletronicos', 'eletrônicos': 'eletronicos',
+    'celulares': 'eletronicos', 'smartphones': 'eletronicos',
+    'computadores': 'eletronicos', 'informatica': 'eletronicos',
+    'informática': 'eletronicos', 'tvs': 'eletronicos',
+    'televisores': 'eletronicos', 'audio': 'eletronicos',
+    'áudio': 'eletronicos', 'cameras': 'eletronicos',
+    'câmeras': 'eletronicos', 'wearables': 'eletronicos',
+    // Casa
+    'casa': 'casa', 'cozinha': 'casa', 'moveis': 'casa',
+    'móveis': 'casa', 'decoracao': 'casa', 'decoração': 'casa',
+    'limpeza': 'casa', 'eletrodomesticos': 'casa', 'eletrodomésticos': 'casa',
+    'utilidades domesticas': 'casa', 'utilidades domésticas': 'casa',
+    // Moda
+    'moda': 'moda', 'roupas': 'moda', 'vestuário': 'moda',
+    'vestuario': 'moda', 'calcados': 'moda', 'calçados': 'moda',
+    'tenis': 'moda', 'tênis': 'moda', 'sapatos': 'moda',
+    'bolsas': 'moda', 'acessorios moda': 'moda',
+    // Games
+    'games': 'games', 'jogos': 'games', 'videogames': 'games',
+    'consoles': 'games', 'gamer': 'games',
+    // Beleza
+    'beleza': 'beleza', 'cosmeticos': 'beleza', 'cosméticos': 'beleza',
+    'perfumaria': 'beleza', 'cabelo': 'beleza', 'maquiagem': 'beleza',
+    'cuidados pessoais': 'beleza', 'higiene': 'beleza',
+    // Esportes
+    'esportes': 'esportes', 'fitness': 'esportes', 'academia': 'esportes',
+    'suplementos': 'esportes', 'ciclismo': 'esportes', 'natacao': 'esportes',
+    // Livros
+    'livros': 'livros', 'books': 'livros', 'literatura': 'livros',
+    'educacao': 'livros', 'educação': 'livros',
+    // Papelaria
+    'papelaria': 'papelaria', 'escritorio': 'papelaria', 'escritório': 'papelaria',
+    'escolar': 'papelaria', 'material escolar': 'papelaria',
+    'material de escritorio': 'papelaria',
+    // Brinquedos
+    'brinquedos': 'brinquedos', 'toys': 'brinquedos', 'infantil': 'brinquedos',
+    'brincar': 'brinquedos',
+    // Pets
+    'pets': 'pets', 'animais': 'pets', 'pet shop': 'pets',
+    'cachorro': 'pets', 'gato': 'pets',
+    // Saúde
+    'saude': 'saude', 'saúde': 'saude', 'farmacia': 'saude',
+    'farmácia': 'saude', 'suplementos vitamínicos': 'saude',
+    'medicamentos': 'saude', 'bem-estar': 'saude',
+    // Bebê
+    'bebe': 'bebe', 'bebê': 'bebe', 'crianca': 'bebe',
+    'criança': 'bebe', 'maternidade': 'bebe',
+    // Automotivo
+    'automotivo': 'automotivo', 'autopeças': 'automotivo',
+    'autopecas': 'automotivo', 'carros': 'automotivo',
+    'motos': 'automotivo', 'pneus': 'automotivo',
+    // Ferramentas
+    'ferramentas': 'ferramentas', 'construcao': 'ferramentas',
+    'construção': 'ferramentas', 'jardim': 'ferramentas',
+    'jardinagem': 'ferramentas', 'reforma': 'ferramentas',
+    // Acessórios
+    'acessorios': 'acessorios', 'acessórios': 'acessorios',
+    'presentes': 'acessorios', 'gifts': 'acessorios',
+    'chaveiros': 'acessorios', 'bijuterias': 'acessorios',
+    // Viagem
+    'viagem': 'viagem', 'travel': 'viagem', 'turismo': 'viagem',
+    'camping': 'viagem', 'malas': 'viagem',
+    // Mercado
+    'mercado': 'mercado', 'alimentos': 'mercado', 'bebidas': 'mercado',
+    'supermercado': 'mercado', 'hortifruti': 'mercado',
   };
   
   const key = (categoryName || '').toLowerCase();

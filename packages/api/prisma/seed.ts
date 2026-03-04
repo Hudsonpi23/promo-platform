@@ -124,14 +124,23 @@ async function main() {
   console.log('\n📁 Criando nichos...');
   
   const nichesData = [
-    { name: 'Eletrônicos', slug: 'eletronicos', icon: '📱', color: '#3B82F6' },
-    { name: 'Moda', slug: 'moda', icon: '👗', color: '#EC4899' },
-    { name: 'Casa', slug: 'casa', icon: '🏠', color: '#F59E0B' },
-    { name: 'Beleza', slug: 'beleza', icon: '💄', color: '#8B5CF6' },
-    { name: 'Mercado', slug: 'mercado', icon: '🛒', color: '#10B981' },
-    { name: 'Games', slug: 'games', icon: '🎮', color: '#EF4444' },
-    { name: 'Esportes', slug: 'esportes', icon: '⚽', color: '#06B6D4' },
-    { name: 'Livros', slug: 'livros', icon: '📚', color: '#6366F1' },
+    { name: 'Eletrônicos',           slug: 'eletronicos',  icon: '📱', color: '#3B82F6' },
+    { name: 'Moda',                  slug: 'moda',         icon: '👗', color: '#EC4899' },
+    { name: 'Casa',                  slug: 'casa',         icon: '🏠', color: '#F59E0B' },
+    { name: 'Beleza',                slug: 'beleza',       icon: '💄', color: '#8B5CF6' },
+    { name: 'Mercado',               slug: 'mercado',      icon: '🛒', color: '#10B981' },
+    { name: 'Games',                 slug: 'games',        icon: '🎮', color: '#EF4444' },
+    { name: 'Esportes',              slug: 'esportes',     icon: '⚽', color: '#06B6D4' },
+    { name: 'Livros',                slug: 'livros',       icon: '📚', color: '#6366F1' },
+    { name: 'Papelaria',             slug: 'papelaria',    icon: '✏️',  color: '#F97316' },
+    { name: 'Brinquedos',            slug: 'brinquedos',   icon: '🧸', color: '#FBBF24' },
+    { name: 'Pets',                  slug: 'pets',         icon: '🐾', color: '#84CC16' },
+    { name: 'Saúde',                 slug: 'saude',        icon: '💊', color: '#14B8A6' },
+    { name: 'Bebê e Criança',        slug: 'bebe',         icon: '👶', color: '#A78BFA' },
+    { name: 'Automotivo',            slug: 'automotivo',   icon: '🚗', color: '#64748B' },
+    { name: 'Ferramentas',           slug: 'ferramentas',  icon: '🔨', color: '#78716C' },
+    { name: 'Acessórios',            slug: 'acessorios',   icon: '💍', color: '#D97706' },
+    { name: 'Viagem',                slug: 'viagem',       icon: '✈️',  color: '#0EA5E9' },
   ];
 
   const niches: any = {};

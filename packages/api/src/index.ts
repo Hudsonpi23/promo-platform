@@ -7,6 +7,7 @@ import cookie from '@fastify/cookie';
 // Serviços
 import { configureCloudinary } from './services/cloudinary';
 import { startScheduler } from './workers/schedule.js';
+import { prisma } from './lib/prisma.js';
 
 // Rotas
 import { authRoutes } from './routes/auth';
@@ -34,6 +35,44 @@ import { mlAuthRoutes } from './routes/mlAuth';
 import { scraperRoutes } from './routes/scraper';
 import { customPhrasesRoutes } from './routes/customPhrases';
 import { autoPublishRoutes } from './routes/autoPublish';
+
+const DEFAULT_NICHES = [
+  { name: 'Eletrônicos',    slug: 'eletronicos',  icon: '📱', color: '#3B82F6' },
+  { name: 'Moda',           slug: 'moda',         icon: '👗', color: '#EC4899' },
+  { name: 'Casa',           slug: 'casa',         icon: '🏠', color: '#F59E0B' },
+  { name: 'Beleza',         slug: 'beleza',       icon: '💄', color: '#8B5CF6' },
+  { name: 'Mercado',        slug: 'mercado',      icon: '🛒', color: '#10B981' },
+  { name: 'Games',          slug: 'games',        icon: '🎮', color: '#EF4444' },
+  { name: 'Esportes',       slug: 'esportes',     icon: '⚽', color: '#06B6D4' },
+  { name: 'Livros',         slug: 'livros',       icon: '📚', color: '#6366F1' },
+  { name: 'Papelaria',      slug: 'papelaria',    icon: '✏️',  color: '#F97316' },
+  { name: 'Brinquedos',     slug: 'brinquedos',   icon: '🧸', color: '#FBBF24' },
+  { name: 'Pets',           slug: 'pets',         icon: '🐾', color: '#84CC16' },
+  { name: 'Saúde',          slug: 'saude',        icon: '💊', color: '#14B8A6' },
+  { name: 'Bebê e Criança', slug: 'bebe',         icon: '👶', color: '#A78BFA' },
+  { name: 'Automotivo',     slug: 'automotivo',   icon: '🚗', color: '#64748B' },
+  { name: 'Ferramentas',    slug: 'ferramentas',  icon: '🔨', color: '#78716C' },
+  { name: 'Acessórios',     slug: 'acessorios',   icon: '💍', color: '#D97706' },
+  { name: 'Viagem',         slug: 'viagem',       icon: '✈️',  color: '#0EA5E9' },
+];
+
+async function initDefaultNiches(): Promise<void> {
+  try {
+    let created = 0;
+    for (const n of DEFAULT_NICHES) {
+      const result = await prisma.niche.upsert({
+        where: { slug: n.slug },
+        update: { icon: n.icon, color: n.color, isActive: true },
+        create: { ...n, isActive: true },
+      });
+      if (result) created++;
+    }
+    const existing = await prisma.niche.count({ where: { isActive: true } });
+    console.log(`[Nichos] ✅ ${existing} nichos ativos (${DEFAULT_NICHES.length} padrões sincronizados)`);
+  } catch (err: any) {
+    console.warn('[Nichos] ⚠️  Não foi possível sincronizar nichos:', err.message);
+  }
+}
 
 async function main() {
   const server = Fastify({
@@ -275,6 +314,9 @@ async function main() {
     
     // 🔥 Iniciar scheduler automático (processa filas a cada 1 minuto)
     startScheduler();
+
+    // 📁 Garantir que todos os nichos padrão existem no banco
+    await initDefaultNiches();
     
     console.log('');
     console.log('🚀 ═══════════════════════════════════════════════════');
