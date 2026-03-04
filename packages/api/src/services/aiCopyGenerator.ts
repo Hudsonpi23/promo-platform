@@ -776,37 +776,45 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
 };
 
 // ==================== FRASES DE VENDAS PARA X/TWITTER ====================
-// Ganhos de alto impacto, curtas, que geram curiosidade e urgência real
-const X_SALES_HOOKS = [
-  'Como assim tão barato?! 😱',
-  'Isso você não pode perder! 🔥',
-  'Alguém me explica esse preço 👀',
-  'Tá mais barato do que devia 💸',
-  'Não acredito nesse preço 😳',
-  'Corre antes que acabe! ⚡',
-  'Esse desconto é sério?! 🤯',
-  'Achei e vim avisar 📢',
-  'Tá barato demais pra ignorar 😤',
-  'Pode confiar, vale muito 👌',
-  'Que desconto é esse meu Deus 🙏',
-  'Quem precisava, chegou a hora ⏰',
-  'Raramente aparece assim 💎',
-  'Olha o preço disso! 👇',
-  'Comprei e vim recomendar ✅',
-  'Desconto que não volta 🚫',
-  'Ainda tem! Corre! 🏃',
-  'Esse tá rindo do concorrente 😂',
-  'Preço de liquidação, produto top 🏆',
-  'Tá dando de graça praticamente 💰',
+// Ganchos de urgência/surpresa para linha 1 do post
+const X_HOOKS = [
+  '🔥 ALERTA DE PROMOÇÃO',
+  '⚠️ PREÇO DESPENCOU',
+  '😱 OFERTA INSANA',
+  '🔥 PREÇO HISTÓRICO',
+  '⚠️ PROMOÇÃO RELÂMPAGO',
+  '💰 DESCONTO PESADO',
+  '🔥 PREÇO BAIXOU HOJE',
+  '🛒 PROMOÇÃO QUE VALE',
+  '😱 QUE PREÇO É ESSE',
+  '🔥 QUEIMOU O ESTOQUE',
+  '⚠️ CORRE QUE TÁ BARATO',
+  '💰 OLHA ESSE DESCONTO',
+  '🔥 OFERTA DO DIA',
+  '😱 PREÇO ABSURDO',
+  '⚠️ IMPERDÍVEL',
 ];
 
-// Frases de vendas com desconto explícito (para quando há % de desconto)
-const X_DISCOUNT_HOOKS = [
-  (pct: number) => `${pct}% de desconto?! Isso é real 🤯`,
-  (pct: number) => `Baixou ${pct}%! Corre 🔥`,
-  (pct: number) => `${pct}% OFF e ainda tá em estoque 😱`,
-  (pct: number) => `Tá com ${pct}% de desconto, acredite ⚡`,
-  (pct: number) => `Quase metade do preço (-${pct}%) 💸`,
+// Ganchos específicos para descontos altos (≥30%)
+const X_HIGH_DISCOUNT_HOOKS = [
+  '🔥 PREÇO HISTÓRICO',
+  '😱 DESCONTO ABSURDO',
+  '💰 DESCONTO PESADO',
+  '⚠️ PROMOÇÃO INSANA',
+  '🔥 QUEIMOU O ESTOQUE',
+  '😱 OFERTA IMPERDÍVEL',
+];
+
+// CTAs variados
+const X_CTAS = [
+  '👉 aproveitar oferta',
+  '👉 pegar promoção',
+  '👉 ver oferta',
+  '👉 garantir o meu',
+  '👉 aproveitar agora',
+  '👉 pegar agora',
+  '👉 quero essa oferta',
+  '👉 comprar com desconto',
 ];
 
 // Templates de preço em MAIÚSCULAS
@@ -1524,85 +1532,77 @@ function generateSiteCopy(input: CopyInputData, seed: number): string {
 }
 
 /**
- * Gera copy para X/Twitter (≤ 280 caracteres)
- * Estratégia: gancho de vendas + produto curto + preço + link
- * IMPORTANTE: Twitter encurta URLs para 23 chars (t.co) — usar 23 no cálculo sempre
+ * Gera copy para X/Twitter no formato estruturado por linhas:
+ *
+ *  🔥 ALERTA DE PROMOÇÃO
+ *
+ *  Nome do Produto
+ *
+ *  De R$ XX,XX
+ *  por R$ YY,YY
+ *
+ *  💰 -35% OFF
+ *
+ *  👉 aproveitar oferta
+ *
+ *  https://link-afiliado
+ *  🌐 https://link-site
  */
 function generateXCopy(input: CopyInputData, seed: number): string {
   const priceNow = formatPrice(input.price);
-  const link = input.trackingUrl;
-  const discountEmoji = getDiscountEmoji(input.discountPct, input.title);
-  const TWITTER_URL_LENGTH = 23; // Twitter sempre encurta URLs para t.co (23 chars)
-
-  // Gancho de vendas: usar frase de desconto se houver % expressivo, senão gancho geral
-  let opening: string;
-  const discountPct = Math.round(input.discountPct || 0);
-
-  if (discountPct >= 20) {
-    const usePctHook = (seed % 2 === 0);
-    if (usePctHook) {
-      const hookFn = pickRandom(X_DISCOUNT_HOOKS, seed);
-      opening = hookFn(discountPct);
-    } else {
-      opening = pickRandom(X_SALES_HOOKS, seed);
-    }
-  } else {
-    opening = pickRandom(X_SALES_HOOKS, seed);
-  }
-
-  console.log('[generateXCopy] Gancho de vendas (X):', opening);
-
-  // Espaço disponível para conteúdo — cada URL conta 23 chars no Twitter (t.co)
-  // Quando siteUrl presente: \n\n + url1(23) + \n🌐 (4) + url2(23) + margem(5)
-  // Quando só afiliado:      \n\n + url1(23) + margem(5)
-  const siteUrlReservation = input.siteUrl ? (4 + TWITTER_URL_LENGTH) : 0;
-  const maxContentLength = CHAR_LIMITS.X - TWITTER_URL_LENGTH - 7 - siteUrlReservation;
-  
-  // ── Montar linha de preço ──
-  const discountPercent = Math.round(input.discountPct || (
+  const discountPct = Math.round(input.discountPct || (
     input.oldPrice && input.oldPrice > input.price
       ? ((input.oldPrice - input.price) / input.oldPrice * 100)
       : 0
   ));
 
-  let priceLine: string;
+  // ── Escolher gancho ──
+  const hook = discountPct >= 30
+    ? pickRandom(X_HIGH_DISCOUNT_HOOKS, seed)
+    : pickRandom(X_HOOKS, seed);
+
+  // ── Escolher CTA ──
+  const cta = pickRandom(X_CTAS, seed + 3);
+
+  // ── Nome curto do produto ──
+  const shortTitle = getShortTitle(input.title, 40);
+
+  // ── Montar bloco de preço ──
+  const priceBlock: string[] = [];
   if (input.oldPrice && input.oldPrice > input.price) {
-    const priceOld = formatPrice(input.oldPrice);
-    const discountStr = discountPercent >= 20 && discountEmoji
-      ? `${discountEmoji} -${discountPercent}% OFF`
-      : `-${discountPercent}% OFF`;
-    priceLine = `De ${priceOld} por ${priceNow} ${discountStr}`;
+    priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
+    priceBlock.push(`por ${priceNow}`);
   } else {
-    priceLine = `Por ${priceNow}`;
+    priceBlock.push(`por ${priceNow}`);
   }
 
-  // ── Construir conteúdo (sem link) usando maxContentLength ──
-  // Tentar: gancho + título + preço → reduzir título se necessário
-  let content: string;
-  const titleFull = getShortTitle(input.title, 40);
-  const titleMid  = getShortTitle(input.title, 25);
-  const titleMin  = getShortTitle(input.title, 15);
+  // ── Linha de desconto ──
+  const discountLine = discountPct > 0
+    ? `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% OFF`
+    : '';
 
-  const candidates = [
-    `${opening}\n${titleFull}\n${priceLine}`,
-    `${opening}\n${titleMid}\n${priceLine}`,
-    `${opening}\n${titleMin}\n${priceLine}`,
-    `${opening}\n${priceLine}`,
+  // ── Montar texto final ──
+  const lines: string[] = [
+    hook,
+    '',
+    shortTitle,
+    '',
+    ...priceBlock,
   ];
 
-  content = candidates[candidates.length - 1]; // fallback mínimo
-  for (const c of candidates) {
-    if (c.length <= maxContentLength) {
-      content = c;
-      break;
-    }
+  if (discountLine) {
+    lines.push('');
+    lines.push(discountLine);
   }
 
-  // Twitter conta cada URL como 23 chars (t.co) — duas URLs = 46 chars encurtados
-  let finalText = `${content}\n\n${link}`;
+  lines.push('');
+  lines.push(cta);
+
+  let finalText = lines.join('\n') + `\n\n${input.trackingUrl}`;
   if (input.siteUrl) {
     finalText += `\n🌐 ${input.siteUrl}`;
   }
+
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 200));
   return finalText;
 }
