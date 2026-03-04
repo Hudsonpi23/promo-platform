@@ -338,37 +338,62 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
 
   // Twitter encurta TODA URL para 23 chars (t.co) — contar todas as URLs no texto
   const TWITTER_URL_LENGTH = 23;
+  const SITE_BASE_URL = 'https://manu-promocoes.vercel.app';
+
+  // Extrair URLs: afiliado (1ª URL) e site (linha com 🌐)
+  const siteUrlMatch = text.match(/🌐 (https?:\/\/[^\s]+)/);
+  const siteUrl = siteUrlMatch ? siteUrlMatch[1] : null;
   const allUrlsInText: string[] = text.match(/https?:\/\/[^\s]+/g) ?? [];
+  const affiliateUrl = allUrlsInText.find(u => !u.includes('manu-promocoes')) || allUrlsInText[0] || '';
+
   let effectiveLength: number = text.length;
   for (const url of allUrlsInText) {
     effectiveLength = effectiveLength - url.length + TWITTER_URL_LENGTH;
   }
 
   if (effectiveLength > 280) {
-    console.warn('[Twitter] ⚠️ Tweet efetivamente longo (' + effectiveLength + ' chars), ajustando...');
-    // Preservar o primeiro link (afiliado); remover site URL se não couber
-    const affiliateUrl = allUrlsInText[0] || '';
-    // Extrair linhas de conteúdo sem as linhas de URL
-    const contentLines = text
-      .replace(/\n🌐 https?:\/\/[^\s]+/g, '')
-      .replace(/\nhttps?:\/\/[^\s]+/g, '')
-      .split('\n')
-      .filter(l => l.trim().length > 0);
+    console.warn('[Twitter] ⚠️ Tweet efetivamente longo (' + effectiveLength + ' chars), ajustando conteúdo...');
 
+    // Remover URLs do texto para trabalhar só com conteúdo
+    const contentOnly = text
+      .replace(/\n🌐 https?:\/\/[^\s]+/g, '')
+      .replace(/\n\nhttps?:\/\/[^\s]+/g, '')
+      .replace(/\nhttps?:\/\/[^\s]+/g, '');
+
+    const contentLines = contentOnly.split('\n').filter(l => l.trim().length > 0);
     const hookLine = contentLines[0] || '';
+    const subtitleLine = contentLines[1] || '';
     const priceLine = contentLines.find(l =>
       l.includes('R$') || l.toLowerCase().includes('por ') || l.includes('% OFF')
-    ) || contentLines[contentLines.length - 1] || '';
+    ) || '';
 
-    const candidate = hookLine + '\n' + priceLine + (affiliateUrl ? '\n\n' + affiliateUrl : '');
-    const candidateEffective = candidate.length - affiliateUrl.length + (affiliateUrl ? TWITTER_URL_LENGTH : 0);
+    // Montar texto compacto mantendo SEMPRE o link do site
+    const compactContent = [hookLine, subtitleLine, '', priceLine]
+      .filter(Boolean)
+      .join('\n');
 
-    if (candidateEffective <= 280) {
-      text = candidate;
-    } else {
-      text = hookLine + (affiliateUrl ? '\n\n' + affiliateUrl : '');
-    }
-    console.log('[Twitter] Texto ajustado:', text.substring(0, 100));
+    // Calcular espaço disponível para conteúdo (reservar espaço para 2 URLs)
+    const urlsSpace = (affiliateUrl ? TWITTER_URL_LENGTH + 2 : 0) + (siteUrl ? TWITTER_URL_LENGTH + 5 : 0);
+    const maxContent = 280 - urlsSpace;
+
+    const truncatedContent = compactContent.length > maxContent
+      ? compactContent.substring(0, maxContent - 3) + '...'
+      : compactContent;
+
+    // Reconstruir sempre com ambos os links
+    text = truncatedContent;
+    if (affiliateUrl) text += `\n\n${affiliateUrl}`;
+    if (siteUrl) text += `\n🌐 ${siteUrl}`;
+    else text += `\n🌐 ${SITE_BASE_URL}`;
+
+    console.log('[Twitter] Texto ajustado (com site link preservado):', text.substring(0, 150));
+  }
+
+  // Garantia final: se por algum motivo o link do site não estiver no texto, adicionar
+  if (!text.includes('manu-promocoes.vercel.app')) {
+    const linkToAdd = siteUrl || SITE_BASE_URL;
+    text += `\n🌐 ${linkToAdd}`;
+    console.log('[Twitter] ⚠️ Link do site adicionado como garantia:', linkToAdd);
   }
 
   const url = `${TWITTER_API_BASE}/tweets`;

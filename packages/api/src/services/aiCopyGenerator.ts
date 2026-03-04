@@ -1764,12 +1764,16 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   lines.push('');
   lines.push(cta);             // CTA sempre em linha própria, separado do desconto
 
+  // Link de afiliado
   let finalText = lines.join('\n') + `\n\n${input.trackingUrl}`;
-  if (input.siteUrl) {
-    finalText += `\n🌐 ${input.siteUrl}`;
-  }
+
+  // Link do site vitrine — sempre inclui (usa URL específica do produto ou base)
+  const SITE_BASE = 'https://manu-promocoes.vercel.app';
+  const siteUrl = input.siteUrl || SITE_BASE;
+  finalText += `\n🌐 ${siteUrl}`;
 
   console.log('[generateXCopy] Gancho:', hook, '| Subtitle:', subtitle, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType] ?? 'surpresa(alto desconto)');
+  console.log('[generateXCopy] Site link incluído:', siteUrl);
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 250));
   return finalText;
 }

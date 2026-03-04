@@ -225,8 +225,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         }
 
         // ── 7. GERAR COPY COM IA ───────────────────────────────────────────
-        // siteLink aponta para a página do produto (goCode criado acima)
-        const siteLink = result.site ? `${SITE_URL}/go/${goCode}` : SITE_URL;
+        // siteLink: usa URL do produto se goCode disponível, senão URL base
+        // IMPORTANTE: sempre inclui o link do site independente do resultado
+        const siteLink = goCode ? `${SITE_URL}/go/${goCode}` : SITE_URL;
 
         const copies = generateCopies({
           title: offer.title,
