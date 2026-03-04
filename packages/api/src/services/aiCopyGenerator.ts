@@ -1766,19 +1766,20 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     lines.push(discountLine);  // desconto em linha própria
   }
 
-  lines.push('');
-  lines.push(cta);             // CTA sempre em linha própria, separado do desconto
-
-  // Link de afiliado
-  let finalText = lines.join('\n') + `\n\n${input.trackingUrl}`;
-
-  // Link do site vitrine — sempre inclui (usa URL específica do produto ou base)
+  // CTA + link do afiliado na mesma linha (ex: 👉 aproveitar agora https://link)
+  // Link do site na linha separada abaixo
   const SITE_BASE = 'https://manu-promocoes.vercel.app';
   const siteUrl = input.siteUrl || SITE_BASE;
-  finalText += `\n🌐 ${siteUrl}`;
 
-  console.log('[generateXCopy] Gancho:', hook, '| Subtitle:', subtitle, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType] ?? 'surpresa(alto desconto)');
-  console.log('[generateXCopy] Site link incluído:', siteUrl);
+  lines.push('');
+  lines.push(`${cta} ${input.trackingUrl}`);  // 👉 CTA + link afiliado na mesma linha
+  lines.push('');
+  lines.push(`🌐 ${siteUrl}`);               // link do site na linha própria
+
+  let finalText = lines.join('\n');
+
+  console.log('[generateXCopy] Gancho:', hook, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType] ?? 'surpresa');
+  console.log('[generateXCopy] Formato: CTA + afiliado na mesma linha | site link separado');
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 250));
   return finalText;
 }
