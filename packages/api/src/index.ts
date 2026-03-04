@@ -74,6 +74,73 @@ async function initDefaultNiches(): Promise<void> {
   }
 }
 
+/**
+ * Re-categoriza todas as Offers e PublishedPosts existentes no banco.
+ * Executa no startup para corrigir classificações erradas de nicho.
+ */
+async function reCategorizeExistingOffers(): Promise<void> {
+  try {
+    const { detectNicheSlug } = await import('./services/nicheDetector.js');
+
+    const allNiches = await prisma.niche.findMany({ where: { isActive: true } });
+    if (allNiches.length === 0) return;
+
+    const nicheBySlug = Object.fromEntries(allNiches.map(n => [n.slug, n]));
+
+    // ── Re-categorizar Offers ─────────────────────────────────────────────────
+    const offers = await prisma.offer.findMany({
+      select: { id: true, title: true, nicheId: true },
+    });
+
+    let offersFixed = 0;
+    for (const offer of offers) {
+      const slug = detectNicheSlug(offer.title);
+      if (!slug) continue;
+
+      const correctNiche = nicheBySlug[slug];
+      if (!correctNiche) continue;
+
+      if (offer.nicheId !== correctNiche.id) {
+        await prisma.offer.update({
+          where: { id: offer.id },
+          data: { nicheId: correctNiche.id },
+        });
+        offersFixed++;
+      }
+    }
+
+    // ── Re-categorizar PublishedPosts ─────────────────────────────────────────
+    const posts = await prisma.publishedPost.findMany({
+      select: { id: true, title: true, nicheId: true },
+    });
+
+    let postsFixed = 0;
+    for (const post of posts) {
+      const slug = detectNicheSlug(post.title);
+      if (!slug) continue;
+
+      const correctNiche = nicheBySlug[slug];
+      if (!correctNiche) continue;
+
+      if (post.nicheId !== correctNiche.id) {
+        await prisma.publishedPost.update({
+          where: { id: post.id },
+          data: { nicheId: correctNiche.id },
+        });
+        postsFixed++;
+      }
+    }
+
+    if (offersFixed + postsFixed > 0) {
+      console.log(`[Nichos] 🔁 Re-categorização: ${offersFixed} offer(s) e ${postsFixed} post(s) corrigidos`);
+    } else {
+      console.log(`[Nichos] ✅ Re-categorização: todos os registros já estão corretos`);
+    }
+  } catch (err: any) {
+    console.warn('[Nichos] ⚠️  Re-categorização falhou:', err.message);
+  }
+}
+
 async function main() {
   const server = Fastify({
     logger: {
@@ -317,6 +384,9 @@ async function main() {
 
     // 📁 Garantir que todos os nichos padrão existem no banco
     await initDefaultNiches();
+
+    // 🔁 Corrigir nichos errados em offers e posts já existentes
+    reCategorizeExistingOffers(); // Roda em background, não bloqueia o startup
     
     console.log('');
     console.log('🚀 ═══════════════════════════════════════════════════');
