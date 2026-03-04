@@ -57,6 +57,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="text-lg">📋</span>
               <span className="font-semibold">Histórico</span>
             </a>
+
+            <a
+              href="/videos"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/videos'
+                  ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">🎬</span>
+              <span className="font-semibold">Vídeos</span>
+            </a>
             
             <a 
               href="/" 
