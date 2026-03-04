@@ -1552,9 +1552,11 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   console.log('[generateXCopy] Gancho de vendas (X):', opening);
 
-  // Espaço disponível para conteúdo (sem o link — Twitter conta URL como 23 chars)
-  // 280 - 23 (url) - 2 (quebras \n\n antes do link) - 5 (margem)
-  const maxContentLength = CHAR_LIMITS.X - TWITTER_URL_LENGTH - 7;
+  // Espaço disponível para conteúdo — cada URL conta 23 chars no Twitter (t.co)
+  // Quando siteUrl presente: \n\n + url1(23) + \n🌐 (4) + url2(23) + margem(5)
+  // Quando só afiliado:      \n\n + url1(23) + margem(5)
+  const siteUrlReservation = input.siteUrl ? (4 + TWITTER_URL_LENGTH) : 0;
+  const maxContentLength = CHAR_LIMITS.X - TWITTER_URL_LENGTH - 7 - siteUrlReservation;
   
   // ── Montar linha de preço ──
   const discountPercent = Math.round(input.discountPct || (

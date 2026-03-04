@@ -336,30 +336,37 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
   console.log('[Twitter] Frase de abertura:', text.split('\n')[0]);
   console.log('[Twitter] Texto tem emoji?', /[\u{1F300}-\u{1F9FF}]|🔥|👀|🎬|😤|⚽|😂|📺|😡|🎮|💕|😱|🎉|🎯|👑|💎|⭐|💰|💵|🍎|🌟|💪|⚡/u.test(text));
 
-  // Twitter encurta toda URL para 23 chars (t.co) — calcular tamanho real considerando isso
+  // Twitter encurta TODA URL para 23 chars (t.co) — contar todas as URLs no texto
   const TWITTER_URL_LENGTH = 23;
-  const lines = text.split('\n');
-  const lastLine = lines[lines.length - 1] || '';
-  const isLastLineUrl = lastLine.startsWith('http');
-  const effectiveLength = isLastLineUrl
-    ? (text.length - lastLine.length + TWITTER_URL_LENGTH)
-    : text.length;
+  const allUrlsInText: string[] = text.match(/https?:\/\/[^\s]+/g) ?? [];
+  let effectiveLength: number = text.length;
+  for (const url of allUrlsInText) {
+    effectiveLength = effectiveLength - url.length + TWITTER_URL_LENGTH;
+  }
 
   if (effectiveLength > 280) {
     console.warn('[Twitter] ⚠️ Tweet efetivamente longo (' + effectiveLength + ' chars), ajustando...');
-    // Manter gancho (primeira linha) + preço + link — nunca descartar o gancho
-    const link = isLastLineUrl ? lastLine : '';
-    const contentLines = lines.filter((l, i) => !(i === lines.length - 1 && isLastLineUrl) && l.trim().length > 0);
+    // Preservar o primeiro link (afiliado); remover site URL se não couber
+    const affiliateUrl = allUrlsInText[0] || '';
+    // Extrair linhas de conteúdo sem as linhas de URL
+    const contentLines = text
+      .replace(/\n🌐 https?:\/\/[^\s]+/g, '')
+      .replace(/\nhttps?:\/\/[^\s]+/g, '')
+      .split('\n')
+      .filter(l => l.trim().length > 0);
+
     const hookLine = contentLines[0] || '';
     const priceLine = contentLines.find(l =>
       l.includes('R$') || l.toLowerCase().includes('por ') || l.includes('% OFF')
     ) || contentLines[contentLines.length - 1] || '';
 
-    const candidate = hookLine + '\n' + priceLine + (link ? '\n\n' + link : '');
-    if (candidate.length - (link.length) + TWITTER_URL_LENGTH <= 280) {
+    const candidate = hookLine + '\n' + priceLine + (affiliateUrl ? '\n\n' + affiliateUrl : '');
+    const candidateEffective = candidate.length - affiliateUrl.length + (affiliateUrl ? TWITTER_URL_LENGTH : 0);
+
+    if (candidateEffective <= 280) {
       text = candidate;
     } else {
-      text = hookLine + (link ? '\n\n' + link : '');
+      text = hookLine + (affiliateUrl ? '\n\n' + affiliateUrl : '');
     }
     console.log('[Twitter] Texto ajustado:', text.substring(0, 100));
   }
