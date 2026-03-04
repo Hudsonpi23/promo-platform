@@ -939,20 +939,20 @@ const X_SUBTITLES_CURIOSIDADE = [
   'Que achado é esse...',
 ];
 
-// CTAs variados — diretos, com senso de ação imediata
+// CTAs variados — impulsivos, com senso de ação e urgência
 const X_CTAS = [
   '👉 aproveitar agora',
-  '👉 ver promoção',
+  '👉 ver desconto agora',
+  '👉 aproveitar desconto',
   '👉 conferir oferta',
-  '👉 ver desconto',
-  '👉 garantir o meu',
-  '👉 pegar essa oferta',
+  '👉 aproveitar promoção',
+  '👉 ver promoção',
+  '👉 garantir o meu agora',
+  '👉 pegar essa promoção',
   '👉 aproveitar enquanto tem',
   '👉 quero essa promoção',
-  '👉 comprar com desconto',
-  '👉 ver oferta completa',
-  '👉 correr pra aproveitar',
   '👉 não perder essa',
+  '👉 correr pra aproveitar',
 ];
 
 // Templates de preço em MAIÚSCULAS
