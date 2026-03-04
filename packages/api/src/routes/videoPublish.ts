@@ -26,31 +26,42 @@ const TWITTER_UPLOAD_URL = 'https://upload.twitter.com/1.1/media/upload.json';
 const TWITTER_TWEETS_URL = 'https://api.twitter.com/2/tweets';
 
 // ── OAuth 1.0a helpers ────────────────────────────────────────────────────────
-function generateOAuthHeader(method: string, url: string, extraParams: Record<string, string> = {}): string {
+/**
+ * Gera header OAuth 1.0a.
+ * @param bodyParams - Parâmetros do body URL-encoded (incluídos na assinatura).
+ *                     Não usar para multipart/form-data.
+ */
+function generateOAuthHeader(
+  method: string,
+  url: string,
+  bodyParams: Record<string, string> = {},
+): string {
   const ts    = Math.floor(Date.now() / 1000).toString();
   const nonce = crypto.randomBytes(16).toString('hex');
 
-  const base: Record<string, string> = {
+  const oauthBase: Record<string, string> = {
     oauth_consumer_key:     TWITTER_API_KEY,
     oauth_nonce:            nonce,
     oauth_signature_method: 'HMAC-SHA1',
     oauth_timestamp:        ts,
     oauth_token:            TWITTER_ACCESS_TOKEN,
     oauth_version:          '1.0',
-    ...extraParams,
   };
 
-  const sorted = Object.keys(base).sort()
-    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(base[k])}`)
+  // Para POST URL-encoded: incluir body params na assinatura
+  const allParams = { ...oauthBase, ...bodyParams };
+
+  const sorted = Object.keys(allParams).sort()
+    .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(allParams[k])}`)
     .join('&');
 
-  const sigBase  = `${method.toUpperCase()}&${encodeURIComponent(url)}&${encodeURIComponent(sorted)}`;
-  const sigKey   = `${encodeURIComponent(TWITTER_API_SECRET)}&${encodeURIComponent(TWITTER_ACCESS_TOKEN_SECRET)}`;
-  const sig      = crypto.createHmac('sha1', sigKey).update(sigBase).digest('base64');
+  const sigBase = `${method.toUpperCase()}&${encodeURIComponent(url)}&${encodeURIComponent(sorted)}`;
+  const sigKey  = `${encodeURIComponent(TWITTER_API_SECRET)}&${encodeURIComponent(TWITTER_ACCESS_TOKEN_SECRET)}`;
+  const sig     = crypto.createHmac('sha1', sigKey).update(sigBase).digest('base64');
 
-  base.oauth_signature = sig;
-  const headerParts = Object.keys(base).sort()
-    .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(base[k])}"`)
+  oauthBase.oauth_signature = sig;
+  const headerParts = Object.keys(oauthBase).sort()
+    .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(oauthBase[k])}"`)
     .join(', ');
 
   return `OAuth ${headerParts}`;
@@ -62,17 +73,18 @@ async function uploadVideoToTwitter(videoBuffer: Buffer, mimeType: string): Prom
   const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MB por chunk
 
   // 1. INIT
-  const initParams = new URLSearchParams({
+  const initBody: Record<string, string> = {
     command:        'INIT',
     media_type:     mimeType,
     total_bytes:    totalBytes.toString(),
     media_category: 'tweet_video',
-  });
+  };
+  const initParams = new URLSearchParams(initBody);
 
   const initRes  = await fetch(TWITTER_UPLOAD_URL, {
     method: 'POST',
     headers: {
-      Authorization:  generateOAuthHeader('POST', TWITTER_UPLOAD_URL),
+      Authorization:  generateOAuthHeader('POST', TWITTER_UPLOAD_URL, initBody),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: initParams.toString(),
@@ -108,11 +120,12 @@ async function uploadVideoToTwitter(videoBuffer: Buffer, mimeType: string): Prom
   }
 
   // 3. FINALIZE
-  const finalizeParams = new URLSearchParams({ command: 'FINALIZE', media_id: mediaId });
+  const finalizeBody: Record<string, string> = { command: 'FINALIZE', media_id: mediaId };
+  const finalizeParams = new URLSearchParams(finalizeBody);
   const finalizeRes = await fetch(TWITTER_UPLOAD_URL, {
     method: 'POST',
     headers: {
-      Authorization:  generateOAuthHeader('POST', TWITTER_UPLOAD_URL),
+      Authorization:  generateOAuthHeader('POST', TWITTER_UPLOAD_URL, finalizeBody),
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: finalizeParams.toString(),
