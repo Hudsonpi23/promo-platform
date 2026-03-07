@@ -7,6 +7,8 @@ import DeletePostButton from '@/components/DeletePostButton';
 
 export const revalidate = 60;
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.manu-promocoes.com.br';
+
 // SEO dinâmico
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPost(params.slug) || await getOferta(params.slug);
@@ -19,13 +21,24 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const discountText = post.discount > 0 ? ` com ${post.discount}% OFF` : '';
 
+  const pageUrl = `${SITE_URL}/oferta/${params.slug}`;
+
   return {
     title: `${post.title}${discountText}`,
     description: `${post.title} por ${formatCurrency(post.price)}${discountText}. Aproveite esta oferta na ${post.store}!`,
+    alternates: { canonical: pageUrl },
     openGraph: {
+      type: 'article',
+      url: pageUrl,
       title: `🔥 ${post.title}${discountText}`,
       description: `Oferta imperdível: ${post.title} por apenas ${formatCurrency(post.price)}!`,
-      images: post.imageUrl ? [{ url: post.imageUrl }] : undefined,
+      images: post.imageUrl ? [{ url: post.imageUrl, alt: post.title }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `🔥 ${post.title}${discountText}`,
+      description: `Por apenas ${formatCurrency(post.price)} na ${post.store}!`,
+      images: post.imageUrl ? [post.imageUrl] : undefined,
     },
   };
 }
@@ -73,7 +86,29 @@ export default async function OfertaPage({ params }: Props) {
   const originalPrice = post.originalPrice || (post.price / (1 - post.discount / 100));
   const goUrl = getGoUrl(post);
 
+  const schemaOrg = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: post.title,
+    image: post.imageUrl || undefined,
+    description: post.copyText || `${post.title} com ${post.discount}% de desconto na ${post.store}`,
+    offers: {
+      '@type': 'Offer',
+      url: `${SITE_URL}/oferta/${params.slug}`,
+      priceCurrency: 'BRL',
+      price: post.price.toFixed(2),
+      priceValidUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      availability: 'https://schema.org/InStock',
+      seller: { '@type': 'Organization', name: post.store },
+    },
+  };
+
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(schemaOrg) }}
+      />
     <div className="min-h-screen bg-gray-50 py-8">
       {/* Banner Demo */}
       {isDemo && (
@@ -208,5 +243,6 @@ export default async function OfertaPage({ params }: Props) {
       {/* Botão de deletar (só aparece para admins logados) */}
       {!isDemo && <DeletePostButton postId={post.id} postTitle={post.title} />}
     </div>
+    </>
   );
 }

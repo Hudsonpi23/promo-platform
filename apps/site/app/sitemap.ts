@@ -1,44 +1,64 @@
 import { MetadataRoute } from 'next';
-import { getPosts, getNiches } from '@/lib/api';
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.manu-promocoes.com.br';
+const API_URL  = process.env.NEXT_PUBLIC_API_URL  || 'https://promo-platform-api.onrender.com';
+
+async function getAllPosts(): Promise<{ slug: string; updatedAt?: string }[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/posts?limit=500`, {
+      next: { revalidate: 3600 },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.items || data || [];
+  } catch {
+    return [];
+  }
+}
+
+async function getNiches(): Promise<{ slug: string }[]> {
+  try {
+    const res = await fetch(`${API_URL}/api/niches`, {
+      next: { revalidate: 86400 },
+    });
+    if (!res.ok) return [];
+    return await res.json();
+  } catch {
+    return [];
+  }
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003';
+  const [posts, niches] = await Promise.all([getAllPosts(), getNiches()]);
 
-  // Buscar dados da API
-  const [postsData, niches] = await Promise.all([
-    getPosts({ limit: 100 }).catch(() => ({ items: [] })),
-    getNiches().catch(() => []),
-  ]);
-
-  const posts = postsData.items;
-
-  // Páginas estáticas
-  const staticPages: MetadataRoute.Sitemap = [
+  const staticRoutes: MetadataRoute.Sitemap = [
     {
-      url: baseUrl,
+      url: SITE_URL,
       lastModified: new Date(),
       changeFrequency: 'hourly',
-      priority: 1,
+      priority: 1.0,
+    },
+    {
+      url: `${SITE_URL}/login`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.3,
     },
   ];
 
-  // Páginas de nicho
-  const nichePages: MetadataRoute.Sitemap = niches.map((niche) => ({
-    url: `${baseUrl}/nicho/${niche.slug}`,
+  const nicheRoutes: MetadataRoute.Sitemap = niches.map((n) => ({
+    url: `${SITE_URL}/nicho/${n.slug}`,
     lastModified: new Date(),
     changeFrequency: 'daily' as const,
     priority: 0.8,
   }));
 
-  // Páginas de oferta
-  const offerPages: MetadataRoute.Sitemap = posts
-    .filter(post => post.slug || post.id)
-    .map((post) => ({
-      url: `${baseUrl}/oferta/${post.slug || post.id}`,
-      lastModified: new Date(post.publishedAt),
-      changeFrequency: 'weekly' as const,
-      priority: 0.6,
-    }));
+  const postRoutes: MetadataRoute.Sitemap = posts.map((p) => ({
+    url: `${SITE_URL}/oferta/${p.slug}`,
+    lastModified: p.updatedAt ? new Date(p.updatedAt) : new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.9,
+  }));
 
-  return [...staticPages, ...nichePages, ...offerPages];
+  return [...staticRoutes, ...nicheRoutes, ...postRoutes];
 }

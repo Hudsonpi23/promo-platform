@@ -10,27 +10,47 @@ const inter = Inter({
   display: 'swap',
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.manu-promocoes.com.br';
+
 export const metadata: Metadata = {
   title: {
-    default: 'Manu das Promoções - As Melhores Ofertas do Dia',
+    default: 'Manu das Promoções - As Melhores Ofertas do Brasil',
     template: '%s | Manu das Promoções',
   },
-  description: 'A Manu encontra as melhores ofertas e promoções em eletrônicos, moda, casa, beleza e muito mais. Descontos de verdade verificados diariamente!',
-  keywords: ['ofertas', 'promoções', 'descontos', 'cupom', 'eletrônicos', 'moda', 'casa', 'beleza', 'manu das promoções'],
+  description: 'Manu das Promoções: as melhores ofertas e promoções do Brasil em eletrônicos, moda, casa, beleza e muito mais. Descontos verificados diariamente no Mercado Livre, Amazon, Shopee e Magalu!',
+  keywords: [
+    'ofertas', 'promoções', 'descontos', 'cupom desconto',
+    'melhores ofertas', 'achadinhos', 'promoções do dia',
+    'eletrônicos baratos', 'moda promoção', 'mercado livre promoção',
+    'amazon ofertas', 'shopee desconto', 'manu das promoções',
+  ],
   authors: [{ name: 'Manu das Promoções' }],
   creator: 'Manu das Promoções',
   publisher: 'Manu das Promoções',
-  robots: 'index, follow',
+  metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: SITE_URL,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
     type: 'website',
     locale: 'pt_BR',
-    url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003',
+    url: SITE_URL,
     siteName: 'Manu das Promoções',
-    title: 'Manu das Promoções - As Melhores Ofertas do Dia',
-    description: 'A Manu encontra as melhores ofertas e promoções pra você economizar!',
+    title: 'Manu das Promoções - As Melhores Ofertas do Brasil',
+    description: 'Manu encontra as melhores promoções do Brasil pra você economizar de verdade!',
     images: [
       {
-        url: '/manu-banner.png',
+        url: `${SITE_URL}/manu-banner.png`,
         width: 1200,
         height: 630,
         alt: 'Manu das Promoções - Ofertas Imperdíveis',
@@ -39,9 +59,14 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
+    site: '@manupromocao',
+    creator: '@manupromocao',
     title: 'Manu das Promoções - As Melhores Ofertas',
-    description: 'Ofertas incríveis com descontos de verdade!',
-    images: ['/manu-banner.png'],
+    description: 'Ofertas incríveis com descontos de verdade! Acompanhe as promoções do dia.',
+    images: [`${SITE_URL}/manu-banner.png`],
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
   },
 };
 
