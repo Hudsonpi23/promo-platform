@@ -26,10 +26,14 @@ export interface UploadOptions {
     height?: number;
     crop?: 'fill' | 'fit' | 'scale' | 'limit';
     quality?: 'auto' | number;
-    format?: 'auto' | 'webp' | 'jpg' | 'png';
+    format?: 'auto' | 'webp' | 'jpg' | 'png' | 'gif';
   };
   tags?: string[];           // Tags para organização
   publicId?: string;         // ID público customizado
+  /** Para GIFs animados: 'image'. Para vídeos: 'video'. */
+  resourceType?: 'image' | 'video' | 'auto';
+  /** Preservar animação GIF sem conversão */
+  preserveAnimation?: boolean;
 }
 
 // ==================== CONFIGURATION ====================
@@ -144,18 +148,24 @@ export async function uploadFromBuffer(
   return new Promise((resolve) => {
     const uploadOptions: any = {
       folder: options.folder || 'promo-platform/offers',
-      resource_type: 'image',
+      resource_type: options.resourceType || 'image',
       overwrite: true,
       invalidate: true,
     };
 
-    // Transformações padrão
-    uploadOptions.transformation = {
-      width: options.transformation?.width || 800,
-      crop: options.transformation?.crop || 'limit',
-      quality: options.transformation?.quality || 'auto',
-      fetch_format: options.transformation?.format || 'auto',
-    };
+    // GIFs animados: não aplicar transformações que quebram a animação
+    if (options.preserveAnimation) {
+      uploadOptions.format = 'gif';
+      uploadOptions.transformation = undefined;
+    } else {
+      // Transformações padrão
+      uploadOptions.transformation = {
+        width: options.transformation?.width || 800,
+        crop: options.transformation?.crop || 'limit',
+        quality: options.transformation?.quality || 'auto',
+        fetch_format: options.transformation?.format || 'auto',
+      };
+    }
 
     if (options.tags) {
       uploadOptions.tags = options.tags;

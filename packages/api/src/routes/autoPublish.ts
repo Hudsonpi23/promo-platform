@@ -13,8 +13,9 @@ import {
 import { sendTelegramMessage, isTelegramConfigured } from '../services/telegram.js';
 import { postOfferToTwitter } from '../services/twitter.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
-import { uploadFromUrl } from '../services/cloudinary.js';
+import { uploadFromUrl, uploadFromBuffer } from '../services/cloudinary.js';
 import { resolveNicheFromTitle } from '../services/nicheDetector.js';
+import { generateFlashGif, isFlashGifAvailable } from '../services/flashGifGenerator.js';
 
 const SITE_URL = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
 
@@ -271,6 +272,33 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         // ── 9. POSTAR NO X (TWITTER) ──────────────────────────────────────
         if (postTwitter) {
           try {
+            // Para ofertas relâmpago: gerar GIF animado com cronômetro
+            let twitterImage = mainImage || undefined;
+            if (isFlash && flashExpiresAt && isFlashGifAvailable()) {
+              try {
+                console.log('[AutoPublish] ⚡ Gerando GIF relâmpago...');
+                const gifBuffer = await generateFlashGif({
+                  title: offer.title,
+                  finalPrice: Number(offer.finalPrice),
+                  originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+                  discountPct: offer.discountPct || 0,
+                  expiresAt: flashExpiresAt,
+                });
+                // Fazer upload do GIF para Cloudinary
+                const gifUpload = await uploadFromBuffer(gifBuffer, {
+                  folder: 'promo-platform/flash-gifs',
+                  resourceType: 'image',
+                  preserveAnimation: true,
+                });
+                if (gifUpload.success && gifUpload.url) {
+                  twitterImage = gifUpload.url;
+                  console.log('[AutoPublish] ✅ GIF relâmpago gerado:', gifUpload.url);
+                }
+              } catch (gifErr: any) {
+                console.warn('[AutoPublish] ⚠️ Falha ao gerar GIF relâmpago, usando imagem normal:', gifErr.message);
+              }
+            }
+
             const twitterRes = await postOfferToTwitter({
               title: offer.title,
               originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
@@ -278,9 +306,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               discount: offer.discountPct || undefined,
               affiliateUrl: url,
               storeName: offer.store?.name,
-              imageUrl: mainImage || undefined,
+              imageUrl: twitterImage,
               siteUrl: siteLink,
-              preGeneratedCopy: copies.x, // usa a copy já gerada com isFlash/etc.
+              preGeneratedCopy: copies.x,
             });
             result.twitter = { success: twitterRes.success, error: twitterRes.error };
           } catch (e: any) {
