@@ -280,6 +280,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               storeName: offer.store?.name,
               imageUrl: mainImage || undefined,
               siteUrl: siteLink,
+              preGeneratedCopy: copies.x, // usa a copy já gerada com isFlash/etc.
             });
             result.twitter = { success: twitterRes.success, error: twitterRes.error };
           } catch (e: any) {

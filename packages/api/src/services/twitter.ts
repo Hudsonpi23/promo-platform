@@ -641,8 +641,10 @@ export async function postOfferToTwitter(offer: {
   imageUrl?: string;
   images?: string[];
   siteUrl?: string;
+  /** Copy já gerada (ex: com flash hooks). Se fornecida, não regera. */
+  preGeneratedCopy?: string;
 }): Promise<TweetResponse> {
-  const tweetText = generateTweetText(offer);
+  const tweetText = offer.preGeneratedCopy ?? generateTweetText(offer);
 
   // No Twitter usar SEMPRE 1 imagem — grid 2x2/4 fica ruim para produtos
   // Prioridade: imageUrl principal → primeira da galeria
