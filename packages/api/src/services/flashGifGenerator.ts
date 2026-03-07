@@ -1,17 +1,23 @@
 /**
  * Gerador de GIF animado de contagem regressiva para Ofertas Relâmpago.
  *
- * Layout:
- *  ┌──────────────────────────────────────────────────────────────┐
- *  │            ⚡  OFERTA RELÂMPAGO  ⚡                          │
- *  ├───────────────┬──────────────────────────────────────────────┤
- *  │               │  Título do produto                           │
- *  │  [IMAGEM]     │  De R$ XX,XX                                 │
- *  │               │  R$ YY,YY                                    │
- *  │               │  🔥 -42% DE DESCONTO                         │
- *  ├───────────────┴──────────────────────────────────────────────┤
- *  │      ⏰ TEMPO RESTANTE    02 : 47 : 33                       │
- *  └──────────────────────────────────────────────────────────────┘
+ * Layout vertical (600 × 460):
+ *  ┌───────────────────────────────────────────────────────┐
+ *  │           ⚡  OFERTA RELÂMPAGO  ⚡                    │ ← badge (40px)
+ *  ├───────────────────────────────────────────────────────┤
+ *  │                                                       │
+ *  │          [FOTO DO PRODUTO — full width]               │ ← 220px
+ *  │   (título do produto overlay no rodapé da imagem)     │
+ *  ├───────────────────────────────────────────────────────┤
+ *  │   De R$ 169,99 ~~risca~~                              │ ← preço antigo
+ *  │   R$ 98,44   ← ENORME 70px                           │ ← preço atual
+ *  │   🔥 -42% DE DESCONTO  (badge vermelho)               │ ← desconto
+ *  ├───────────────────────────────────────────────────────┤
+ *  │  ⏰ TEMPO RESTANTE         01 : 55 : 47              │ ← cronômetro
+ *  └───────────────────────────────────────────────────────┘
+ *
+ * Fix do cronômetro: segundos vão de 59 → 00 sempre (loop invisível).
+ * Horas e minutos ficam fixos no valor do momento da geração.
  */
 
 // canvas e gif-encoder-2 podem não estar disponíveis em todos os ambientes
@@ -39,7 +45,6 @@ export interface FlashGifOptions {
   originalPrice?: number | null;
   discountPct: number;
   expiresAt: Date;
-  /** URL da imagem do produto */
   imageUrl?: string | null;
 }
 
@@ -55,7 +60,6 @@ function truncate(text: string, max: number): string {
   return text.length > max ? text.substring(0, max - 1) + '…' : text;
 }
 
-/** Auxiliar: retângulo com bordas arredondadas */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: number) {
   ctx.beginPath();
@@ -71,228 +75,217 @@ function roundRect(ctx: any, x: number, y: number, w: number, h: number, r: numb
   ctx.closePath();
 }
 
-/**
- * Retorna true se as dependências de geração de GIF estão disponíveis.
- */
 export function isFlashGifAvailable(): boolean {
   return !!createCanvas && !!GifEncoder;
 }
 
-/**
- * Gera um GIF animado com imagem do produto + cronômetro regressivo.
- * Retorna um Buffer com o GIF pronto para upload.
- */
 export async function generateFlashGif(opts: FlashGifOptions): Promise<Buffer> {
   if (!createCanvas || !GifEncoder) {
     throw new Error('canvas/gif-encoder-2 não disponível neste ambiente');
   }
 
-  // ── Dimensões ───────────────────────────────────────────────────────────
-  const W  = 600;
-  const H  = 360;
-
-  // Zonas
-  const BADGE_H  = 38;        // topo: badge relâmpago
-  const IMG_W    = W / 2;     // metade esquerda = imagem do produto (300px)
-  const MID_H    = 210;       // altura da zona imagem+info
-  const TIMER_H  = H - BADGE_H - MID_H; // zona do cronômetro (~112px)
+  // ── Dimensões ────────────────────────────────────────────────────────────
+  const W        = 600;
+  const BADGE_H  = 40;   // topo: badge ⚡ OFERTA RELÂMPAGO
+  const IMG_H    = 220;  // foto do produto (full width)
+  const PRICE_H  = 120;  // zona preços (antigo + atual + desconto)
+  const TIMER_H  = 68;   // zona cronômetro
+  const H        = BADGE_H + IMG_H + PRICE_H + TIMER_H; // 448px
 
   const encoder = new GifEncoder(W, H, 'neuquant', true);
-  encoder.setDelay(1000);
-  encoder.setRepeat(0);
+  encoder.setDelay(1000); // 1 frame = 1 segundo
+  encoder.setRepeat(0);   // loop infinito
   encoder.setQuality(10);
   encoder.start();
 
   const canvas = createCanvas(W, H);
-  const ctx = canvas.getContext('2d');
+  const ctx    = canvas.getContext('2d');
 
-  // ── Tentar carregar imagem do produto ────────────────────────────────────
+  // ── Carregar imagem do produto ────────────────────────────────────────────
   let productImg: any = null;
   if (opts.imageUrl) {
-    try {
-      productImg = await loadImage(opts.imageUrl);
-    } catch (_e) {
-      // imagem não carregou — continua sem ela
-    }
+    try { productImg = await loadImage(opts.imageUrl); } catch (_e) { /* sem imagem */ }
   }
 
-  // ── Calcular tempo restante no momento da geração ────────────────────────
-  const now        = Date.now();
-  const totalMs    = opts.expiresAt.getTime() - now;
-  const totalSecs  = Math.max(0, Math.floor(totalMs / 1000));
-  const hoursLeft  = Math.floor(totalSecs / 3600);
-  const minsLeft   = Math.floor((totalSecs % 3600) / 60);
-  const secsStart  = totalSecs % 60;
+  // ── Tempo restante no momento da geração ─────────────────────────────────
+  const totalMs   = Math.max(0, opts.expiresAt.getTime() - Date.now());
+  const totalSecs = Math.floor(totalMs / 1000);
+  const hoursLeft = Math.floor(totalSecs / 3600);
+  const minsLeft  = Math.floor((totalSecs % 3600) / 60);
+  // ↑ horas e minutos FIXOS em todos os 60 frames (não mudam no loop)
 
-  // ── Gerar 60 frames ──────────────────────────────────────────────────────
+  // ── Gerar 60 frames — segundos de 59 → 00 (loop invisível) ───────────────
   for (let frame = 0; frame < 60; frame++) {
-    const currentSec  = ((secsStart - frame) % 60 + 60) % 60;
-    const displayMins = frame > secsStart ? Math.max(0, minsLeft - 1) : minsLeft;
+    // Segundos sempre de 59→00. Sem pulo visível no loop (parece 1 segundo de diferença).
+    const currentSec = 59 - frame;
 
     // === FUNDO ===
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#1a0a00');
-    bg.addColorStop(0.5, '#2a1000');
-    bg.addColorStop(1, '#1a0a00');
+    bg.addColorStop(0,    '#0d0500');
+    bg.addColorStop(0.45, '#1e0c00');
+    bg.addColorStop(1,    '#0d0500');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
     // Brilhos de canto
-    ctx.fillStyle = '#f59e0b18';
-    ctx.beginPath(); ctx.arc(0,   0,   70, 0, Math.PI / 2);         ctx.fill();
-    ctx.beginPath(); ctx.arc(W,   0,   70, Math.PI / 2, Math.PI);   ctx.fill();
-    ctx.beginPath(); ctx.arc(0,   H,   70, -Math.PI / 2, 0);        ctx.fill();
-    ctx.beginPath(); ctx.arc(W,   H,   70, Math.PI, 3 * Math.PI/2); ctx.fill();
+    ctx.fillStyle = '#f59e0b14';
+    ctx.beginPath(); ctx.arc(0, 0,  90, 0,           Math.PI / 2);          ctx.fill();
+    ctx.beginPath(); ctx.arc(W, 0,  90, Math.PI / 2, Math.PI);              ctx.fill();
+    ctx.beginPath(); ctx.arc(0, H,  90, -Math.PI / 2, 0);                   ctx.fill();
+    ctx.beginPath(); ctx.arc(W, H,  90, Math.PI,      3 * Math.PI / 2);     ctx.fill();
 
     // Borda âmbar
     ctx.strokeStyle = '#f59e0b';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(3, 3, W - 6, H - 6);
+    ctx.lineWidth   = 3;
+    ctx.strokeRect(2, 2, W - 4, H - 4);
 
-    // === BADGE TOPO ===
+    // ── BADGE TOPO ──────────────────────────────────────────────────────────
     ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(3, 3, W - 6, BADGE_H);
+    ctx.fillRect(2, 2, W - 4, BADGE_H - 2);
 
-    ctx.font = 'bold 15px sans-serif';
-    ctx.fillStyle = '#1a0a00';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('⚡  OFERTA RELÂMPAGO  ⚡', W / 2, 3 + BADGE_H / 2);
+    ctx.font          = 'bold 16px sans-serif';
+    ctx.fillStyle     = '#1a0a00';
+    ctx.textAlign     = 'center';
+    ctx.textBaseline  = 'middle';
+    ctx.fillText('⚡  OFERTA RELÂMPAGO  ⚡', W / 2, 2 + (BADGE_H - 2) / 2);
 
-    // === ZONA IMAGEM + INFO ===
-    const midY = BADGE_H;
+    // ── ZONA IMAGEM ─────────────────────────────────────────────────────────
+    const imgY = BADGE_H;
 
-    // Divisor vertical
-    ctx.strokeStyle = '#f59e0b44';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(IMG_W, midY);
-    ctx.lineTo(IMG_W, midY + MID_H);
-    ctx.stroke();
-
-    // --- IMAGEM DO PRODUTO (esquerda) ---
-    const imgPad = 10;
     if (productImg) {
-      // fundo branco suave para a imagem
-      ctx.fillStyle = '#ffffff08';
-      ctx.fillRect(3, midY, IMG_W - 3, MID_H);
+      // Fundo branco levíssimo atrás da imagem
+      ctx.fillStyle = '#ffffff0a';
+      ctx.fillRect(2, imgY, W - 4, IMG_H);
 
-      // Calcular dimensões mantendo proporção
-      const maxW = IMG_W - imgPad * 2;
-      const maxH = MID_H - imgPad * 2;
-      const ratio = Math.min(maxW / productImg.width, maxH / productImg.height);
-      const dw = productImg.width * ratio;
-      const dh = productImg.height * ratio;
-      const dx = 3 + (IMG_W - 6) / 2 - dw / 2;
-      const dy = midY + MID_H / 2 - dh / 2;
+      // Fit/cover: manter proporção, centralizar
+      const ratio = Math.min((W - 4) / productImg.width, IMG_H / productImg.height);
+      const dw    = productImg.width  * ratio;
+      const dh    = productImg.height * ratio;
+      const dx    = (W - dw) / 2;
+      const dy    = imgY + (IMG_H - dh) / 2;
       ctx.drawImage(productImg, dx, dy, dw, dh);
     } else {
-      // Placeholder quando não há imagem
-      ctx.fillStyle = '#f59e0b22';
-      ctx.fillRect(3, midY, IMG_W - 3, MID_H);
-      ctx.font = '32px sans-serif';
-      ctx.fillStyle = '#f59e0b66';
-      ctx.textAlign = 'center';
+      // Placeholder
+      ctx.fillStyle = '#f59e0b18';
+      ctx.fillRect(2, imgY, W - 4, IMG_H);
+      ctx.font         = '56px sans-serif';
+      ctx.fillStyle    = '#f59e0b44';
+      ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('🛍️', 3 + (IMG_W - 3) / 2, midY + MID_H / 2);
+      ctx.fillText('🛍️', W / 2, imgY + IMG_H / 2);
     }
 
-    // --- INFO DO PRODUTO (direita, 300px) ---
-    const infoX    = IMG_W + 14;
-    const infoMaxW = W - IMG_W - 24; // ~286px disponíveis
+    // Gradiente overlay no rodapé da imagem para o título
+    const titleOverlay = ctx.createLinearGradient(0, imgY + IMG_H - 50, 0, imgY + IMG_H);
+    titleOverlay.addColorStop(0, 'rgba(0,0,0,0)');
+    titleOverlay.addColorStop(1, 'rgba(0,0,0,0.75)');
+    ctx.fillStyle = titleOverlay;
+    ctx.fillRect(2, imgY + IMG_H - 50, W - 4, 50);
 
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
+    // Título sobre a imagem
+    ctx.font         = 'bold 14px sans-serif';
+    ctx.fillStyle    = '#ffffff';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(truncate(opts.title, 60), W / 2, imgY + IMG_H - 6);
 
-    // Título (quebrado em até 2 linhas dentro de 286px)
-    const shortTitle = truncate(opts.title, 44);
-    ctx.font = 'bold 15px sans-serif';
-    ctx.fillStyle = '#fef3c7';
-    const words = shortTitle.split(' ');
-    let line1 = '', line2 = '';
-    for (const word of words) {
-      const test = line1 ? `${line1} ${word}` : word;
-      if (ctx.measureText(test).width > infoMaxW && line1) {
-        line2 = line2 ? `${line2} ${word}` : word;
-      } else {
-        line1 = test;
-      }
-    }
-    ctx.fillText(line1, infoX, midY + 12);
-    if (line2) ctx.fillText(line2, infoX, midY + 30);
+    // ── ZONA PREÇOS ──────────────────────────────────────────────────────────
+    const priceY = BADGE_H + IMG_H;
 
-    const priceY = midY + (line2 ? 58 : 44);
+    // Linha divisória sutil
+    ctx.strokeStyle = '#f59e0b33';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(20, priceY);
+    ctx.lineTo(W - 20, priceY);
+    ctx.stroke();
+
+    ctx.textAlign    = 'center';
 
     // Preço original riscado
     if (opts.originalPrice && opts.originalPrice > opts.finalPrice) {
-      ctx.font = '13px sans-serif';
-      ctx.fillStyle = '#9ca3af';
-      const oldStr = formatPrice(opts.originalPrice);
-      ctx.fillText(oldStr, infoX, priceY);
+      ctx.font         = '20px sans-serif';
+      ctx.fillStyle    = '#9ca3af';
+      ctx.textBaseline = 'top';
+      const oldStr     = formatPrice(opts.originalPrice);
+      ctx.fillText(oldStr, W / 2, priceY + 8);
+
+      // Linha de strike-through
       const tw = ctx.measureText(oldStr).width;
       ctx.beginPath();
-      ctx.moveTo(infoX, priceY + 8);
-      ctx.lineTo(infoX + tw, priceY + 8);
+      ctx.moveTo(W / 2 - tw / 2, priceY + 19);
+      ctx.lineTo(W / 2 + tw / 2, priceY + 19);
       ctx.strokeStyle = '#9ca3af';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth   = 2;
       ctx.stroke();
     }
 
-    // Preço final (grande, âmbar)
-    ctx.font = 'bold 28px sans-serif';
-    ctx.fillStyle = '#fbbf24';
-    ctx.fillText(formatPrice(opts.finalPrice), infoX, priceY + (opts.originalPrice ? 20 : 0));
+    // Preço final — ENORME
+    ctx.shadowColor  = '#f59e0b';
+    ctx.shadowBlur   = 16;
+    ctx.font         = 'bold 70px sans-serif';
+    ctx.fillStyle    = '#fbbf24';
+    ctx.textBaseline = 'top';
+    const priceOffsetY = opts.originalPrice ? 34 : 14;
+    ctx.fillText(formatPrice(opts.finalPrice), W / 2, priceY + priceOffsetY);
+    ctx.shadowBlur = 0;
 
-    // Badge desconto
+    // Badge desconto — fundo vermelho
     if (opts.discountPct > 0) {
-      const discY = priceY + (opts.originalPrice ? 56 : 36);
-      ctx.fillStyle = '#ef4444';
-      roundRect(ctx, infoX, discY, infoMaxW, 24, 5);
+      const discH  = 28;
+      const discW  = 220;
+      const discX  = W / 2 - discW / 2;
+      const discY2 = priceY + priceOffsetY + 76;
+
+      ctx.fillStyle = '#dc2626';
+      roundRect(ctx, discX, discY2, discW, discH, 6);
       ctx.fill();
-      ctx.font = 'bold 12px sans-serif';
-      ctx.fillStyle = '#ffffff';
+
+      ctx.font         = 'bold 14px sans-serif';
+      ctx.fillStyle    = '#ffffff';
+      ctx.textAlign    = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`🔥  -${opts.discountPct}% DE DESCONTO`, infoX + 8, discY + 12);
+      ctx.fillText(`🔥  -${opts.discountPct}% DE DESCONTO`, W / 2, discY2 + discH / 2);
     }
 
-    // === DIVISOR HORIZONTAL ===
-    const timerY = BADGE_H + MID_H;
-    ctx.strokeStyle = '#f59e0b66';
-    ctx.lineWidth = 1;
+    // ── ZONA CRONÔMETRO ──────────────────────────────────────────────────────
+    const timerY = BADGE_H + IMG_H + PRICE_H;
+
+    // Divisor
+    ctx.strokeStyle = '#f59e0b55';
+    ctx.lineWidth   = 1;
     ctx.beginPath();
     ctx.moveTo(20, timerY);
     ctx.lineTo(W - 20, timerY);
     ctx.stroke();
 
-    // === ZONA CRONÔMETRO ===
+    // Label
+    ctx.font         = 'bold 12px sans-serif';
+    ctx.fillStyle    = '#f59e0b';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⏰  TEMPO RESTANTE', 20, timerY + TIMER_H / 2 - 8);
+
+    // Cronômetro (segundos sempre 59→00, horas+minutos fixos)
     const hh = String(hoursLeft).padStart(2, '0');
-    const mm = String(displayMins).padStart(2, '0');
+    const mm = String(minsLeft).padStart(2, '0');
     const ss = String(currentSec).padStart(2, '0');
-    const timeStr = `${hh}:${mm}:${ss}`;
 
-    // Label "⏰ TEMPO RESTANTE" — metade esquerda da barra
-    ctx.font = 'bold 11px sans-serif';
-    ctx.fillStyle = '#f59e0b';
-    ctx.textAlign = 'left';
+    ctx.shadowColor  = '#f59e0b';
+    ctx.shadowBlur   = 14;
+    ctx.font         = 'bold 46px monospace';
+    ctx.fillStyle    = '#ffffff';
+    ctx.textAlign    = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText('⏰  TEMPO RESTANTE', 14, timerY + TIMER_H / 2 - 8);
-
-    // Cronômetro na metade direita — centralizado em 300..600
-    ctx.shadowColor = '#f59e0b';
-    ctx.shadowBlur = 14;
-    ctx.font = 'bold 50px monospace';
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(timeStr, IMG_W + (W - IMG_W) / 2, timerY + TIMER_H / 2);
+    ctx.fillText(`${hh}:${mm}:${ss}`, W - 16, timerY + TIMER_H / 2 + 2);
     ctx.shadowBlur = 0;
 
     // Labels HH MM SS
-    ctx.font = '9px sans-serif';
-    ctx.fillStyle = '#f59e0b88';
-    ctx.textAlign = 'center';
+    ctx.font         = '9px sans-serif';
+    ctx.fillStyle    = '#f59e0b77';
+    ctx.textAlign    = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('HH          MM          SS', IMG_W + (W - IMG_W) / 2, timerY + TIMER_H - 4);
+    ctx.fillText('HH           MM           SS', W - 16, timerY + TIMER_H - 4);
 
     encoder.addFrame(ctx.getImageData(0, 0, W, H).data);
   }
