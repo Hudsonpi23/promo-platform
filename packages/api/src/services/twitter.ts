@@ -338,11 +338,11 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
 
   // Twitter encurta TODA URL para 23 chars (t.co) — contar todas as URLs no texto
   const TWITTER_URL_LENGTH = 23;
-  const SITE_BASE_URL = 'https://manu-promocoes.vercel.app';
+  const SITE_BASE_URL = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
 
   // Formato do post X:
   //   👉 CTA texto https://link-afiliado   ← afiliado na mesma linha do CTA
-  //   🌐 https://manu-promocoes.vercel.app  ← site em linha própria
+  //   🌐 https://www.manu-promocoes.com.br  ← site em linha própria
 
   const siteUrlMatch = text.match(/🌐 (https?:\/\/[^\s]+)/);
   const siteUrl = siteUrlMatch ? siteUrlMatch[1] : null;
@@ -413,7 +413,7 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
   }
 
   // Garantia final: link do site sempre presente
-  if (!text.includes('manu-promocoes.vercel.app')) {
+  if (!text.includes('manu-promocoes')) {
     text += `\n🌐 ${siteUrl || SITE_BASE_URL}`;
     console.log('[Twitter] ⚠️ Link do site adicionado como garantia');
   }

@@ -1768,7 +1768,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   // CTA + link do afiliado na mesma linha (ex: 👉 aproveitar agora https://link)
   // Link do site na linha separada abaixo
-  const SITE_BASE = 'https://manu-promocoes.vercel.app';
+  const SITE_BASE = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
   const siteUrl = input.siteUrl || SITE_BASE;
 
   lines.push('');
