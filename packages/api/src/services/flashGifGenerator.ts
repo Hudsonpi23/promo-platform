@@ -92,9 +92,9 @@ export async function generateFlashGif(opts: FlashGifOptions): Promise<Buffer> {
   const H  = 360;
 
   // Zonas
-  const BADGE_H  = 38;   // topo: badge relâmpago
-  const IMG_W    = 200;  // largura da coluna de imagem
-  const MID_H    = 210;  // altura da zona imagem+info
+  const BADGE_H  = 38;        // topo: badge relâmpago
+  const IMG_W    = W / 2;     // metade esquerda = imagem do produto (300px)
+  const MID_H    = 210;       // altura da zona imagem+info
   const TIMER_H  = H - BADGE_H - MID_H; // zona do cronômetro (~112px)
 
   const encoder = new GifEncoder(W, H, 'neuquant', true);
@@ -197,18 +197,17 @@ export async function generateFlashGif(opts: FlashGifOptions): Promise<Buffer> {
       ctx.fillText('🛍️', 3 + (IMG_W - 3) / 2, midY + MID_H / 2);
     }
 
-    // --- INFO DO PRODUTO (direita) ---
-    const infoX    = IMG_W + 16;
-    const infoMaxW = W - IMG_W - 20;
+    // --- INFO DO PRODUTO (direita, 300px) ---
+    const infoX    = IMG_W + 14;
+    const infoMaxW = W - IMG_W - 24; // ~286px disponíveis
 
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
 
-    // Título
-    const shortTitle = truncate(opts.title, 36);
-    ctx.font = 'bold 17px sans-serif';
+    // Título (quebrado em até 2 linhas dentro de 286px)
+    const shortTitle = truncate(opts.title, 44);
+    ctx.font = 'bold 15px sans-serif';
     ctx.fillStyle = '#fef3c7';
-    // Quebrar em 2 linhas se necessário
     const words = shortTitle.split(' ');
     let line1 = '', line2 = '';
     for (const word of words) {
@@ -219,42 +218,41 @@ export async function generateFlashGif(opts: FlashGifOptions): Promise<Buffer> {
         line1 = test;
       }
     }
-    ctx.fillText(line1, infoX, midY + 14);
-    if (line2) ctx.fillText(line2, infoX, midY + 34);
+    ctx.fillText(line1, infoX, midY + 12);
+    if (line2) ctx.fillText(line2, infoX, midY + 30);
 
-    const priceY = midY + (line2 ? 70 : 52);
+    const priceY = midY + (line2 ? 58 : 44);
 
     // Preço original riscado
     if (opts.originalPrice && opts.originalPrice > opts.finalPrice) {
-      ctx.font = '14px sans-serif';
+      ctx.font = '13px sans-serif';
       ctx.fillStyle = '#9ca3af';
       const oldStr = formatPrice(opts.originalPrice);
       ctx.fillText(oldStr, infoX, priceY);
-      // linha de strike-through
       const tw = ctx.measureText(oldStr).width;
       ctx.beginPath();
-      ctx.moveTo(infoX, priceY + 9);
-      ctx.lineTo(infoX + tw, priceY + 9);
+      ctx.moveTo(infoX, priceY + 8);
+      ctx.lineTo(infoX + tw, priceY + 8);
       ctx.strokeStyle = '#9ca3af';
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
 
-    // Preço final
-    ctx.font = 'bold 30px sans-serif';
+    // Preço final (grande, âmbar)
+    ctx.font = 'bold 28px sans-serif';
     ctx.fillStyle = '#fbbf24';
-    ctx.fillText(formatPrice(opts.finalPrice), infoX, priceY + (opts.originalPrice ? 22 : 0));
+    ctx.fillText(formatPrice(opts.finalPrice), infoX, priceY + (opts.originalPrice ? 20 : 0));
 
     // Badge desconto
     if (opts.discountPct > 0) {
-      const discY = priceY + (opts.originalPrice ? 60 : 38);
+      const discY = priceY + (opts.originalPrice ? 56 : 36);
       ctx.fillStyle = '#ef4444';
-      roundRect(ctx, infoX, discY, infoMaxW - 10, 26, 6);
+      roundRect(ctx, infoX, discY, infoMaxW, 24, 5);
       ctx.fill();
-      ctx.font = 'bold 13px sans-serif';
+      ctx.font = 'bold 12px sans-serif';
       ctx.fillStyle = '#ffffff';
       ctx.textBaseline = 'middle';
-      ctx.fillText(`🔥  -${opts.discountPct}% DE DESCONTO`, infoX + 8, discY + 13);
+      ctx.fillText(`🔥  -${opts.discountPct}% DE DESCONTO`, infoX + 8, discY + 12);
     }
 
     // === DIVISOR HORIZONTAL ===
@@ -270,28 +268,31 @@ export async function generateFlashGif(opts: FlashGifOptions): Promise<Buffer> {
     const hh = String(hoursLeft).padStart(2, '0');
     const mm = String(displayMins).padStart(2, '0');
     const ss = String(currentSec).padStart(2, '0');
+    const timeStr = `${hh}:${mm}:${ss}`;
 
-    // Label "TEMPO RESTANTE" à esquerda
-    ctx.font = '11px sans-serif';
+    // Label "⏰ TEMPO RESTANTE" — metade esquerda da barra
+    ctx.font = 'bold 11px sans-serif';
     ctx.fillStyle = '#f59e0b';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('⏰  TEMPO RESTANTE', 20, timerY + TIMER_H / 2 - 10);
+    ctx.fillText('⏰  TEMPO RESTANTE', 14, timerY + TIMER_H / 2 - 8);
 
-    // Cronômetro compacto à direita
+    // Cronômetro na metade direita — centralizado em 300..600
     ctx.shadowColor = '#f59e0b';
-    ctx.shadowBlur = 12;
-    ctx.font = 'bold 52px monospace';
+    ctx.shadowBlur = 14;
+    ctx.font = 'bold 50px monospace';
     ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'right';
-    ctx.fillText(`${hh}:${mm}:${ss}`, W - 20, timerY + TIMER_H / 2 + 6);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(timeStr, IMG_W + (W - IMG_W) / 2, timerY + TIMER_H / 2);
     ctx.shadowBlur = 0;
 
-    // Labels hh mm ss
+    // Labels HH MM SS
     ctx.font = '9px sans-serif';
     ctx.fillStyle = '#f59e0b88';
-    ctx.textAlign = 'right';
-    ctx.fillText('HH    MM    SS', W - 20, timerY + TIMER_H - 10);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('HH          MM          SS', IMG_W + (W - IMG_W) / 2, timerY + TIMER_H - 4);
 
     encoder.addFrame(ctx.getImageData(0, 0, W, H).data);
   }
