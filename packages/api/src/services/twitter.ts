@@ -363,25 +363,46 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
       .replace(/ https?:\/\/[^\s]+/g, '');   // remove URL inline do CTA também
 
     const contentLines = contentOnly.split('\n').filter(l => l.trim().length > 0);
-    const hookLine   = contentLines[0] || '';
-    const subtitle   = contentLines[1] || '';
-    const priceLine  = contentLines.find(l => l.includes('R$') || l.includes('% DE DESCONTO')) || '';
-    const ctaLine    = contentLines.find(l => l.includes('👉')) || '';
+
+    // Estrutura esperada do post:
+    // [0] hook  [1] subtitle  [2] título do produto
+    // [3] "De R$ X"  [4] "por R$ Y"  [5] "🔥 -X% DE DESCONTO"  [6] "👉 CTA"
+    const hookLine    = contentLines[0] || '';
+    const subtitle    = contentLines[1] || '';
+    const titleLine   = contentLines[2] || ''; // título do produto — NUNCA omitir
+    const priceLines  = contentLines.filter(l => l.startsWith('De ') || l.startsWith('por '));
+    const discountLine = contentLines.find(l => l.includes('% DE DESCONTO')) || '';
+    const ctaLine     = contentLines.find(l => l.includes('👉')) || '';
 
     // Reservar 23 chars para afiliado + 23 para site + separadores
-    const urlsSpace = TWITTER_URL_LENGTH + 1 + TWITTER_URL_LENGTH + 6; // espaço + 🌐 + espaço
+    const urlsSpace = TWITTER_URL_LENGTH + 1 + TWITTER_URL_LENGTH + 6;
+
+    // Montar bloco preservando sempre: hook + título + preços + desconto + CTA
+    const compact = [
+      hookLine,
+      subtitle,
+      '',
+      titleLine,
+      '',
+      ...priceLines,
+      ...(discountLine ? ['', discountLine] : []),
+      '',
+      ctaLine,
+    ].filter((l, i, arr) => {
+      // remover linhas vazias consecutivas
+      if (l === '' && arr[i - 1] === '') return false;
+      return true;
+    }).join('\n');
+
     const maxContent = 280 - urlsSpace;
 
-    const compact = [hookLine, subtitle, '', priceLine, '', ctaLine]
-      .filter(Boolean)
-      .join('\n');
-
+    // Só truncar se ainda ultrapassar — e nunca cortar antes do título
     const truncated = compact.length > maxContent
       ? compact.substring(0, maxContent - 3) + '...'
       : compact;
 
     // Reconstruir: CTA + afiliado na mesma linha, site na linha abaixo
-    const ctaInCompact = truncated.match(/👉[^\n]*/)?.[0] || '';
+    const ctaInCompact = truncated.match(/👉[^\n]*/)?.[0] || ctaLine;
     const contentWithoutCta = truncated.replace(/👉[^\n]*/, '').trimEnd();
 
     text = contentWithoutCta;

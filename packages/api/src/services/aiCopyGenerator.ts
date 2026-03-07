@@ -1722,8 +1722,8 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Escolher CTA também de forma aleatória ──
   const cta = X_CTAS[Math.floor(Math.random() * X_CTAS.length)];
 
-  // ── Nome curto do produto (52 chars para incluir specs como 100ml, tamanho etc.) ──
-  const shortTitle = getShortTitle(input.title, 52);
+  // ── Nome do produto — sem truncar (Twitter conta URLs como 23 chars, há espaço) ──
+  const shortTitle = getShortTitle(input.title, 80);
 
   // ── Bloco de preço ──
   const priceBlock: string[] = [];
