@@ -38,6 +38,9 @@ export default function AutoPublicarPage() {
   const [rawUrls, setRawUrls] = useState('');
   const [postTelegram, setPostTelegram] = useState(true);
   const [postTwitter, setPostTwitter] = useState(true);
+  const [isFlash, setIsFlash] = useState(false);
+  const [flashHours, setFlashHours] = useState(3);
+  const [flashMins, setFlashMins] = useState(0);
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<PublishResult[] | null>(null);
   const [summary, setSummary] = useState<{ total: number; successCount: number; errorCount: number } | null>(null);
@@ -60,12 +63,15 @@ export default function AutoPublicarPage() {
     setCurrentStep(`Processando ${urlList.length} link(s)... isso pode levar alguns minutos.`);
 
     try {
+      const flashMinutes = flashHours * 60 + flashMins;
       const response = await fetchWithAuth('/api/auto-publish/publish', {
         method: 'POST',
         body: JSON.stringify({
           urls: urlList,
           postTelegram,
           postTwitter,
+          isFlash,
+          flashMinutes: isFlash ? flashMinutes : undefined,
         }),
       });
 
@@ -119,7 +125,7 @@ https://amzn.to/xyz123`}
         )}
 
         {/* Canais */}
-        <div className="flex gap-6 mt-4">
+        <div className="flex gap-6 mt-4 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -146,6 +152,69 @@ https://amzn.to/xyz123`}
           </label>
         </div>
 
+        {/* ⚡ Oferta Relâmpago */}
+        <div className={`mt-4 rounded-xl border-2 transition-all ${
+          isFlash
+            ? 'border-amber-500 bg-amber-500/10'
+            : 'border-border bg-background/40'
+        }`}>
+          <label className="flex items-center gap-3 cursor-pointer select-none p-4">
+            <div
+              onClick={() => !loading && setIsFlash(v => !v)}
+              className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
+                isFlash ? 'bg-amber-500' : 'bg-border'
+              } cursor-pointer`}
+            >
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                isFlash ? 'translate-x-6' : 'translate-x-0.5'
+              }`} />
+            </div>
+            <div>
+              <p className={`font-semibold text-sm ${isFlash ? 'text-amber-400' : 'text-text-secondary'}`}>
+                ⚡ Oferta Relâmpago
+              </p>
+              <p className="text-xs text-text-muted">
+                Post diferenciado com urgência. Deletado automaticamente quando expirar.
+              </p>
+            </div>
+          </label>
+
+          {isFlash && (
+            <div className="px-4 pb-4">
+              <p className="text-xs font-medium text-amber-400 mb-2">⏰ Tempo até expirar:</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={flashHours}
+                    onChange={e => setFlashHours(Number(e.target.value))}
+                    disabled={loading}
+                    className="w-16 px-2 py-1.5 rounded-lg bg-background border border-amber-500/40 text-text-primary text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-text-muted">horas</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={flashMins}
+                    onChange={e => setFlashMins(Number(e.target.value))}
+                    disabled={loading}
+                    className="w-16 px-2 py-1.5 rounded-lg bg-background border border-amber-500/40 text-text-primary text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <span className="text-xs text-text-muted">minutos</span>
+                </div>
+                <span className="text-xs text-amber-400/70 ml-1">
+                  = {flashHours * 60 + flashMins} min total
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
         <button
           onClick={handlePublish}
           disabled={loading || urlList.length === 0}
@@ -160,7 +229,10 @@ https://amzn.to/xyz123`}
               Processando...
             </>
           ) : (
-            <>⚡ Processar e Publicar ({urlList.length} link{urlList.length !== 1 ? 's' : ''})</>
+            <>
+              {isFlash ? '⚡ Publicar Relâmpago' : '🚀 Processar e Publicar'}
+              {' '}({urlList.length} link{urlList.length !== 1 ? 's' : ''})
+            </>
           )}
         </button>
 

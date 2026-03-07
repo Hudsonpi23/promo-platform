@@ -20,6 +20,8 @@ export interface PublicPost {
   store: string;
   storeSlug?: string;
   urgency: 'HOJE' | 'ULTIMAS_UNIDADES' | 'LIMITADO' | 'NORMAL' | string;
+  promoType?: 'RELAMPAGO' | 'OFERTA_DO_DIA' | 'NORMAL' | 'CUPOM' | string;
+  expiresAt?: string | null;
   imageUrl?: string | null;
   publishedAt: string;
 }

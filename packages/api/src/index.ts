@@ -389,6 +389,30 @@ async function main() {
 
     // 🔁 Corrigir nichos errados em offers e posts já existentes
     reCategorizeExistingOffers(); // Roda em background, não bloqueia o startup
+
+    // ⚡ Auto-delete de ofertas relâmpago expiradas (verificar a cada 5 min)
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const expired = await prisma.offer.findMany({
+          where: {
+            promoType: 'RELAMPAGO',
+            expiresAt: { lte: now },
+          },
+          select: { id: true, title: true },
+        });
+        if (expired.length > 0) {
+          const ids = expired.map(o => o.id);
+          // Deletar PublishedPosts vinculados
+          await prisma.publishedPost.deleteMany({ where: { offerId: { in: ids } } });
+          // Deletar as offers
+          await prisma.offer.deleteMany({ where: { id: { in: ids } } });
+          console.log(`[Flash] ⚡ ${expired.length} oferta(s) relâmpago expirada(s) deletada(s):`, expired.map(o => o.title));
+        }
+      } catch (err: any) {
+        console.warn('[Flash] Erro ao limpar ofertas expiradas:', err.message);
+      }
+    }, 5 * 60 * 1000); // a cada 5 minutos
     
     console.log('');
     console.log('🚀 ═══════════════════════════════════════════════════');

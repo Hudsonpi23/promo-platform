@@ -7,6 +7,36 @@ import { PublicPost } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { isAdmin } from '@/lib/auth';
 
+function useFlashCountdown(expiresAt?: string | null) {
+  const [remaining, setRemaining] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
+
+  useEffect(() => {
+    if (!expiresAt) return;
+
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setExpired(true);
+        setRemaining(null);
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setRemaining(
+        h > 0 ? `${h}h ${m.toString().padStart(2, '0')}m` : `${m}m ${s.toString().padStart(2, '0')}s`
+      );
+    };
+
+    update();
+    const t = setInterval(update, 1000);
+    return () => clearInterval(t);
+  }, [expiresAt]);
+
+  return { remaining, expired };
+}
+
 interface OfferCardProps {
   post: PublicPost;
   featured?: boolean;
@@ -34,6 +64,8 @@ function getUrgencyInfo(urgency: string) {
 
 export function OfferCard({ post, featured = false }: OfferCardProps) {
   const router = useRouter();
+  const isFlash = post.promoType === 'RELAMPAGO';
+  const { remaining, expired } = useFlashCountdown(isFlash ? post.expiresAt : null);
   const urgencyInfo = getUrgencyInfo(post.urgency);
   const hasDiscount = Boolean(post.discount && post.discount > 0);
   const slug = post.slug || post.id;
@@ -136,8 +168,24 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
     ? post.originalPrice - post.price
     : null;
 
+  if (expired) return null;
+
   return (
-    <article className={`bg-white rounded-2xl border-2 border-blue-100 hover:border-blue-300 shadow-md hover:shadow-xl transition-all group relative flex flex-col`}>
+    <article className={`bg-white rounded-2xl border-2 shadow-md hover:shadow-xl transition-all group relative flex flex-col ${
+      isFlash
+        ? 'border-amber-400 hover:border-amber-500 ring-2 ring-amber-400/30'
+        : 'border-blue-100 hover:border-blue-300'
+    }`}>
+
+      {/* ⚡ Banner relâmpago no topo */}
+      {isFlash && (
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-black px-3 py-1.5 rounded-t-2xl flex items-center justify-between">
+          <span>⚡ OFERTA RELÂMPAGO</span>
+          {remaining && (
+            <span className="font-mono bg-black/20 px-2 py-0.5 rounded-md">⏰ {remaining}</span>
+          )}
+        </div>
+      )}
 
       {/* ── Imagem — clique vai direto para o link afiliado ── */}
       <a
@@ -146,7 +194,7 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
         rel="noopener noreferrer sponsored"
         className="block"
       >
-        <div className={`relative w-full bg-gray-50 overflow-hidden rounded-t-2xl ${featured ? 'h-56' : 'h-44'}`}>
+        <div className={`relative w-full bg-gray-50 overflow-hidden ${isFlash ? '' : 'rounded-t-2xl'} ${featured ? 'h-56' : 'h-44'}`}>
           {post.imageUrl && (
             <Image
               src={post.imageUrl}
@@ -167,7 +215,7 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
           )}
 
           {/* Badge urgência — canto superior direito */}
-          {urgencyInfo && (
+          {!isFlash && urgencyInfo && (
             <div className={`absolute top-2 right-2 z-10 inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold shadow-md ${urgencyInfo.bg} ${urgencyInfo.text}`}>
               {urgencyInfo.label}
             </div>
@@ -241,9 +289,13 @@ export function OfferCard({ post, featured = false }: OfferCardProps) {
           href={offerLink}
           target="_blank"
           rel="noopener noreferrer sponsored"
-          className="mt-auto block w-full text-center py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold text-sm transition-all shadow-md hover:shadow-lg"
+          className={`mt-auto block w-full text-center py-3 rounded-xl text-white font-bold text-sm transition-all shadow-md hover:shadow-lg active:scale-95 ${
+            isFlash
+              ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600'
+              : 'bg-blue-600 hover:bg-blue-700'
+          }`}
         >
-          VER OFERTA →
+          {isFlash ? '⚡ APROVEITAR AGORA →' : 'VER OFERTA →'}
         </a>
 
         {/* Botão deletar — apenas para admin */}

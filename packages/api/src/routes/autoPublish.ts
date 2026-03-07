@@ -16,7 +16,7 @@ import { generateCopies } from '../services/aiCopyGenerator.js';
 import { uploadFromUrl } from '../services/cloudinary.js';
 import { resolveNicheFromTitle } from '../services/nicheDetector.js';
 
-const SITE_URL = process.env.SITE_URL || 'https://manu-promocoes.vercel.app';
+const SITE_URL = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
 
 interface PublishResult {
   url: string;
@@ -39,8 +39,14 @@ export async function autoPublishRoutes(app: FastifyInstance) {
    * Recebe lista de URLs afiliadas, scrapa, cria oferta e posta automaticamente.
    */
   app.post('/publish', { preHandler: [authGuard] }, async (request, reply) => {
-    const body = request.body as { urls: string[]; postTelegram?: boolean; postTwitter?: boolean };
-    const { urls, postTelegram = true, postTwitter = true } = body;
+    const body = request.body as {
+      urls: string[];
+      postTelegram?: boolean;
+      postTwitter?: boolean;
+      isFlash?: boolean;
+      flashMinutes?: number; // duração em minutos (ex: 180 = 3h)
+    };
+    const { urls, postTelegram = true, postTwitter = true, isFlash = false, flashMinutes = 180 } = body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return reply.status(400).send({ error: 'Forneça ao menos uma URL.' });
@@ -153,6 +159,10 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         result.image = mainImage;
 
         // ── 6. CRIAR OFERTA NO BANCO ───────────────────────────────────────
+        const flashExpiresAt = isFlash
+          ? new Date(Date.now() + flashMinutes * 60 * 1000)
+          : null;
+
         const offer = await prisma.offer.create({
           data: {
             title: productData.title,
@@ -165,7 +175,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
             images: productData.images || [],
             nicheId,
             storeId,
-            urgency: 'NORMAL',
+            urgency: isFlash ? 'HOJE' : 'NORMAL',
+            promoType: isFlash ? 'RELAMPAGO' : 'NORMAL',
+            expiresAt: flashExpiresAt,
             curationStatus: 'APPROVED',
           },
           include: { store: { select: { name: true } } },
@@ -211,7 +223,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               discountPct: offer.discountPct,
               affiliateUrl: url,
               imageUrl: mainImage,
-              urgency: 'NORMAL',
+              urgency: isFlash ? 'HOJE' : 'NORMAL',
               nicheId,
               storeId,
               isActive: true,
@@ -237,6 +249,8 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           storeName: offer.store?.name,
           trackingUrl: url,
           siteUrl: siteLink,
+          isFlash,
+          flashMinutes,
         });
 
         // ── 8. POSTAR NO TELEGRAM ─────────────────────────────────────────

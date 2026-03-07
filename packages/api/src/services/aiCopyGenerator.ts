@@ -33,6 +33,10 @@ export interface CopyInputData {
   trackingUrl: string;
   /** Link do produto no site vitrine — adicionado separado do link de afiliado */
   siteUrl?: string | null;
+  /** Se é oferta relâmpago (tempo limitado) */
+  isFlash?: boolean;
+  /** Duração em minutos da oferta relâmpago */
+  flashMinutes?: number;
 }
 
 export interface GeneratedCopies {
@@ -1699,28 +1703,48 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   ));
 
   // ── Escolher gancho com aleatoriedade real ──
-  // Usamos Math.random() em vez da seed determinística para garantir que
-  // posts consecutivos NUNCA repitam o mesmo gancho ou frase.
   let hook: string;
   let subtitle: string;
 
-  // Para descontos altos (≥30%) forçar categoria surpresa (mais impacto);
-  // caso contrário, sortear entre as 3 categorias de forma aleatória.
-  const hookType = discountPct >= 30 ? 1 : Math.floor(Math.random() * 3);
-
-  if (hookType === 0) {
-    hook     = X_HOOKS_URGENCIA[Math.floor(Math.random() * X_HOOKS_URGENCIA.length)];
-    subtitle = X_SUBTITLES_URGENCIA[Math.floor(Math.random() * X_SUBTITLES_URGENCIA.length)];
-  } else if (hookType === 1) {
-    hook     = X_HOOKS_SURPRESA[Math.floor(Math.random() * X_HOOKS_SURPRESA.length)];
-    subtitle = X_SUBTITLES_SURPRESA[Math.floor(Math.random() * X_SUBTITLES_SURPRESA.length)];
+  // Oferta relâmpago: sempre usa hook de urgência máxima
+  if (input.isFlash) {
+    const FLASH_HOOKS = [
+      '⚡ OFERTA RELÂMPAGO',
+      '⚡ ACABANDO AGORA',
+      '⚡ ÚLTIMAS HORAS',
+      '⚡ CORRE QUE TÁ ACABANDO',
+      '⚡ TEMPO LIMITADO',
+    ];
+    const FLASH_SUBTITLES = [
+      'Essa oferta tem prazo pra acabar!',
+      'Não vai durar mais que algumas horas.',
+      'Quando acabar, acabou.',
+      'Oferta com countdown ativo.',
+      'Aproveita agora ou perde.',
+    ];
+    hook     = FLASH_HOOKS[Math.floor(Math.random() * FLASH_HOOKS.length)];
+    subtitle = FLASH_SUBTITLES[Math.floor(Math.random() * FLASH_SUBTITLES.length)];
   } else {
-    hook     = X_HOOKS_CURIOSIDADE[Math.floor(Math.random() * X_HOOKS_CURIOSIDADE.length)];
-    subtitle = X_SUBTITLES_CURIOSIDADE[Math.floor(Math.random() * X_SUBTITLES_CURIOSIDADE.length)];
+    // Para descontos altos (≥30%) forçar categoria surpresa (mais impacto);
+    // caso contrário, sortear entre as 3 categorias de forma aleatória.
+    const hookType = discountPct >= 30 ? 1 : Math.floor(Math.random() * 3);
+
+    if (hookType === 0) {
+      hook     = X_HOOKS_URGENCIA[Math.floor(Math.random() * X_HOOKS_URGENCIA.length)];
+      subtitle = X_SUBTITLES_URGENCIA[Math.floor(Math.random() * X_SUBTITLES_URGENCIA.length)];
+    } else if (hookType === 1) {
+      hook     = X_HOOKS_SURPRESA[Math.floor(Math.random() * X_HOOKS_SURPRESA.length)];
+      subtitle = X_SUBTITLES_SURPRESA[Math.floor(Math.random() * X_SUBTITLES_SURPRESA.length)];
+    } else {
+      hook     = X_HOOKS_CURIOSIDADE[Math.floor(Math.random() * X_HOOKS_CURIOSIDADE.length)];
+      subtitle = X_SUBTITLES_CURIOSIDADE[Math.floor(Math.random() * X_SUBTITLES_CURIOSIDADE.length)];
+    }
   }
 
   // ── Escolher CTA também de forma aleatória ──
-  const cta = X_CTAS[Math.floor(Math.random() * X_CTAS.length)];
+  const cta = input.isFlash
+    ? '👉 aproveitar agora'
+    : X_CTAS[Math.floor(Math.random() * X_CTAS.length)];
 
   // ── Nome do produto — sem truncar (Twitter conta URLs como 23 chars, há espaço) ──
   const shortTitle = getShortTitle(input.title, 80);
@@ -1763,22 +1787,30 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   if (discountLine) {
     lines.push('');
-    lines.push(discountLine);  // desconto em linha própria
+    lines.push(discountLine);
   }
 
-  // CTA + link do afiliado na mesma linha (ex: 👉 aproveitar agora https://link)
-  // Link do site na linha separada abaixo
+  // Linha de tempo restante para oferta relâmpago
+  if (input.isFlash && input.flashMinutes) {
+    const h = Math.floor(input.flashMinutes / 60);
+    const m = input.flashMinutes % 60;
+    const timeStr = h > 0 ? `${h}h${m > 0 ? `${m}min` : ''}` : `${m}min`;
+    lines.push('');
+    lines.push(`⏰ Oferta encerra em ~${timeStr}`);
+  }
+
+  // CTA + link do afiliado na mesma linha | link do site na linha separada
   const SITE_BASE = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
   const siteUrl = input.siteUrl || SITE_BASE;
 
   lines.push('');
-  lines.push(`${cta} ${input.trackingUrl}`);  // 👉 CTA + link afiliado na mesma linha
+  lines.push(`${cta} ${input.trackingUrl}`);
   lines.push('');
-  lines.push(`🌐 ${siteUrl}`);               // link do site na linha própria
+  lines.push(`🌐 ${siteUrl}`);
 
   let finalText = lines.join('\n');
 
-  console.log('[generateXCopy] Gancho:', hook, '| Tipo:', ['urgência', 'surpresa', 'curiosidade'][hookType] ?? 'surpresa');
+  console.log('[generateXCopy] Gancho:', hook, '| Flash:', input.isFlash ?? false);
   console.log('[generateXCopy] Formato: CTA + afiliado na mesma linha | site link separado');
   console.log('[generateXCopy] Texto final:', finalText.substring(0, 250));
   return finalText;

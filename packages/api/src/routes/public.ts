@@ -35,44 +35,47 @@ export async function publicRoutes(app: FastifyInstance) {
         take: limit + 1, // +1 para saber se há mais
         orderBy,
         select: {
-          id: true,
-          slug: true,
-          goCode: true,
-          title: true,
-          excerpt: true,
-          price: true,
-          originalPrice: true,
-          discountPct: true,
-          affiliateUrl: true,
-          imageUrl: true,
-          urgency: true,
-          publishedAt: true,
-          niche: { select: { name: true, slug: true, icon: true } },
-          store: { select: { name: true, slug: true } },
-        },
-      }),
-      prisma.publishedPost.count({ where }),
-    ]);
+        id: true,
+        slug: true,
+        goCode: true,
+        title: true,
+        excerpt: true,
+        price: true,
+        originalPrice: true,
+        discountPct: true,
+        affiliateUrl: true,
+        imageUrl: true,
+        urgency: true,
+        publishedAt: true,
+        niche: { select: { name: true, slug: true, icon: true } },
+        store: { select: { name: true, slug: true } },
+        offer: { select: { promoType: true, expiresAt: true } },
+      },
+    }),
+    prisma.publishedPost.count({ where }),
+  ]);
 
-    const hasMore = items.length > limit;
-    const data = hasMore ? items.slice(0, -1) : items;
+  const hasMore = items.length > limit;
+  const data = hasMore ? items.slice(0, -1) : items;
 
-    return {
-      items: data.map(item => ({
-        ...item,
-        price: Number(item.price),
-        originalPrice: item.originalPrice ? Number(item.originalPrice) : null,
-        discount: (item as any).discountPct || 0,
-        affiliateUrl: item.affiliateUrl,
-        niche: item.niche.name,
-        nicheSlug: item.niche.slug,
-        nicheIcon: item.niche.icon,
-        store: item.store.name,
-        storeSlug: item.store.slug,
-      })),
-      hasMore,
-      total,
-    };
+  return {
+    items: data.map(item => ({
+      ...item,
+      price: Number(item.price),
+      originalPrice: item.originalPrice ? Number(item.originalPrice) : null,
+      discount: (item as any).discountPct || 0,
+      affiliateUrl: item.affiliateUrl,
+      niche: item.niche.name,
+      nicheSlug: item.niche.slug,
+      nicheIcon: item.niche.icon,
+      store: item.store.name,
+      storeSlug: item.store.slug,
+      promoType: (item as any).offer?.promoType || 'NORMAL',
+      expiresAt: (item as any).offer?.expiresAt || null,
+    })),
+    hasMore,
+    total,
+  };
   });
 
   // GET /public/posts - Alias para feed (compatibilidade)
@@ -119,6 +122,7 @@ export async function publicRoutes(app: FastifyInstance) {
         publishedAt: true,
         niche: { select: { name: true, slug: true, icon: true } },
         store: { select: { name: true, slug: true } },
+        offer: { select: { promoType: true, expiresAt: true } },
       },
     });
 
@@ -142,6 +146,8 @@ export async function publicRoutes(app: FastifyInstance) {
         nicheIcon: item.niche?.icon,
         store: item.store?.name || 'Loja',
         publishedAt: item.publishedAt,
+        promoType: item.offer?.promoType || 'NORMAL',
+        expiresAt: item.offer?.expiresAt || null,
       })),
       nextCursor,
       hasMore,
