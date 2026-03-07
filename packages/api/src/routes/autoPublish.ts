@@ -283,6 +283,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
                   originalPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
                   discountPct: offer.discountPct || 0,
                   expiresAt: flashExpiresAt,
+                  imageUrl: mainImage || null,
                 });
                 // Fazer upload do GIF para Cloudinary
                 const gifUpload = await uploadFromBuffer(gifBuffer, {
