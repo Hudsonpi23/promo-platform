@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     images: [`${SITE_URL}/manu-banner.png`],
   },
   verification: {
-    google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION || '',
+    google: 'kygMdX68-z35PWn4JJb7nzUT8hCZYHF2LdvRvlnp4mY',
   },
 };
 
