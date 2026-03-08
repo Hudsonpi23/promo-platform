@@ -26,6 +26,7 @@ function fmtPrice(v?: number | null): string {
 
 // ── Instagram caption ──────────────────────────────────────────────────────
 function buildCaption(p: ProductData): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.manu-promocoes.com.br';
   return [
     p.discountPct >= 30 ? '🔥 DESCONTO INCRÍVEL!' : '🛒 OFERTA DO DIA!',
     '',
@@ -36,7 +37,7 @@ function buildCaption(p: ProductData): string {
     p.discountPct > 0 ? `🔥 -${p.discountPct}% DE DESCONTO` : null,
     '',
     '👉 Link na bio ou acesse:',
-    '🌐 manu-promocoes.vercel.app',
+    `🌐 ${siteUrl}`,
     '',
     '#promoção #desconto #oferta #economize #compras',
   ].filter(l => l !== null).join('\n');
@@ -44,19 +45,21 @@ function buildCaption(p: ProductData): string {
 
 // ── Component ──────────────────────────────────────────────────────────────
 export default function VideosPage() {
+  // Aba activa: 'url' = extrair URL | 'manual' = preencher manualmente
+  const [activeTab, setActiveTab]   = useState<'url' | 'manual'>('url');
+
   // URL scraping
   const [url, setUrl]               = useState('');
   const [scraping, setScraping]     = useState(false);
   const [scrapeError, setScrapeError] = useState('');
   const [product, setProduct]       = useState<ProductData | null>(null);
 
-  // Manual fields (used when no scrape or to override)
-  const [manualTitle, setManualTitle]   = useState('');
-  const [manualPrice, setManualPrice]   = useState('');
-  const [manualOldPrice, setManualOldPrice] = useState('');
-  const [manualDiscount, setManualDiscount] = useState('');
-  const [manualAffUrl, setManualAffUrl] = useState('');
-  const [showManual, setShowManual]     = useState(false);
+  // Manual fields
+  const [manualTitle, setManualTitle]         = useState('');
+  const [manualPrice, setManualPrice]         = useState('');
+  const [manualOldPrice, setManualOldPrice]   = useState('');
+  const [manualDiscount, setManualDiscount]   = useState('');
+  const [manualAffUrl, setManualAffUrl]       = useState('');
 
   // Video
   const [videoFile, setVideoFile]       = useState<File | null>(null);
@@ -101,15 +104,12 @@ export default function VideosPage() {
 
       if (!res.ok) {
         setScrapeError(data.error || 'Não foi possível extrair os dados. Use o preenchimento manual.');
-        setShowManual(true);
         setManualAffUrl(url.trim());
       } else {
         setProduct(data);
-        setShowManual(false);
       }
     } catch (err: any) {
       setScrapeError(`Erro de conexão: ${err.message}. Use o preenchimento manual.`);
-      setShowManual(true);
     } finally {
       setScraping(false);
     }
@@ -198,120 +198,174 @@ export default function VideosPage() {
         </p>
       </div>
 
-      {/* ── STEP 1: URL + Extract ──────────────────────────────────────── */}
-      <div className="bg-surface border border-border rounded-xl p-5 mb-5">
-        <label className="block text-sm font-medium text-text-secondary mb-2">
-          Link Afiliado <span className="text-text-muted font-normal">(opcional — extrai título, preço e desconto)</span>
-        </label>
-        <div className="flex gap-3">
-          <input
-            type="url"
-            value={url}
-            onChange={e => setUrl(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleScrape()}
-            disabled={scraping}
-            placeholder="https://mercadolivre.com.br/... ou amzn.to/..."
-            className="flex-1 px-4 py-2.5 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary text-sm font-mono"
-          />
+      {/* ── ABAS: Extrair URL  |  Preencher Manualmente ────────────────── */}
+      <div className="bg-surface border border-border rounded-xl overflow-hidden mb-5">
+
+        {/* Tab headers */}
+        <div className="flex border-b border-border">
           <button
-            onClick={handleScrape}
-            disabled={!url.trim() || scraping}
-            className="px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 whitespace-nowrap"
+            onClick={() => setActiveTab('url')}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              activeTab === 'url'
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
           >
-            {scraping ? (
-              <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Extraindo...</>
-            ) : '🔍 Extrair'}
+            🔍 Extrair do Link Afiliado
+          </button>
+          <button
+            onClick={() => { setActiveTab('manual'); setProduct(null); setScrapeError(''); }}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+              activeTab === 'manual'
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            ✏️ Preencher Manualmente
           </button>
         </div>
 
-        {/* Scrape error */}
-        {scrapeError && (
-          <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm flex items-start gap-2">
-            <span>⚠️</span>
-            <span>{scrapeError}</span>
-          </div>
-        )}
-
-        {/* Extracted product pill */}
-        {product && !showManual && (
-          <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-            {product.mainImage && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.mainImage} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0"/>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-emerald-400 truncate">{product.title}</p>
-              <p className="text-xs text-text-muted">
-                {fmtPrice(product.finalPrice)}
-                {product.discountPct > 0 && ` • -${product.discountPct}% DE DESCONTO`}
-              </p>
+        {/* ── ABA 1: Extrair URL ── */}
+        {activeTab === 'url' && (
+          <div className="p-5">
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Link Afiliado <span className="text-text-muted font-normal">(extrai título, preço e desconto automaticamente)</span>
+            </label>
+            <div className="flex gap-3">
+              <input
+                type="url"
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleScrape()}
+                disabled={scraping}
+                placeholder="https://mercadolivre.com.br/... ou amzn.to/..."
+                className="flex-1 px-4 py-2.5 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary text-sm font-mono"
+              />
+              <button
+                onClick={handleScrape}
+                disabled={!url.trim() || scraping}
+                className="px-5 py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                {scraping ? (
+                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Extraindo...</>
+                ) : '🔍 Extrair'}
+              </button>
             </div>
-            <button
-              onClick={() => { setProduct(null); setScrapeError(''); setShowManual(false); }}
-              className="text-xs text-text-muted hover:text-text-primary px-2 py-1"
-            >✕</button>
+
+            {scrapeError && (
+              <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm flex items-start gap-2">
+                <span>⚠️</span>
+                <div>
+                  <p>{scrapeError}</p>
+                  <button
+                    onClick={() => setActiveTab('manual')}
+                    className="mt-1 underline text-yellow-300 hover:text-yellow-200"
+                  >
+                    Preencher manualmente →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {product && (
+              <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                {product.mainImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={product.mainImage} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0"/>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-emerald-400 truncate">{product.title}</p>
+                  <p className="text-xs text-text-muted">
+                    {fmtPrice(product.finalPrice)}
+                    {product.discountPct > 0 && ` • -${product.discountPct}% DE DESCONTO`}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setProduct(null); setScrapeError(''); setUrl(''); }}
+                  className="text-xs text-text-muted hover:text-text-primary px-2 py-1 rounded border border-border"
+                >✕ Limpar</button>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Manual fill toggle */}
-        <button
-          onClick={() => setShowManual(v => !v)}
-          className="mt-3 text-xs text-text-muted hover:text-purple-400 transition-colors"
-        >
-          {showManual ? '▲ Ocultar preenchimento manual' : '▼ Preencher dados manualmente'}
-        </button>
-      </div>
+        {/* ── ABA 2: Preenchimento Manual ── */}
+        {activeTab === 'manual' && (
+          <div className="p-5">
+            <p className="text-sm text-text-muted mb-4">
+              Preencha os dados do produto manualmente para publicar o vídeo.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-text-muted mb-1">Título do produto *</label>
+                <input
+                  value={manualTitle}
+                  onChange={e => setManualTitle(e.target.value)}
+                  placeholder="Ex: Tênis Nike Air Max 42 Preto"
+                  className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
 
-      {/* ── Manual fields ─────────────────────────────────────────────── */}
-      {showManual && (
-        <div className="bg-surface border border-border rounded-xl p-5 mb-5 grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <label className="block text-xs text-text-muted mb-1">Título do produto *</label>
-            <input
-              value={manualTitle}
-              onChange={e => setManualTitle(e.target.value)}
-              placeholder="Ex: Vestido Longo Feminino Floral"
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Preço atual (R$) *</label>
+                <input
+                  value={manualPrice}
+                  onChange={e => setManualPrice(e.target.value)}
+                  placeholder="Ex: 98,44"
+                  className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Preço antigo (R$)</label>
+                <input
+                  value={manualOldPrice}
+                  onChange={e => setManualOldPrice(e.target.value)}
+                  placeholder="Ex: 169,99"
+                  className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Desconto (%)</label>
+                <input
+                  value={manualDiscount}
+                  onChange={e => setManualDiscount(e.target.value)}
+                  placeholder="Ex: 42"
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1">Link afiliado *</label>
+                <input
+                  value={manualAffUrl}
+                  onChange={e => setManualAffUrl(e.target.value)}
+                  placeholder="https://mercadolivre.com.br/..."
+                  className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+            </div>
+
+            {/* Preview do produto manual */}
+            {manualTitle && manualPrice && (
+              <div className="mt-4 flex items-center gap-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <span className="text-2xl">✅</span>
+                <div>
+                  <p className="text-sm font-medium text-blue-400">{manualTitle}</p>
+                  <p className="text-xs text-text-muted">
+                    {fmtPrice(parseFloat(manualPrice.replace(',', '.')))}
+                    {manualDiscount && ` • -${manualDiscount}% DE DESCONTO`}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Preço atual (R$) *</label>
-            <input
-              value={manualPrice}
-              onChange={e => setManualPrice(e.target.value)}
-              placeholder="Ex: 67,90"
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Preço antigo (R$)</label>
-            <input
-              value={manualOldPrice}
-              onChange={e => setManualOldPrice(e.target.value)}
-              placeholder="Ex: 97,00"
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Desconto (%)</label>
-            <input
-              value={manualDiscount}
-              onChange={e => setManualDiscount(e.target.value)}
-              placeholder="Ex: 30"
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-text-muted mb-1">Link afiliado *</label>
-            <input
-              value={manualAffUrl}
-              onChange={e => setManualAffUrl(e.target.value)}
-              placeholder="https://..."
-              className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ── MAIN CARD: sempre visível ──────────────────────────────────── */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
