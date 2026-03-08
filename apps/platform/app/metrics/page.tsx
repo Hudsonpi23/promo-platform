@@ -397,79 +397,137 @@ export default function MetricsPage() {
 
         {/* ── 7. PROMOÇÃO MAIS ABSURDA DA SEMANA — full width ────────────── */}
         {(() => {
-          const best = data.tables.topByDiscount[0];
-          if (!best) return null;
-          const saved = best.originalPrice
-            ? Number(best.originalPrice) - Number(best.price)
-            : 0;
+          if (!data.tables.topByDiscount.length) return null;
+
+          // Pegar o maior desconto e todos os produtos empatados nesse %
+          // Desempate: maior economia em R$ primeiro — máx 3 exibidos
+          const maxPct = data.tables.topByDiscount[0].discountPct;
+          const winners = data.tables.topByDiscount
+            .filter(p => p.discountPct === maxPct)
+            .map(p => ({
+              ...p,
+              saved: p.originalPrice ? Number(p.originalPrice) - Number(p.price) : 0,
+            }))
+            .sort((a, b) => b.saved - a.saved)
+            .slice(0, 3);
+
+          const medals = ['🥇', '🥈', '🥉'];
+          const isSolo = winners.length === 1;
+
           return (
             <div className="lg:col-span-2">
               <ChartCard id="absurda" time="20:00" emoji="🚨" title="Promoção mais absurda da semana"
                 gradient="bg-gradient-to-br from-[#1a0000] via-[#2d0a00] to-[#1a0000]"
               >
                 {/* Badge pulsante */}
-                <div className="flex justify-center mb-4">
+                <div className="flex justify-center mb-5">
                   <span className="animate-pulse inline-flex items-center gap-2 bg-red-600/30 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full">
                     🚨 OFERTA ABSURDA · SEMANA {new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).toUpperCase()}
                   </span>
                 </div>
 
-                <div className="flex flex-col items-center gap-4">
-                  {/* Produto */}
-                  <div className="text-center max-w-sm mx-auto">
-                    <p className="text-white/60 text-xs uppercase tracking-widest mb-2">Produto</p>
-                    <p className="text-white font-bold text-base leading-snug line-clamp-2">{best.title}</p>
-                  </div>
-
-                  {/* Preços */}
-                  <div className="flex items-end gap-4 justify-center">
-                    {best.originalPrice && (
-                      <div className="text-center">
-                        <p className="text-[10px] text-white/40 uppercase tracking-wider">Era</p>
-                        <p className="text-xl font-bold text-white/30 line-through">
-                          {fmtCurrency(Number(best.originalPrice))}
-                        </p>
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider">Agora</p>
-                      <p className="text-4xl font-black text-white leading-none">
-                        {fmtCurrency(Number(best.price))}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Desconto — destaque máximo */}
+                {/* Desconto em destaque — igual para todos os empatados */}
+                <div className="flex justify-center mb-5">
                   <div className="relative">
-                    <div className="absolute inset-0 bg-red-500 blur-2xl opacity-30 rounded-2xl" />
-                    <div className="relative bg-gradient-to-r from-red-600 to-orange-500 rounded-2xl px-10 py-4 text-center shadow-2xl">
+                    <div className="absolute inset-0 bg-red-500 blur-2xl opacity-25 rounded-2xl" />
+                    <div className="relative bg-gradient-to-r from-red-600 to-orange-500 rounded-2xl px-12 py-4 text-center shadow-2xl">
                       <p className="text-7xl font-black text-white leading-none tracking-tighter">
-                        -{best.discountPct}%
+                        -{maxPct}%
                       </p>
                       <p className="text-sm font-bold text-white/80 uppercase tracking-widest mt-1">
                         DE DESCONTO
                       </p>
                     </div>
                   </div>
-
-                  {/* Economia real */}
-                  {saved > 0 && (
-                    <div className="bg-white/5 border border-white/10 rounded-xl px-6 py-3 text-center">
-                      <p className="text-[10px] text-white/40 uppercase tracking-wider">Economia real</p>
-                      <p className="text-2xl font-black text-emerald-400">
-                        {fmtCurrency(saved)}{' '}
-                        <span className="text-base text-white/40">economizados</span>
-                      </p>
-                    </div>
-                  )}
-
-                  {/* CTA */}
-                  <p className="text-white/50 text-xs text-center mt-1">
-                    👉 Acesse{' '}
-                    <span className="text-white/80 font-semibold">manu-promocoes.com.br</span>
-                    {' '}e aproveite agora
-                  </p>
                 </div>
+
+                {/* Produto único — layout centralizado */}
+                {isSolo ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <p className="text-white font-bold text-base leading-snug text-center line-clamp-2 max-w-sm">
+                      {winners[0].title}
+                    </p>
+                    <div className="flex items-end gap-4 justify-center">
+                      {winners[0].originalPrice && (
+                        <div className="text-center">
+                          <p className="text-[10px] text-white/40 uppercase">Era</p>
+                          <p className="text-lg font-bold text-white/30 line-through">
+                            {fmtCurrency(Number(winners[0].originalPrice))}
+                          </p>
+                        </div>
+                      )}
+                      <div className="text-center">
+                        <p className="text-[10px] text-white/40 uppercase">Agora</p>
+                        <p className="text-4xl font-black text-white leading-none">
+                          {fmtCurrency(Number(winners[0].price))}
+                        </p>
+                      </div>
+                    </div>
+                    {winners[0].saved > 0 && (
+                      <div className="bg-white/5 border border-white/10 rounded-xl px-6 py-2 text-center">
+                        <p className="text-[10px] text-white/40 uppercase tracking-wider">Economia real</p>
+                        <p className="text-xl font-black text-emerald-400">
+                          {fmtCurrency(winners[0].saved)}{' '}
+                          <span className="text-sm text-white/40">economizados</span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                ) : (
+                  /* Múltiplos empatados — ranking */
+                  <div className="space-y-3">
+                    <p className="text-center text-xs text-white/40 uppercase tracking-widest mb-1">
+                      {winners.length} produtos empatados · ordenados por maior economia
+                    </p>
+                    {winners.map((p, i) => (
+                      <div key={i}
+                        className={`flex items-center gap-4 rounded-xl px-4 py-3 border ${
+                          i === 0
+                            ? 'bg-red-500/10 border-red-500/30'
+                            : 'bg-white/5 border-white/10'
+                        }`}
+                      >
+                        {/* Medalha */}
+                        <span className="text-2xl flex-shrink-0">{medals[i]}</span>
+
+                        {/* Info produto */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white leading-snug line-clamp-1">
+                            {p.title}
+                          </p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {p.originalPrice && (
+                              <span className="text-xs text-white/30 line-through">
+                                {fmtCurrency(Number(p.originalPrice))}
+                              </span>
+                            )}
+                            <span className="text-sm font-black text-white">
+                              {fmtCurrency(Number(p.price))}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Economia */}
+                        {p.saved > 0 && (
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[10px] text-white/30 uppercase">economia</p>
+                            <p className="text-sm font-black text-emerald-400">
+                              {fmtCurrency(p.saved)}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* CTA */}
+                <p className="text-white/40 text-xs text-center mt-5">
+                  👉 Acesse{' '}
+                  <span className="text-white/70 font-semibold">manu-promocoes.com.br</span>
+                  {' '}e aproveite agora
+                </p>
               </ChartCard>
             </div>
           );
