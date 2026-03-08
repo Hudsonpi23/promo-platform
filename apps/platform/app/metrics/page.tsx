@@ -17,10 +17,17 @@ interface MetricsSummary {
 }
 interface NicheItem    { name: string; icon: string; color: string; posts: number }
 interface DiscountItem { label: string; count: number }
+interface TopProduct {
+  title: string;
+  discountPct: number;
+  price: number;
+  originalPrice?: number;
+  imageUrl?: string;
+}
 interface MetricsData {
   summary: MetricsSummary;
   charts:  { activityByDay: unknown[]; postsByNiche: NicheItem[]; discountDist: DiscountItem[] };
-  tables:  { topByDiscount: unknown[]; topByClicks: unknown[] };
+  tables:  { topByDiscount: TopProduct[]; topByClicks: unknown[] };
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -387,6 +394,86 @@ export default function MetricsPage() {
             </p>
           </div>
         </ChartCard>
+
+        {/* ── 7. PROMOÇÃO MAIS ABSURDA DA SEMANA — full width ────────────── */}
+        {(() => {
+          const best = data.tables.topByDiscount[0];
+          if (!best) return null;
+          const saved = best.originalPrice
+            ? Number(best.originalPrice) - Number(best.price)
+            : 0;
+          return (
+            <div className="lg:col-span-2">
+              <ChartCard id="absurda" time="20:00" emoji="🚨" title="Promoção mais absurda da semana"
+                gradient="bg-gradient-to-br from-[#1a0000] via-[#2d0a00] to-[#1a0000]"
+              >
+                {/* Badge pulsante */}
+                <div className="flex justify-center mb-4">
+                  <span className="animate-pulse inline-flex items-center gap-2 bg-red-600/30 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full">
+                    🚨 OFERTA ABSURDA · SEMANA {new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).toUpperCase()}
+                  </span>
+                </div>
+
+                <div className="flex flex-col items-center gap-4">
+                  {/* Produto */}
+                  <div className="text-center max-w-sm mx-auto">
+                    <p className="text-white/60 text-xs uppercase tracking-widest mb-2">Produto</p>
+                    <p className="text-white font-bold text-base leading-snug line-clamp-2">{best.title}</p>
+                  </div>
+
+                  {/* Preços */}
+                  <div className="flex items-end gap-4 justify-center">
+                    {best.originalPrice && (
+                      <div className="text-center">
+                        <p className="text-[10px] text-white/40 uppercase tracking-wider">Era</p>
+                        <p className="text-xl font-bold text-white/30 line-through">
+                          {fmtCurrency(Number(best.originalPrice))}
+                        </p>
+                      </div>
+                    )}
+                    <div className="text-center">
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider">Agora</p>
+                      <p className="text-4xl font-black text-white leading-none">
+                        {fmtCurrency(Number(best.price))}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Desconto — destaque máximo */}
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-red-500 blur-2xl opacity-30 rounded-2xl" />
+                    <div className="relative bg-gradient-to-r from-red-600 to-orange-500 rounded-2xl px-10 py-4 text-center shadow-2xl">
+                      <p className="text-7xl font-black text-white leading-none tracking-tighter">
+                        -{best.discountPct}%
+                      </p>
+                      <p className="text-sm font-bold text-white/80 uppercase tracking-widest mt-1">
+                        DE DESCONTO
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Economia real */}
+                  {saved > 0 && (
+                    <div className="bg-white/5 border border-white/10 rounded-xl px-6 py-3 text-center">
+                      <p className="text-[10px] text-white/40 uppercase tracking-wider">Economia real</p>
+                      <p className="text-2xl font-black text-emerald-400">
+                        {fmtCurrency(saved)}{' '}
+                        <span className="text-base text-white/40">economizados</span>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* CTA */}
+                  <p className="text-white/50 text-xs text-center mt-1">
+                    👉 Acesse{' '}
+                    <span className="text-white/80 font-semibold">manu-promocoes.com.br</span>
+                    {' '}e aproveite agora
+                  </p>
+                </div>
+              </ChartCard>
+            </div>
+          );
+        })()}
 
       </div>
     </div>
