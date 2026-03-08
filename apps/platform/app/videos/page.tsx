@@ -62,10 +62,17 @@ export default function VideosPage() {
   const [manualAffUrl, setManualAffUrl]       = useState('');
 
   // Video
+  const [videoMode, setVideoMode]       = useState<'file' | 'link'>('file');
   const [videoFile, setVideoFile]       = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState('');
   const [dragOver, setDragOver]         = useState(false);
   const fileInputRef                    = useRef<HTMLInputElement>(null);
+
+  // Upload por link
+  const [videoLinkInput, setVideoLinkInput]   = useState('');
+  const [videoLinkReady, setVideoLinkReady]   = useState(false);
+  const [loadingLink, setLoadingLink]         = useState(false);
+  const [videoLinkError, setVideoLinkError]   = useState('');
 
   // Posting state
   const [postingX, setPostingX]     = useState(false);
@@ -135,9 +142,41 @@ export default function VideosPage() {
     setIgResult(null);
   }, []);
 
+  // ── Load video from URL ──────────────────────────────────────────────────
+  const handleVideoLink = useCallback(async () => {
+    const link = videoLinkInput.trim();
+    if (!link) return;
+    setLoadingLink(true);
+    setVideoLinkError('');
+    setVideoFile(null);
+    setVideoPreview('');
+    setXResult(null);
+    setIgResult(null);
+    try {
+      // Tenta baixar o vídeo como blob (funciona para URLs diretas sem CORS)
+      const res = await fetch(link);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      if (!blob.type.startsWith('video/')) throw new Error('URL não aponta para um vídeo válido.');
+      const filename = link.split('/').pop()?.split('?')[0] || 'video.mp4';
+      const file = new File([blob], filename, { type: blob.type });
+      setVideoFile(file);
+      setVideoPreview(URL.createObjectURL(blob));
+      setVideoLinkReady(true);
+    } catch {
+      // Se CORS ou download falhar, usa a URL diretamente (backend vai baixar)
+      setVideoPreview(link);
+      setVideoLinkReady(true);
+    } finally {
+      setLoadingLink(false);
+    }
+  }, [videoLinkInput]);
+
   // ── Post to X ────────────────────────────────────────────────────────────
+  const hasVideo = !!videoFile || videoLinkReady;
+
   const handlePostX = useCallback(async () => {
-    if (!videoFile || !effectiveProduct) return;
+    if (!hasVideo || !effectiveProduct) return;
     setPostingX(true);
     setXResult(null);
 
@@ -148,7 +187,11 @@ export default function VideosPage() {
     form.append('originalPrice', (effectiveProduct.originalPrice ?? 0).toString());
     form.append('discountPct',   effectiveProduct.discountPct.toString());
     form.append('affiliateUrl',  effectiveProduct.affiliateUrl);
-    form.append('video',         videoFile);
+    if (videoFile) {
+      form.append('video', videoFile);
+    } else {
+      form.append('videoUrl', videoLinkInput.trim());
+    }
 
     try {
       const res  = await fetchWithAuth('/api/video-publish/post-x', { method: 'POST', body: form });
@@ -159,11 +202,11 @@ export default function VideosPage() {
     } finally {
       setPostingX(false);
     }
-  }, [videoFile, effectiveProduct]);
+  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct]);
 
   // ── Post to Instagram ────────────────────────────────────────────────────
   const handlePostInstagram = useCallback(async () => {
-    if (!videoFile || !effectiveProduct) return;
+    if (!hasVideo || !effectiveProduct) return;
     setPostingIg(true);
     setIgResult(null);
 
@@ -175,7 +218,11 @@ export default function VideosPage() {
     form.append('discountPct',   effectiveProduct.discountPct.toString());
     form.append('affiliateUrl',  effectiveProduct.affiliateUrl);
     form.append('caption',       buildCaption(effectiveProduct));
-    form.append('video',         videoFile);
+    if (videoFile) {
+      form.append('video', videoFile);
+    } else {
+      form.append('videoUrl', videoLinkInput.trim());
+    }
 
     try {
       const res  = await fetchWithAuth('/api/video-publish/post-instagram', { method: 'POST', body: form });
@@ -186,7 +233,7 @@ export default function VideosPage() {
     } finally {
       setPostingIg(false);
     }
-  }, [videoFile, effectiveProduct]);
+  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct]);
 
   const isPosting = postingX || postingIg;
 
@@ -390,54 +437,122 @@ export default function VideosPage() {
 
           {/* ── LEFT: Video upload ──────────────────────────────────────── */}
           <div>
-            <p className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-3">
-              📥 Upload do Vídeo
-            </p>
-
-            {!videoFile ? (
-              <div
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={e => {
-                  e.preventDefault();
-                  setDragOver(false);
-                  const f = e.dataTransfer.files[0];
-                  if (f) handleFile(f);
-                }}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all min-h-[260px] ${
-                  dragOver
-                    ? 'border-purple-500 bg-purple-500/10'
-                    : 'border-border hover:border-purple-500/60 hover:bg-surface-hover'
+            {/* Mini-abas: Do computador | Via link */}
+            <div className="flex gap-1 mb-3 bg-background rounded-lg p-1 border border-border">
+              <button
+                onClick={() => { setVideoMode('file'); setVideoLinkReady(false); setVideoPreview(videoFile ? URL.createObjectURL(videoFile) : ''); }}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  videoMode === 'file'
+                    ? 'bg-surface text-text-primary shadow'
+                    : 'text-text-muted hover:text-text-secondary'
                 }`}
               >
-                <span className="text-5xl mb-4">🎬</span>
-                <p className="text-sm font-semibold text-text-primary mb-1">
-                  Arraste o vídeo aqui
-                </p>
-                <p className="text-xs text-text-muted">ou clique para selecionar</p>
-                <p className="text-xs text-text-muted mt-1">MP4 • WebM • MOV — até 512 MB</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <video
-                  src={videoPreview}
-                  controls
-                  className="w-full rounded-xl border border-border bg-black"
-                  style={{ maxHeight: 260 }}
-                />
-                <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border border-border">
-                  <div className="min-w-0">
-                    <p className="text-sm text-text-primary font-medium truncate">{videoFile.name}</p>
-                    <p className="text-xs text-text-muted">{(videoFile.size / 1024 / 1024).toFixed(1)} MB</p>
-                  </div>
-                  <button
-                    onClick={() => { setVideoFile(null); setVideoPreview(''); setXResult(null); setIgResult(null); }}
-                    className="ml-3 flex-shrink-0 text-xs text-red-400 hover:text-red-300 border border-red-500/20 hover:border-red-400/40 px-2 py-1 rounded-lg transition-colors"
+                📁 Do computador
+              </button>
+              <button
+                onClick={() => { setVideoMode('link'); setVideoFile(null); }}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${
+                  videoMode === 'link'
+                    ? 'bg-surface text-text-primary shadow'
+                    : 'text-text-muted hover:text-text-secondary'
+                }`}
+              >
+                🔗 Via link
+              </button>
+            </div>
+
+            {/* ── Modo: Do computador ── */}
+            {videoMode === 'file' && (
+              <>
+                {!videoFile ? (
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      const f = e.dataTransfer.files[0];
+                      if (f) handleFile(f);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all min-h-[240px] ${
+                      dragOver
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : 'border-border hover:border-purple-500/60 hover:bg-surface-hover'
+                    }`}
                   >
-                    Trocar
-                  </button>
-                </div>
+                    <span className="text-5xl mb-4">🎬</span>
+                    <p className="text-sm font-semibold text-text-primary mb-1">Arraste o vídeo aqui</p>
+                    <p className="text-xs text-text-muted">ou clique para selecionar</p>
+                    <p className="text-xs text-text-muted mt-1">MP4 • WebM • MOV — até 512 MB</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <video src={videoPreview} controls className="w-full rounded-xl border border-border bg-black" style={{ maxHeight: 240 }} />
+                    <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border border-border">
+                      <div className="min-w-0">
+                        <p className="text-sm text-text-primary font-medium truncate">{videoFile.name}</p>
+                        <p className="text-xs text-text-muted">{(videoFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                      </div>
+                      <button
+                        onClick={() => { setVideoFile(null); setVideoPreview(''); setXResult(null); setIgResult(null); }}
+                        className="ml-3 text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded-lg"
+                      >Trocar</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── Modo: Via link ── */}
+            {videoMode === 'link' && (
+              <div className="space-y-3">
+                {!videoLinkReady ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={videoLinkInput}
+                        onChange={e => { setVideoLinkInput(e.target.value); setVideoLinkError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleVideoLink()}
+                        placeholder="https://exemplo.com/video.mp4"
+                        className="flex-1 px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm font-mono placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      <button
+                        onClick={handleVideoLink}
+                        disabled={!videoLinkInput.trim() || loadingLink}
+                        className="px-4 py-2.5 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 transition-all flex items-center gap-2 whitespace-nowrap"
+                      >
+                        {loadingLink
+                          ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Carregando</>
+                          : '▶ Carregar'}
+                      </button>
+                    </div>
+                    {videoLinkError && (
+                      <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        ⚠️ {videoLinkError}
+                      </p>
+                    )}
+                    <div className="border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center min-h-[180px]">
+                      <span className="text-4xl mb-2">🔗</span>
+                      <p className="text-sm text-text-muted">Cole o link do vídeo acima</p>
+                      <p className="text-xs text-text-muted mt-1">Link direto para MP4 ou vídeo público</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-3">
+                    {videoPreview && (
+                      <video src={videoPreview} controls className="w-full rounded-xl border border-border bg-black" style={{ maxHeight: 240 }} />
+                    )}
+                    <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border border-border">
+                      <p className="text-xs text-text-muted font-mono truncate flex-1">{videoLinkInput}</p>
+                      <button
+                        onClick={() => { setVideoLinkReady(false); setVideoPreview(''); setVideoLinkInput(''); setXResult(null); setIgResult(null); }}
+                        className="ml-3 text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded-lg"
+                      >Trocar</button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -478,7 +593,7 @@ export default function VideosPage() {
             </p>
 
             {/* Hint when no video */}
-            {!videoFile && (
+            {!hasVideo && (
               <div className="flex-1 flex items-center justify-center rounded-xl border border-dashed border-border min-h-[120px]">
                 <p className="text-xs text-text-muted text-center px-4">
                   ← Faça upload do vídeo primeiro
@@ -497,7 +612,7 @@ export default function VideosPage() {
               </p>
               <button
                 onClick={handlePostX}
-                disabled={!videoFile || !effectiveProduct || isPosting}
+                disabled={!hasVideo || !effectiveProduct || isPosting}
                 className="w-full py-2.5 rounded-lg bg-black text-white font-semibold text-sm hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {postingX ? (
@@ -525,7 +640,7 @@ export default function VideosPage() {
               </p>
               <button
                 onClick={handlePostInstagram}
-                disabled={!videoFile || !effectiveProduct || isPosting}
+                disabled={!hasVideo || !effectiveProduct || isPosting}
                 className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 text-white font-semibold text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
                 {postingIg ? (

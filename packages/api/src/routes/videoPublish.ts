@@ -188,7 +188,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
 
     let videoBuffer: Buffer | null = null;
     let videoMime = 'video/mp4';
-    let title = '', affiliateUrl = '', siteUrl = SITE_URL;
+    let title = '', affiliateUrl = '', siteUrl = SITE_URL, videoUrl = '';
     let finalPrice = 0, originalPrice = 0, discountPct = 0;
 
     // Parse multipart
@@ -204,16 +204,31 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         if (part.fieldname === 'title')         title        = val;
         if (part.fieldname === 'affiliateUrl')  affiliateUrl = val;
         if (part.fieldname === 'siteUrl')       siteUrl      = val || SITE_URL;
+        if (part.fieldname === 'videoUrl')      videoUrl     = val;
         if (part.fieldname === 'finalPrice')    finalPrice   = parseFloat(val) || 0;
         if (part.fieldname === 'originalPrice') originalPrice= parseFloat(val) || 0;
         if (part.fieldname === 'discountPct')   discountPct  = parseFloat(val) || 0;
       }
     }
 
+    // Se não chegou arquivo mas chegou URL, baixa o vídeo
+    if ((!videoBuffer || videoBuffer.length === 0) && videoUrl) {
+      try {
+        console.log('[VideoPublish/post-x] Baixando vídeo via URL:', videoUrl.substring(0, 80));
+        const dlRes = await fetch(videoUrl);
+        if (!dlRes.ok) throw new Error(`HTTP ${dlRes.status} ao baixar vídeo`);
+        const arrayBuf = await dlRes.arrayBuffer();
+        videoBuffer = Buffer.from(arrayBuf);
+        videoMime   = dlRes.headers.get('content-type') || 'video/mp4';
+      } catch (dlErr: any) {
+        return reply.status(400).send({ error: `Não foi possível baixar o vídeo da URL: ${dlErr.message}` });
+      }
+    }
+
     console.log('[VideoPublish/post-x] Dados recebidos:', { title, finalPrice, originalPrice, discountPct, affiliateUrl: affiliateUrl?.substring(0, 60) });
 
     if (!videoBuffer || videoBuffer.length === 0) {
-      return reply.status(400).send({ error: 'Nenhum vídeo recebido.' });
+      return reply.status(400).send({ error: 'Nenhum vídeo recebido. Faça upload de um arquivo ou informe um link válido.' });
     }
     if (!title || !affiliateUrl) {
       return reply.status(400).send({ error: 'Título e URL afiliada são obrigatórios.' });
@@ -295,7 +310,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
 
     let videoBuffer: Buffer | null = null;
     let videoMime = 'video/mp4';
-    let title = '', affiliateUrl = '', caption = '';
+    let title = '', affiliateUrl = '', caption = '', videoLinkUrl = '';
     let finalPrice = 0, originalPrice = 0, discountPct = 0;
 
     const parts = request.parts();
@@ -310,16 +325,31 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         if (part.fieldname === 'title')         title        = val;
         if (part.fieldname === 'affiliateUrl')  affiliateUrl = val;
         if (part.fieldname === 'caption')       caption      = val;
+        if (part.fieldname === 'videoUrl')      videoLinkUrl = val;
         if (part.fieldname === 'finalPrice')    finalPrice   = parseFloat(val) || 0;
         if (part.fieldname === 'originalPrice') originalPrice= parseFloat(val) || 0;
         if (part.fieldname === 'discountPct')   discountPct  = parseFloat(val) || 0;
       }
     }
 
+    // Se não chegou arquivo mas chegou URL, baixa o vídeo
+    if ((!videoBuffer || videoBuffer.length === 0) && videoLinkUrl) {
+      try {
+        console.log('[VideoPublish/post-instagram] Baixando vídeo via URL:', videoLinkUrl.substring(0, 80));
+        const dlRes = await fetch(videoLinkUrl);
+        if (!dlRes.ok) throw new Error(`HTTP ${dlRes.status} ao baixar vídeo`);
+        const arrayBuf = await dlRes.arrayBuffer();
+        videoBuffer = Buffer.from(arrayBuf);
+        videoMime   = dlRes.headers.get('content-type') || 'video/mp4';
+      } catch (dlErr: any) {
+        return reply.status(400).send({ error: `Não foi possível baixar o vídeo da URL: ${dlErr.message}` });
+      }
+    }
+
     console.log('[VideoPublish/post-instagram] Dados recebidos:', { title, finalPrice, originalPrice, discountPct, affiliateUrl: affiliateUrl?.substring(0, 60) });
 
     if (!videoBuffer || videoBuffer.length === 0) {
-      return reply.status(400).send({ error: 'Nenhum vídeo recebido.' });
+      return reply.status(400).send({ error: 'Nenhum vídeo recebido. Faça upload de um arquivo ou informe um link válido.' });
     }
     if (!title || !affiliateUrl) {
       return reply.status(400).send({ error: 'Título e URL afiliada são obrigatórios.' });
