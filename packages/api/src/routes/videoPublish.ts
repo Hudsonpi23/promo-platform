@@ -21,7 +21,7 @@ const TWITTER_ACCESS_TOKEN_SECRET  = process.env.TWITTER_ACCESS_TOKEN_SECRET || 
 const INSTAGRAM_ACCESS_TOKEN       = process.env.INSTAGRAM_ACCESS_TOKEN || '';
 const INSTAGRAM_BUSINESS_ID        = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '';
 
-const SITE_URL = process.env.SITE_URL || 'https://manu-promocoes.vercel.app';
+const SITE_URL = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
 const TWITTER_UPLOAD_URL = 'https://upload.twitter.com/1.1/media/upload.json';
 const TWITTER_TWEETS_URL = 'https://api.twitter.com/2/tweets';
 
@@ -210,11 +210,16 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       }
     }
 
+    console.log('[VideoPublish/post-x] Dados recebidos:', { title, finalPrice, originalPrice, discountPct, affiliateUrl: affiliateUrl?.substring(0, 60) });
+
     if (!videoBuffer || videoBuffer.length === 0) {
       return reply.status(400).send({ error: 'Nenhum vídeo recebido.' });
     }
     if (!title || !affiliateUrl) {
       return reply.status(400).send({ error: 'Título e URL afiliada são obrigatórios.' });
+    }
+    if (finalPrice <= 0) {
+      return reply.status(400).send({ error: 'Preço inválido (R$ 0). Verifique o campo "Preço atual" e tente novamente.' });
     }
 
     try {
@@ -311,8 +316,16 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       }
     }
 
+    console.log('[VideoPublish/post-instagram] Dados recebidos:', { title, finalPrice, originalPrice, discountPct, affiliateUrl: affiliateUrl?.substring(0, 60) });
+
     if (!videoBuffer || videoBuffer.length === 0) {
       return reply.status(400).send({ error: 'Nenhum vídeo recebido.' });
+    }
+    if (!title || !affiliateUrl) {
+      return reply.status(400).send({ error: 'Título e URL afiliada são obrigatórios.' });
+    }
+    if (finalPrice <= 0) {
+      return reply.status(400).send({ error: 'Preço inválido (R$ 0). Verifique o campo "Preço atual" e tente novamente.' });
     }
 
     try {

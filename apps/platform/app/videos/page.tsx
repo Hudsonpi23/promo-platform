@@ -137,13 +137,14 @@ export default function VideosPage() {
     setPostingX(true);
     setXResult(null);
 
+    // Campos de texto ANTES do arquivo — evita perda de dados em streams multipart grandes
     const form = new FormData();
-    form.append('video',         videoFile);
     form.append('title',         effectiveProduct.title);
     form.append('finalPrice',    effectiveProduct.finalPrice.toString());
     form.append('originalPrice', (effectiveProduct.originalPrice ?? 0).toString());
     form.append('discountPct',   effectiveProduct.discountPct.toString());
     form.append('affiliateUrl',  effectiveProduct.affiliateUrl);
+    form.append('video',         videoFile);
 
     try {
       const res  = await fetchWithAuth('/api/video-publish/post-x', { method: 'POST', body: form });
@@ -162,14 +163,15 @@ export default function VideosPage() {
     setPostingIg(true);
     setIgResult(null);
 
+    // Campos de texto ANTES do arquivo — evita perda de dados em streams multipart grandes
     const form = new FormData();
-    form.append('video',         videoFile);
     form.append('title',         effectiveProduct.title);
     form.append('finalPrice',    effectiveProduct.finalPrice.toString());
     form.append('originalPrice', (effectiveProduct.originalPrice ?? 0).toString());
     form.append('discountPct',   effectiveProduct.discountPct.toString());
     form.append('affiliateUrl',  effectiveProduct.affiliateUrl);
     form.append('caption',       buildCaption(effectiveProduct));
+    form.append('video',         videoFile);
 
     try {
       const res  = await fetchWithAuth('/api/video-publish/post-instagram', { method: 'POST', body: form });
