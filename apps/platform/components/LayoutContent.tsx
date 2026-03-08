@@ -145,6 +145,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span>WhatsApp</span>
             </a>
 
+            <a
+              href="/metrics"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/metrics'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">📊</span>
+              <span className="font-semibold">Métricas</span>
+            </a>
+
             {/* GESTÃO */}
             <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Gestão</p>
             

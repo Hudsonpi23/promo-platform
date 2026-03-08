@@ -36,6 +36,7 @@ import { scraperRoutes } from './routes/scraper';
 import { customPhrasesRoutes } from './routes/customPhrases';
 import { autoPublishRoutes } from './routes/autoPublish';
 import { videoPublishRoutes } from './routes/videoPublish';
+import { metricsRoutes } from './routes/metrics';
 
 const DEFAULT_NICHES = [
   { name: 'Eletrônicos',    slug: 'eletronicos',  icon: '📱', color: '#3B82F6' },
@@ -365,6 +366,7 @@ async function main() {
   // ⚡ Auto Publicar (colar links → IA cria e publica automaticamente)
   server.register(autoPublishRoutes,  { prefix: '/api/auto-publish' });
   server.register(videoPublishRoutes, { prefix: '/api/video-publish' });
+  server.register(metricsRoutes,      { prefix: '/api/metrics' });
 
 
   // ==================== ROTAS PÚBLICAS ====================
