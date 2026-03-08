@@ -74,12 +74,16 @@ export default function VideosPage() {
   const [igResult, setIgResult]     = useState<{ url?: string; error?: string } | null>(null);
   const [copied, setCopied]         = useState(false);
 
+  // Remove "R$", espaços e pontos de milhar antes de parsear
+  const parsePrice = (v: string) =>
+    parseFloat(v.replace(/R\$\s*/gi, '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+
   // ── Effective product data (scraped or manual) ────────────────────────
   const effectiveProduct: ProductData | null = product ?? (
     manualTitle && manualPrice ? {
       title:         manualTitle,
-      finalPrice:    parseFloat(manualPrice.replace(',', '.')) || 0,
-      originalPrice: manualOldPrice ? parseFloat(manualOldPrice.replace(',', '.')) : null,
+      finalPrice:    parsePrice(manualPrice),
+      originalPrice: manualOldPrice ? parsePrice(manualOldPrice) : null,
       discountPct:   parseInt(manualDiscount) || 0,
       mainImage:     null,
       affiliateUrl:  manualAffUrl || url,
