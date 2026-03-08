@@ -202,7 +202,7 @@ export default function MetricsPage() {
             <p className="text-2xl font-bold text-purple-400 mt-1">promoções</p>
             <div className="mt-5 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
               <p className="text-xs text-white/50 leading-relaxed">
-                promoções encontradas automaticamente<br/>
+                promoções encontradas pela Manu<br/>
                 nas principais plataformas
               </p>
             </div>
