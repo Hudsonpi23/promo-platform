@@ -419,11 +419,21 @@ export default function MetricsPage() {
               <ChartCard id="absurda" time="20:00" emoji="🚨" title="Promoção mais absurda da semana"
                 gradient="bg-gradient-to-br from-[#1a0000] via-[#2d0a00] to-[#1a0000]"
               >
-                {/* Badge pulsante */}
-                <div className="flex justify-center mb-5">
-                  <span className="animate-pulse inline-flex items-center gap-2 bg-red-600/30 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-widest px-4 py-1.5 rounded-full">
-                    🚨 OFERTA ABSURDA · SEMANA {new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).toUpperCase()}
+                {/* Badges topo */}
+                <div className="flex items-center justify-between mb-5">
+                  {/* Badge pulsante */}
+                  <span className="animate-pulse inline-flex items-center gap-1.5 bg-red-600/30 border border-red-500/40 text-red-400 text-xs font-black uppercase tracking-widest px-3 py-1.5 rounded-full">
+                    🚨 OFERTA ABSURDA · {new Date().toLocaleDateString('pt-BR', { day:'2-digit', month:'short' }).toUpperCase()}
                   </span>
+
+                  {/* Selo CAÇADO PELA MANU */}
+                  <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-500/30 px-3 py-1.5 rounded-full">
+                    <span className="text-xs">🎯</span>
+                    <div className="text-right">
+                      <p className="text-[9px] text-amber-400/70 uppercase tracking-[0.15em] leading-none">caçado pela</p>
+                      <p className="text-xs font-black text-amber-400 uppercase tracking-wide leading-none mt-0.5">MANU</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Desconto em destaque — igual para todos os empatados */}
