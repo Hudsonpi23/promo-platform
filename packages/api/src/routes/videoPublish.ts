@@ -275,7 +275,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         return reply.status(500).send({ error: `Twitter: ${tweetData.detail || 'Erro ao postar tweet'}` });
       }
 
-      // Registrar publicação de vídeo para métricas globais
+      // Registrar publicação de vídeo para métricas globais (preço em JSON no copyText)
       try {
         await prisma.postHistory.create({
           data: {
@@ -283,7 +283,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
             channel:    'TWITTER',
             humorStyle: 'NEUTRO',
             uniqueHash: `manual-TWITTER-video-${Date.now()}`,
-            copyText:   title,
+            copyText:   JSON.stringify({ title, price: finalPrice, originalPrice, discountPct }),
             externalId: tweetData.data.id,
           },
         });
@@ -473,7 +473,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         return reply.status(500).send({ error: `Instagram publish: ${publishData.error?.message || 'Erro desconhecido'}` });
       }
 
-      // Registrar publicação de vídeo para métricas globais
+      // Registrar publicação de vídeo para métricas globais (preço em JSON no copyText)
       try {
         await prisma.postHistory.create({
           data: {
@@ -481,7 +481,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
             channel:    'INSTAGRAM',
             humorStyle: 'NEUTRO',
             uniqueHash: `manual-INSTAGRAM-video-${Date.now()}`,
-            copyText:   title,
+            copyText:   JSON.stringify({ title, price: finalPrice, originalPrice, discountPct }),
             externalId: publishData.id,
           },
         });

@@ -8,6 +8,12 @@ import {
 import { fetchWithAuth } from '@/lib/auth';
 
 // ── Types ──────────────────────────────────────────────────────────────────
+interface ChannelStat {
+  totalPosts:    number;
+  postsThisWeek: number;
+  avgDiscount:   number;
+  totalSavings:  number;
+}
 interface MetricsSummary {
   totalPosts:         number;
   totalClicks:        number;
@@ -16,6 +22,7 @@ interface MetricsSummary {
   totalSavings:       number;
   totalPublications:  number;
   publishedByChannel: Record<string, number>;
+  channelStats:       Record<string, ChannelStat>;
 }
 interface NicheItem    { name: string; icon: string; color: string; posts: number }
 interface DiscountItem { label: string; count: number }
@@ -128,6 +135,7 @@ export default function MetricsPage() {
   const [data, setData]       = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
+  const [activeTab, setActiveTab] = useState<'site' | 'twitter' | 'telegram' | 'facebook'>('site');
 
   useEffect(() => {
     fetchWithAuth('/api/metrics/summary')
@@ -175,6 +183,16 @@ export default function MetricsPage() {
     { name: 'Restante', value: 100 - summary.avgDiscount, fill: '#1e1e2e' },
   ];
 
+  const TABS = [
+    { id: 'site',     label: 'Site (Geral)', emoji: '🌐', color: 'text-green-400',  bg: 'bg-green-500/20 border-green-500/40' },
+    { id: 'twitter',  label: 'X (Twitter)',  emoji: '🐦', color: 'text-slate-300',  bg: 'bg-slate-500/20 border-slate-500/40' },
+    { id: 'telegram', label: 'Telegram',     emoji: '✈️', color: 'text-cyan-400',   bg: 'bg-cyan-500/20 border-cyan-500/40'   },
+    { id: 'facebook', label: 'Facebook',     emoji: '👤', color: 'text-indigo-400', bg: 'bg-indigo-500/20 border-indigo-500/40' },
+  ] as const;
+
+  const channelKey = activeTab === 'twitter' ? 'TWITTER' : activeTab === 'telegram' ? 'TELEGRAM' : activeTab === 'facebook' ? 'FACEBOOK' : null;
+  const chanStat: ChannelStat = channelKey ? (summary.channelStats?.[channelKey] ?? { totalPosts: 0, postsThisWeek: 0, avgDiscount: 0, totalSavings: 0 }) : { totalPosts: 0, postsThisWeek: 0, avgDiscount: 0, totalSavings: 0 };
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
 
@@ -184,11 +202,98 @@ export default function MetricsPage() {
           📊 Relatório Semanal
         </h1>
         <p className="text-text-muted text-sm mt-0.5">
-          6 cards independentes — exporte cada um separadamente para postar nas redes
+          Métricas separadas por canal — exporte cada card para postar na rede correspondente
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* ── Tabs de canal ─────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-semibold transition-all ${
+              activeTab === tab.id
+                ? `${tab.bg} ${tab.color}`
+                : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70'
+            }`}
+          >
+            <span>{tab.emoji}</span>
+            <span>{tab.label}</span>
+            {tab.id !== 'site' && channelKey && (
+              <span className="ml-1 text-xs opacity-70">
+                ({summary.channelStats?.[tab.id === 'twitter' ? 'TWITTER' : tab.id === 'telegram' ? 'TELEGRAM' : 'FACEBOOK']?.totalPosts ?? 0})
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Cards de canal social (X, Telegram, Facebook) ─────────────────── */}
+      {activeTab !== 'site' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
+
+          {/* Card: Posts desta semana */}
+          <ChartCard
+            id={`${activeTab}-posts`}
+            time="Semana"
+            emoji={TABS.find(t => t.id === activeTab)?.emoji ?? '📡'}
+            title={`Posts no ${TABS.find(t => t.id === activeTab)?.label}`}
+            gradient="bg-gradient-to-br from-[#0f0f1a] via-[#1a1035] to-[#0f0f1a]"
+          >
+            <div className="text-center py-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Posts esta semana</p>
+              <p className="text-7xl font-black text-white leading-none">{chanStat.postsThisWeek}</p>
+              <p className="text-2xl font-bold text-purple-400 mt-1">promoções</p>
+              <div className="mt-4 flex justify-center gap-6 text-center">
+                <div>
+                  <p className="text-2xl font-black text-white">{chanStat.totalPosts}</p>
+                  <p className="text-xs text-white/40">total histórico</p>
+                </div>
+                <div className="w-px bg-white/10" />
+                <div>
+                  <p className="text-2xl font-black text-amber-400">{chanStat.avgDiscount}%</p>
+                  <p className="text-xs text-white/40">desc. médio</p>
+                </div>
+              </div>
+              <div className="mt-4 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                <p className="text-xs text-white/50 leading-relaxed">
+                  promoções enviadas exclusivamente para {TABS.find(t => t.id === activeTab)?.label}
+                </p>
+              </div>
+            </div>
+          </ChartCard>
+
+          {/* Card: Economia gerada no canal */}
+          <ChartCard
+            id={`${activeTab}-economia`}
+            time="Semana"
+            emoji="💰"
+            title={`Economia gerada — ${TABS.find(t => t.id === activeTab)?.label}`}
+            gradient="bg-gradient-to-br from-[#0f0f1a] via-[#1a1a10] to-[#0f0f1a]"
+          >
+            <div className="text-center py-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Economia gerada</p>
+              <p className="text-5xl font-black text-emerald-400 leading-none">
+                {fmtCurrency(chanStat.totalSavings)}
+              </p>
+              <p className="text-sm text-white/40 mt-2">valor potencial economizado</p>
+              <div className="mt-4 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
+                <p className="text-xs text-white/50 leading-relaxed">
+                  calculado sobre os <strong className="text-white/80">{chanStat.totalPosts}</strong> posts enviados para {TABS.find(t => t.id === activeTab)?.label} • {chanStat.avgDiscount}% de desconto médio
+                </p>
+              </div>
+              <p className="text-xs text-white/30 mt-3 italic">
+                Métricas exclusivas dos posts enviados para este canal.
+              </p>
+            </div>
+          </ChartCard>
+
+        </div>
+      )}
+
+      {/* ── Grid de cards (site ou todos) ─────────────────────────────────── */}
+      {activeTab === 'site' && <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* ── 1. 07:00 — Promoções encontradas ───────────────────────────── */}
         <ChartCard id="promocoes" time="07:00" emoji="🔍" title="Promoções encontradas"
@@ -590,7 +695,8 @@ export default function MetricsPage() {
           </div>
         )}
 
-      </div>
+      </div>}
+
     </div>
   );
 }

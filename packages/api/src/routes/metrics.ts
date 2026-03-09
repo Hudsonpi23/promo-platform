@@ -110,23 +110,64 @@ export async function metricsRoutes(app: FastifyInstance) {
         .map(p => ({ ...p, clicks: postClickMap[p.id] || 0 }))
         .sort((a, b) => b.clicks - a.clicks);
 
-      // ── 7. Publicações por canal (via PostHistory — registros manual-*)  ──
+      // ── 7. Métricas por canal (PostHistory manual-*) ─────────────────────
       const publishedByChannel: Record<string, number> = {
         SITE: 0, TWITTER: 0, TELEGRAM: 0, FACEBOOK: 0, INSTAGRAM: 0, WHATSAPP: 0,
       };
       let totalPublications = 0;
+
+      type ChannelStat = {
+        totalPosts: number; postsThisWeek: number;
+        avgDiscount: number; totalSavings: number;
+      };
+      const channelStats: Record<string, ChannelStat> = {};
+
       try {
-        const channelCounts = await prisma.postHistory.groupBy({
-          by: ['channel'],
-          _count: { _all: true },
+        // Buscar todos os posts manuais com offerId e preço
+        const manualPosts = await prisma.postHistory.findMany({
           where: { uniqueHash: { startsWith: 'manual-' } },
+          select: { channel: true, offerId: true, postedAt: true, copyText: true },
         });
-        channelCounts.forEach(c => {
-          publishedByChannel[c.channel as string] = c._count._all;
+
+        // Buscar dados de preço das ofertas relacionadas
+        const realOfferIds = [...new Set(
+          manualPosts.filter(p => p.offerId !== 'video-standalone').map(p => p.offerId)
+        )];
+        const offerPrices = await prisma.offer.findMany({
+          where: { id: { in: realOfferIds } },
+          select: { id: true, finalPrice: true, originalPrice: true, discountPct: true },
         });
+        const offerMap = Object.fromEntries(offerPrices.map(o => [o.id, o]));
+
+        // Calcular stats por canal
+        const CHANNELS = ['TWITTER', 'TELEGRAM', 'FACEBOOK', 'INSTAGRAM', 'SITE'];
+        for (const ch of CHANNELS) {
+          const posts = manualPosts.filter(p => (p.channel as string) === ch);
+          const thisWeek = posts.filter(p => p.postedAt >= day7);
+          publishedByChannel[ch] = posts.length;
+
+          let savings = 0, discountSum = 0, discountCount = 0;
+          for (const p of posts) {
+            let price = 0, origPrice = 0, disc = 0;
+            if (p.offerId === 'video-standalone') {
+              try { const d = JSON.parse(p.copyText); price = d.price || 0; origPrice = d.originalPrice || 0; disc = d.discountPct || 0; } catch { /* noop */ }
+            } else {
+              const o = offerMap[p.offerId];
+              if (o) { price = Number(o.finalPrice); origPrice = Number(o.originalPrice || 0); disc = o.discountPct || 0; }
+            }
+            if (origPrice > price) savings += origPrice - price;
+            if (disc > 0) { discountSum += disc; discountCount++; }
+          }
+          channelStats[ch] = {
+            totalPosts:    posts.length,
+            postsThisWeek: thisWeek.length,
+            avgDiscount:   discountCount > 0 ? Math.round(discountSum / discountCount) : 0,
+            totalSavings:  Math.round(savings * 100) / 100,
+          };
+        }
         totalPublications = Object.values(publishedByChannel).reduce((a, b) => a + b, 0);
       } catch (e) {
-        console.error('[Metrics] Erro ao contar PostHistory por canal:', e);
+        console.error('[Metrics] Erro ao calcular métricas por canal:', e);
       }
 
       // ── 8. Distribuição de descontos ─────────────────────────────────────
@@ -181,6 +222,7 @@ export async function metricsRoutes(app: FastifyInstance) {
           totalSavings: Math.round(totalSavings * 100) / 100,
           totalPublications,
           publishedByChannel,
+          channelStats,
         },
         charts: {
           activityByDay,
