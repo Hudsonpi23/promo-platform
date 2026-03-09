@@ -1781,7 +1781,9 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   // ── Linha de desconto ──
   const discountLine = discountPct > 0
-    ? `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% DE DESCONTO`
+    ? pm === 'pix'
+      ? `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% DE DESCONTO NO PIX`
+      : `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% DE DESCONTO`
     : '';
 
   // ── Montar post linha a linha ──

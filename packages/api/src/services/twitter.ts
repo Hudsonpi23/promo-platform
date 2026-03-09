@@ -370,7 +370,14 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
     const hookLine    = contentLines[0] || '';
     const subtitle    = contentLines[1] || '';
     const titleLine   = contentLines[2] || ''; // título do produto — NUNCA omitir
-    const priceLines  = contentLines.filter(l => l.startsWith('De ') || l.startsWith('por '));
+    const priceLines  = contentLines.filter(l =>
+      l.startsWith('De ')     ||   // preço antigo
+      l.startsWith('por ')    ||   // à vista
+      l.startsWith('💸 ')     ||   // PIX
+      l.startsWith('💳 ')     ||   // parcelado
+      l.startsWith('(total ') ||   // total parcelado
+      l.match(/^\d+x de /)         // parcelas sem emoji (fallback)
+    );
     const discountLine = contentLines.find(l => l.includes('% DE DESCONTO')) || '';
     const ctaLine     = contentLines.find(l => l.includes('👉')) || '';
 
