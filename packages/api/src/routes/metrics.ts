@@ -110,7 +110,7 @@ export async function metricsRoutes(app: FastifyInstance) {
         .map(p => ({ ...p, clicks: postClickMap[p.id] || 0 }))
         .sort((a, b) => b.clicks - a.clicks);
 
-      // ── 7. Métricas por canal (PostHistory manual-*) ─────────────────────
+      // ── 7. Métricas completas por canal (PostHistory manual-*) ───────────
       const publishedByChannel: Record<string, number> = {
         SITE: 0, TWITTER: 0, TELEGRAM: 0, FACEBOOK: 0, INSTAGRAM: 0, WHATSAPP: 0,
       };
@@ -119,53 +119,103 @@ export async function metricsRoutes(app: FastifyInstance) {
       type ChannelStat = {
         totalPosts: number; postsThisWeek: number;
         avgDiscount: number; totalSavings: number;
+        discountDist: { label: string; count: number }[];
+        postsByNiche: { name: string; icon: string; color: string; posts: number }[];
+        topByDiscount: { title: string; discountPct: number; price: number; originalPrice?: number; imageUrl?: string }[];
+        activityByDay: { day: string; posts: number; clicks: number }[];
       };
       const channelStats: Record<string, ChannelStat> = {};
 
       try {
-        // Buscar todos os posts manuais com offerId e preço
-        const manualPosts = await prisma.postHistory.findMany({
+        const allManualPosts = await prisma.postHistory.findMany({
           where: { uniqueHash: { startsWith: 'manual-' } },
           select: { channel: true, offerId: true, postedAt: true, copyText: true },
         });
 
-        // Buscar dados de preço das ofertas relacionadas
         const realOfferIds = [...new Set(
-          manualPosts.filter(p => p.offerId !== 'video-standalone').map(p => p.offerId)
+          allManualPosts.filter(p => p.offerId !== 'video-standalone').map(p => p.offerId)
         )];
-        const offerPrices = await prisma.offer.findMany({
+        const fullOffers = await prisma.offer.findMany({
           where: { id: { in: realOfferIds } },
-          select: { id: true, finalPrice: true, originalPrice: true, discountPct: true },
+          select: { id: true, title: true, finalPrice: true, originalPrice: true, discountPct: true, imageUrl: true, mainImage: true, nicheId: true },
         });
-        const offerMap = Object.fromEntries(offerPrices.map(o => [o.id, o]));
+        const offerMap = Object.fromEntries(fullOffers.map(o => [o.id, o]));
 
-        // Calcular stats por canal
-        const CHANNELS = ['TWITTER', 'TELEGRAM', 'FACEBOOK', 'INSTAGRAM', 'SITE'];
-        for (const ch of CHANNELS) {
-          const posts = manualPosts.filter(p => (p.channel as string) === ch);
+        const nicheIds = [...new Set(fullOffers.map(o => o.nicheId).filter(Boolean))] as string[];
+        const nicheList = await prisma.niche.findMany({
+          where: { id: { in: nicheIds } },
+          select: { id: true, name: true, icon: true, color: true },
+        });
+        const nicheMap = Object.fromEntries(nicheList.map(n => [n.id, n]));
+
+        const DISC_RANGES = [
+          { label: '10-19%', min: 10, max: 19 }, { label: '20-29%', min: 20, max: 29 },
+          { label: '30-39%', min: 30, max: 39 }, { label: '40-49%', min: 40, max: 49 },
+          { label: '50%+',   min: 50, max: 100 },
+        ];
+
+        const SOCIAL_CHANNELS = ['TWITTER', 'TELEGRAM', 'FACEBOOK', 'INSTAGRAM'];
+        for (const ch of SOCIAL_CHANNELS) {
+          const posts = allManualPosts.filter(p => (p.channel as string) === ch);
           const thisWeek = posts.filter(p => p.postedAt >= day7);
           publishedByChannel[ch] = posts.length;
 
-          let savings = 0, discountSum = 0, discountCount = 0;
-          for (const p of posts) {
-            let price = 0, origPrice = 0, disc = 0;
+          // Resolver dados de oferta para cada post
+          const chOffers = posts.map(p => {
             if (p.offerId === 'video-standalone') {
-              try { const d = JSON.parse(p.copyText); price = d.price || 0; origPrice = d.originalPrice || 0; disc = d.discountPct || 0; } catch { /* noop */ }
-            } else {
-              const o = offerMap[p.offerId];
-              if (o) { price = Number(o.finalPrice); origPrice = Number(o.originalPrice || 0); disc = o.discountPct || 0; }
+              try { const d = JSON.parse(p.copyText); return { id: 'video', title: d.title || '', finalPrice: d.price || 0, originalPrice: d.originalPrice || 0, discountPct: d.discountPct || 0, imageUrl: null, mainImage: null, nicheId: null }; } catch { return null; }
             }
-            if (origPrice > price) savings += origPrice - price;
+            return offerMap[p.offerId] || null;
+          }).filter(Boolean) as typeof fullOffers[number][];
+
+          // Stats básicas
+          let savings = 0, discountSum = 0, discountCount = 0;
+          for (const o of chOffers) {
+            const price = Number(o.finalPrice), orig = Number(o.originalPrice || 0), disc = o.discountPct || 0;
+            if (orig > price) savings += orig - price;
             if (disc > 0) { discountSum += disc; discountCount++; }
           }
+
+          // Distribuição de descontos
+          const discountDist = DISC_RANGES.map(r => ({
+            label: r.label,
+            count: chOffers.filter(o => (o.discountPct || 0) >= r.min && (o.discountPct || 0) <= r.max).length,
+          }));
+
+          // Posts por nicho
+          const nicheCount: Record<string, number> = {};
+          chOffers.forEach(o => { if (o.nicheId) nicheCount[o.nicheId] = (nicheCount[o.nicheId] || 0) + 1; });
+          const postsByNiche = Object.entries(nicheCount)
+            .map(([nId, c]) => ({ name: nicheMap[nId]?.name || 'Outros', icon: nicheMap[nId]?.icon || '🏷️', color: nicheMap[nId]?.color || '#6366F1', posts: c }))
+            .sort((a, b) => b.posts - a.posts).slice(0, 7);
+
+          // Top por desconto
+          const topByDiscount = [...chOffers]
+            .filter(o => (o.discountPct || 0) > 0)
+            .sort((a, b) => (b.discountPct || 0) - (a.discountPct || 0))
+            .slice(0, 5)
+            .map(o => ({ title: o.title, discountPct: o.discountPct || 0, price: Number(o.finalPrice), originalPrice: o.originalPrice ? Number(o.originalPrice) : undefined, imageUrl: (o as any).mainImage || o.imageUrl || undefined }));
+
+          // Atividade por dia
+          const dayMapCh: Record<string, number> = {};
+          for (let i = 0; i < 7; i++) {
+            const d = new Date(day7); d.setDate(d.getDate() + i);
+            dayMapCh[d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' })] = 0;
+          }
+          thisWeek.forEach(p => {
+            const k = p.postedAt.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
+            if (k in dayMapCh) dayMapCh[k]++;
+          });
+
           channelStats[ch] = {
-            totalPosts:    posts.length,
-            postsThisWeek: thisWeek.length,
-            avgDiscount:   discountCount > 0 ? Math.round(discountSum / discountCount) : 0,
-            totalSavings:  Math.round(savings * 100) / 100,
+            totalPosts: posts.length, postsThisWeek: thisWeek.length,
+            avgDiscount: discountCount > 0 ? Math.round(discountSum / discountCount) : 0,
+            totalSavings: Math.round(savings * 100) / 100,
+            discountDist, postsByNiche, topByDiscount,
+            activityByDay: Object.entries(dayMapCh).map(([day, p]) => ({ day, posts: p, clicks: 0 })),
           };
         }
-        totalPublications = Object.values(publishedByChannel).reduce((a, b) => a + b, 0);
+        totalPublications = allManualPosts.length;
       } catch (e) {
         console.error('[Metrics] Erro ao calcular métricas por canal:', e);
       }

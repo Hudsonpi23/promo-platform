@@ -8,35 +8,40 @@ import {
 import { fetchWithAuth } from '@/lib/auth';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-interface ChannelStat {
-  totalPosts:    number;
-  postsThisWeek: number;
-  avgDiscount:   number;
-  totalSavings:  number;
-}
-interface MetricsSummary {
-  totalPosts:         number;
-  totalClicks:        number;
-  postsThisWeek:      number;
-  avgDiscount:        number;
-  totalSavings:       number;
-  totalPublications:  number;
-  publishedByChannel: Record<string, number>;
-  channelStats:       Record<string, ChannelStat>;
-}
 interface NicheItem    { name: string; icon: string; color: string; posts: number }
 interface DiscountItem { label: string; count: number }
 interface TopProduct {
-  title: string;
-  discountPct: number;
-  price: number;
-  originalPrice?: number;
-  imageUrl?: string;
+  title: string; discountPct: number; price: number;
+  originalPrice?: number; imageUrl?: string;
+}
+interface ChannelStat {
+  totalPosts: number; postsThisWeek: number;
+  avgDiscount: number; totalSavings: number;
+  discountDist: DiscountItem[];
+  postsByNiche: NicheItem[];
+  topByDiscount: TopProduct[];
+  activityByDay: { day: string; posts: number; clicks: number }[];
+}
+interface MetricsSummary {
+  totalPosts: number; totalClicks: number; postsThisWeek: number;
+  avgDiscount: number; totalSavings: number;
+  totalPublications: number; publishedByChannel: Record<string, number>;
+  channelStats: Record<string, ChannelStat>;
 }
 interface MetricsData {
   summary: MetricsSummary;
   charts:  { activityByDay: unknown[]; postsByNiche: NicheItem[]; discountDist: DiscountItem[] };
   tables:  { topByDiscount: TopProduct[]; topByClicks: unknown[] };
+}
+// Unified view data (same shape for all tabs)
+interface ActiveData {
+  postsThisWeek: number; totalPosts: number; totalClicks: number;
+  avgDiscount: number; totalSavings: number;
+  discountDist: DiscountItem[];
+  postsByNiche: NicheItem[];
+  topByDiscount: TopProduct[];
+  activityByDay: { day: string; posts: number; clicks: number }[];
+  channelLabel: string; channelEmoji: string;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -167,9 +172,9 @@ export default function MetricsPage() {
 
   const { summary, charts } = data;
 
-  // Cálculo da simulação de economia
-  const avgSavingPerPurchase = summary.totalPosts > 0
-    ? Math.round(summary.totalSavings / summary.totalPosts)
+  // Cálculo da simulação de economia (usa activeData)
+  const avgSavingPerPurchase = activeData.totalPosts > 0
+    ? Math.round(activeData.totalSavings / activeData.totalPosts)
     : 86;
 
   const simulationData = [1, 2, 3].map(n => ({
@@ -179,19 +184,50 @@ export default function MetricsPage() {
 
   // Gauge data (RadialBar)
   const gaugeData = [
-    { name: 'Desconto', value: summary.avgDiscount, fill: '#8b5cf6' },
-    { name: 'Restante', value: 100 - summary.avgDiscount, fill: '#1e1e2e' },
+    { name: 'Desconto', value: activeData.avgDiscount, fill: '#8b5cf6' },
+    { name: 'Restante', value: Math.max(0, 100 - activeData.avgDiscount), fill: '#1e1e2e' },
   ];
 
   const TABS = [
-    { id: 'site',     label: 'Site (Geral)', emoji: '🌐', color: 'text-green-400',  bg: 'bg-green-500/20 border-green-500/40' },
-    { id: 'twitter',  label: 'X (Twitter)',  emoji: '🐦', color: 'text-slate-300',  bg: 'bg-slate-500/20 border-slate-500/40' },
-    { id: 'telegram', label: 'Telegram',     emoji: '✈️', color: 'text-cyan-400',   bg: 'bg-cyan-500/20 border-cyan-500/40'   },
-    { id: 'facebook', label: 'Facebook',     emoji: '👤', color: 'text-indigo-400', bg: 'bg-indigo-500/20 border-indigo-500/40' },
+    { id: 'site',     label: 'Site (Geral)', emoji: '🌐', color: 'text-green-400',  bg: 'bg-green-500/20 border-green-500/40',    chKey: null },
+    { id: 'twitter',  label: 'X (Twitter)',  emoji: '🐦', color: 'text-slate-300',  bg: 'bg-slate-500/20 border-slate-500/40',    chKey: 'TWITTER'  },
+    { id: 'telegram', label: 'Telegram',     emoji: '✈️', color: 'text-cyan-400',   bg: 'bg-cyan-500/20 border-cyan-500/40',      chKey: 'TELEGRAM' },
+    { id: 'facebook', label: 'Facebook',     emoji: '👤', color: 'text-indigo-400', bg: 'bg-indigo-500/20 border-indigo-500/40',  chKey: 'FACEBOOK' },
   ] as const;
 
-  const channelKey = activeTab === 'twitter' ? 'TWITTER' : activeTab === 'telegram' ? 'TELEGRAM' : activeTab === 'facebook' ? 'FACEBOOK' : null;
-  const chanStat: ChannelStat = channelKey ? (summary.channelStats?.[channelKey] ?? { totalPosts: 0, postsThisWeek: 0, avgDiscount: 0, totalSavings: 0 }) : { totalPosts: 0, postsThisWeek: 0, avgDiscount: 0, totalSavings: 0 };
+  const currentTab = TABS.find(t => t.id === activeTab)!;
+  const EMPTY_CHANNEL: ChannelStat = { totalPosts: 0, postsThisWeek: 0, avgDiscount: 0, totalSavings: 0, discountDist: [], postsByNiche: [], topByDiscount: [], activityByDay: [] };
+
+  const activeData: ActiveData = activeTab === 'site'
+    ? {
+        postsThisWeek: summary.postsThisWeek,
+        totalPosts:    summary.totalPosts,
+        totalClicks:   summary.totalClicks,
+        avgDiscount:   summary.avgDiscount,
+        totalSavings:  summary.totalSavings,
+        discountDist:  charts.discountDist,
+        postsByNiche:  charts.postsByNiche,
+        topByDiscount: data.tables.topByDiscount,
+        activityByDay: (charts.activityByDay as { day: string; posts: number; clicks: number }[]),
+        channelLabel:  'Site',
+        channelEmoji:  '🌐',
+      }
+    : (() => {
+        const cs: ChannelStat = (currentTab.chKey ? summary.channelStats?.[currentTab.chKey] : null) ?? EMPTY_CHANNEL;
+        return {
+          postsThisWeek: cs.postsThisWeek,
+          totalPosts:    cs.totalPosts,
+          totalClicks:   0,
+          avgDiscount:   cs.avgDiscount,
+          totalSavings:  cs.totalSavings,
+          discountDist:  cs.discountDist,
+          postsByNiche:  cs.postsByNiche,
+          topByDiscount: cs.topByDiscount,
+          activityByDay: cs.activityByDay,
+          channelLabel:  currentTab.label,
+          channelEmoji:  currentTab.emoji,
+        };
+      })();
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -229,71 +265,8 @@ export default function MetricsPage() {
         ))}
       </div>
 
-      {/* ── Cards de canal social (X, Telegram, Facebook) ─────────────────── */}
-      {activeTab !== 'site' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-8">
-
-          {/* Card: Posts desta semana */}
-          <ChartCard
-            id={`${activeTab}-posts`}
-            time="Semana"
-            emoji={TABS.find(t => t.id === activeTab)?.emoji ?? '📡'}
-            title={`Posts no ${TABS.find(t => t.id === activeTab)?.label}`}
-            gradient="bg-gradient-to-br from-[#0f0f1a] via-[#1a1035] to-[#0f0f1a]"
-          >
-            <div className="text-center py-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Posts esta semana</p>
-              <p className="text-7xl font-black text-white leading-none">{chanStat.postsThisWeek}</p>
-              <p className="text-2xl font-bold text-purple-400 mt-1">promoções</p>
-              <div className="mt-4 flex justify-center gap-6 text-center">
-                <div>
-                  <p className="text-2xl font-black text-white">{chanStat.totalPosts}</p>
-                  <p className="text-xs text-white/40">total histórico</p>
-                </div>
-                <div className="w-px bg-white/10" />
-                <div>
-                  <p className="text-2xl font-black text-amber-400">{chanStat.avgDiscount}%</p>
-                  <p className="text-xs text-white/40">desc. médio</p>
-                </div>
-              </div>
-              <div className="mt-4 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
-                <p className="text-xs text-white/50 leading-relaxed">
-                  promoções enviadas exclusivamente para {TABS.find(t => t.id === activeTab)?.label}
-                </p>
-              </div>
-            </div>
-          </ChartCard>
-
-          {/* Card: Economia gerada no canal */}
-          <ChartCard
-            id={`${activeTab}-economia`}
-            time="Semana"
-            emoji="💰"
-            title={`Economia gerada — ${TABS.find(t => t.id === activeTab)?.label}`}
-            gradient="bg-gradient-to-br from-[#0f0f1a] via-[#1a1a10] to-[#0f0f1a]"
-          >
-            <div className="text-center py-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2">Economia gerada</p>
-              <p className="text-5xl font-black text-emerald-400 leading-none">
-                {fmtCurrency(chanStat.totalSavings)}
-              </p>
-              <p className="text-sm text-white/40 mt-2">valor potencial economizado</p>
-              <div className="mt-4 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
-                <p className="text-xs text-white/50 leading-relaxed">
-                  calculado sobre os <strong className="text-white/80">{chanStat.totalPosts}</strong> posts enviados para {TABS.find(t => t.id === activeTab)?.label} • {chanStat.avgDiscount}% de desconto médio
-                </p>
-              </div>
-              <p className="text-xs text-white/30 mt-3 italic">
-                Métricas exclusivas dos posts enviados para este canal.
-              </p>
-            </div>
-          </ChartCard>
-
-        </div>
-      )}
-
-      {/* ── Grid de cards (site ou todos) ─────────────────────────────────── */}
-      {activeTab === 'site' && <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {/* ── Grid de cards (todos os tabs usam os mesmos cards) ────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* ── 1. 07:00 — Promoções encontradas ───────────────────────────── */}
         <ChartCard id="promocoes" time="07:00" emoji="🔍" title="Promoções encontradas"
@@ -304,13 +277,13 @@ export default function MetricsPage() {
               Promoções encontradas esta semana
             </p>
             <p className="text-7xl font-black text-white leading-none">
-              {summary.postsThisWeek}
+              {activeData.postsThisWeek}
             </p>
             <p className="text-2xl font-bold text-purple-400 mt-1">promoções</p>
             <div className="mt-5 bg-white/5 rounded-xl px-4 py-3 border border-white/10">
               <p className="text-xs text-white/50 leading-relaxed">
                 promoções encontradas pela Manu<br/>
-                nas principais plataformas
+                {activeTab === 'site' ? 'nas principais plataformas' : `enviadas para o ${activeData.channelLabel}`}
               </p>
             </div>
             <p className="text-xs text-white/30 mt-3 italic">
@@ -340,7 +313,7 @@ export default function MetricsPage() {
               </ResponsiveContainer>
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center pb-1">
                 <p className="text-4xl font-black text-amber-400 leading-none">
-                  {summary.avgDiscount}%
+                  {activeData.avgDiscount}%
                 </p>
                 <p className="text-xs text-white/50">OFF</p>
               </div>
@@ -362,13 +335,13 @@ export default function MetricsPage() {
             Distribuição dos descontos
           </p>
           <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={charts.discountDist} layout="vertical" margin={{ left: 8, right: 16 }}>
+            <BarChart data={activeData.discountDist} layout="vertical" margin={{ left: 8, right: 16 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" horizontal={false} />
               <XAxis type="number" tick={{ fill: '#ffffff40', fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis type="category" dataKey="label" tick={{ fill: '#ffffffaa', fontSize: 11 }} axisLine={false} tickLine={false} width={46} />
               <Tooltip contentStyle={TOOLTIP} cursor={{ fill: 'rgba(255,255,255,0.04)' }} />
               <Bar dataKey="count" name="Posts" radius={[0, 6, 6, 0]} maxBarSize={20}>
-                {charts.discountDist.map((_, i) => (
+                {activeData.discountDist.map((_, i) => (
                   <Cell key={i} fill={['#fbbf24','#f97316','#ef4444','#dc2626','#991b1b'][i]} />
                 ))}
               </Bar>
@@ -386,30 +359,29 @@ export default function MetricsPage() {
           <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-2 text-center">
             Categorias com mais promoções
           </p>
-          {charts.postsByNiche.length === 0 ? (
+          {activeData.postsByNiche.length === 0 ? (
             <p className="text-center text-white/30 text-sm py-8">Sem dados ainda</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={160}>
                 <PieChart>
                   <Pie
-                    data={charts.postsByNiche}
+                    data={activeData.postsByNiche}
                     dataKey="posts" nameKey="name"
                     cx="50%" cy="50%"
                     outerRadius={65} innerRadius={30}
                     paddingAngle={3}
                   >
-                    {charts.postsByNiche.map((entry, i) => (
+                    {activeData.postsByNiche.map((entry, i) => (
                       <Cell key={i} fill={entry.color || `hsl(${i * 50}, 70%, 55%)`} />
                     ))}
                   </Pie>
                   <Tooltip contentStyle={TOOLTIP} />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Legenda manual */}
               <div className="grid grid-cols-2 gap-1 mt-1">
-                {charts.postsByNiche.slice(0, 6).map((n, i) => {
-                  const total = charts.postsByNiche.reduce((a, b) => a + b.posts, 0);
+                {activeData.postsByNiche.slice(0, 6).map((n, i) => {
+                  const total = activeData.postsByNiche.reduce((a, b) => a + b.posts, 0);
                   const pct   = total > 0 ? Math.round((n.posts / total) * 100) : 0;
                   return (
                     <div key={i} className="flex items-center gap-1.5">
@@ -434,7 +406,7 @@ export default function MetricsPage() {
             </p>
             <div className="relative inline-block">
               <p className="text-6xl font-black text-emerald-400 leading-none">
-                {fmtCurrency(summary.totalSavings)}
+                {fmtCurrency(activeData.totalSavings)}
               </p>
               <div className="absolute -top-2 -right-3 bg-emerald-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
                 REAL
@@ -445,17 +417,17 @@ export default function MetricsPage() {
             </p>
             <div className="mt-4 flex justify-center gap-6">
               <div className="text-center">
-                <p className="text-xl font-black text-white">{summary.postsThisWeek}</p>
+                <p className="text-xl font-black text-white">{activeData.postsThisWeek}</p>
                 <p className="text-[10px] text-white/40">promoções</p>
               </div>
               <div className="w-px bg-white/10" />
               <div className="text-center">
-                <p className="text-xl font-black text-white">{summary.avgDiscount}%</p>
+                <p className="text-xl font-black text-white">{activeData.avgDiscount}%</p>
                 <p className="text-[10px] text-white/40">desc. médio</p>
               </div>
               <div className="w-px bg-white/10" />
               <div className="text-center">
-                <p className="text-xl font-black text-white">{summary.totalClicks}</p>
+                <p className="text-xl font-black text-white">{activeData.totalClicks}</p>
                 <p className="text-[10px] text-white/40">cliques</p>
               </div>
             </div>
@@ -504,12 +476,10 @@ export default function MetricsPage() {
 
         {/* ── 7. PROMOÇÃO MAIS ABSURDA DA SEMANA — full width ────────────── */}
         {(() => {
-          if (!data.tables.topByDiscount.length) return null;
+          if (!activeData.topByDiscount.length) return null;
 
-          // Pegar o maior desconto e todos os produtos empatados nesse %
-          // Desempate: maior economia em R$ primeiro — máx 3 exibidos
-          const maxPct = data.tables.topByDiscount[0].discountPct;
-          const winners = data.tables.topByDiscount
+          const maxPct = activeData.topByDiscount[0].discountPct;
+          const winners = activeData.topByDiscount
             .filter(p => p.discountPct === maxPct)
             .map(p => ({
               ...p,
@@ -695,7 +665,7 @@ export default function MetricsPage() {
           </div>
         )}
 
-      </div>}
+      </div>
 
     </div>
   );
