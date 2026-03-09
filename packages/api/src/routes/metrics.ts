@@ -111,22 +111,22 @@ export async function metricsRoutes(app: FastifyInstance) {
         .sort((a, b) => b.clicks - a.clicks);
 
       // ── 7. Publicações por canal (OfferPublication) ──────────────────────
-      const channelCounts = await prisma.offerPublication.groupBy({
-        by: ['channel'],
-        _count: { _all: true },
-      });
       const publishedByChannel: Record<string, number> = {
-        SITE: 0,
-        TWITTER: 0,
-        TELEGRAM: 0,
-        FACEBOOK: 0,
-        INSTAGRAM: 0,
-        WHATSAPP: 0,
+        SITE: 0, TWITTER: 0, TELEGRAM: 0, FACEBOOK: 0, INSTAGRAM: 0, WHATSAPP: 0,
       };
-      channelCounts.forEach(c => {
-        publishedByChannel[c.channel] = c._count._all;
-      });
-      const totalPublications = Object.values(publishedByChannel).reduce((a, b) => a + b, 0);
+      let totalPublications = 0;
+      try {
+        const channelCounts = await prisma.offerPublication.groupBy({
+          by: ['channel'],
+          _count: { _all: true },
+        });
+        channelCounts.forEach(c => {
+          publishedByChannel[c.channel] = c._count._all;
+        });
+        totalPublications = Object.values(publishedByChannel).reduce((a, b) => a + b, 0);
+      } catch {
+        // tabela ainda não existe em produção — ignora silenciosamente
+      }
 
       // ── 8. Distribuição de descontos ─────────────────────────────────────
       const discountRanges = [

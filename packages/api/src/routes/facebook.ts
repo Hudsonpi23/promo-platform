@@ -136,13 +136,11 @@ export async function facebookRoutes(app: FastifyInstance) {
       }
 
       // Pelo menos uma teve sucesso — registrar publicação para contagem nos cards
-      await prisma.offerPublication.create({
-        data: {
-          offerId,
-          channel: 'FACEBOOK',
-          externalId: successPages[0]?.[0] || null,
-        },
-      });
+      try {
+        await prisma.offerPublication.create({
+          data: { offerId, channel: 'FACEBOOK', externalId: successPages[0]?.[0] || null },
+        });
+      } catch { /* tabela pode não existir ainda em produção */ }
 
       const summary = {
         total: Object.keys(results).length,

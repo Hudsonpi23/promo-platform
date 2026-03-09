@@ -165,13 +165,11 @@ export async function twitterRoutes(app: FastifyInstance) {
     }
 
     // Registrar publicação para contagem nos cards
-    await prisma.offerPublication.create({
-      data: {
-        offerId,
-        channel: 'TWITTER',
-        externalId: result.tweetId || null,
-      },
-    });
+    try {
+      await prisma.offerPublication.create({
+        data: { offerId, channel: 'TWITTER', externalId: result.tweetId || null },
+      });
+    } catch { /* tabela pode não existir ainda em produção */ }
 
     return {
       success: true,

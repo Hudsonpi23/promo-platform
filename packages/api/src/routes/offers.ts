@@ -121,14 +121,32 @@ export async function offersRoutes(app: FastifyInstance) {
             include: {
               niche: { select: { id: true, name: true, slug: true, icon: true } },
               store: { select: { id: true, name: true, slug: true } },
-              _count: { select: { drafts: true, offerPublications: true } },
+              _count: { select: { drafts: true } },
             },
         }),
         prisma.offer.count({ where }),
       ]);
 
+      // Buscar contagens de publicações por oferta (tabela pode não existir ainda em produção)
+      let publicationCounts: Record<string, number> = {};
+      try {
+        const pubGroups = await prisma.offerPublication.groupBy({
+          by: ['offerId'],
+          _count: { _all: true },
+          where: { offerId: { in: offers.map(o => o.id) } },
+        });
+        pubGroups.forEach(g => { publicationCounts[g.offerId] = g._count._all; });
+      } catch {
+        // tabela ainda não existe em produção — ignora silenciosamente
+      }
+
+      const offersWithPubCount = offers.map(o => ({
+        ...o,
+        _count: { ...o._count, offerPublications: publicationCounts[o.id] || 0 },
+      }));
+
       return {
-        data: offers,
+        data: offersWithPubCount,
         meta: {
           page,
           limit,
