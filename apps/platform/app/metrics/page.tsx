@@ -172,22 +172,6 @@ export default function MetricsPage() {
 
   const { summary, charts } = data;
 
-  // Cálculo da simulação de economia (usa activeData)
-  const avgSavingPerPurchase = activeData.totalPosts > 0
-    ? Math.round(activeData.totalSavings / activeData.totalPosts)
-    : 86;
-
-  const simulationData = [1, 2, 3].map(n => ({
-    label: `${n} compra${n > 1 ? 's' : ''}`,
-    value: avgSavingPerPurchase * n,
-  }));
-
-  // Gauge data (RadialBar)
-  const gaugeData = [
-    { name: 'Desconto', value: activeData.avgDiscount, fill: '#8b5cf6' },
-    { name: 'Restante', value: Math.max(0, 100 - activeData.avgDiscount), fill: '#1e1e2e' },
-  ];
-
   const TABS = [
     { id: 'site',     label: 'Site (Geral)', emoji: '🌐', color: 'text-green-400',  bg: 'bg-green-500/20 border-green-500/40',    chKey: null },
     { id: 'twitter',  label: 'X (Twitter)',  emoji: '🐦', color: 'text-slate-300',  bg: 'bg-slate-500/20 border-slate-500/40',    chKey: 'TWITTER'  },
@@ -228,6 +212,22 @@ export default function MetricsPage() {
           channelEmoji:  currentTab.emoji,
         };
       })();
+
+  // Cálculo da simulação de economia (usa activeData)
+  const avgSavingPerPurchase = activeData.totalPosts > 0
+    ? Math.round(activeData.totalSavings / activeData.totalPosts)
+    : 86;
+
+  const simulationData = [1, 2, 3].map(n => ({
+    label: `${n} compra${n > 1 ? 's' : ''}`,
+    value: avgSavingPerPurchase * n,
+  }));
+
+  // Gauge data (RadialBar)
+  const gaugeData = [
+    { name: 'Desconto', value: activeData.avgDiscount, fill: '#8b5cf6' },
+    { name: 'Restante', value: Math.max(0, 100 - activeData.avgDiscount), fill: '#1e1e2e' },
+  ];
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
