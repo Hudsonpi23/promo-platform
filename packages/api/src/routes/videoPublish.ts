@@ -190,7 +190,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
     let videoMime = 'video/mp4';
     let title = '', affiliateUrl = '', siteUrl = SITE_URL, videoUrl = '';
     let finalPrice = 0, originalPrice = 0, discountPct = 0;
-    let paymentMethod: 'pix' | 'avista' | 'parcelado' = 'avista';
+    let paymentMethod = 'avista';
     let installments = 12;
 
     // Parse multipart
@@ -210,7 +210,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         if (part.fieldname === 'finalPrice')     finalPrice    = parseFloat(val) || 0;
         if (part.fieldname === 'originalPrice')  originalPrice = parseFloat(val) || 0;
         if (part.fieldname === 'discountPct')    discountPct   = parseFloat(val) || 0;
-        if (part.fieldname === 'paymentMethod')  paymentMethod = (val as typeof paymentMethod) || 'avista';
+        if (part.fieldname === 'paymentMethod')  paymentMethod = val || 'avista';
         if (part.fieldname === 'installments')   installments  = parseInt(val) || 12;
       }
     }
@@ -250,7 +250,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         discountPct,
         trackingUrl:   affiliateUrl,
         siteUrl,
-        paymentMethod,
+        paymentMethod: paymentMethod as 'pix' | 'avista' | 'parcelado',
         installments,
       });
       const tweetText = copies.x;
@@ -318,7 +318,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
     let videoMime = 'video/mp4';
     let title = '', affiliateUrl = '', caption = '', videoLinkUrl = '';
     let finalPrice = 0, originalPrice = 0, discountPct = 0;
-    let igPaymentMethod: 'pix' | 'avista' | 'parcelado' = 'avista';
+    let igPaymentMethod = 'avista';
     let igInstallments = 12;
 
     const parts = request.parts();
@@ -337,7 +337,7 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         if (part.fieldname === 'finalPrice')     finalPrice      = parseFloat(val) || 0;
         if (part.fieldname === 'originalPrice')  originalPrice   = parseFloat(val) || 0;
         if (part.fieldname === 'discountPct')    discountPct     = parseFloat(val) || 0;
-        if (part.fieldname === 'paymentMethod')  igPaymentMethod = (val as typeof igPaymentMethod) || 'avista';
+        if (part.fieldname === 'paymentMethod')  igPaymentMethod = val || 'avista';
         if (part.fieldname === 'installments')   igInstallments  = parseInt(val) || 12;
       }
     }
@@ -386,8 +386,9 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       // 2. Gerar legenda
       const igPriceLabel = (() => {
         const fmtInst = igInstallments > 1 ? igInstallments : 12;
-        if (igPaymentMethod === 'pix') return `💸 ${fmtPrice(finalPrice)} no PIX`;
-        if (igPaymentMethod === 'parcelado') return `💳 ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)}`;
+        const pm = igPaymentMethod as 'pix' | 'avista' | 'parcelado';
+        if (pm === 'pix') return `💸 ${fmtPrice(finalPrice)} no PIX`;
+        if (pm === 'parcelado') return `💳 ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)}`;
         return `por ${fmtPrice(finalPrice)} à vista`;
       })();
 
