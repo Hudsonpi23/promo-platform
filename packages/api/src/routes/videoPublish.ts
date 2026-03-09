@@ -387,9 +387,9 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       const igPriceLabel = (() => {
         const fmtInst = igInstallments > 1 ? igInstallments : 12;
         const pm = igPaymentMethod as 'pix' | 'avista' | 'parcelado';
-        if (pm === 'pix') return `💸 ${fmtPrice(finalPrice)} no PIX`;
-        if (pm === 'parcelado') return `💳 ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)}`;
-        return `por ${fmtPrice(finalPrice)} à vista`;
+        if (pm === 'pix') return `por ${fmtPrice(finalPrice)} no PIX 💸`;
+        if (pm === 'parcelado') return `por ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)} 💳`;
+        return `por ${fmtPrice(finalPrice)}`;
       })();
 
       const instagramCaption = caption || [
@@ -399,7 +399,9 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         ``,
         originalPrice > finalPrice ? `De ${fmtPrice(originalPrice)}` : null,
         igPriceLabel,
-        discountPct > 0 ? `🔥 -${discountPct}% DE DESCONTO` : null,
+        discountPct > 0
+          ? (igPaymentMethod === 'pix' ? `🔥 -${discountPct}% DE DESCONTO NO PIX` : `🔥 -${discountPct}% DE DESCONTO`)
+          : null,
         ``,
         `👉 Link na bio ou acesse:`,
         `🌐 ${SITE_URL}`,

@@ -1764,19 +1764,20 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }
-    priceBlock.push(`💸 ${priceNow} no PIX`);
+    // Formato "por R$ X,XX no PIX" — começa com "por " → preservado pelo filtro de truncamento
+    priceBlock.push(`por ${priceNow} no PIX 💸`);
   } else if (pm === 'parcelado') {
     const instValue = input.price / inst;
-    priceBlock.push(`💳 ${inst}x de ${formatPrice(instValue)}`);
-    priceBlock.push(`(total ${priceNow})`);
+    if (input.oldPrice && input.oldPrice > input.price) {
+      priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
+    }
+    priceBlock.push(`por ${inst}x de ${formatPrice(instValue)} 💳`);
   } else {
     // 'avista' — padrão
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
-      priceBlock.push(`por ${priceNow} à vista`);
-    } else {
-      priceBlock.push(`por ${priceNow} à vista`);
     }
+    priceBlock.push(`por ${priceNow}`);
   }
 
   // ── Linha de desconto ──

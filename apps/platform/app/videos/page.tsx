@@ -27,12 +27,12 @@ function fmtPrice(v?: number | null): string {
 type PaymentMethod = 'pix' | 'avista' | 'parcelado';
 
 function paymentLabel(method: PaymentMethod, price: number, installments: number): string {
-  if (method === 'pix') return `💸 ${fmtPrice(price)} no PIX`;
+  if (method === 'pix') return `por ${fmtPrice(price)} no PIX 💸`;
   if (method === 'parcelado') {
     const n = Math.max(2, Math.min(12, installments));
-    return `💳 ${n}x de ${fmtPrice(price / n)}`;
+    return `por ${n}x de ${fmtPrice(price / n)} 💳`;
   }
-  return `por ${fmtPrice(price)} à vista`;
+  return `por ${fmtPrice(price)}`;
 }
 
 // ── Instagram caption ──────────────────────────────────────────────────────
