@@ -24,8 +24,23 @@ function fmtPrice(v?: number | null): string {
   });
 }
 
+type PaymentMethod = 'pix' | 'avista' | 'parcelado';
+
+function paymentLabel(method: PaymentMethod, price: number, installments: number): string {
+  if (method === 'pix') return `💸 ${fmtPrice(price)} no PIX`;
+  if (method === 'parcelado') {
+    const n = Math.max(2, Math.min(12, installments));
+    return `💳 ${n}x de ${fmtPrice(price / n)}`;
+  }
+  return `por ${fmtPrice(price)} à vista`;
+}
+
 // ── Instagram caption ──────────────────────────────────────────────────────
-function buildCaption(p: ProductData): string {
+function buildCaption(
+  p: ProductData,
+  method: PaymentMethod = 'avista',
+  installments: number = 12,
+): string {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.manu-promocoes.com.br';
   return [
     p.discountPct >= 30 ? '🔥 DESCONTO INCRÍVEL!' : '🛒 OFERTA DO DIA!',
@@ -33,7 +48,7 @@ function buildCaption(p: ProductData): string {
     p.title,
     '',
     p.originalPrice && p.originalPrice > p.finalPrice ? `De ${fmtPrice(p.originalPrice)}` : null,
-    `por ${fmtPrice(p.finalPrice)}`,
+    paymentLabel(method, p.finalPrice, installments),
     p.discountPct > 0 ? `🔥 -${p.discountPct}% DE DESCONTO` : null,
     '',
     '👉 Link na bio ou acesse:',
@@ -73,6 +88,10 @@ export default function VideosPage() {
   const [videoLinkReady, setVideoLinkReady]   = useState(false);
   const [loadingLink, setLoadingLink]         = useState(false);
   const [videoLinkError, setVideoLinkError]   = useState('');
+
+  // Forma de pagamento
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('avista');
+  const [installments, setInstallments]   = useState(12);
 
   // Posting state
   const [postingX, setPostingX]     = useState(false);
@@ -186,7 +205,9 @@ export default function VideosPage() {
     form.append('finalPrice',    effectiveProduct.finalPrice.toString());
     form.append('originalPrice', (effectiveProduct.originalPrice ?? 0).toString());
     form.append('discountPct',   effectiveProduct.discountPct.toString());
-    form.append('affiliateUrl',  effectiveProduct.affiliateUrl);
+    form.append('affiliateUrl',   effectiveProduct.affiliateUrl);
+    form.append('paymentMethod',  paymentMethod);
+    form.append('installments',   installments.toString());
     if (videoFile) {
       form.append('video', videoFile);
     } else {
@@ -202,7 +223,7 @@ export default function VideosPage() {
     } finally {
       setPostingX(false);
     }
-  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct]);
+  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
   // ── Post to Instagram ────────────────────────────────────────────────────
   const handlePostInstagram = useCallback(async () => {
@@ -216,8 +237,10 @@ export default function VideosPage() {
     form.append('finalPrice',    effectiveProduct.finalPrice.toString());
     form.append('originalPrice', (effectiveProduct.originalPrice ?? 0).toString());
     form.append('discountPct',   effectiveProduct.discountPct.toString());
-    form.append('affiliateUrl',  effectiveProduct.affiliateUrl);
-    form.append('caption',       buildCaption(effectiveProduct));
+    form.append('affiliateUrl',   effectiveProduct.affiliateUrl);
+    form.append('caption',        buildCaption(effectiveProduct, paymentMethod, installments));
+    form.append('paymentMethod',  paymentMethod);
+    form.append('installments',   installments.toString());
     if (videoFile) {
       form.append('video', videoFile);
     } else {
@@ -233,7 +256,7 @@ export default function VideosPage() {
     } finally {
       setPostingIg(false);
     }
-  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct]);
+  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
   const isPosting = postingX || postingIg;
 
@@ -321,22 +344,67 @@ export default function VideosPage() {
             )}
 
             {product && (
-              <div className="mt-3 flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                {product.mainImage && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={product.mainImage} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0"/>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-emerald-400 truncate">{product.title}</p>
-                  <p className="text-xs text-text-muted">
-                    {fmtPrice(product.finalPrice)}
-                    {product.discountPct > 0 && ` • -${product.discountPct}% DE DESCONTO`}
-                  </p>
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                  {product.mainImage && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={product.mainImage} alt="" className="w-10 h-10 object-cover rounded-lg flex-shrink-0"/>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-emerald-400 truncate">{product.title}</p>
+                    <p className="text-xs text-text-muted">
+                      {fmtPrice(product.finalPrice)}
+                      {product.discountPct > 0 && ` • -${product.discountPct}% DE DESCONTO`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => { setProduct(null); setScrapeError(''); setUrl(''); }}
+                    className="text-xs text-text-muted hover:text-text-primary px-2 py-1 rounded border border-border"
+                  >✕ Limpar</button>
                 </div>
-                <button
-                  onClick={() => { setProduct(null); setScrapeError(''); setUrl(''); }}
-                  className="text-xs text-text-muted hover:text-text-primary px-2 py-1 rounded border border-border"
-                >✕ Limpar</button>
+
+                {/* Forma de pagamento (após extração) */}
+                <div>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">💳 Forma de pagamento</label>
+                  <div className="flex gap-2">
+                    {([
+                      { value: 'pix',       label: '💸 PIX',       desc: 'Desconto no PIX' },
+                      { value: 'avista',    label: '💵 À vista',   desc: 'Cartão / Boleto' },
+                      { value: 'parcelado', label: '📅 Parcelado', desc: 'Sem desconto' },
+                    ] as { value: PaymentMethod; label: string; desc: string }[]).map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setPaymentMethod(opt.value)}
+                        className={`flex-1 py-2 px-2 rounded-lg border text-xs font-semibold transition-all text-center ${
+                          paymentMethod === opt.value
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-text-muted hover:border-primary/40'
+                        }`}
+                      >
+                        <div>{opt.label}</div>
+                        <div className="font-normal text-[10px] mt-0.5 opacity-70">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                  {paymentMethod === 'parcelado' && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <label className="text-xs text-text-muted whitespace-nowrap">Parcelas:</label>
+                      <select
+                        value={installments}
+                        onChange={e => setInstallments(Number(e.target.value))}
+                        className="px-3 py-1.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                          <option key={n} value={n}>{n}x</option>
+                        ))}
+                      </select>
+                      <span className="text-xs text-text-muted">
+                        = {fmtPrice(product.finalPrice / installments)}/parcela
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -400,6 +468,51 @@ export default function VideosPage() {
                   placeholder="https://mercadolivre.com.br/..."
                   className="w-full px-3 py-2.5 rounded-lg bg-background border border-border text-text-primary text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
                 />
+              </div>
+
+              {/* Forma de pagamento */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-text-muted mb-2">💳 Forma de pagamento</label>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'pix',      label: '💸 PIX',      desc: 'Desconto no PIX' },
+                    { value: 'avista',   label: '💵 À vista',  desc: 'Cartão / Boleto' },
+                    { value: 'parcelado',label: '📅 Parcelado',desc: 'Sem desconto' },
+                  ] as { value: PaymentMethod; label: string; desc: string }[]).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setPaymentMethod(opt.value)}
+                      className={`flex-1 py-2 px-2 rounded-lg border text-xs font-semibold transition-all text-center ${
+                        paymentMethod === opt.value
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-text-muted hover:border-primary/40'
+                      }`}
+                    >
+                      <div>{opt.label}</div>
+                      <div className="font-normal text-[10px] mt-0.5 opacity-70">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+                {paymentMethod === 'parcelado' && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <label className="text-xs text-text-muted whitespace-nowrap">Número de parcelas:</label>
+                    <select
+                      value={installments}
+                      onChange={e => setInstallments(Number(e.target.value))}
+                      className="px-3 py-1.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                    {manualPrice && (
+                      <span className="text-xs text-text-muted">
+                        = {fmtPrice(parsePrice(manualPrice) / installments)}/parcela
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -663,14 +776,14 @@ export default function VideosPage() {
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">📝 Legenda Instagram</p>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(buildCaption(effectiveProduct!)); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                    onClick={() => { navigator.clipboard.writeText(buildCaption(effectiveProduct!, paymentMethod, installments)); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
                     className="text-xs text-purple-400 hover:text-purple-300 border border-purple-500/30 px-2 py-1 rounded transition-colors"
                   >
                     {copied ? '✓ Copiado!' : 'Copiar'}
                   </button>
                 </div>
                 <pre className="text-xs text-text-secondary font-sans whitespace-pre-wrap leading-relaxed bg-background rounded-lg p-3 border border-border max-h-36 overflow-y-auto">
-                  {buildCaption(effectiveProduct)}
+                  {buildCaption(effectiveProduct, paymentMethod, installments)}
                 </pre>
               </div>
             )}

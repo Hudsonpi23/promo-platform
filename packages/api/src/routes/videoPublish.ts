@@ -190,6 +190,8 @@ export async function videoPublishRoutes(app: FastifyInstance) {
     let videoMime = 'video/mp4';
     let title = '', affiliateUrl = '', siteUrl = SITE_URL, videoUrl = '';
     let finalPrice = 0, originalPrice = 0, discountPct = 0;
+    let paymentMethod: 'pix' | 'avista' | 'parcelado' = 'avista';
+    let installments = 12;
 
     // Parse multipart
     const parts = request.parts();
@@ -201,13 +203,15 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         videoMime   = part.mimetype || 'video/mp4';
       } else if (part.type === 'field') {
         const val = part.value as string;
-        if (part.fieldname === 'title')         title        = val;
-        if (part.fieldname === 'affiliateUrl')  affiliateUrl = val;
-        if (part.fieldname === 'siteUrl')       siteUrl      = val || SITE_URL;
-        if (part.fieldname === 'videoUrl')      videoUrl     = val;
-        if (part.fieldname === 'finalPrice')    finalPrice   = parseFloat(val) || 0;
-        if (part.fieldname === 'originalPrice') originalPrice= parseFloat(val) || 0;
-        if (part.fieldname === 'discountPct')   discountPct  = parseFloat(val) || 0;
+        if (part.fieldname === 'title')          title         = val;
+        if (part.fieldname === 'affiliateUrl')   affiliateUrl  = val;
+        if (part.fieldname === 'siteUrl')        siteUrl       = val || SITE_URL;
+        if (part.fieldname === 'videoUrl')       videoUrl      = val;
+        if (part.fieldname === 'finalPrice')     finalPrice    = parseFloat(val) || 0;
+        if (part.fieldname === 'originalPrice')  originalPrice = parseFloat(val) || 0;
+        if (part.fieldname === 'discountPct')    discountPct   = parseFloat(val) || 0;
+        if (part.fieldname === 'paymentMethod')  paymentMethod = (val as typeof paymentMethod) || 'avista';
+        if (part.fieldname === 'installments')   installments  = parseInt(val) || 12;
       }
     }
 
@@ -241,11 +245,13 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       // 1. Gerar copy do post
       const copies = generateCopies({
         title,
-        price:        finalPrice,
-        oldPrice:     originalPrice > finalPrice ? originalPrice : null,
+        price:         finalPrice,
+        oldPrice:      originalPrice > finalPrice ? originalPrice : null,
         discountPct,
-        trackingUrl:  affiliateUrl,
+        trackingUrl:   affiliateUrl,
         siteUrl,
+        paymentMethod,
+        installments,
       });
       const tweetText = copies.x;
 
@@ -312,6 +318,8 @@ export async function videoPublishRoutes(app: FastifyInstance) {
     let videoMime = 'video/mp4';
     let title = '', affiliateUrl = '', caption = '', videoLinkUrl = '';
     let finalPrice = 0, originalPrice = 0, discountPct = 0;
+    let igPaymentMethod: 'pix' | 'avista' | 'parcelado' = 'avista';
+    let igInstallments = 12;
 
     const parts = request.parts();
     for await (const part of parts) {
@@ -322,13 +330,15 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         videoMime   = part.mimetype || 'video/mp4';
       } else if (part.type === 'field') {
         const val = part.value as string;
-        if (part.fieldname === 'title')         title        = val;
-        if (part.fieldname === 'affiliateUrl')  affiliateUrl = val;
-        if (part.fieldname === 'caption')       caption      = val;
-        if (part.fieldname === 'videoUrl')      videoLinkUrl = val;
-        if (part.fieldname === 'finalPrice')    finalPrice   = parseFloat(val) || 0;
-        if (part.fieldname === 'originalPrice') originalPrice= parseFloat(val) || 0;
-        if (part.fieldname === 'discountPct')   discountPct  = parseFloat(val) || 0;
+        if (part.fieldname === 'title')          title           = val;
+        if (part.fieldname === 'affiliateUrl')   affiliateUrl    = val;
+        if (part.fieldname === 'caption')        caption         = val;
+        if (part.fieldname === 'videoUrl')       videoLinkUrl    = val;
+        if (part.fieldname === 'finalPrice')     finalPrice      = parseFloat(val) || 0;
+        if (part.fieldname === 'originalPrice')  originalPrice   = parseFloat(val) || 0;
+        if (part.fieldname === 'discountPct')    discountPct     = parseFloat(val) || 0;
+        if (part.fieldname === 'paymentMethod')  igPaymentMethod = (val as typeof igPaymentMethod) || 'avista';
+        if (part.fieldname === 'installments')   igInstallments  = parseInt(val) || 12;
       }
     }
 
@@ -374,13 +384,20 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       console.log(`[VideoPublish] Vídeo no Cloudinary: ${videoUrl}`);
 
       // 2. Gerar legenda
+      const igPriceLabel = (() => {
+        const fmtInst = igInstallments > 1 ? igInstallments : 12;
+        if (igPaymentMethod === 'pix') return `💸 ${fmtPrice(finalPrice)} no PIX`;
+        if (igPaymentMethod === 'parcelado') return `💳 ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)}`;
+        return `por ${fmtPrice(finalPrice)} à vista`;
+      })();
+
       const instagramCaption = caption || [
         discountPct >= 30 ? `🔥 DESCONTO INCRÍVEL!` : `🛒 OFERTA DO DIA!`,
         ``,
         title,
         ``,
         originalPrice > finalPrice ? `De ${fmtPrice(originalPrice)}` : null,
-        `por ${fmtPrice(finalPrice)}`,
+        igPriceLabel,
         discountPct > 0 ? `🔥 -${discountPct}% DE DESCONTO` : null,
         ``,
         `👉 Link na bio ou acesse:`,

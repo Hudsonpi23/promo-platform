@@ -22,6 +22,8 @@
 
 // ==================== TYPES ====================
 
+export type PaymentMethod = 'pix' | 'avista' | 'parcelado';
+
 export interface CopyInputData {
   title: string;
   price: number;
@@ -37,6 +39,10 @@ export interface CopyInputData {
   isFlash?: boolean;
   /** Duração em minutos da oferta relâmpago */
   flashMinutes?: number;
+  /** Forma de pagamento destacada no post */
+  paymentMethod?: PaymentMethod;
+  /** Número de parcelas (quando paymentMethod = 'parcelado') */
+  installments?: number;
 }
 
 export interface GeneratedCopies {
@@ -1749,13 +1755,28 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Nome do produto — sem truncar (Twitter conta URLs como 23 chars, há espaço) ──
   const shortTitle = getShortTitle(input.title, 80);
 
-  // ── Bloco de preço ──
+  // ── Bloco de preço (considera forma de pagamento) ──
   const priceBlock: string[] = [];
-  if (input.oldPrice && input.oldPrice > input.price) {
-    priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
-    priceBlock.push(`por ${priceNow}`);
+  const pm = input.paymentMethod ?? 'avista';
+  const inst = Math.max(2, Math.min(12, input.installments ?? 12));
+
+  if (pm === 'pix') {
+    if (input.oldPrice && input.oldPrice > input.price) {
+      priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
+    }
+    priceBlock.push(`💸 ${priceNow} no PIX`);
+  } else if (pm === 'parcelado') {
+    const instValue = input.price / inst;
+    priceBlock.push(`💳 ${inst}x de ${formatPrice(instValue)}`);
+    priceBlock.push(`(total ${priceNow})`);
   } else {
-    priceBlock.push(`por ${priceNow}`);
+    // 'avista' — padrão
+    if (input.oldPrice && input.oldPrice > input.price) {
+      priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
+      priceBlock.push(`por ${priceNow} à vista`);
+    } else {
+      priceBlock.push(`por ${priceNow} à vista`);
+    }
   }
 
   // ── Linha de desconto ──
