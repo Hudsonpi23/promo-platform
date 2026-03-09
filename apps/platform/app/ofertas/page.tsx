@@ -529,6 +529,7 @@ export default function OfertasPage() {
       
       if (data.success) {
         alert(`✅ Postado no X com sucesso!\n\n🔗 ${data.tweetUrl || 'Tweet criado!'}`);
+        mutate();
       } else {
         alert(`❌ Erro ao postar no X:\n${data.error}`);
       }
