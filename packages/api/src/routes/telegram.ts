@@ -213,13 +213,22 @@ export async function telegramRoutes(app: FastifyInstance) {
       });
     }
 
-    // Registrar publicação para contagem nos cards
+    // Registrar publicação para contagem nos cards (usa PostHistory que já existe)
     if (result.success) {
       try {
-        await prisma.offerPublication.create({
-          data: { offerId, channel: 'TELEGRAM', externalId: result.messageId ? String(result.messageId) : null },
+        await prisma.postHistory.create({
+          data: {
+            offerId,
+            channel: 'TELEGRAM',
+            humorStyle: 'NEUTRO',
+            uniqueHash: `manual-TELEGRAM-${offerId}-${Date.now()}`,
+            copyText: offer.title,
+            externalId: result.messageId ? String(result.messageId) : null,
+          },
         });
-      } catch { /* tabela pode não existir ainda em produção */ }
+      } catch (e) {
+        console.error('[PostHistory/Telegram] Erro ao registrar publicação:', e);
+      }
     }
 
     return {

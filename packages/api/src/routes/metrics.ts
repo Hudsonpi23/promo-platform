@@ -110,22 +110,23 @@ export async function metricsRoutes(app: FastifyInstance) {
         .map(p => ({ ...p, clicks: postClickMap[p.id] || 0 }))
         .sort((a, b) => b.clicks - a.clicks);
 
-      // ── 7. Publicações por canal (OfferPublication) ──────────────────────
+      // ── 7. Publicações por canal (via PostHistory — registros manual-*)  ──
       const publishedByChannel: Record<string, number> = {
         SITE: 0, TWITTER: 0, TELEGRAM: 0, FACEBOOK: 0, INSTAGRAM: 0, WHATSAPP: 0,
       };
       let totalPublications = 0;
       try {
-        const channelCounts = await prisma.offerPublication.groupBy({
+        const channelCounts = await prisma.postHistory.groupBy({
           by: ['channel'],
           _count: { _all: true },
+          where: { uniqueHash: { startsWith: 'manual-' } },
         });
         channelCounts.forEach(c => {
-          publishedByChannel[c.channel] = c._count._all;
+          publishedByChannel[c.channel as string] = c._count._all;
         });
         totalPublications = Object.values(publishedByChannel).reduce((a, b) => a + b, 0);
-      } catch {
-        // tabela ainda não existe em produção — ignora silenciosamente
+      } catch (e) {
+        console.error('[Metrics] Erro ao contar PostHistory por canal:', e);
       }
 
       // ── 8. Distribuição de descontos ─────────────────────────────────────

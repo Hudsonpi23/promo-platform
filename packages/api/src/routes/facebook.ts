@@ -135,12 +135,21 @@ export async function facebookRoutes(app: FastifyInstance) {
         });
       }
 
-      // Pelo menos uma teve sucesso — registrar publicação para contagem nos cards
+      // Pelo menos uma teve sucesso — registrar publicação para contagem nos cards (usa PostHistory)
       try {
-        await prisma.offerPublication.create({
-          data: { offerId, channel: 'FACEBOOK', externalId: successPages[0]?.[0] || null },
+        await prisma.postHistory.create({
+          data: {
+            offerId,
+            channel: 'FACEBOOK',
+            humorStyle: 'NEUTRO',
+            uniqueHash: `manual-FACEBOOK-${offerId}-${Date.now()}`,
+            copyText: offer.title,
+            externalId: successPages[0]?.[0] || null,
+          },
         });
-      } catch { /* tabela pode não existir ainda em produção */ }
+      } catch (e) {
+        console.error('[PostHistory/Facebook] Erro ao registrar publicação:', e);
+      }
 
       const summary = {
         total: Object.keys(results).length,

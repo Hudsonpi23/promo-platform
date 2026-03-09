@@ -338,12 +338,21 @@ export async function publicationsRoutes(app: FastifyInstance) {
         },
       });
 
-      // Registrar publicação para contagem nos cards
+      // Registrar publicação para contagem nos cards (usa PostHistory que já existe)
       try {
-        await prisma.offerPublication.create({
-          data: { offerId: offer.id, channel: 'SITE', externalId: publication.id },
+        await prisma.postHistory.create({
+          data: {
+            offerId: offer.id,
+            channel: 'SITE',
+            humorStyle: 'NEUTRO',
+            uniqueHash: `manual-SITE-${offer.id}-${Date.now()}`,
+            copyText: offer.title,
+            externalId: publication.id,
+          },
         });
-      } catch { /* tabela pode não existir ainda em produção */ }
+      } catch (e) {
+        console.error('[PostHistory/Site] Erro ao registrar publicação:', e);
+      }
 
       return reply.status(201).send({ 
         success: true,

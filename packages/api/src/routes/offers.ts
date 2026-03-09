@@ -127,17 +127,21 @@ export async function offersRoutes(app: FastifyInstance) {
         prisma.offer.count({ where }),
       ]);
 
-      // Buscar contagens de publicações por oferta (tabela pode não existir ainda em produção)
+      // Buscar contagens de publicações manuais por oferta (via PostHistory)
       let publicationCounts: Record<string, number> = {};
       try {
-        const pubGroups = await prisma.offerPublication.groupBy({
+        const offerIds = offers.map(o => o.id);
+        const histGroups = await prisma.postHistory.groupBy({
           by: ['offerId'],
           _count: { _all: true },
-          where: { offerId: { in: offers.map(o => o.id) } },
+          where: {
+            offerId: { in: offerIds },
+            uniqueHash: { startsWith: 'manual-' },
+          },
         });
-        pubGroups.forEach(g => { publicationCounts[g.offerId] = g._count._all; });
-      } catch {
-        // tabela ainda não existe em produção — ignora silenciosamente
+        histGroups.forEach(g => { publicationCounts[g.offerId] = g._count._all; });
+      } catch (e) {
+        console.error('[offers] Erro ao contar PostHistory:', e);
       }
 
       const offersWithPubCount = offers.map(o => ({

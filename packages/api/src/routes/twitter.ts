@@ -164,12 +164,21 @@ export async function twitterRoutes(app: FastifyInstance) {
       });
     }
 
-    // Registrar publicação para contagem nos cards
+    // Registrar publicação para contagem nos cards (usa PostHistory que já existe)
     try {
-      await prisma.offerPublication.create({
-        data: { offerId, channel: 'TWITTER', externalId: result.tweetId || null },
+      await prisma.postHistory.create({
+        data: {
+          offerId,
+          channel: 'TWITTER',
+          humorStyle: 'NEUTRO',
+          uniqueHash: `manual-TWITTER-${offerId}-${Date.now()}`,
+          copyText: offer.title,
+          externalId: result.tweetId || null,
+        },
       });
-    } catch { /* tabela pode não existir ainda em produção */ }
+    } catch (e) {
+      console.error('[PostHistory/Twitter] Erro ao registrar publicação:', e);
+    }
 
     return {
       success: true,
