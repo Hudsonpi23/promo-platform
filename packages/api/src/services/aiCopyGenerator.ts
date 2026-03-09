@@ -1764,16 +1764,14 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }
-    // Formato "por R$ X,XX no PIX" — começa com "por " → preservado pelo filtro de truncamento
-    priceBlock.push(`por ${priceNow} no PIX 💸`);
+    priceBlock.push(`por ${priceNow} pelo PIX`);
   } else if (pm === 'parcelado') {
     const instValue = input.price / inst;
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }
-    priceBlock.push(`por ${inst}x de ${formatPrice(instValue)} 💳`);
+    priceBlock.push(`por ${inst}x de ${formatPrice(instValue)}`);
   } else {
-    // 'avista' — padrão
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }

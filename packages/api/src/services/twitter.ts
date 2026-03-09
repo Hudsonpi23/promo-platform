@@ -377,8 +377,9 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
       l.startsWith('💳 ')     ||   // parcelado (legado)
       l.startsWith('(total ') ||   // total parcelado (legado)
       l.match(/^\d+x de /)   ||    // parcelas sem emoji (fallback)
-      l.includes('no PIX')   ||    // garantia extra: linha contém "no PIX"
-      l.includes('no Pix')         // variação lowercase
+      l.includes('no PIX')   ||    // garantia extra: "no PIX"
+      l.includes('no Pix')   ||    // variação lowercase
+      l.includes('pelo PIX')       // formato "pelo PIX"
     );
     const discountLine = contentLines.find(l => l.includes('% DE DESCONTO')) || '';
     const ctaLine     = contentLines.find(l => l.includes('👉')) || '';

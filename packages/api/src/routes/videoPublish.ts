@@ -387,8 +387,8 @@ export async function videoPublishRoutes(app: FastifyInstance) {
       const igPriceLabel = (() => {
         const fmtInst = igInstallments > 1 ? igInstallments : 12;
         const pm = igPaymentMethod as 'pix' | 'avista' | 'parcelado';
-        if (pm === 'pix') return `por ${fmtPrice(finalPrice)} no PIX 💸`;
-        if (pm === 'parcelado') return `por ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)} 💳`;
+        if (pm === 'pix') return `por ${fmtPrice(finalPrice)} pelo PIX`;
+        if (pm === 'parcelado') return `por ${fmtInst}x de ${fmtPrice(finalPrice / fmtInst)}`;
         return `por ${fmtPrice(finalPrice)}`;
       })();
 
