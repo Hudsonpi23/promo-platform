@@ -213,6 +213,17 @@ export async function telegramRoutes(app: FastifyInstance) {
       });
     }
 
+    // Registrar publicação para contagem nos cards
+    if (result.success) {
+      await prisma.offerPublication.create({
+        data: {
+          offerId,
+          channel: 'TELEGRAM',
+          externalId: result.messageId ? String(result.messageId) : null,
+        },
+      });
+    }
+
     return {
       success: result.success,
       messageId: result.messageId,

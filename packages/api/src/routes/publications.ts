@@ -338,6 +338,15 @@ export async function publicationsRoutes(app: FastifyInstance) {
         },
       });
 
+      // Registrar publicação para contagem nos cards
+      await prisma.offerPublication.create({
+        data: {
+          offerId: offer.id,
+          channel: 'SITE',
+          externalId: publication.id,
+        },
+      });
+
       return reply.status(201).send({ 
         success: true,
         data: publication,

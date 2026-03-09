@@ -388,10 +388,11 @@ model Offer {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  drafts         PostDraft[]
-  publishedPosts PublishedPost[]
-  clicks         Click[]
-  postJobs       PostJob[] // 🤖 v2.0 IA: Jobs gerados pela IA
+  drafts            PostDraft[]
+  publishedPosts    PublishedPost[]
+  clicks            Click[]
+  postJobs          PostJob[] // 🤖 v2.0 IA: Jobs gerados pela IA
+  offerPublications OfferPublication[]
 
   // Índice único por source + externalId
   @@unique([source, externalId])
@@ -877,6 +878,24 @@ model PostHistory {
   @@index([offerId])
   @@index([channel])
   @@index([postedAt])
+}
+
+// ==================== PUBLICAÇÕES POR CANAL ====================
+
+// Registra cada vez que uma oferta é publicada em qualquer canal (manual ou automático)
+model OfferPublication {
+  id      String @id @default(cuid())
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  channel   String // "SITE", "TWITTER", "TELEGRAM", "FACEBOOK", "INSTAGRAM", "WHATSAPP"
+  externalId String? // ID externo (tweetId, messageId, postId)
+
+  publishedAt DateTime @default(now())
+
+  @@index([offerId])
+  @@index([channel])
+  @@index([publishedAt])
 }
 
 // ==================== FRASES PERSONALIZADAS ====================

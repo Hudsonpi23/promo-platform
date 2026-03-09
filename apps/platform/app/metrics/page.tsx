@@ -9,11 +9,13 @@ import { fetchWithAuth } from '@/lib/auth';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface MetricsSummary {
-  totalPosts:    number;
-  totalClicks:   number;
-  postsThisWeek: number;
-  avgDiscount:   number;
-  totalSavings:  number;
+  totalPosts:         number;
+  totalClicks:        number;
+  postsThisWeek:      number;
+  avgDiscount:        number;
+  totalSavings:       number;
+  totalPublications:  number;
+  publishedByChannel: Record<string, number>;
 }
 interface NicheItem    { name: string; icon: string; color: string; posts: number }
 interface DiscountItem { label: string; count: number }
@@ -542,6 +544,51 @@ export default function MetricsPage() {
             </div>
           );
         })()}
+
+        {/* ── 8. Publicações por canal ────────────────────────────────────── */}
+        {summary.totalPublications > 0 && (
+          <div className="lg:col-span-2">
+            <ChartCard id="canais" time="Canais" emoji="📡" title="Publicações por canal"
+              gradient="bg-gradient-to-br from-[#0f0f1a] via-[#0d1a1a] to-[#0f0f1a]"
+            >
+              <div className="text-center mb-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-1">Total de publicações realizadas</p>
+                <p className="text-5xl font-black text-white leading-none">{summary.totalPublications}</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
+                {[
+                  { key: 'SITE',      label: 'Site',        emoji: '🌐', color: '#22c55e' },
+                  { key: 'TWITTER',   label: 'X (Twitter)', emoji: '🐦', color: '#e2e8f0' },
+                  { key: 'TELEGRAM',  label: 'Telegram',    emoji: '✈️', color: '#3b82f6' },
+                  { key: 'FACEBOOK',  label: 'Facebook',    emoji: '👤', color: '#6366f1' },
+                  { key: 'INSTAGRAM', label: 'Instagram',   emoji: '📸', color: '#ec4899' },
+                  { key: 'WHATSAPP',  label: 'WhatsApp',    emoji: '💬', color: '#4ade80' },
+                ]
+                  .filter(c => (summary.publishedByChannel?.[c.key] || 0) > 0)
+                  .map(c => {
+                    const count = summary.publishedByChannel?.[c.key] || 0;
+                    const pct = summary.totalPublications > 0 ? Math.round((count / summary.totalPublications) * 100) : 0;
+                    return (
+                      <div key={c.key} className="bg-white/5 border border-white/10 rounded-xl p-3 text-center">
+                        <p className="text-2xl mb-1">{c.emoji}</p>
+                        <p className="text-xs text-white/50 mb-1">{c.label}</p>
+                        <p className="text-2xl font-black" style={{ color: c.color }}>{count}</p>
+                        <div className="h-1 bg-white/10 rounded-full mt-2">
+                          <div className="h-full rounded-full" style={{ width: `${pct}%`, background: c.color }} />
+                        </div>
+                        <p className="text-[10px] text-white/30 mt-1">{pct}%</p>
+                      </div>
+                    );
+                  })}
+              </div>
+              <div className="mt-4 bg-white/5 rounded-xl px-4 py-3 border border-white/10 text-center">
+                <p className="text-xs text-white/50 leading-relaxed">
+                  Contagem de todas as publicações manuais realizadas em cada canal
+                </p>
+              </div>
+            </ChartCard>
+          </div>
+        )}
 
       </div>
     </div>

@@ -164,8 +164,14 @@ export async function twitterRoutes(app: FastifyInstance) {
       });
     }
 
-    // Registrar o post (opcional: criar registro de publicação)
-    // await prisma.publishedPost.create({ ... });
+    // Registrar publicação para contagem nos cards
+    await prisma.offerPublication.create({
+      data: {
+        offerId,
+        channel: 'TWITTER',
+        externalId: result.tweetId || null,
+      },
+    });
 
     return {
       success: true,

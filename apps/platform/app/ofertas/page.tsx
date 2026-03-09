@@ -10,7 +10,7 @@ export default function OfertasPage() {
   const [showForm, setShowForm] = useState(false);
 
   // Buscar ofertas
-  const { data: offers, mutate } = useSWR<(Offer & { _count: { drafts: number } })[]>(
+  const { data: offers, mutate } = useSWR<(Offer & { _count: { drafts: number; offerPublications: number } })[]>(
     '/api/offers?active=true',
     fetcher
   );
@@ -1279,7 +1279,7 @@ export default function OfertasPage() {
                 </button>
                 
                 <span className="text-xs text-text-muted text-center">
-                  {offer._count?.drafts || 0} posts criados
+                  {offer._count?.offerPublications || 0} post{(offer._count?.offerPublications || 0) !== 1 ? 's' : ''} publicado{(offer._count?.offerPublications || 0) !== 1 ? 's' : ''}
                   {offer.aiPriorityScore && ` • Score IA: ${offer.aiPriorityScore}`}
                 </span>
               </div>

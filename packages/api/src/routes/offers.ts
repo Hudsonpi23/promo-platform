@@ -118,11 +118,11 @@ export async function offersRoutes(app: FastifyInstance) {
           skip,
           take: limit,
           orderBy: { createdAt: 'desc' },
-          include: {
-            niche: { select: { id: true, name: true, slug: true, icon: true } },
-            store: { select: { id: true, name: true, slug: true } },
-            _count: { select: { drafts: true } },
-          },
+            include: {
+              niche: { select: { id: true, name: true, slug: true, icon: true } },
+              store: { select: { id: true, name: true, slug: true } },
+              _count: { select: { drafts: true, offerPublications: true } },
+            },
         }),
         prisma.offer.count({ where }),
       ]);

@@ -110,7 +110,25 @@ export async function metricsRoutes(app: FastifyInstance) {
         .map(p => ({ ...p, clicks: postClickMap[p.id] || 0 }))
         .sort((a, b) => b.clicks - a.clicks);
 
-      // ── 7. Distribuição de descontos ─────────────────────────────────────
+      // ── 7. Publicações por canal (OfferPublication) ──────────────────────
+      const channelCounts = await prisma.offerPublication.groupBy({
+        by: ['channel'],
+        _count: { _all: true },
+      });
+      const publishedByChannel: Record<string, number> = {
+        SITE: 0,
+        TWITTER: 0,
+        TELEGRAM: 0,
+        FACEBOOK: 0,
+        INSTAGRAM: 0,
+        WHATSAPP: 0,
+      };
+      channelCounts.forEach(c => {
+        publishedByChannel[c.channel] = c._count._all;
+      });
+      const totalPublications = Object.values(publishedByChannel).reduce((a, b) => a + b, 0);
+
+      // ── 8. Distribuição de descontos ─────────────────────────────────────
       const discountRanges = [
         { label: '10-19%', min: 10, max: 19 },
         { label: '20-29%', min: 20, max: 29 },
@@ -160,6 +178,8 @@ export async function metricsRoutes(app: FastifyInstance) {
           postsThisWeek,
           avgDiscount,
           totalSavings: Math.round(totalSavings * 100) / 100,
+          totalPublications,
+          publishedByChannel,
         },
         charts: {
           activityByDay,
