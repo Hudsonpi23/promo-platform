@@ -256,9 +256,9 @@ export default function MetricsPage() {
           >
             <span>{tab.emoji}</span>
             <span>{tab.label}</span>
-            {tab.id !== 'site' && channelKey && (
+            {tab.chKey && (
               <span className="ml-1 text-xs opacity-70">
-                ({summary.channelStats?.[tab.id === 'twitter' ? 'TWITTER' : tab.id === 'telegram' ? 'TELEGRAM' : 'FACEBOOK']?.totalPosts ?? 0})
+                ({summary.channelStats?.[tab.chKey]?.totalPosts ?? 0})
               </span>
             )}
           </button>
