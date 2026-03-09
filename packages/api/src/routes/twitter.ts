@@ -118,6 +118,9 @@ export async function twitterRoutes(app: FastifyInstance) {
    */
   app.post('/post-offer/:offerId', { preHandler: [authGuard] }, async (request, reply) => {
     const { offerId } = request.params as { offerId: string };
+    const body = (request.body as { paymentMethod?: string; installments?: number }) || {};
+    const paymentMethod = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
+    const installments  = body.installments || 12;
 
     // Buscar oferta
     const offer = await prisma.offer.findUnique({
@@ -139,7 +142,7 @@ export async function twitterRoutes(app: FastifyInstance) {
     const images = (offer as any).images || [];
     const mainImage = offer.imageUrl;
     
-    console.log(`[Twitter] Preparando post: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}`);
+    console.log(`[Twitter] Preparando post: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}, pagamento=${paymentMethod}`);
     
     const result = await postOfferToTwitter({
       title: offer.title,
@@ -150,6 +153,8 @@ export async function twitterRoutes(app: FastifyInstance) {
       storeName: offer.store?.name,
       imageUrl: mainImage || undefined,
       images: images.length > 0 ? images : undefined,
+      paymentMethod,
+      installments,
     });
 
     if (!result.success) {

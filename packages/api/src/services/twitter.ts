@@ -618,6 +618,8 @@ export function generateTweetText(offer: {
   affiliateUrl?: string;
   storeName?: string;
   siteUrl?: string;
+  paymentMethod?: 'pix' | 'avista' | 'parcelado';
+  installments?: number;
 }): string {
   const copies = generateCopies({
     title: offer.title,
@@ -629,9 +631,10 @@ export function generateTweetText(offer: {
     category: undefined,
     trackingUrl: offer.affiliateUrl ?? '',
     siteUrl: offer.siteUrl,
+    paymentMethod: offer.paymentMethod,
+    installments: offer.installments,
   });
 
-  // copies.x já vem no formato correto para o X (frases sarcásticas, MAIÚSCULAS, emojis, link no final)
   return copies.x;
 }
 
@@ -650,6 +653,8 @@ export async function postOfferToTwitter(offer: {
   siteUrl?: string;
   /** Copy já gerada (ex: com flash hooks). Se fornecida, não regera. */
   preGeneratedCopy?: string;
+  paymentMethod?: 'pix' | 'avista' | 'parcelado';
+  installments?: number;
 }): Promise<TweetResponse> {
   const tweetText = offer.preGeneratedCopy ?? generateTweetText(offer);
 

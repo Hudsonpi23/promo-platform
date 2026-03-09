@@ -20,6 +20,8 @@ export default function OfertasPage() {
   const { data: stores } = useSWR('/api/offers/stores', fetcher);
   const { data: batches } = useSWR('/api/batches', fetcher);
 
+  type PaymentMethod = 'pix' | 'avista' | 'parcelado';
+
   // Estado do formulário
   const [form, setForm] = useState({
     title: '',
@@ -31,7 +33,13 @@ export default function OfertasPage() {
     urgency: 'NORMAL',
     mainImage: '', // 🤖 v2.0: Imagem obrigatória
     images: [] as string[], // 🎠 Galeria de imagens (carrossel)
+    paymentMethod: 'avista' as PaymentMethod,
+    installments: 12,
   });
+
+  // Estado de forma de pagamento por card (para publicação)
+  const [cardPayment, setCardPayment] = useState<Record<string, PaymentMethod>>({});
+  const [cardInstallments, setCardInstallments] = useState<Record<string, number>>({});
 
   // Estado para criar post manual
   const [createManualPost, setCreateManualPost] = useState(false);
@@ -302,10 +310,12 @@ export default function OfertasPage() {
         storeId: '',
         urgency: 'NORMAL',
         mainImage: '',
-        images: [], // 🎠 Limpar galeria
+        images: [],
+        paymentMethod: 'avista',
+        installments: 12,
       });
       setImagePreview(null);
-      setGalleryPreviews([]); // 🎠 Limpar preview da galeria
+      setGalleryPreviews([]);
       
       const createdOffer = await response.json();
       const offerId = createdOffer.data?.id || createdOffer.id;
@@ -365,10 +375,12 @@ export default function OfertasPage() {
         storeId: '',
         urgency: 'NORMAL',
         mainImage: '',
-        images: [], // 🎠 Limpar galeria
+        images: [],
+        paymentMethod: 'avista',
+        installments: 12,
       });
       setImagePreview(null);
-      setGalleryPreviews([]); // 🎠 Limpar preview da galeria
+      setGalleryPreviews([]);
       setCreateManualPost(false);
       setManualCopyText({
         copyText: '',
@@ -491,12 +503,11 @@ export default function OfertasPage() {
 
   // Postar diretamente no X (Twitter)
   const handlePostToX = async (offerId: string) => {
-    if (postingToX) return; // Evitar duplo clique
+    if (postingToX) return;
     
     setPostingToX(offerId);
     
     try {
-      // Primeiro verificar se Twitter está configurado
       const statusResponse = await fetchWithAuth('/api/twitter/status');
       const statusData = await statusResponse.json();
       
@@ -505,13 +516,13 @@ export default function OfertasPage() {
         return;
       }
       
-      // Postar no Twitter
+      const pm = cardPayment[offerId] || 'avista';
+      const inst = cardInstallments[offerId] || 12;
+
       const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethod: pm, installments: inst }),
       });
       
       const data = await response.json();
@@ -608,8 +619,13 @@ export default function OfertasPage() {
     setPostingToTelegram(offerId);
     
     try {
+      const pm   = cardPayment[offerId] || 'avista';
+      const inst = cardInstallments[offerId] || 12;
+
       const response = await fetchWithAuth(`/api/telegram/post-offer/${offerId}`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentMethod: pm, installments: inst }),
       });
       
       const data = await response.json();
@@ -892,6 +908,54 @@ export default function OfertasPage() {
                 ))}
               </select>
             </div>
+            {/* 💳 Forma de Pagamento */}
+            <div className="lg:col-span-3">
+              <label className="block text-sm text-text-secondary mb-2">
+                💳 Forma de Pagamento
+              </label>
+              <div className="flex gap-2">
+                {([
+                  { value: 'pix',       label: '💸 PIX',       desc: 'Desconto no PIX' },
+                  { value: 'avista',    label: '💵 À vista',   desc: 'Cartão / Boleto' },
+                  { value: 'parcelado', label: '📅 Parcelado', desc: 'Sem desconto' },
+                ] as { value: PaymentMethod; label: string; desc: string }[]).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, paymentMethod: opt.value })}
+                    className={cn(
+                      'flex-1 py-2 px-2 rounded-lg border text-xs font-semibold transition-all text-center',
+                      form.paymentMethod === opt.value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-text-muted hover:border-primary/40'
+                    )}
+                  >
+                    <div>{opt.label}</div>
+                    <div className="font-normal text-[10px] mt-0.5 opacity-70">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+              {form.paymentMethod === 'parcelado' && (
+                <div className="mt-2 flex items-center gap-3">
+                  <label className="text-xs text-text-muted whitespace-nowrap">Parcelas:</label>
+                  <select
+                    value={form.installments}
+                    onChange={(e) => setForm({ ...form, installments: Number(e.target.value) })}
+                    className="px-3 py-1.5 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                      <option key={n} value={n}>{n}x</option>
+                    ))}
+                  </select>
+                  {form.finalPrice && (
+                    <span className="text-xs text-text-muted">
+                      ≈ R$ {(parseFloat(form.finalPrice.replace(',', '.')) / form.installments).toFixed(2).replace('.', ',')}/parcela
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="lg:col-span-2">
               <label className="block text-sm text-text-secondary mb-2">
                 Link Afiliado <span className="text-text-muted text-xs">(opcional)</span>
@@ -1089,6 +1153,45 @@ export default function OfertasPage() {
                 {getUrgencyLabel(offer.urgency)}
               </div>
             )}
+
+              {/* 💳 Forma de Pagamento do card */}
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider mb-1.5">💳 Pagamento ao publicar</p>
+                <div className="flex gap-1">
+                  {(['pix', 'avista', 'parcelado'] as PaymentMethod[]).map(pm => (
+                    <button
+                      key={pm}
+                      type="button"
+                      onClick={() => setCardPayment(prev => ({ ...prev, [offer.id]: pm }))}
+                      className={cn(
+                        'flex-1 py-1 rounded text-[10px] font-semibold transition-all border',
+                        (cardPayment[offer.id] || 'avista') === pm
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-text-muted hover:border-primary/30'
+                      )}
+                    >
+                      {pm === 'pix' ? '💸 PIX' : pm === 'avista' ? '💵 À vista' : '📅 Parc.'}
+                    </button>
+                  ))}
+                </div>
+                {(cardPayment[offer.id] || 'avista') === 'parcelado' && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <span className="text-[10px] text-text-muted">Parcelas:</span>
+                    <select
+                      value={cardInstallments[offer.id] || 12}
+                      onChange={e => setCardInstallments(prev => ({ ...prev, [offer.id]: Number(e.target.value) }))}
+                      className="flex-1 px-2 py-1 rounded bg-background border border-border text-text-primary text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                        <option key={n} value={n}>{n}x</option>
+                      ))}
+                    </select>
+                    <span className="text-[10px] text-text-muted">
+                      ≈ {formatCurrency(Number(offer.finalPrice) / (cardInstallments[offer.id] || 12))}
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* Ações */}
               <div className="flex flex-col gap-2 pt-3 border-t border-border">
