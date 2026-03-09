@@ -12,6 +12,7 @@ import { FastifyInstance } from 'fastify';
 import crypto from 'crypto';
 import { authGuard } from '../lib/auth.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
+import { prisma } from '../lib/prisma.js';
 
 const TWITTER_API_KEY              = process.env.TWITTER_API_KEY || '';
 const TWITTER_API_SECRET           = process.env.TWITTER_API_SECRET || '';
@@ -274,6 +275,22 @@ export async function videoPublishRoutes(app: FastifyInstance) {
         return reply.status(500).send({ error: `Twitter: ${tweetData.detail || 'Erro ao postar tweet'}` });
       }
 
+      // Registrar publicação de vídeo para métricas globais
+      try {
+        await prisma.postHistory.create({
+          data: {
+            offerId:    'video-standalone',
+            channel:    'TWITTER',
+            humorStyle: 'NEUTRO',
+            uniqueHash: `manual-TWITTER-video-${Date.now()}`,
+            copyText:   title,
+            externalId: tweetData.data.id,
+          },
+        });
+      } catch (e) {
+        console.error('[PostHistory/VideoX] Erro ao registrar publicação:', e);
+      }
+
       return reply.send({
         success:  true,
         tweetId:  tweetData.data.id,
@@ -454,6 +471,22 @@ export async function videoPublishRoutes(app: FastifyInstance) {
 
       if (!publishData.id) {
         return reply.status(500).send({ error: `Instagram publish: ${publishData.error?.message || 'Erro desconhecido'}` });
+      }
+
+      // Registrar publicação de vídeo para métricas globais
+      try {
+        await prisma.postHistory.create({
+          data: {
+            offerId:    'video-standalone',
+            channel:    'INSTAGRAM',
+            humorStyle: 'NEUTRO',
+            uniqueHash: `manual-INSTAGRAM-video-${Date.now()}`,
+            copyText:   title,
+            externalId: publishData.id,
+          },
+        });
+      } catch (e) {
+        console.error('[PostHistory/VideoInstagram] Erro ao registrar publicação:', e);
       }
 
       return reply.send({
