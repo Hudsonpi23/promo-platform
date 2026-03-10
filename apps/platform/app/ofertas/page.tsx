@@ -42,6 +42,8 @@ export default function OfertasPage() {
   const [cardInstallments, setCardInstallments] = useState<Record<string, number>>({});
   // Valor por parcela inserido manualmente pelo usuário
   const [cardInstallmentValue, setCardInstallmentValue] = useState<Record<string, string>>({});
+  // Modo de frase: 'brand' usa frases da marca detectada | 'generic' usa frases genéricas do tipo
+  const [cardPhraseMode, setCardPhraseMode] = useState<Record<string, 'brand' | 'generic'>>({});
 
   // Estado para criar post manual
   const [createManualPost, setCreateManualPost] = useState(false);
@@ -534,10 +536,11 @@ export default function OfertasPage() {
         ? parseFloat(instValRaw.replace(',', '.'))
         : undefined;
 
+      const phraseMode = cardPhraseMode[offerId] ?? 'brand';
       const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal }),
+        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal, phraseMode }),
       });
       
       const data = await response.json();
@@ -642,10 +645,11 @@ export default function OfertasPage() {
         ? parseFloat(instValRaw.replace(',', '.'))
         : undefined;
 
+      const phraseModeT = cardPhraseMode[offerId] ?? 'brand';
       const response = await fetchWithAuth(`/api/telegram/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal }),
+        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal, phraseMode: phraseModeT }),
       });
       
       const data = await response.json();
@@ -1230,6 +1234,26 @@ export default function OfertasPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Modo de frase */}
+              <div className="mt-2">
+                <span className="text-[10px] text-text-muted block mb-1">Tipo de frase:</span>
+                <div className="flex gap-1">
+                  {(['brand', 'generic'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setCardPhraseMode(prev => ({ ...prev, [offer.id]: mode }))}
+                      className={`flex-1 py-1 rounded text-[11px] font-medium transition-all border ${
+                        (cardPhraseMode[offer.id] ?? 'brand') === mode
+                          ? 'bg-primary/20 border-primary text-primary'
+                          : 'border-border text-text-muted hover:border-primary/30'
+                      }`}
+                    >
+                      {mode === 'brand' ? '🏷️ Marca' : '✨ Genérica'}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Ações */}

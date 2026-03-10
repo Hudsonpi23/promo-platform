@@ -45,6 +45,14 @@ export interface CopyInputData {
   installments?: number;
   /** Valor por parcela inserido manualmente (sobrepõe o cálculo automático price/installments) */
   installmentValue?: number;
+  /**
+   * Modo de seleção de frases:
+   *   'brand'   → detecta a marca no título e usa SÓ as frases daquela marca;
+   *               se a marca não tiver frases, usa genéricas do tipo de produto.
+   *   'generic' → usa SÓ frases genéricas do tipo de produto (ignora marcas).
+   *   undefined → comportamento padrão (pool unificado — marca + genérico misturados).
+   */
+  phraseMode?: 'generic' | 'brand';
 }
 
 export interface GeneratedCopies {
@@ -5995,16 +6003,31 @@ function getCategoryKey(category?: string | null, title?: string): string {
 // reutiliza o que já foi sorteado para este título hoje (ex: Telegram → X).
 // Retorna a última frase sorteada para este título hoje (sem avançar o tracker).
 // Usa o mesmo mapeamento de getProductSpecificPhrase.
-function peekProductSpecificPhrase(title: string): string | null {
+function peekProductSpecificPhrase(title: string, phraseMode?: 'generic' | 'brand'): string | null {
   const titleLower = title.toLowerCase();
 
-  // 1. Tipo de produto → mesma chave de pool
+  // 1. Tipo de produto → mesma chave de pool usada no pick
   const productType = detectProductType(titleLower);
   if (productType) {
     const poolId = PRODUCT_TYPE_POOL_MAP[productType.phraseKey] ?? productType.phraseKey;
-    const peekKey = poolId.startsWith('pool:') ? poolId : poolId;
-    const last = peekLastPhrase(peekKey);
-    if (last) return last;
+    const isMergedPool = poolId.startsWith('pool:');
+    const mergedCatKey = isMergedPool ? poolId.slice(5) : null;
+
+    if (phraseMode === 'brand' && mergedCatKey) {
+      const brand = detectBrandInTitle(titleLower, mergedCatKey);
+      if (brand) {
+        const last = peekLastPhrase(brand);
+        if (last) return last;
+      }
+      const last = peekLastPhrase(productType.phraseKey);
+      if (last) return last;
+    } else if (phraseMode === 'generic' && isMergedPool) {
+      const last = peekLastPhrase(productType.phraseKey);
+      if (last) return last;
+    } else {
+      const last = peekLastPhrase(poolId);
+      if (last) return last;
+    }
   }
 
   // 2. Fallback: marca detectada → pool merged
@@ -6173,7 +6196,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'livro':                 'livro',
 };
 
-function getProductSpecificPhrase(title: string): string | null {
+function getProductSpecificPhrase(title: string, phraseMode?: 'generic' | 'brand'): string | null {
   const titleLower = title.toLowerCase();
 
   function fromPool(poolId: string): string | null {
@@ -6186,20 +6209,51 @@ function getProductSpecificPhrase(title: string): string | null {
     return pool?.length ? pickUnusedPhrase(pool, poolId) : null;
   }
 
+  function fromGenericKey(genericKey: string): string | null {
+    const pool = PRODUCT_SPECIFIC_PHRASES[genericKey];
+    return pool?.length ? pickUnusedPhrase(pool, genericKey) : null;
+  }
+
+  function fromBrand(mergedCatKey: string): string | null {
+    const brand = detectBrandInTitle(titleLower, mergedCatKey);
+    if (!brand) return null;
+    const pool = PRODUCT_SPECIFIC_PHRASES[brand];
+    return pool?.length ? pickUnusedPhrase(pool, brand) : null;
+  }
+
   // ── 1. Detectar tipo de produto pelo título ────────────────────────────────
   const productType = detectProductType(titleLower);
   if (productType) {
     const poolId = PRODUCT_TYPE_POOL_MAP[productType.phraseKey] ?? productType.phraseKey;
+    const isMergedPool = poolId.startsWith('pool:');
+    const mergedCatKey = isMergedPool ? poolId.slice(5) : null;
+
+    if (phraseMode === 'brand' && mergedCatKey) {
+      // Modo MARCA: detecta a marca → usa só as frases dessa marca.
+      // Fallback: genéricas do tipo de produto.
+      const branded = fromBrand(mergedCatKey);
+      if (branded) return branded;
+      return fromGenericKey(productType.phraseKey);
+    }
+
+    if (phraseMode === 'generic' && isMergedPool) {
+      // Modo GENÉRICO: ignora marcas, usa só pool genérico do tipo.
+      return fromGenericKey(productType.phraseKey);
+    }
+
+    // Modo padrão (undefined): pool unificado (marca + genérico misturados)
     const result = fromPool(poolId);
     if (result) return result;
   }
 
   // ── 2. Fallback: produto sem palavra-chave de tipo → detecta por marca ─────
-  // Ex: "Nike Air Max 90" sem "tênis" no título → ainda cai no pool de tenis
   const mergedCat = getMergedCategoryKey(titleLower);
   if (mergedCat) {
-    const poolId = `pool:${mergedCat}`;
-    const result = fromPool(poolId);
+    if (phraseMode === 'brand') {
+      const branded = fromBrand(mergedCat);
+      if (branded) return branded;
+    }
+    const result = fromPool(`pool:${mergedCat}`);
     if (result) return result;
   }
 
@@ -6267,7 +6321,7 @@ function generatePriceLine(input: CopyInputData, seed: number): string {
  */
 function generateOpening(input: CopyInputData, seed: number, channelSeedOffset: number = 0): string {
   // Primeiro, verificar se há frase específica do produto — com anti-repetição diária
-  const productPhrase = getProductSpecificPhrase(input.title);
+  const productPhrase = getProductSpecificPhrase(input.title, input.phraseMode);
   if (productPhrase) {
     return productPhrase.toUpperCase();
   }
@@ -6783,8 +6837,8 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     // Prioridade: reutilizar a mesma frase já sorteada para o Telegram neste post
     // (sem avançar o tracker); se nada foi sorteado ainda, sortear agora.
     const productHook =
-      peekProductSpecificPhrase(input.title) ??
-      getProductSpecificPhrase(input.title);
+      peekProductSpecificPhrase(input.title, input.phraseMode) ??
+      getProductSpecificPhrase(input.title, input.phraseMode);
 
     if (productHook) {
       hook = productHook.toUpperCase();
