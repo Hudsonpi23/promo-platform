@@ -43,6 +43,8 @@ export interface CopyInputData {
   paymentMethod?: PaymentMethod;
   /** Número de parcelas (quando paymentMethod = 'parcelado') */
   installments?: number;
+  /** Valor por parcela inserido manualmente (sobrepõe o cálculo automático price/installments) */
+  installmentValue?: number;
 }
 
 export interface GeneratedCopies {
@@ -824,7 +826,7 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
   // Ferramentas - Marcas Top (profissional)
   'bosch': [
     'BOSCH: A ÚNICA COISA ALEMÃ QUE CHEGA NO BRASIL SEM FILA DE ESPERA 🇩🇪',
-    'ESSA FURADEIRA FAZ BURACO ATÉ EM DECISÃO TOMADA 🔩',
+    'ESSA BOSCH FAZ O TRABALHO ATÉ EM DECISÃO TOMADA 🔩',
     'BOSCH: QUANDO A FERRAMENTA TRABALHA MAIS DO QUE O DONO 😅',
     'PRA QUEM JÁ QUEBROU BROCA BARATA NO MEIO DA PAREDE E NÃO ESQUECEU 😤',
     'ESSA AQUI FAZ O VIZINHO PEDIR EMPRESTADO E NÃO DEVOLVER 😏',
@@ -834,7 +836,7 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'ALEMÃO QUE CHEGA, FAZ E VAI EMBORA SEM DRAMA 🇩🇪',
     'PRA QUEM CANSA DE FERRAMENTA QUE PARA EXATAMENTE NO MOMENTO ERRADO 😡',
     'BOSCH: PRA QUEM FAZ REFORMA OU SÓ GOSTA DE TER FERRAMENTA BOA NA PRATELEIRA 😌',
-    'ESSA FURADEIRA FURA ATÉ O ORÇAMENTO DA REFORMA — NO BOM SENTIDO 💰',
+    'ESSA BOSCH RESOLVE ATÉ O ORÇAMENTO DA REFORMA — NO BOM SENTIDO 💰',
     'PRA QUEM JÁ DESISTIU DE PARAFUSO POR CAUSA DE CHAVE RUIM 😤',
     'BOSCH: O PRESENTE DE DIA DOS PAIS QUE O PAI REALMENTE QUER 🎁',
     'FERRAMENTA QUE PASSA PRA PRÓXIMA GERAÇÃO — SE DEIXAREM 😂',
@@ -907,14 +909,14 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM NÃO QUER COMPRAR FERRAMENTA DE DOIS EM DOIS ANOS 💡',
   ],
   'black+decker': [
-    'BLACK+DECKER: A FURADEIRA DE TODO MUNDO QUE ALGUM DIA VAI USAR 😂',
+    'BLACK+DECKER: O PRODUTO DE TODO MUNDO QUE ALGUM DIA VAI USAR 😂',
     'PRA QUEM FAZ O SERVIÇO EM CASA ANTES DE LIGAR PRO TÉCNICO 💪',
     'BLACK+DECKER: PRA QUEM DESCOBRE QUE CONSEGUE FAZER SOZINHO 😎',
     'ESSA AQUI FAZ MAIS DO QUE O MANUAL PROMETEU 😏',
     'PRA QUEM FAZ A PRÓPRIA REFORMA MELHOR DO QUE O CONTRATADO 😤',
     'BLACK+DECKER: O COMEÇO DE TODA BOA HISTÓRIA DE REFORMA 🏠',
     'PRA QUEM RESOLVE O QUE PRECISA E NÃO PASSA O ANO ESPERANDO AJUDA 💡',
-    'ESSA FURADEIRA JÁ RESOLVEU MAIS PROBLEMA DO QUE MUITO PROFISSIONAL 😂',
+    'ESSA BLACK+DECKER JÁ RESOLVEU MAIS PROBLEMA DO QUE MUITO PROFISSIONAL 😂',
   ],
   'black decker': [],
   'irwin': [
@@ -1015,7 +1017,7 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
   // Ferramentas - Marcas Brasileiras
   'tramontina': [
     'TRAMONTINA: A MARCA QUE TÁ NA SUA COZINHA, NA SUA OBRA E NA COZINHA DA SUA MÃE 🇧🇷',
-    'ESSA FACA TRAMONTINA CORTA MAIS DO QUE O ORÇAMENTO DA REFORMA 😂',
+    'TRAMONTINA CORTA MAIS DO QUE O ORÇAMENTO DA REFORMA — QUALQUER PRODUTO 😂',
     'TRAMONTINA: NACIONAL, MAS A IMPORTADA QUE VOCÊ TEM TÁ NA PRATELEIRA COM INVEJA 💪',
     'DA PANELA PRA FACA PRA FERRAMENTA: TRAMONTINA FAZ TUDO E FAZ BEM 🔧',
     'PRA QUEM NÃO ABRE MÃO DE QUALIDADE BRASILEIRA — E TEM MOTIVO 🇧🇷',
@@ -1147,14 +1149,14 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'NIGRO: INOX QUE OS OUTROS OLHAM E PERGUNTAM ONDE COMPROU 👀',
   ],
   'sanremo': [
-    'SANREMO: O ELETRODOMÉSTICO QUE FAZ A COZINHA PARECER QUE VOCÊ SABE O QUE TÁ FAZENDO 😂',
-    'PRA QUEM QUER BATER, MISTURAR E NÃO PASSAR RAIVA COM O APARELHO 😤',
-    'SANREMO: QUANDO O LIQUIDIFICADOR FAZ O TRABALHO E VOCÊ RECEBE O ELOGIO 😏',
-    'PRA QUEM JÁ VIU APARELHO PARAR NO MEIO DO PREPARO E FICOU COM RAIVA 😡',
-    'ESSE SANREMO FAZ SUCO, VITAMINA, SORVETE E AINDA FICA BONITO NA BANCADA ✨',
-    'SANREMO: PRA QUEM QUER PRATICIDADE E NÃO QUER MANUAL DE 40 PÁGINAS 💡',
-    'PRA QUEM COZINHA MUITO E PRECISA DE APARELHO QUE ACOMPANHE O RITMO 💪',
-    'SANREMO: O ELETRO QUE FUNCIONA — SIMPLES ASSIM ✅',
+    'SANREMO: A MARCA QUE FAZ A COZINHA PARECER QUE VOCÊ SABE O QUE TÁ FAZENDO 😂',
+    'PRA QUEM QUER COZINHAR BEM E NÃO PASSAR RAIVA COM O EQUIPAMENTO 😤',
+    'SANREMO: QUANDO A COZINHA FAZ O TRABALHO E VOCÊ RECEBE O ELOGIO 😏',
+    'PRA QUEM JÁ VIU PRODUTO BARATO ESTRAGAR NO MEIO DO USO E FICOU COM RAIVA 😡',
+    'SANREMO: BONITO NA BANCADA, EFICIENTE NA PRÁTICA ✨',
+    'SANREMO: PRA QUEM QUER QUALIDADE E NÃO QUER SUSTO NO PRIMEIRO USO 💡',
+    'PRA QUEM COZINHA MUITO E PRECISA DE PRODUTO QUE ACOMPANHE O RITMO 💪',
+    'SANREMO: O QUE FUNCIONA — SIMPLES ASSIM ✅',
   ],
   'plasútil': [
     'PLASÚTIL: PRA QUEM JÁ ABRIU A GELADEIRA E NÃO ACHOU NADA POR CAUSA DA BAGUNÇA 😅',
@@ -4672,6 +4674,11 @@ const PRICE_TEMPLATES_NO_OLD = [
 
 const _dailyPhraseUsage = new Map<string, Set<number>>();
 
+// Cache da última frase escolhida por chave no dia.
+// Permite que X reutilize a mesma frase já sorteada para Telegram
+// sem avançar o tracker duas vezes para o mesmo post.
+const _lastPickedToday = new Map<string, string>();
+
 function _getTodayStr(): string {
   return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
 }
@@ -4705,17 +4712,31 @@ function pickUnusedPhrase<T>(arr: T[], productKey: string): T {
     .map((item, idx) => ({ item, idx }))
     .filter(({ idx }) => !used.has(idx));
 
+  let chosen: { item: T; idx: number };
+
   if (available.length === 0) {
     // Todas usadas hoje → reset e começa novo ciclo
     used.clear();
     const idx = Math.floor(Math.random() * arr.length);
     used.add(idx);
-    return arr[idx];
+    chosen = { item: arr[idx], idx };
+  } else {
+    chosen = available[Math.floor(Math.random() * available.length)];
+    used.add(chosen.idx);
   }
 
-  const chosen = available[Math.floor(Math.random() * available.length)];
-  used.add(chosen.idx);
+  // Salva no cache para que outros canais do mesmo post possam reutilizar
+  const cacheKey = `${_getTodayStr()}:${productKey}:last`;
+  _lastPickedToday.set(cacheKey, String(chosen.item));
+
   return chosen.item;
+}
+
+// Retorna a última frase sorteada para esta chave hoje, sem avançar o tracker.
+// Usado pelo X para reutilizar a mesma frase já escolhida para Telegram.
+function peekLastPhrase(productKey: string): string | null {
+  const cacheKey = `${_getTodayStr()}:${productKey}:last`;
+  return _lastPickedToday.get(cacheKey) ?? null;
 }
 
 // ==================== HELPERS ====================
@@ -4774,6 +4795,33 @@ function getCategoryKey(category?: string | null, title?: string): string {
 // Detecta produtos específicos para usar frases engraçadas.
 // Usa o DailyPhraseTracker para garantir que o mesmo tipo de produto
 // não repita a mesma frase em posts diferentes no mesmo dia.
+// Retorna a frase de produto sem avançar o tracker —
+// reutiliza o que já foi sorteado para este título hoje (ex: Telegram → X).
+function peekProductSpecificPhrase(title: string): string | null {
+  const titleLower = title.toLowerCase();
+
+  const mergedCat = getMergedCategoryKey(titleLower);
+  if (mergedCat) {
+    const last = peekLastPhrase(`merged:${mergedCat}`);
+    if (last) return last;
+  }
+
+  // Fallback: tentar chaves individuais
+  const priorityOrderPeek = [
+    'relógio masculino', 'relógio feminino', 'smart tv', 'air fryer', 'airpods',
+    'perfume feminino', 'perfume masculino', 'iphone', 'samsung', 'xiaomi',
+    'tv', 'celular', 'notebook', 'fone', 'geladeira', 'microondas',
+    'tênis', 'camisa', 'calça', 'roupa', 'perfume', 'panela',
+  ];
+  for (const key of priorityOrderPeek) {
+    if (titleLower.includes(key)) {
+      const last = peekLastPhrase(key);
+      if (last) return last;
+    }
+  }
+  return null;
+}
+
 function getProductSpecificPhrase(title: string): string | null {
   const titleLower = title.toLowerCase();
 
@@ -5564,21 +5612,17 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     subtitle = pickUnusedPhrase(FLASH_SUBTITLES, `x-flash:subtitle`);
   } else {
     // Tentar usar frase específica de marca/produto como hook.
-    // Usa o mesmo sistema anti-repetição diária do Telegram —
-    // garante que 15 posts de Nike no mesmo dia saiam todos com hooks diferentes.
-    const productHook = getProductSpecificPhrase(input.title);
+    // Prioridade: reutilizar a mesma frase já sorteada para o Telegram neste post
+    // (sem avançar o tracker); se nada foi sorteado ainda, sortear agora.
+    const productHook =
+      peekProductSpecificPhrase(input.title) ??
+      getProductSpecificPhrase(input.title);
 
     if (productHook) {
       hook = productHook.toUpperCase();
-      // Subtitle vem dos pools normais (complementa o hook de produto)
-      const subtitleType = Math.floor(Math.random() * 3);
-      if (subtitleType === 0) {
-        subtitle = pickUnusedPhrase(X_SUBTITLES_URGENCIA, `x-subtitle-urgencia:${nicheKey}`);
-      } else if (subtitleType === 1) {
-        subtitle = pickUnusedPhrase(X_SUBTITLES_SURPRESA, `x-subtitle-surpresa:${nicheKey}`);
-      } else {
-        subtitle = pickUnusedPhrase(X_SUBTITLES_CURIOSIDADE, `x-subtitle-curiosidade:${nicheKey}`);
-      }
+      // Frase de produto é autocontida — não precisa de subtítulo genérico.
+      // Um subtítulo genérico só enfraqueceria a frase.
+      subtitle = '';
     } else {
       // Sem frase de produto: usar hooks genéricos de urgência/surpresa/curiosidade
       // Descontos altos (≥30%) → forçar surpresa (mais impacto)
@@ -5602,9 +5646,6 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     ? '👉 aproveitar agora'
     : pickUnusedPhrase(X_CTAS, `x-cta:${nicheKey}`);
 
-  // ── Nome do produto — sem truncar (Twitter conta URLs como 23 chars, há espaço) ──
-  const shortTitle = getShortTitle(input.title, 80);
-
   // ── Bloco de preço (considera forma de pagamento) ──
   const priceBlock: string[] = [];
   const pm = input.paymentMethod ?? 'avista';
@@ -5614,9 +5655,12 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }
-    priceBlock.push(`por ${priceNow} pelo PIX`);
+    priceBlock.push(`por ${priceNow}`);
   } else if (pm === 'parcelado') {
-    const instValue = input.price / inst;
+    // Usa o valor por parcela inserido manualmente; se não fornecido, calcula a partir do preço total
+    const instValue = (input.installmentValue && input.installmentValue > 0)
+      ? input.installmentValue
+      : input.price / inst;
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }
@@ -5635,24 +5679,63 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       : `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% DE DESCONTO`
     : '';
 
+  // ── CTA + links ──
+  const SITE_BASE = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
+  const siteUrl = input.siteUrl || SITE_BASE;
+
+  // ── Calcular espaço disponível para o título ──
+  // Twitter conta qualquer URL como 23 chars (t.co). Montamos o post sem o título,
+  // substituindo URLs por placeholder de 23 chars, e usamos o que sobrar para o título.
+  const TWITTER_LIMIT = 280;
+  const TWITTER_URL_LEN = 23;
+  const urlPlaceholder = 'x'.repeat(TWITTER_URL_LEN);
+
+  const flashTimeLine = (() => {
+    if (input.isFlash && input.flashMinutes) {
+      const h = Math.floor(input.flashMinutes / 60);
+      const m = input.flashMinutes % 60;
+      return `⏰ Oferta encerra em ~${h > 0 ? `${h}h${m > 0 ? `${m}min` : ''}` : `${m}min`}`;
+    }
+    return null;
+  })();
+
+  const fixedLines = [
+    hook,
+    ...(subtitle ? [subtitle] : []),
+    '',
+    // título vai aqui — não incluído no cálculo
+    '',
+    ...priceBlock,
+    ...(discountLine ? ['', discountLine] : []),
+    ...(flashTimeLine ? ['', flashTimeLine] : []),
+    '',
+    `${cta} ${urlPlaceholder}`,
+    '',
+    `🌐 ${urlPlaceholder}`,
+  ];
+  const fixedChars = fixedLines.join('\n').length;
+  const titleLimit = Math.max(50, TWITTER_LIMIT - fixedChars);
+
+  // Usa o título completo se couber; senão corta na última palavra inteira
+  let xTitle = input.title;
+  if (xTitle.length > titleLimit) {
+    const words = xTitle.split(' ');
+    let trimmed = '';
+    for (const word of words) {
+      const candidate = trimmed ? `${trimmed} ${word}` : word;
+      if (candidate.length <= titleLimit - 3) {
+        trimmed = candidate;
+      } else break;
+    }
+    xTitle = (trimmed || xTitle.substring(0, titleLimit - 3)) + '...';
+  }
+
   // ── Montar post linha a linha ──
-  // Estrutura:
-  //   🔥 GANCHO            ← linha 1 (hook)
-  //   Frase complementar   ← linha 2 (subtitle — sem linha em branco entre hook e subtitle)
-  //                        ← linha em branco
-  //   Nome do Produto
-  //                        ← linha em branco
-  //   De R$ XX,XX
-  //   por R$ YY,YY
-  //                        ← linha em branco
-  //   🔥 -35% OFF          ← desconto em linha própria
-  //                        ← linha em branco
-  //   👉 aproveitar oferta ← CTA em linha própria
   const lines: string[] = [
     hook,
-    subtitle,   // frase complementar colada ao gancho (sem linha em branco)
+    ...(subtitle ? [subtitle] : []),
     '',
-    shortTitle,
+    xTitle,
     '',
     ...priceBlock,
   ];
@@ -5662,18 +5745,10 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     lines.push(discountLine);
   }
 
-  // Linha de tempo restante para oferta relâmpago
-  if (input.isFlash && input.flashMinutes) {
-    const h = Math.floor(input.flashMinutes / 60);
-    const m = input.flashMinutes % 60;
-    const timeStr = h > 0 ? `${h}h${m > 0 ? `${m}min` : ''}` : `${m}min`;
+  if (flashTimeLine) {
     lines.push('');
-    lines.push(`⏰ Oferta encerra em ~${timeStr}`);
+    lines.push(flashTimeLine);
   }
-
-  // CTA + link do afiliado na mesma linha | link do site na linha separada
-  const SITE_BASE = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
-  const siteUrl = input.siteUrl || SITE_BASE;
 
   lines.push('');
   lines.push(`${cta} ${input.trackingUrl}`);

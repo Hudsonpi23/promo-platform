@@ -118,9 +118,10 @@ export async function twitterRoutes(app: FastifyInstance) {
    */
   app.post('/post-offer/:offerId', { preHandler: [authGuard] }, async (request, reply) => {
     const { offerId } = request.params as { offerId: string };
-    const body = (request.body as { paymentMethod?: string; installments?: number }) || {};
-    const paymentMethod = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
-    const installments  = body.installments || 12;
+    const body = (request.body as { paymentMethod?: string; installments?: number; installmentValue?: number }) || {};
+    const paymentMethod    = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
+    const installments     = body.installments ?? 12;
+    const installmentValue = body.installmentValue ?? undefined;
 
     // Buscar oferta
     const offer = await prisma.offer.findUnique({
@@ -155,6 +156,7 @@ export async function twitterRoutes(app: FastifyInstance) {
       images: images.length > 0 ? images : undefined,
       paymentMethod,
       installments,
+      installmentValue,
     });
 
     if (!result.success) {

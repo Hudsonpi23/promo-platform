@@ -64,9 +64,10 @@ export async function telegramRoutes(app: FastifyInstance) {
    */
   app.post('/post-offer/:offerId', { preHandler: [authGuard] }, async (request, reply) => {
     const { offerId } = request.params as { offerId: string };
-    const body = (request.body as { paymentMethod?: string; installments?: number }) || {};
-    const paymentMethod = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
-    const installments  = body.installments || 12;
+    const body = (request.body as { paymentMethod?: string; installments?: number; installmentValue?: number }) || {};
+    const paymentMethod    = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
+    const installments     = body.installments ?? 12;
+    const installmentValue = body.installmentValue ?? undefined;
 
     if (!isTelegramConfigured()) {
       console.error('[Telegram] Telegram não configurado - verifique TELEGRAM_BOT_TOKEN e TELEGRAM_CHAT_ID');
@@ -127,6 +128,7 @@ export async function telegramRoutes(app: FastifyInstance) {
       trackingUrl: offer.affiliateUrl,
       paymentMethod,
       installments,
+      installmentValue,
     });
     
     // Usar copyTextTelegram (já está em MAIÚSCULAS)

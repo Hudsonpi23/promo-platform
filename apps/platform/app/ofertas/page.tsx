@@ -40,6 +40,8 @@ export default function OfertasPage() {
   // Estado de forma de pagamento por card (para publicação)
   const [cardPayment, setCardPayment] = useState<Record<string, PaymentMethod>>({});
   const [cardInstallments, setCardInstallments] = useState<Record<string, number>>({});
+  // Valor por parcela inserido manualmente pelo usuário
+  const [cardInstallmentValue, setCardInstallmentValue] = useState<Record<string, string>>({});
 
   // Estado para criar post manual
   const [createManualPost, setCreateManualPost] = useState(false);
@@ -320,6 +322,15 @@ export default function OfertasPage() {
       const createdOffer = await response.json();
       const offerId = createdOffer.data?.id || createdOffer.id;
 
+      // Pré-popular forma de pagamento e parcelas do card com os valores do formulário,
+      // evitando que a publicação use os defaults (avista / 12x) ao invés do que foi escolhido.
+      if (offerId && form.paymentMethod !== 'avista') {
+        setCardPayment(prev => ({ ...prev, [offerId]: form.paymentMethod }));
+        if (form.paymentMethod === 'parcelado') {
+          setCardInstallments(prev => ({ ...prev, [offerId]: form.installments }));
+        }
+      }
+
       // Se marcou para criar post manual, criar o draft com status PENDING
       if (createManualPost && offerId) {
         try {
@@ -517,12 +528,16 @@ export default function OfertasPage() {
       }
       
       const pm = cardPayment[offerId] || 'avista';
-      const inst = cardInstallments[offerId] || 12;
+      const inst = cardInstallments[offerId] ?? 12;
+      const instValRaw = cardInstallmentValue[offerId];
+      const instVal = instValRaw
+        ? parseFloat(instValRaw.replace(',', '.'))
+        : undefined;
 
       const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: pm, installments: inst }),
+        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal }),
       });
       
       const data = await response.json();
@@ -621,12 +636,16 @@ export default function OfertasPage() {
     
     try {
       const pm   = cardPayment[offerId] || 'avista';
-      const inst = cardInstallments[offerId] || 12;
+      const inst = cardInstallments[offerId] ?? 12;
+      const instValRaw = cardInstallmentValue[offerId];
+      const instVal = instValRaw
+        ? parseFloat(instValRaw.replace(',', '.'))
+        : undefined;
 
       const response = await fetchWithAuth(`/api/telegram/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: pm, installments: inst }),
+        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal }),
       });
       
       const data = await response.json();
@@ -1176,20 +1195,39 @@ export default function OfertasPage() {
                   ))}
                 </div>
                 {(cardPayment[offer.id] || 'avista') === 'parcelado' && (
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="text-[10px] text-text-muted">Parcelas:</span>
-                    <select
-                      value={cardInstallments[offer.id] || 12}
-                      onChange={e => setCardInstallments(prev => ({ ...prev, [offer.id]: Number(e.target.value) }))}
-                      className="flex-1 px-2 py-1 rounded bg-background border border-border text-text-primary text-xs focus:outline-none focus:ring-1 focus:ring-primary"
-                    >
-                      {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
-                        <option key={n} value={n}>{n}x</option>
-                      ))}
-                    </select>
-                    <span className="text-[10px] text-text-muted">
-                      ≈ {formatCurrency(Number(offer.finalPrice) / (cardInstallments[offer.id] || 12))}
-                    </span>
+                  <div className="mt-1.5 space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-text-muted whitespace-nowrap">Nº parcelas:</span>
+                      <select
+                        value={cardInstallments[offer.id] ?? 12}
+                        onChange={e => {
+                          const n = Number(e.target.value);
+                          setCardInstallments(prev => ({ ...prev, [offer.id]: n }));
+                          // Recalcula o valor sugerido ao trocar o número
+                          const suggested = (Number(offer.finalPrice) / n).toFixed(2).replace('.', ',');
+                          setCardInstallmentValue(prev => ({ ...prev, [offer.id]: suggested }));
+                        }}
+                        className="w-16 px-2 py-1 rounded bg-background border border-border text-text-primary text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {[2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                          <option key={n} value={n}>{n}x</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-text-muted whitespace-nowrap">Valor/parcela:</span>
+                      <div className="flex items-center border border-border rounded bg-background px-2 py-1 gap-1">
+                        <span className="text-[10px] text-text-muted">R$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder={(Number(offer.finalPrice) / (cardInstallments[offer.id] ?? 12)).toFixed(2).replace('.', ',')}
+                          value={cardInstallmentValue[offer.id] ?? ''}
+                          onChange={e => setCardInstallmentValue(prev => ({ ...prev, [offer.id]: e.target.value }))}
+                          className="w-16 bg-transparent text-text-primary text-xs focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

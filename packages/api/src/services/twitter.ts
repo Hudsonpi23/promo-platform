@@ -623,6 +623,7 @@ export function generateTweetText(offer: {
   siteUrl?: string;
   paymentMethod?: 'pix' | 'avista' | 'parcelado';
   installments?: number;
+  installmentValue?: number;
 }): string {
   const copies = generateCopies({
     title: offer.title,
@@ -636,6 +637,7 @@ export function generateTweetText(offer: {
     siteUrl: offer.siteUrl,
     paymentMethod: offer.paymentMethod,
     installments: offer.installments,
+    installmentValue: offer.installmentValue,
   });
 
   return copies.x;
@@ -658,6 +660,7 @@ export async function postOfferToTwitter(offer: {
   preGeneratedCopy?: string;
   paymentMethod?: 'pix' | 'avista' | 'parcelado';
   installments?: number;
+  installmentValue?: number;
 }): Promise<TweetResponse> {
   const tweetText = offer.preGeneratedCopy ?? generateTweetText(offer);
 

@@ -23,23 +23,23 @@ let cleanupInterval: NodeJS.Timeout | null = null;
 let isRunning = false;
 
 /**
- * Desativa (soft-delete) posts publicados há mais de 30 dias
+ * Desativa (soft-delete) posts publicados há mais de 8 dias
  */
 async function deleteExpiredPosts(): Promise<void> {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const eightDaysAgo = new Date();
+  eightDaysAgo.setDate(eightDaysAgo.getDate() - 8);
 
   try {
     const result = await prisma.publishedPost.updateMany({
       where: {
         isActive: true,
-        publishedAt: { lt: thirtyDaysAgo },
+        publishedAt: { lt: eightDaysAgo },
       },
       data: { isActive: false },
     });
 
     if (result.count > 0) {
-      console.log(`[Worker] 🗑️  ${result.count} post(s) expirado(s) desativado(s) (>30 dias)`);
+      console.log(`[Worker] 🗑️  ${result.count} post(s) expirado(s) desativado(s) (>8 dias)`);
     }
   } catch (error: any) {
     console.error('[Worker] Erro ao limpar posts expirados:', error.message);

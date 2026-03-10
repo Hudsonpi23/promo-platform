@@ -2,6 +2,15 @@ import { FastifyInstance } from 'fastify';
 import { prisma } from '../lib/prisma.js';
 import { publicationsFilterSchema } from '../lib/schemas.js';
 
+// Posts expiram após 8 dias no site
+const POST_MAX_AGE_DAYS = 8;
+
+function getPostCutoffDate(): Date {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - POST_MAX_AGE_DAYS);
+  return cutoff;
+}
+
 // Rotas PÚBLICAS - para o site vitrine (sem autenticação)
 export async function publicRoutes(app: FastifyInstance) {
   // GET /public/feed - Feed de ofertas
@@ -10,7 +19,7 @@ export async function publicRoutes(app: FastifyInstance) {
     const { limit = 20, page = 1, nicheSlug, q, sort = 'recent' } = query;
     const skip = (page - 1) * limit;
 
-    const where: any = { isActive: true };
+    const where: any = { isActive: true, publishedAt: { gte: getPostCutoffDate() } };
     
     if (nicheSlug) {
       const niche = await prisma.niche.findUnique({ where: { slug: nicheSlug } });
@@ -87,7 +96,7 @@ export async function publicRoutes(app: FastifyInstance) {
     const niche = query.niche;
 
     const q = query.q as string | undefined;
-    const where: any = { isActive: true };
+    const where: any = { isActive: true, publishedAt: { gte: getPostCutoffDate() } };
     if (niche) {
       where.niche = { name: { contains: niche, mode: 'insensitive' } };
     }
