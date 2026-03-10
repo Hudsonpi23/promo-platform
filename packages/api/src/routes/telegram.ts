@@ -131,6 +131,7 @@ export async function telegramRoutes(app: FastifyInstance) {
       installments,
       installmentValue,
       phraseMode,
+      couponCode: (offer as any).couponCode || undefined,
     });
     
     // Usar copyTextTelegram (já está em MAIÚSCULAS)

@@ -35,6 +35,7 @@ export default function OfertasPage() {
     images: [] as string[], // 🎠 Galeria de imagens (carrossel)
     paymentMethod: 'avista' as PaymentMethod,
     installments: 12,
+    couponCode: '', // 🏷️ Cupom de desconto (opcional)
   });
 
   // Estado de forma de pagamento por card (para publicação)
@@ -294,6 +295,7 @@ export default function OfertasPage() {
           imageUrl: form.mainImage, // Compatibilidade
           images: form.images, // 🎠 Galeria de imagens (carrossel)
           curationStatus: 'DRAFT', // Começa como rascunho
+          couponCode: form.couponCode || null,
         }),
       });
 
@@ -317,6 +319,7 @@ export default function OfertasPage() {
         images: [],
         paymentMethod: 'avista',
         installments: 12,
+        couponCode: '',
       });
       setImagePreview(null);
       setGalleryPreviews([]);
@@ -391,6 +394,7 @@ export default function OfertasPage() {
         images: [],
         paymentMethod: 'avista',
         installments: 12,
+        couponCode: '',
       });
       setImagePreview(null);
       setGalleryPreviews([]);
@@ -990,6 +994,18 @@ export default function OfertasPage() {
                 onChange={(e) => setForm({ ...form, affiliateUrl: e.target.value })}
                 placeholder="https://mercadolivre.com/sec/2RaCjWg"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-text-secondary mb-2">
+                🏷️ Cupom de desconto <span className="text-text-muted text-xs">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={form.couponCode}
+                onChange={(e) => setForm({ ...form, couponCode: e.target.value.toUpperCase() })}
+                placeholder="Ex: PROMO10, AUTOCUIDADO, 20% OFF"
+                className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary font-mono tracking-wider"
               />
             </div>
             <div>

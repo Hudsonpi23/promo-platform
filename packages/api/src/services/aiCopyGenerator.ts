@@ -53,6 +53,8 @@ export interface CopyInputData {
    *   undefined → comportamento padrão (pool unificado — marca + genérico misturados).
    */
   phraseMode?: 'generic' | 'brand';
+  /** Código de cupom de desconto (ex: "PROMO10", "20% OFF") */
+  couponCode?: string | null;
 }
 
 export interface GeneratedCopies {
@@ -6728,6 +6730,11 @@ function generateTelegramCopy(input: CopyInputData, seed: number): string {
     text = textWithTitle;
   }
   
+  // Cupom de desconto (antes do link de afiliado)
+  if (input.couponCode) {
+    text += `\n- Resgate o cupom: ${input.couponCode} 🏷️`;
+  }
+
   // ADICIONAR LINK NO FINAL (depois do conteúdo)
   text = text + `\n\n${normalizedUrl}`;
   
@@ -7108,9 +7115,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       : `${discountPct >= 30 ? '🔥' : '💰'} -${discountPct}% DE DESCONTO`
     : '';
 
-  // ── CTA + links ──
-  const SITE_BASE = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
-  const siteUrl = input.siteUrl || SITE_BASE;
+  // ── CTA ──
 
   // ── Calcular espaço disponível para o título ──
   // Twitter conta qualquer URL como 23 chars (t.co). Montamos o post sem o título,
@@ -7128,6 +7133,8 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     return null;
   })();
 
+  const couponLine = input.couponCode ? `🏷️ Cupom: ${input.couponCode}` : null;
+
   const fixedLines = [
     hook,
     ...(subtitle ? [subtitle] : []),
@@ -7136,11 +7143,10 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     '',
     ...priceBlock,
     ...(discountLine ? ['', discountLine] : []),
+    ...(couponLine ? ['', couponLine] : []),
     ...(flashTimeLine ? ['', flashTimeLine] : []),
     '',
     `${cta} ${urlPlaceholder}`,
-    '',
-    `🌐 ${urlPlaceholder}`,
   ];
   const fixedChars = fixedLines.join('\n').length;
   const titleLimit = Math.max(50, TWITTER_LIMIT - fixedChars);
@@ -7174,6 +7180,11 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     lines.push(discountLine);
   }
 
+  if (couponLine) {
+    lines.push('');
+    lines.push(couponLine);
+  }
+
   if (flashTimeLine) {
     lines.push('');
     lines.push(flashTimeLine);
@@ -7181,8 +7192,6 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   lines.push('');
   lines.push(`${cta} ${input.trackingUrl}`);
-  lines.push('');
-  lines.push(`🌐 ${siteUrl}`);
 
   let finalText = lines.join('\n');
 

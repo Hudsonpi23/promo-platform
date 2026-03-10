@@ -286,6 +286,7 @@ export async function offersRoutes(app: FastifyInstance) {
           mainImage: finalImageUrl,  // 🔥 FIX: Ambos devem ter o mesmo valor
           images: bodyWithAI.images || [],
           curationStatus: bodyWithAI.curationStatus || 'DRAFT',
+          couponCode: body.couponCode || null,
         },
         include: {
           niche: { select: { id: true, name: true, slug: true, icon: true } },

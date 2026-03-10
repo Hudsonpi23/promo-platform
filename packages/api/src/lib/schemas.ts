@@ -64,6 +64,8 @@ const offerBaseSchema = z.object({
   mainImage: z.string().optional().nullable(),
   images: z.array(z.string()).optional().default([]),
   curationStatus: z.enum(['DRAFT', 'PENDING_REVIEW', 'APPROVED']).optional().default('DRAFT'),
+  // 🏷️ Cupom de desconto (opcional)
+  couponCode: z.string().optional().nullable(),
 });
 
 // Schema de criação com preprocess para converter strings vazias em null

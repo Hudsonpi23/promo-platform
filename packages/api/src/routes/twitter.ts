@@ -123,6 +123,8 @@ export async function twitterRoutes(app: FastifyInstance) {
     const installments     = body.installments ?? 12;
     const installmentValue = body.installmentValue ?? undefined;
     const phraseMode       = (body.phraseMode === 'generic' || body.phraseMode === 'brand') ? body.phraseMode : undefined;
+    // couponCode vem do campo salvo na oferta (não do body da requisição)
+    
 
     // Buscar oferta
     const offer = await prisma.offer.findUnique({
@@ -159,6 +161,7 @@ export async function twitterRoutes(app: FastifyInstance) {
       installments,
       installmentValue,
       phraseMode,
+      couponCode: (offer as any).couponCode || undefined,
     });
 
     if (!result.success) {

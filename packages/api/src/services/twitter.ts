@@ -338,16 +338,9 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
 
   // Twitter encurta TODA URL para 23 chars (t.co) — contar todas as URLs no texto
   const TWITTER_URL_LENGTH = 23;
-  const SITE_BASE_URL = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
 
-  // Formato do post X:
-  //   👉 CTA texto https://link-afiliado   ← afiliado na mesma linha do CTA
-  //   🌐 https://www.manu-promocoes.com.br  ← site em linha própria
-
-  const siteUrlMatch = text.match(/🌐 (https?:\/\/[^\s]+)/);
-  const siteUrl = siteUrlMatch ? siteUrlMatch[1] : null;
   const allUrlsInText: string[] = text.match(/https?:\/\/[^\s]+/g) ?? [];
-  const affiliateUrl = allUrlsInText.find(u => !u.includes('manu-promocoes')) || '';
+  const affiliateUrl = allUrlsInText[0] || '';
 
   let effectiveLength: number = text.length;
   for (const url of allUrlsInText) {
@@ -358,36 +351,27 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
     console.warn('[Twitter] ⚠️ Tweet longo (' + effectiveLength + ' chars), ajustando...');
 
     // Remover URLs para trabalhar só com conteúdo
-    const contentOnly = text
-      .replace(/\n🌐 https?:\/\/[^\s]+/g, '')
-      .replace(/ https?:\/\/[^\s]+/g, '');   // remove URL inline do CTA também
+    const contentOnly = text.replace(/ https?:\/\/[^\s]+/g, '');
 
     const contentLines = contentOnly.split('\n').filter(l => l.trim().length > 0);
 
-    // Estrutura esperada do post:
-    // [0] hook  [1] subtitle  [2] título do produto
-    // [3] "De R$ X"  [4] "por R$ Y"  [5] "🔥 -X% DE DESCONTO"  [6] "👉 CTA"
     const hookLine    = contentLines[0] || '';
     const subtitle    = contentLines[1] || '';
-    const titleLine   = contentLines[2] || ''; // título do produto — NUNCA omitir
+    const titleLine   = contentLines[2] || '';
     const priceLines  = contentLines.filter(l =>
-      l.startsWith('De ')     ||   // preço antigo
-      l.startsWith('por ')    ||   // à vista / no PIX / parcelado
-      l.startsWith('💸 ')     ||   // PIX (legado)
-      l.startsWith('💳 ')     ||   // parcelado (legado)
-      l.startsWith('(total ') ||   // total parcelado (legado)
-      l.match(/^\d+x de /)   ||    // parcelas sem emoji (fallback)
-      l.includes('no PIX')   ||    // garantia extra: "no PIX"
-      l.includes('no Pix')   ||    // variação lowercase
-      l.includes('pelo PIX')       // formato "pelo PIX"
+      l.startsWith('De ')     ||
+      l.startsWith('por ')    ||
+      l.match(/^\d+x de /)   ||
+      l.includes('no PIX')   ||
+      l.includes('no Pix')
     );
     const discountLine = contentLines.find(l => l.includes('% DE DESCONTO')) || '';
-    const ctaLine     = contentLines.find(l => l.includes('👉')) || '';
+    const couponLine   = contentLines.find(l => l.startsWith('🏷️')) || '';
+    const ctaLine      = contentLines.find(l => l.includes('👉')) || '';
 
-    // Reservar 23 chars para afiliado + 23 para site + separadores
-    const urlsSpace = TWITTER_URL_LENGTH + 1 + TWITTER_URL_LENGTH + 6;
+    // Reservar 23 chars para afiliado + separador
+    const urlsSpace = TWITTER_URL_LENGTH + 1 + 3;
 
-    // Montar bloco preservando sempre: hook + título + preços + desconto + CTA
     const compact = [
       hookLine,
       subtitle,
@@ -396,36 +380,26 @@ export async function postTweet(text: string, mediaId?: string): Promise<TweetRe
       '',
       ...priceLines,
       ...(discountLine ? ['', discountLine] : []),
+      ...(couponLine   ? ['', couponLine]   : []),
       '',
       ctaLine,
     ].filter((l, i, arr) => {
-      // remover linhas vazias consecutivas
       if (l === '' && arr[i - 1] === '') return false;
       return true;
     }).join('\n');
 
     const maxContent = 280 - urlsSpace;
-
-    // Só truncar se ainda ultrapassar — e nunca cortar antes do título
     const truncated = compact.length > maxContent
       ? compact.substring(0, maxContent - 3) + '...'
       : compact;
 
-    // Reconstruir: CTA + afiliado na mesma linha, site na linha abaixo
     const ctaInCompact = truncated.match(/👉[^\n]*/)?.[0] || ctaLine;
     const contentWithoutCta = truncated.replace(/👉[^\n]*/, '').trimEnd();
 
     text = contentWithoutCta;
     text += `\n\n${ctaInCompact}${affiliateUrl ? ' ' + affiliateUrl : ''}`;
-    text += `\n🌐 ${siteUrl || SITE_BASE_URL}`;
 
     console.log('[Twitter] Texto ajustado:', text.substring(0, 200));
-  }
-
-  // Garantia final: link do site sempre presente
-  if (!text.includes('manu-promocoes')) {
-    text += `\n🌐 ${siteUrl || SITE_BASE_URL}`;
-    console.log('[Twitter] ⚠️ Link do site adicionado como garantia');
   }
 
   const url = `${TWITTER_API_BASE}/tweets`;
@@ -625,6 +599,7 @@ export function generateTweetText(offer: {
   installments?: number;
   installmentValue?: number;
   phraseMode?: 'generic' | 'brand';
+  couponCode?: string;
 }): string {
   const copies = generateCopies({
     title: offer.title,
@@ -640,6 +615,7 @@ export function generateTweetText(offer: {
     installments: offer.installments,
     installmentValue: offer.installmentValue,
     phraseMode: offer.phraseMode,
+    couponCode: offer.couponCode,
   });
 
   return copies.x;
@@ -664,6 +640,7 @@ export async function postOfferToTwitter(offer: {
   installments?: number;
   installmentValue?: number;
   phraseMode?: 'generic' | 'brand';
+  couponCode?: string;
 }): Promise<TweetResponse> {
   const tweetText = offer.preGeneratedCopy ?? generateTweetText(offer);
 
