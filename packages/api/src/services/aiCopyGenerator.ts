@@ -979,6 +979,58 @@ const PRICE_TEMPLATES_NO_OLD = [
   (now: string) => `SAINDO POR ${now}`,
 ];
 
+// ==================== DAILY PHRASE TRACKER ====================
+// Evita repetição de frases para o mesmo tipo de produto no mesmo dia.
+// Reset automático a meia-noite (ou quando todas as frases do tipo forem esgotadas).
+
+const _dailyPhraseUsage = new Map<string, Set<number>>();
+
+function _getTodayStr(): string {
+  return new Date().toISOString().split('T')[0]; // "YYYY-MM-DD"
+}
+
+function _cleanOldEntries(): void {
+  const today = _getTodayStr();
+  for (const key of _dailyPhraseUsage.keys()) {
+    if (!key.startsWith(today + ':')) {
+      _dailyPhraseUsage.delete(key);
+    }
+  }
+}
+
+function _usedSet(productKey: string): Set<number> {
+  const key = `${_getTodayStr()}:${productKey}`;
+  if (!_dailyPhraseUsage.has(key)) {
+    _dailyPhraseUsage.set(key, new Set());
+  }
+  return _dailyPhraseUsage.get(key)!;
+}
+
+/**
+ * Sorteia uma frase ainda não usada hoje para o tipo de produto.
+ * Se todas já foram usadas, reseta o histórico do dia para aquele tipo e sorteia novamente.
+ */
+function pickUnusedPhrase<T>(arr: T[], productKey: string): T {
+  _cleanOldEntries();
+  const used = _usedSet(productKey);
+
+  const available = arr
+    .map((item, idx) => ({ item, idx }))
+    .filter(({ idx }) => !used.has(idx));
+
+  if (available.length === 0) {
+    // Todas usadas hoje → reset e começa novo ciclo
+    used.clear();
+    const idx = Math.floor(Math.random() * arr.length);
+    used.add(idx);
+    return arr[idx];
+  }
+
+  const chosen = available[Math.floor(Math.random() * available.length)];
+  used.add(chosen.idx);
+  return chosen.item;
+}
+
 // ==================== HELPERS ====================
 
 function formatPrice(value: number): string {
@@ -1030,135 +1082,79 @@ function getCategoryKey(category?: string | null, title?: string): string {
   return 'geral';
 }
 
-// Detecta produtos específicos para usar frases engraçadas
-// Prioriza produtos mais específicos primeiro
-// IMPORTANTE: Usa Math.random() para escolher ALEATORIAMENTE a cada vez
-function getProductSpecificPhrase(title: string, useRandom: boolean = true): string | null {
+// Detecta produtos específicos para usar frases engraçadas.
+// Usa o DailyPhraseTracker para garantir que o mesmo tipo de produto
+// não repita a mesma frase em posts diferentes no mesmo dia.
+function getProductSpecificPhrase(title: string): string | null {
   const titleLower = title.toLowerCase();
-  
-  // Detecção especial para relógios (verificar tipo específico primeiro)
-  // Relógio masculino
+
+  // Retorna frase sem repetir no dia, usando o tracker pelo productKey
+  function pickForKey(productKey: string): string | null {
+    const phrases = PRODUCT_SPECIFIC_PHRASES[productKey];
+    if (!phrases || phrases.length === 0) return null;
+    return pickUnusedPhrase(phrases, productKey);
+  }
+
+  // Relógio masculino (verificar antes de "relógio" genérico)
   if (titleLower.match(/relógio masculino|relogio masculino|relógio.*masculino|relogio.*masculino/)) {
-    const phrases = PRODUCT_SPECIFIC_PHRASES['relógio masculino'];
-    if (phrases && phrases.length > 0) {
-      return useRandom 
-        ? phrases[Math.floor(Math.random() * phrases.length)]
-        : phrases[0];
-    }
+    return pickForKey('relógio masculino');
   }
   // Relógio feminino
   if (titleLower.match(/relógio feminino|relogio feminino|relógio.*feminino|relogio.*feminino/)) {
-    const phrases = PRODUCT_SPECIFIC_PHRASES['relógio feminino'];
-    if (phrases && phrases.length > 0) {
-      return useRandom 
-        ? phrases[Math.floor(Math.random() * phrases.length)]
-        : phrases[0];
-    }
+    return pickForKey('relógio feminino');
   }
-  
-  // Detecção especial para jogos de tabuleiro (verificar tipo específico primeiro)
-  // Verificar jogos específicos primeiro (War, Banco Imobiliário, Monopoly)
+
+  // Jogos de tabuleiro específicos (War, Banco Imobiliário, Monopoly)
   if (titleLower.includes('war') || titleLower.includes('banco imobiliário') || titleLower.includes('banco imobiliario') || titleLower.includes('monopoly')) {
-    const phrases = PRODUCT_SPECIFIC_PHRASES['war'];
-    if (phrases && phrases.length > 0) {
-      return useRandom 
-        ? phrases[Math.floor(Math.random() * phrases.length)]
-        : phrases[0];
-    }
+    return pickForKey('war');
   }
-  
-  if (titleLower.includes('jogo') && (titleLower.includes('tabuleiro') || titleLower.includes('tabuleiro'))) {
-    // Jogo estratégico (palavras-chave: estratégico, xadrez, damas, war, risk, etc)
+
+  if (titleLower.includes('jogo') && titleLower.includes('tabuleiro')) {
     if (titleLower.match(/estratégico|estrategico|xadrez|damas|war|risk|dominion|catan|chess|banco imobiliário|banco imobiliario|monopoly/)) {
-      const phrases = PRODUCT_SPECIFIC_PHRASES['jogo estratégico'];
-      if (phrases && phrases.length > 0) {
-        return useRandom 
-          ? phrases[Math.floor(Math.random() * phrases.length)]
-          : phrases[0];
-      }
+      return pickForKey('jogo estratégico');
     }
-    // Jogo família (palavras-chave: família, familiar, kids, criança, infantil)
     if (titleLower.match(/família|familia|familiar|kids|criança|crianca|infantil|party|festa/)) {
-      const phrases = PRODUCT_SPECIFIC_PHRASES['jogo família'];
-      if (phrases && phrases.length > 0) {
-        return useRandom 
-          ? phrases[Math.floor(Math.random() * phrases.length)]
-          : phrases[0];
-      }
+      return pickForKey('jogo família');
     }
-    // Jogo em grupo (padrão para jogos de tabuleiro sem especificação)
-    const phrases = PRODUCT_SPECIFIC_PHRASES['jogo de tabuleiro'];
-    if (phrases && phrases.length > 0) {
-      return useRandom 
-        ? phrases[Math.floor(Math.random() * phrases.length)]
-        : phrases[0];
-    }
+    return pickForKey('jogo de tabuleiro');
   }
-  
-  // Ordem de prioridade: produtos mais específicos primeiro
-  // IMPORTANTE: Produtos principais (smartphone, celular) vêm ANTES de acessórios (fone)
+
+  // Ordem de prioridade: produtos mais específicos primeiro.
+  // Produtos principais vêm ANTES de acessórios do mesmo grupo.
   const priorityOrder = [
-    // Produtos muito específicos primeiro
     'monitor gamer', 'smart tv', 'air fryer', 'airpods', 'ps5', 'nintendo switch',
-    // Perfumes específicos (ANTES de "perfume" genérico)
     'perfume feminino', 'perfume masculino', 'perfume importado',
     'malbec', 'uomini',
-    // Smartphones/Celulares específicos (ANTES de "fone" - produto principal vem primeiro)
     'iphone', 'samsung', 'xiaomi', 'poco',
-    // Jogos de Tabuleiro (específicos primeiro)
     'war', 'banco imobiliário', 'monopoly',
     'jogo estratégico', 'jogo família', 'jogo familia', 'jogo familiar',
     'jogo de tabuleiro', 'jogo tabuleiro',
-    // Joias (específicas primeiro)
     'relógio masculino', 'relogio masculino', 'relógio feminino', 'relogio feminino',
     'corrente masculina', 'corrente', 'brinco', 'brincos', 'colar', 'colares',
     'pulseira', 'pulseiras', 'anel', 'aneis', 'anéis', 'relógio', 'relogio', 'watch',
-    // Produtos específicos
     'playstation', 'xbox', 'nintendo',
     'nike', 'adidas',
-    // Categorias gerais de produtos principais (ANTES de acessórios)
     'tv', 'televisor', 'monitor', 'celular', 'smartphone', 'notebook', 'laptop',
-    // Jogos de Tabuleiro (geral)
     'tabuleiro', 'estratégico',
-    // Extensão Elétrica / Régua (produto útil, mas não principal)
     'extensão', 'extensao', 'réguas', 'regua', 'tira',
-    // Acessórios (vêm depois dos produtos principais)
     'fone', 'headphone', 'tênis', 'tenis', 'perfume', 'colônia', 'colonia',
     'geladeira', 'microondas', 'camisa', 'calça', 'roupa', 'fritadeira',
   ];
-  
-  // Verificar produtos na ordem de prioridade
+
   for (const product of priorityOrder) {
     if (titleLower.includes(product)) {
-      const phrases = PRODUCT_SPECIFIC_PHRASES[product];
-      if (phrases && phrases.length > 0) {
-        // ALEATÓRIO: escolher frase aleatória a cada vez
-        if (useRandom) {
-          return phrases[Math.floor(Math.random() * phrases.length)];
-        } else {
-          // Fallback determinístico (para testes)
-          const seed = title.length + title.charCodeAt(0);
-          return pickRandom(phrases, seed);
-        }
-      }
+      const result = pickForKey(product);
+      if (result) return result;
     }
   }
-  
-  // Fallback: verificar todos os produtos (caso algum não esteja na lista de prioridade)
+
+  // Fallback: verificar todos (caso produto não esteja na lista de prioridade)
   for (const [product, phrases] of Object.entries(PRODUCT_SPECIFIC_PHRASES)) {
-    if (!priorityOrder.includes(product) && titleLower.includes(product)) {
-      if (phrases && phrases.length > 0) {
-        // ALEATÓRIO: escolher frase aleatória a cada vez
-        if (useRandom) {
-          return phrases[Math.floor(Math.random() * phrases.length)];
-        } else {
-          const seed = title.length + title.charCodeAt(0);
-          return pickRandom(phrases, seed);
-        }
-      }
+    if (!priorityOrder.includes(product) && titleLower.includes(product) && phrases.length > 0) {
+      return pickUnusedPhrase(phrases, product);
     }
   }
-  
+
   return null;
 }
 
@@ -1210,42 +1206,36 @@ function generatePriceLine(input: CopyInputData, seed: number): string {
 }
 
 /**
- * Gera abertura baseada na categoria e produto (com humor jovem)
- * OBRIGATÓRIO: Sempre usa frases personalizadas quando disponíveis
- * ALEATÓRIO: Escolhe frase aleatória a cada chamada
+ * Gera abertura baseada na categoria e produto (com humor jovem).
+ * Usa o DailyPhraseTracker para não repetir frases do mesmo tipo de produto no mesmo dia.
  * @param channelSeedOffset - Offset adicional para variar por canal (0, 1000, 2000)
  */
 function generateOpening(input: CopyInputData, seed: number, channelSeedOffset: number = 0): string {
-  // OBRIGATÓRIO: Primeiro, verificar se tem frase específica do produto
-  // Se encontrar, SEMPRE usar (não é opcional) - ALEATORIAMENTE
-  const productPhrase = getProductSpecificPhrase(input.title, true); // true = usar Math.random()
+  // Primeiro, verificar se há frase específica do produto — com anti-repetição diária
+  const productPhrase = getProductSpecificPhrase(input.title);
   if (productPhrase) {
-    // Garantir que está em MAIÚSCULAS, mas PRESERVAR EMOJIS
-    // Emojis não são afetados por toUpperCase(), mas vamos garantir que estão preservados
     return productPhrase.toUpperCase();
   }
-  
-  // Se não encontrou frase específica, usar categoria ou geral
+
+  // Sem frase específica: usar abertura por categoria (também sem repetição diária)
   const categoryKey = getCategoryKey(input.category, input.title);
   const combinedSeed = seed + channelSeedOffset;
-  
+
   if (OPENINGS_BY_CATEGORY[categoryKey]) {
     // 80% chance de usar abertura específica da categoria
     if (combinedSeed % 10 < 8) {
-      const phrase = pickRandom(OPENINGS_BY_CATEGORY[categoryKey], combinedSeed);
+      const phrase = pickUnusedPhrase(OPENINGS_BY_CATEGORY[categoryKey], `cat:${categoryKey}`);
       if (phrase && phrase.trim().length > 0) {
         return phrase.toUpperCase();
       }
     }
   }
-  
-  const phrase = pickRandom(OPENINGS_ENGRAÇADOS, combinedSeed);
-  // VALIDAÇÃO: Garantir que sempre retorna uma frase
+
+  const phrase = pickUnusedPhrase(OPENINGS_ENGRAÇADOS, 'geral');
   if (phrase && phrase.trim().length > 0) {
     return phrase.toUpperCase();
   }
-  
-  // Fallback absoluto
+
   return 'ACHADO NÃO É ROUBADO';
 }
 
@@ -1708,11 +1698,14 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       : 0
   ));
 
-  // ── Escolher gancho com aleatoriedade real ──
+  // ── Escolher gancho sem repetir o mesmo nicho no mesmo dia ──
+  // A chave de nicho para o tracker é baseada na categoria do produto,
+  // garantindo que TVs diferentes não repitam o mesmo gancho entre si.
+  const nicheKey = getCategoryKey(input.category, input.title);
+
   let hook: string;
   let subtitle: string;
 
-  // Oferta relâmpago: sempre usa hook de urgência máxima
   if (input.isFlash) {
     const FLASH_HOOKS = [
       '⚡ OFERTA RELÂMPAGO',
@@ -1728,29 +1721,29 @@ function generateXCopy(input: CopyInputData, seed: number): string {
       'Oferta com countdown ativo.',
       'Aproveita agora ou perde.',
     ];
-    hook     = FLASH_HOOKS[Math.floor(Math.random() * FLASH_HOOKS.length)];
-    subtitle = FLASH_SUBTITLES[Math.floor(Math.random() * FLASH_SUBTITLES.length)];
+    hook     = pickUnusedPhrase(FLASH_HOOKS, `x-flash:hook`);
+    subtitle = pickUnusedPhrase(FLASH_SUBTITLES, `x-flash:subtitle`);
   } else {
-    // Para descontos altos (≥30%) forçar categoria surpresa (mais impacto);
-    // caso contrário, sortear entre as 3 categorias de forma aleatória.
+    // Descontos altos (≥30%) → forçar categoria surpresa (mais impacto)
+    // Demais: sortear entre as 3 categorias
     const hookType = discountPct >= 30 ? 1 : Math.floor(Math.random() * 3);
 
     if (hookType === 0) {
-      hook     = X_HOOKS_URGENCIA[Math.floor(Math.random() * X_HOOKS_URGENCIA.length)];
-      subtitle = X_SUBTITLES_URGENCIA[Math.floor(Math.random() * X_SUBTITLES_URGENCIA.length)];
+      hook     = pickUnusedPhrase(X_HOOKS_URGENCIA, `x-hook-urgencia:${nicheKey}`);
+      subtitle = pickUnusedPhrase(X_SUBTITLES_URGENCIA, `x-subtitle-urgencia:${nicheKey}`);
     } else if (hookType === 1) {
-      hook     = X_HOOKS_SURPRESA[Math.floor(Math.random() * X_HOOKS_SURPRESA.length)];
-      subtitle = X_SUBTITLES_SURPRESA[Math.floor(Math.random() * X_SUBTITLES_SURPRESA.length)];
+      hook     = pickUnusedPhrase(X_HOOKS_SURPRESA, `x-hook-surpresa:${nicheKey}`);
+      subtitle = pickUnusedPhrase(X_SUBTITLES_SURPRESA, `x-subtitle-surpresa:${nicheKey}`);
     } else {
-      hook     = X_HOOKS_CURIOSIDADE[Math.floor(Math.random() * X_HOOKS_CURIOSIDADE.length)];
-      subtitle = X_SUBTITLES_CURIOSIDADE[Math.floor(Math.random() * X_SUBTITLES_CURIOSIDADE.length)];
+      hook     = pickUnusedPhrase(X_HOOKS_CURIOSIDADE, `x-hook-curiosidade:${nicheKey}`);
+      subtitle = pickUnusedPhrase(X_SUBTITLES_CURIOSIDADE, `x-subtitle-curiosidade:${nicheKey}`);
     }
   }
 
-  // ── Escolher CTA também de forma aleatória ──
+  // ── Escolher CTA sem repetir no mesmo nicho no mesmo dia ──
   const cta = input.isFlash
     ? '👉 aproveitar agora'
-    : X_CTAS[Math.floor(Math.random() * X_CTAS.length)];
+    : pickUnusedPhrase(X_CTAS, `x-cta:${nicheKey}`);
 
   // ── Nome do produto — sem truncar (Twitter conta URLs como 23 chars, há espaço) ──
   const shortTitle = getShortTitle(input.title, 80);
