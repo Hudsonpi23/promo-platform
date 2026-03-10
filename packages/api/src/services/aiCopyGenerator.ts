@@ -1754,6 +1754,51 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'COMPARTIMENTOS PRA ORGANIZAR, ALÇA PRA ESTILO 🌸',
     'BOLSA QUE TODA MULHER OLHA E TODO MUNDO PERGUNTA ONDE COMPROU 🔥',
   ],
+  // ── Óculos de sol ────────────────────────────────────────────────────────
+  'óculos de sol': [
+    'ÓCULOS QUE COBRE O ROSTO E A RESSACA — DOIS EM UM 😎',
+    'PRA QUEM GOSTA DE ENTRAR EM QUALQUER LUGAR SEM SER RECONHECIDO 🕶️',
+    'PROTEÇÃO SOLAR COM PERSONALIDADE — O SOL QUE SE VIRE 🌞',
+    'ÓCULOS QUE FALA ANTES DE VOCÊ ABRIR A BOCA 👑',
+    'PRA USAR TODO DIA E AINDA PARECER QUE PLANEJOU O LOOK ✨',
+    'COM ESSE ÓCULOS ATÉ DIA NUBLADO TEM CHARME 😏',
+    'PRA QUEM SABE QUE O LOOK COMEÇA ANTES DO CABELO 🔥',
+    'ÓCULOS DE SOL: O ACESSÓRIO QUE NUNCA SAI DE MODA E NUNCA APARECE QUANDO VOCÊ PRECISA 😅',
+    'PRA QUEM PERDE O ÓCULOS DE SOL E COMPRA OUTRO — ESSE AQUI VALE O INVESTIMENTO 💸',
+    'LENTE ESCURA, OLHAR MISTERIOSO, CONFIANÇA NO TETO 🌟',
+    'PRA PRAIA, CIDADE, FESTIVAL OU SÓ PRA PARECER QUE TÁ BEM 😂',
+    'ÓCULOS QUE FAZ ATÉ FOTO SEM FILTRO PARECER EDITADA 📸',
+    'PRA QUEM JÁ TEM O LOOK, SÓ FALTAVA O ÓCULOS 💎',
+    'ESSE AQUI PROTEGE OS OLHOS E O LOOK AO MESMO TEMPO ⚡',
+    'PRA QUEM USA ÓCULOS DE SOL ATÉ QUANDO TÁ NUBLADO — PORQUE É ESTILO, NÃO É NECESSIDADE 👀',
+    'ÓCULOS QUE ATÉ FOTO ANTIGA FICA BOA COM ELE 🎬',
+    'PRA QUEM SABE QUE UM ÓCULOS BOM VALE MAIS QUE DEZ ACESSÓRIOS RUINS 💡',
+    'COM ESSE NO ROSTO, QUALQUER RUA PARECE PASSARELA 🚶',
+  ],
+
+  // ── Óculos de grau ───────────────────────────────────────────────────────
+  'óculos de grau': [
+    'ÓCULOS QUE DEIXA VOCÊ VER O MUNDO — E O MUNDO VER VOCÊ DE UM JEITO DIFERENTE 👓',
+    'PRA QUEM ADIOU A IDA AO OFTALMOLOGISTA POR TEMPO DEMAIS 😅',
+    'FINALMENTE VER A PLACA DO ÔNIBUS DE LONGE SEM ENTRAR NO ERRADO 😂',
+    'ÓCULOS DE GRAU: QUANDO NECESSIDADE E ESTILO ANDAM JUNTOS 🌟',
+    'PRA QUEM USA ÓCULOS E NÃO VÊ ISSO COMO LIMITAÇÃO — VÊ COMO ESTILO 💎',
+    'ARMAÇÃO QUE COMBINA COM O SEU ROSTO E COM A SUA PERSONALIDADE ✨',
+    'PRA QUEM QUER VER BEM E AINDA PARECER QUE LEU MUITOS LIVROS 😏',
+    'ÓCULOS QUE FAZ O LOOK MAIS INTELIGENTE — E A VISÃO MAIS NÍTIDA ⚡',
+    'PRA QUEM TEM GRAU E QUER APROVEITAR ISSO PRA COMPLEMENTAR O VISUAL 🔥',
+    'LENTE QUE CORRIGE A VISÃO, ARMAÇÃO QUE CORRIGE O LOOK 💡',
+    'PRA QUEM USAVA ÓCULOS FEIO POR FALTA DE OPÇÃO — ACABOU ESSA ERA 💪',
+    'ÓCULOS DE GRAU QUE NÃO PARECE QUE É DE GRAU — ATÉ PARECE QUE É FASHION 😎',
+    'PRA QUEM PERDE O ÓCULOS EM CASA E NÃO CONSEGUE PROCURAR SEM ELE 😱',
+    'ARMAÇÃO QUE FAZ VOCÊ QUERER USAR ATÉ QUANDO NÃO PRECISA 🌸',
+    'VISÃO NÍTIDA, ESTILO EVIDENTE, PREÇO QUE FAZ SENTIDO 💰',
+    'PRA QUEM TEM GRAU ALTO E MERECE UMA ARMAÇÃO À ALTURA 👑',
+    'ÓCULOS QUE DÁ MAIS CONFIANÇA DO QUE QUALQUER OUTRA COISA DO LOOK 🔝',
+    'PRA USAR NAS REUNIÕES, NA RUA, NO FEED E NA VIDA ✅',
+  ],
+
+  // ── Óculos genérico (fallback) ───────────────────────────────────────────
   'óculos': [
     'ÓCULOS QUE COBRE O ROSTO E A RESSACA 😎',
     'PRA QUEM GOSTA DE ENTRAR SEM SER RECONHECIDO 🕶️',
@@ -1763,6 +1808,13 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'ÓCULOS QUE FALA ANTES DE VOCÊ 👑',
     'PROTEÇÃO SOLAR COM PERSONALIDADE 🔥',
     'PRA QUEM NÃO SAI SEM O SEU 😎',
+    'ACESSÓRIO QUE MUDA O ROSTO E O HUMOR 💡',
+    'PRA QUEM SABE QUE DETALHE PEQUENO FAZ DIFERENÇA GRANDE 💎',
+    'ESSE AQUI JÁ TÁ NA CARA — SÓ FALTA NO SEU ROSTO 🌟',
+    'PRA QUALQUER LOOK, QUALQUER DIA, QUALQUER HUMOR ⚡',
+    'ÓCULOS QUE O ARMÁRIO INTEIRO VAI AGRADECER 🎯',
+    'PRA QUEM TEM ESTILO E QUER QUE O ROSTO SAIBA DISSO 💪',
+    'ESSE NÃO SAI DE MODA PORQUE NUNCA PRECISOU ENTRAR 👓',
   ],
   'oculos': [],
 
@@ -5421,7 +5473,9 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['mala de viagem', 'mala de rodinha', 'mala'],                                phraseKey: 'mochila de viagem' },
   { kw: ['carteira masculina', 'carteira feminina', 'carteira'],                       phraseKey: 'roupa' },
   { kw: ['cinto', 'cinto de couro'],                                                  phraseKey: 'roupa' },
-  { kw: ['óculos de sol', 'óculos de grau', 'oculos'],                                phraseKey: 'óculos' },
+  { kw: ['óculos de sol', 'oculos de sol', 'óculos solar', 'sunglasses'],              phraseKey: 'óculos de sol' },
+  { kw: ['óculos de grau', 'oculos de grau', 'armação de grau', 'armacao de grau', 'óculos com lente', 'óculos receituário'], phraseKey: 'óculos de grau' },
+  { kw: ['óculos', 'oculos'],                                                          phraseKey: 'óculos' },
   { kw: ['necessaire'],                                                               phraseKey: 'roupa' },
 
   // ─── Vestuário inferior (mais específico primeiro) ─────────────────────────
@@ -6202,6 +6256,10 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'calça':          'pool:roupas',
   'roupa':          'pool:roupas',
   'boné':           'boné',
+  // Óculos — subtypes
+  'óculos de sol':  'óculos de sol',
+  'óculos de grau': 'óculos de grau',
+  'óculos':         'óculos',
   // Bolsas e mochilas
   'bolsa':              'bolsa',
   'mochila':            'mochila',
