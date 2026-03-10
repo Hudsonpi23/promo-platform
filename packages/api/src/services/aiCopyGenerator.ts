@@ -4443,7 +4443,7 @@ const MERGED_POOL_KEYS: Record<string, string[]> = {
     'brinox', 'rochedo', 'panelux', 'multiflon', 'nigro', 'sanremo',
     'plasútil', 'plasutil',
     'panela', 'frigideira', 'caçarola', 'wok', 'tigela', 'bowl',
-    'escorredor', 'forma', 'assadeira', 'jogo de panelas',
+    'escorredor', 'assadeira', 'jogo de panelas', 'forma de bolo',
   ],
 };
 
@@ -4457,12 +4457,18 @@ const MERGED_CATEGORY_PHRASES: Record<string, string[]> = (() => {
 })();
 
 // Detecta a qual categoria merged um produto pertence.
+// Usa word boundary (\b) para evitar falsos positivos como
+// 'forma' dentro de 'formato', 'fila' dentro de 'família', etc.
 function getMergedCategoryKey(title: string): string | null {
   const t = title.toLowerCase();
-  // cozinha tem prioridade sobre ferramentas para evitar ambiguidade em "panela tramontina"
   const order = ['cozinha', 'tenis', 'roupas', 'ferramentas'];
   for (const cat of order) {
-    if ((MERGED_POOL_KEYS[cat] ?? []).some(k => t.includes(k))) return cat;
+    for (const k of (MERGED_POOL_KEYS[cat] ?? [])) {
+      // Escapa caracteres especiais de regex (ex: black+decker, levi's, snap-on)
+      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escaped}\\b`);
+      if (regex.test(t)) return cat;
+    }
   }
   return null;
 }
