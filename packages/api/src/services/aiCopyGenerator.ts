@@ -1921,15 +1921,49 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
   'anilha': [],
 
   // ── Livros / Papelaria ──────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // NICHO: LIVROS
+  // Subtipos: terror | autoajuda | romance | fantasia | ficção científica |
+  //           thriller | biografia | culinária | negócios | infantil |
+  //           história | mangá | quadrinhos | desenvolvimento pessoal | genérico
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Terror / Horror ───────────────────────────────────────────────────────
+  'livro de terror': [
+    'LER DE DIA PRA NÃO ARREPENDER DE NOITE 🌙',
+    'LIVRO QUE FAZ VOCÊ VERIFICAR O ARMÁRIO ANTES DE DORMIR 😰',
+    'TERROR DE VERDADE: VOCÊ SAI DIFERENTE DE COMO ENTROU 👻',
+    'PRA QUEM ACHA QUE É CORAJOSO — ATÉ APAGAR A LUZ 🕯️',
+    'ESSE LIVRO NÃO É CULPA NOSSA SE VOCÊ NÃO CONSEGUIR DORMIR 😂',
+    'FRIO NA ESPINHA GARANTIDO OU O DINHEIRO DE VOLTA 🧊',
+    'PRA QUEM PEDIU EMOÇÃO E ESTÁ RECEBENDO MAIS DO QUE PEDIU ⚡',
+    'TERROR BOM É AQUELE QUE VOCÊ FECHA E AINDA SENTE 💀',
+    'PRA LER COM A PORTA TRANCADA — POR PRECAUÇÃO 🔒',
+    'LIVRO QUE FAZ O CORAÇÃO ACELERAR SEM ACADEMIA 🏃',
+    'PRA QUEM ACHA QUE SERIADO DE TERROR É FRACO DEMAIS 📺',
+    'ESSA HISTÓRIA NÃO SAI DA CABEÇA. NUNCA. 🧠',
+    'PRA MARATONAR COM A LUZ ACESA ATÉ O FIM 💡',
+    'SUSPENSE, MEDO E UMA BOA DESCULPA PRA NÃO DORMIR 🛏️',
+    'ESSE LIVRO É O MOTIVO PRA COMPRAR UMA LÂMPADA EXTRA 😅',
+  ],
+
+  // ── Livro genérico (fallback do nicho) ────────────────────────────────────
   'livro': [
     'LIVRO QUE O SEU EU INTELIGENTE MERECE 📚',
     'PRA QUEM LEMBRA QUE EXISTE VIDA ALÉM DO CELULAR 😏',
     'CONHECIMENTO QUE NÃO TEM PREÇO — MAS ESSE TEM 💰',
     'PRA LER, SUBLINHAR E PARECER CULTO 📖',
-    'LIVRO PRA QUEM GOSTA DE DESAPARECER DO MUNDO 🌍',
-    'ESSE JÁ ESTAVA NA SUA LISTA HÁ TEMPO ✅',
+    'LIVRO PRA QUEM GOSTA DE DESAPARECER DO MUNDO POR ALGUMAS HORAS 🌍',
+    'ESSE JÁ ESTAVA NA SUA LISTA HÁ TEMPO — CHEGOU A HORA ✅',
     'PRA QUEM DIZ QUE LÊ MUITO MAS NÃO LEU ESSE AINDA 😅',
-    'CONHECIMENTO POR MENOS DO QUE UM LANCHE 💡',
+    'CONHECIMENTO POR MENOS DO QUE UM LANCHE QUALQUER 💡',
+    'LIVRO QUE VALE MAIS DO QUE PARECE 💎',
+    'PRA QUEM PREFERE PÁGINAS A TELA EM MOMENTOS DE PAZ 📖',
+    'ESSE AQUI MERECE UM LUGAR NA ESTANTE 🏠',
+    'PRA COMEÇAR OU CONTINUAR O HÁBITO DE LER 🔄',
+    'LIVRO BOM = INVESTIMENTO QUE NUNCA DESVALORIZA 📈',
+    'PRA QUEM QUER ALGO REAL PARA FAZER NAS HORAS LIVRES ⏰',
+    'ESSE JÁ FOI INDICADO — AGORA É SUA VEZ 👇',
   ],
   'mangá': [
     'MANGÁ QUE VOCÊ NÃO TEM DESCULPA PRA NÃO TER 📖',
@@ -3587,77 +3621,229 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
   // ════════════════════════════════════════════════════════════════
   // LIVROS — expansão
   // ════════════════════════════════════════════════════════════════
+  // ── Romance ───────────────────────────────────────────────────────────────
   'romance': [
     'PRA LER ATÉ DE MADRUGADA SEM CONSEGUIR PARAR 📚',
-    'ROMANCE QUE DÁ BORBOLETA NO ESTÔMAGO 💕',
+    'ROMANCE QUE DÁ BORBOLETA NO ESTÔMAGO ANTES DO FIM DO PRIMEIRO CAPÍTULO 💕',
     'PRA QUEM GOSTA DE VIVER OUTRA VIDA POR ALGUMAS HORAS 🌟',
-    'HISTÓRIA QUE VAI FICAR NA CABEÇA 😌',
-    'PRA QUEM AMA UM BOM ROMANCE 💎',
+    'HISTÓRIA QUE VAI FICAR NA CABEÇA — E NO CORAÇÃO 😌',
+    'PRA QUEM AMA UM BOM ROMANCE E NÃO TEM VERGONHA DISSO 💎',
+    'CHORA NO CAPÍTULO 12, MAS CHEGA ATÉ O FINAL ASSIM MESMO 😭📖',
+    'ESSE CASAL FICTÍCIO VAI HABITAR A SUA CABEÇA POR SEMANAS 💬',
+    'PRA QUEM QUER SENTIR TUDO SEM SAIR DE CASA 🏠',
+    'ROMANCE BOM É AQUELE QUE FAZ VOCÊ TORCER ATÉ A ÚLTIMA PÁGINA 🙏',
+    'PRA QUANDO A VIDA REAL TÁ CHATA E PRECISA DE UM PLOT TWIST 🔄',
+    'LER E SORRIR SOZINHO FEITO LOUCO — A MELHOR EXPERIÊNCIA 😄',
+    'PRA APAIXONAR DE NOVO — SEM RISCO NENHUM 💘',
+    'HISTÓRIA DE AMOR QUE FAZ ATÉ OS CÉTICOS CONTINUAREM LENDO 🤷',
+    'PRA QUEM LEVA ROMANCE LITERÁRIO TÃO A SÉRIO QUANTO MERECE 👑',
+    'ESSE AQUI VAI VIRAR RELEITURA GARANTIDA 🔁',
   ],
+
+  // ── Autoajuda ─────────────────────────────────────────────────────────────
   'autoajuda': [
-    'LIVRO QUE MUDA ALGO EM VOCÊ 📚',
-    'PRA QUEM QUER EVOLUIR E TEM PRESSA ⚡',
-    'AUTOAJUDA DE VERDADE QUE VOCÊ VÊ RESULTADO 💡',
-    'PRA QUEM NÃO TEM TEMPO PRA TERAPIA (E TEM) 😏',
-    'INVESTIMENTO QUE SE PAGA EM MUDANÇA 💎',
+    'LIVRO QUE MUDA ALGO EM VOCÊ — SE VOCÊ DEIXAR 📚',
+    'PRA QUEM QUER EVOLUIR E PAROU DE ESPERAR MOTIVAÇÃO DO NADA ⚡',
+    'AUTOAJUDA DE VERDADE QUE NÃO FICA SÓ NA TEORIA 💡',
+    'PRA QUEM NÃO TEM TEMPO PRA TERAPIA — E TEM — MAS LEIA ISSO TAMBÉM 😏',
+    'INVESTIMENTO QUE SE PAGA EM MUDANÇA DE MENTALIDADE 💎',
+    'ESSE LIVRO INCOMODA NO BOM SENTIDO 🔥',
+    'PRA QUEM JÁ TEM OS LIVROS NA ESTANTE MAS AINDA NÃO LEUESSE 😅',
+    'FRASES QUE VÃO APARECER NA SUA CABEÇA EM HORA OPORTUNA 🧠',
+    'PRA QUEM SABE QUE A MUDANÇA COMEÇA POR UMA PÁGINA DE CADA VEZ 📖',
+    'ESSE NÃO É SÓ LEITURA — É CONVERSA COM SUA MELHOR VERSÃO 💬',
+    'PRA LER, RELER E SUBLINHAR ATÉ ACABAR A CANETA 📝',
+    'AUTOAJUDA QUE ATÉ OS CÉTICOS RECONHECEM COMO BOA 👏',
+    'DO SOFÁ PRA UMA MENTALIDADE MELHOR — SEM SAIR DO SOFÁ 🛋️',
+    'PRA QUEM QUER RESULTADOS REAIS E NÃO SÓ INSPIRAÇÃO 🎯',
+    'LEITURA QUE JUSTIFICA A ESTANTE INTEIRA 📚',
   ],
-  'desenvolvimento pessoal': [],
+
+  // ── Desenvolvimento Pessoal ────────────────────────────────────────────────
+  'desenvolvimento pessoal': [
+    'CRESCIMENTO QUE COMEÇA NUMA PÁGINA E NÃO PARA MAIS 📖',
+    'PRA QUEM TEM METAS E QUER FERRAMENTAS DE VERDADE 🔧',
+    'HÁBITOS, DISCIPLINA E FOCO — TUDO AQUI DENTRO 🎯',
+    'PRA QUEM QUER SER MELHOR AMANHÃ DO QUE HOJE 🌱',
+    'LEITURA QUE COBRA AÇÃO — E VOCÊ VAI ADORAR ISSO 💪',
+    'PRA QUEM JÁ OUVIU FALAR E ESTAVA ESPERANDO O DESCONTO 😏',
+    'ESSE LIVRO FAZ VOCÊ QUERER COMEÇAR AGORA 🚀',
+    'PRA QUEM QUER RESULTADOS CONCRETOS, NÃO SÓ MOTIVAÇÃO 💡',
+    'LEITURA QUE TRANSFORMA ROTINA EM PROGRESSO REAL 📈',
+    'PRA QUEM LEVA O PRÓPRIO DESENVOLVIMENTO A SÉRIO 👑',
+  ],
+
+  // ── Negócios / Empreendedorismo ────────────────────────────────────────────
   'negócios': [
-    'LIVRO QUE EMPRESÁRIO LERIA SE TIVESSE TEMPO 📚',
-    'PRA QUEM QUER ENTENDER COMO FUNCIONA O MERCADO 💡',
-    'CONHECIMENTO QUE ABRE PERSPECTIVA ✨',
-    'PRA QUEM QUER EVOLUIR NA CARREIRA 💼',
-    'INVESTIMENTO QUE SE MULTIPLICA 💎',
+    'LIVRO QUE TODO EMPREENDEDOR DEVERIA LER — E MUITOS AINDA NÃO LERAM 📚',
+    'PRA QUEM QUER ENTENDER COMO FUNCIONA O MERCADO DE VERDADE 💡',
+    'CONHECIMENTO QUE ABRE PERSPECTIVA E FECHA NEGÓCIO 💼',
+    'PRA QUEM QUER EVOLUIR NA CARREIRA SEM ESPERAR PERMISSÃO ⚡',
+    'INVESTIMENTO QUE SE MULTIPLICA EM CADA DECISÃO MELHOR 💎',
+    'ESSE LIVRO DEVERIA SER LEITURA OBRIGATÓRIA — MAS COMO NÃO É, VOCÊ SE DESTACA 😏',
+    'PRA QUEM PENSA EM NEGÓCIO E QUER PENSAR MELHOR 🧠',
+    'TEORIA + PRÁTICA QUE VOCÊ APLICA NA SEMANA SEGUINTE 🎯',
+    'O MENTOR QUE CABE NO BOLSO E CUSTA MENOS QUE UM ALMOÇO 💰',
+    'PRA QUEM EMPREENDE OU QUER EMPREENDER SEM AMADORISMO 🏆',
+    'LEITURA QUE CADA PÁGINA VALE UMA CONSULTORIA 📈',
+    'PRA QUEM QUER CRESCER COM INTELIGÊNCIA — NÃO SÓ COM ESFORÇO 🌟',
+    'ESSE AQUI MUDA A FORMA DE VER OPORTUNIDADE 👁️',
+    'PRA QUEM TEM AMBIÇÃO E QUER DAR BASE A ELA 🚀',
+    'DO SONHO AO PLANO — ESSE LIVRO AJUDA NA TRAVESSIA 🛤️',
   ],
+
+  // ── Ficção Científica ──────────────────────────────────────────────────────
   'ficção científica': [
     'PRA VIAJAR PRA GALÁXIA SEM SAIR DO SOFÁ 🚀',
-    'FICÇÃO QUE FAZ A REALIDADE PARECER LIMITADA 🌟',
-    'PRA QUEM PENSA ALÉM DO POSSÍVEL 🧠',
-    'PRA QUEM QUER HISTÓRIA QUE EXPANDE A MENTE ✨',
-    'LEITURA DE VERDADE PRA MENTE ABERTA 💎',
+    'FICÇÃO QUE FAZ A REALIDADE PARECER LIMITADA — E ELA É 🌟',
+    'PRA QUEM PENSA ALÉM DO POSSÍVEL E QUER UMA COMPANHIA 🧠',
+    'FICÇÃO CIENTÍFICA BOA É A QUE PARECE NOTÍCIA DO FUTURO 📰',
+    'PRA QUEM QUER HISTÓRIA QUE EXPANDE MENTE E HORIZONTE ✨',
+    'ALIENS, TECNOLOGIA OU DISTOPIA — QUALQUER CENÁRIO É MELHOR COM ESSE LIVRO 👽',
+    'PRA QUEM ACHA QUE O UNIVERSO GUARDA SEGREDO 🌌',
+    'ESSE LIVRO RESPONDE PERGUNTAS QUE VOCÊ NEM SABIA QUE TINHA 💡',
+    'PRA MARATONAR LEITURA COMO SE FOSSE SÉRIE 📺',
+    'FUTURO, PRESENTE OU PASSADO ALTERNATIVO — IGUALMENTE VICIANTE 🔄',
+    'FICÇÃO QUE FAZ VOCÊ OLHAR PRA TECNOLOGIA COM OUTROS OLHOS 🤖',
+    'PRA QUEM JÁ ASSISTIU TUDO E PRECISA DE ALGO MAIS PROFUNDO 📖',
+    'UNIVERSO EXPANDIDO QUE CABE NUM LIVRO 🌍',
+    'PRA QUEM QUER VIAJAR SEM PASSAGEM 🛫',
+    'ESSE AQUI É O TIPO QUE VOCÊ INDICA PRA TODO MUNDO 💬',
   ],
+
+  // ── Fantasia ───────────────────────────────────────────────────────────────
   'fantasia': [
-    'PRA ENTRAR EM UM MUNDO COMPLETAMENTE DIFERENTE 🐉',
-    'FANTASIA QUE PRENDE DO INÍCIO AO FIM 📚',
-    'PRA QUEM QUER ESCAPAR DA REALIDADE COM ESTILO ✨',
-    'HISTÓRIA QUE CRIA SAUDADE DE UM LUGAR QUE NÃO EXISTE 🌟',
-    'PRA QUEM TEM IMAGINAÇÃO E QUER MAIS 💎',
+    'PRA ENTRAR EM UM MUNDO COMPLETAMENTE DIFERENTE E NÃO QUERER VOLTAR 🐉',
+    'FANTASIA QUE PRENDE DO INÍCIO AO FIM — E AO PRÓXIMO VOLUME 📚',
+    'PRA QUEM QUER ESCAPAR DA REALIDADE COM ESTILO E MAGIA ✨',
+    'HISTÓRIA QUE CRIA SAUDADE DE UM LUGAR QUE NÃO EXISTE — MAS DEVIA 🌟',
+    'PRA QUEM TEM IMAGINAÇÃO E QUER UMA HISTÓRIA À ALTURA 💎',
+    'DRAGÕES, MAGOS OU MUNDOS PARALELOS — ESSE LIVRO TEM DO BOM 🗡️',
+    'PRA QUEM CRESCEU COM HARRY POTTER E NUNCA PAROU DE QUERER MAIS 🧙',
+    'FANTASIA ÉPICA QUE FAZ ATÉ O ADULTO ESQUECER DO MUNDO REAL 🌈',
+    'PRA MARATONAR EM UM FIM DE SEMANA E SENTIR FALTA NA SEGUNDA 😪',
+    'ESSE UNIVERSO VAI VIVER NA SUA CABEÇA POR MUITO TEMPO 🧠',
+    'PRA QUEM ACREDITA QUE A MELHOR VIAGEM É A LEITURA 🛤️',
+    'SÉRIE QUE VOCÊ VAI QUERER COMPLETAR LOGO 🔥',
+    'PRA QUANDO O MUNDO REAL TÁ CHATO E PRECISA DE DRAGÃO 🐲',
+    'AVENTURA, MAGIA E UM PLOT TWIST QUE NÃO ESPERAVA 💥',
+    'PRA QUEM LEU O NOME DO VENTO E SABE EXATAMENTE DO QUE ESTAMOS FALANDO 📖',
   ],
+
+  // ── Thriller / Suspense ────────────────────────────────────────────────────
   'thriller': [
-    'PRA LER E NÃO CONSEGUIR DORMIR (BOM OU MAU SINAL?) 😱',
-    'THRILLER QUE FAZ O CORAÇÃO ACELERAR 💥',
-    'PRA QUEM GOSTA DE SUSPENSE DE VERDADE ⚡',
-    'LIVRO QUE NÃO DÁ PRA PARAR NO MEIO 🌟',
-    'PRA QUEM QUER ADRENALINA SEM SAIR DE CASA 💎',
+    'PRA LER E NÃO CONSEGUIR DORMIR — E CONTINUAR LER ASSIM MESMO 😱',
+    'THRILLER QUE FAZ O CORAÇÃO ACELERAR ANTES DO CLÍMAX 💥',
+    'PRA QUEM GOSTA DE SUSPENSE DE VERDADE — SEM SOLUÇÃO ÓBVIA ⚡',
+    'LIVRO QUE NÃO DÁ PRA PARAR NO MEIO DE JEITO NENHUM 🌟',
+    'PRA QUEM QUER ADRENALINA SEM SAIR DO SOFÁ 💎',
+    'CADA CAPÍTULO É UM GANCHO — VOCÊ NÃO PARA NUNCA 🪝',
+    'PRA QUEM DESCONFIA DE TODO PERSONAGEM ATÉ O FINAL 🕵️',
+    'TWIST QUE VOCÊ NÃO VIU VINDO — GARANTIDO 🔄',
+    'PRA MARATONAR EM UM DIA E FICAR PARANÓICO NA SEMANA 😅',
+    'ESSE LIVRO FAZ ATÉ O ÔNIBUS PARECER INTERESSANTE 🚌',
+    'PRA QUEM ADORA UM ANTAGONISTA BEM CONSTRUÍDO 😈',
+    'SUSPENSE QUE PRENDE DO PREFÁCIO À ÚLTIMA LINHA 📖',
+    'PRA QUEM ACHA SERIADO DE CRIME LEVE DEMAIS 🔪',
+    'ESSE AQUI DEIXA VOCÊ SEM SABER EM QUEM CONFIAR 🌀',
+    'PRA QUEM QUER RESOLVER O MISTÉRIO ANTES DO DETETIVE 🧩',
   ],
+
   'suspense': [],
+
+  // ── Biografia ──────────────────────────────────────────────────────────────
   'biografia': [
-    'VIDA QUE MERECE SER CONTADA E LIDA 📚',
-    'PRA QUEM SE INSPIRA EM HISTÓRIAS REAIS 💡',
-    'BIOGRAFIA QUE FAZ VOCÊ REPENSAR A SUA PRÓPRIA 🌟',
-    'PRA QUEM GOSTA DE APRENDER COM QUEM VIVEU MAIS ✨',
-    'HISTÓRIA REAL QUE SUPERA QUALQUER FICÇÃO 💎',
+    'VIDA QUE MERECE SER CONTADA — E ESSA FOI CONTADA COM MAESTRIA 📚',
+    'PRA QUEM SE INSPIRA EM HISTÓRIAS REAIS DE VERDADE 💡',
+    'BIOGRAFIA QUE FAZ VOCÊ REPENSAR A SUA PRÓPRIA TRAJETÓRIA 🌟',
+    'PRA QUEM GOSTA DE APRENDER COM QUEM JÁ VIVEU MAIS ✨',
+    'HISTÓRIA REAL QUE SUPERA QUALQUER FICÇÃO — SEM EXAGERO 💎',
+    'PRA ENTENDER COMO AS PESSOAS QUE VOCÊ ADMIRA CHEGARAM LÁ 🏆',
+    'ESSA VIDA TODA COUBE NUM LIVRO — E VALE CADA PÁGINA 📖',
+    'PRA QUEM QUER PERSPECTIVA DE QUEM JÁ ERROU E APRENDEU 🧠',
+    'BASTIDORES DA HISTÓRIA QUE AS MANCHETES NÃO CONTARAM 📰',
+    'PRA QUEM ACREDITA QUE TRAJETÓRIA É O MELHOR PROFESSOR 🎓',
+    'ESSE LIVRO FAZ VOCÊ QUERER MAIS DA SUA PRÓPRIA HISTÓRIA 💪',
+    'PRA QUEM QUER CONHECER O SER HUMANO ALÉM DA CELEBRIDADE 👁️',
+    'VIDA, ERRO, APRENDIZADO E CONQUISTA — NESTA ORDEM 🔄',
+    'PRA QUEM COLECIONA HISTÓRIAS QUE INSPIRAM DE VERDADE 💡',
+    'ESSE AQUI FAZ A REALIDADE PARECER MAIS INCRÍVEL DO QUE FICÇÃO 🌍',
   ],
+
+  // ── Culinária / Gastronomia ────────────────────────────────────────────────
   'culinária': [
-    'PRA QUEM QUER COZINHAR MELHOR 🍳',
-    'RECEITAS QUE VOCÊ VAI FAZER DE VERDADE 💡',
-    'PRA QUEM AMA COZINHAR E QUER EVOLUIR ✨',
-    'LIVRO QUE MUDA A COZINHA 🌟',
-    'PRA QUEM TEM PALADAR E CRIATIVIDADE 💎',
+    'PRA QUEM QUER COZINHAR MELHOR E NÃO TEM DESCULPA MAIS 🍳',
+    'RECEITAS QUE VOCÊ VAI FAZER DE VERDADE — NÃO SÓ SALVAR 💡',
+    'PRA QUEM AMA COZINHAR E QUER EVOLUIR O CARDÁPIO ✨',
+    'LIVRO QUE MUDA O QUE SAI DA SUA COZINHA 🌟',
+    'PRA QUEM TEM PALADAR E QUER DAR ASAS À CRIATIVIDADE 💎',
+    'RECEITAS QUE ATÉ O VIZINHO VAI SENTIR O CHEIRO 🏠',
+    'PRA QUEM QUER IMPRESSIONAR NA COZINHA SEM FAZER CURSO 👨‍🍳',
+    'INGREDIENTES SIMPLES, TÉCNICA CERTA, RESULTADO INCRÍVEL 🎯',
+    'PRA QUEM QUER PARAR DE PEDIR DELIVERY E COZINHAR DE VERDADE 📦',
+    'ESSE LIVRO VALE UMA SEMANA DE REFEIÇÕES DIFERENTES 🍽️',
+    'PRA QUEM VÊ MASTERCHEF E PENSA: EU TAMBÉM CONSIGO 😎',
+    'GASTRONOMIA ACESSÍVEL POR QUEM ENTENDE DO ASSUNTO 🔪',
+    'PRA PRESENTEAR QUEM COZINHA BEM E QUER COZINHAR MELHOR 🎁',
+    'CADA RECEITA É UMA NOVA OPORTUNIDADE DE ACERTAR NO JANTAR 💯',
+    'PRA QUEM SABE QUE COZINHA BOA COMEÇA POR BONS ENSINAMENTOS 📖',
   ],
+
+  // ── Livro Infantil ─────────────────────────────────────────────────────────
   'livro infantil': [
-    'LEITURA QUE PLANTA HÁBITO DESDE CEDO 📚',
-    'PRA CRIANÇA QUE MERECE HISTÓRIA BOA 💕',
-    'LIVRO QUE PAIS LEEM JUNTO E CURTEM 🌟',
-    'PRA FORMAR LEITORES DESDE PEQUENO 💡',
-    'PRA MOMENTO DE QUALIDADE ENTRE PAIS E FILHOS 💎',
+    'LEITURA QUE PLANTA HÁBITO DESDE CEDO — E VALE CADA SEMENTE 📚',
+    'PRA CRIANÇA QUE MERECE HISTÓRIA BOA, BEM CONTADA E BEM ILUSTRADA 💕',
+    'LIVRO QUE PAIS LEEM JUNTO E CURTEM TANTO QUANTO OS FILHOS 🌟',
+    'PRA FORMAR LEITORES DESDE PEQUENO — O MELHOR PRESENTE 💡',
+    'PRA MOMENTO DE QUALIDADE ENTRE PAIS E FILHOS ANTES DE DORMIR 💎',
+    'ESSE LIVRO VAI SER PEDIDO TODA NOITE — PREPARE-SE 😄',
+    'HISTÓRIA BOA É AQUELA QUE CRIANÇA PEDE DE NOVO E DE NOVO 🔁',
+    'PRA CRIANÇA QUE JÁ AMA LER E PRA QUEM AINDA VAI AMAR 📖',
+    'IMAGINAÇÃO QUE COMEÇA NUMA PÁGINA E NÃO TEM LIMITE 🌈',
+    'PRA QUEM QUER DAR DE PRESENTE ALGO QUE DURA ANOS 🎁',
+    'LIVRO QUE FAZ A CRIANÇA PERGUNTAR SOBRE O MUNDO — DO JEITO BOM 🌍',
+    'PRA QUANDO A HORA DE DORMIR VIRA HORA DE AVENTURA ⭐',
+    'PERSONAGEM QUE VAI MORAR NO CORAÇÃO DA CRIANÇA 💛',
+    'PRA QUEM SABE QUE LER CEDO MUDA O FUTURO 📈',
+    'HISTÓRIA DIVERTIDA, COLORIDA E QUE ENSINA SEM PARECER QUE ENSINA 🎨',
   ],
+
+  // ── Livro de História ──────────────────────────────────────────────────────
+  'livro de história': [
+    'PRA QUEM QUER ENTENDER O PRESENTE OLHANDO PARA O PASSADO 📚',
+    'HISTÓRIA QUE EXPLICA COMO CHEGAMOS ATÉ AQUI 🌍',
+    'PRA QUEM ACHA QUE A ESCOLA NÃO CONTOU TUDO — E ESTÁ CERTO 🎓',
+    'BASTIDORES DA HISTÓRIA QUE OS LIVROS DIDÁTICOS OMITEM 📰',
+    'PRA QUEM TEM CURIOSIDADE PELO QUE REALMENTE ACONTECEU 🔍',
+    'ESSE LIVRO MUDA A FORMA DE VER AS DATAS QUE VOCÊ DECOROU 🗓️',
+    'PRA QUEM QUER IR ALÉM DO SUPERFICIAL NA HISTÓRIA MUNDIAL 🌐',
+    'CONTEXTO, CAUSA E CONSEQUÊNCIA — TUDO AQUI DENTRO 💡',
+    'PRA QUEM SABE QUE HISTÓRIA SE REPETE PRA QUEM NÃO CONHECE 🔄',
+    'ESSE LIVRO RESPONDE AS PERGUNTAS QUE O COLÉGIO NÃO RESPONDEU ✅',
+    'PRA QUEM QUER ENTENDER POLÍTICA, GUERRA E SOCIEDADE DE VERDADE 🏛️',
+    'HISTÓRIA CONTADA POR QUEM PESQUISOU A FUNDO 🧐',
+    'PRA QUEM APRECIA CONTEXTO ANTES DE OPINIÃO 📖',
+    'ESSE AQUI FAZ A ATUALIDADE FAZER MUITO MAIS SENTIDO 💎',
+    'PRA QUEM COLECIONA PERSPECTIVA — NÃO SÓ INFORMAÇÃO 🏆',
+  ],
+
+  // ── Quadrinhos / HQ ────────────────────────────────────────────────────────
   'quadrinhos': [
-    'HISTÓRIAS EM QUADRINHOS QUE QUALQUER UM CONSEGUE LER 📖',
-    'PRA QUEM DIZ QUE NÃO GOSTA DE LER (TESTE) 😏',
-    'PRA COLECIONADOR E PRA CURIOSO 🌟',
-    'HISTÓRIA, ARTE E NARRATIVA EM PÁGINAS 💡',
-    'PRA QUEM LEVA HQ A SÉRIO 💎',
+    'HISTÓRIAS EM QUADRINHOS QUE QUALQUER UM LÊ E QUALQUER UM CURTE 📖',
+    'PRA QUEM DIZ QUE NÃO GOSTA DE LER — ATÉ TENTAR ESSE 😏',
+    'PRA COLECIONADOR EXPERIENTE E PRA QUEM ESTÁ COMEÇANDO 🌟',
+    'HISTÓRIA, ARTE E NARRATIVA EM CADA PÁGINA 💡',
+    'PRA QUEM LEVA HQ TÃO A SÉRIO QUANTO MERECE 💎',
+    'ARTE SEQUENCIAL QUE PRENDE O OLHO E A CABEÇA 🎨',
+    'PRA QUEM CRESCEU COM GIBI E NUNCA PAROU DE QUERER MAIS 📚',
+    'SUPER-HERÓIS, ANTI-HERÓIS OU COTIDIANO — QUALQUER UM FUNCIONA 🦸',
+    'ESSE VOLUME É O QUE ESTAVA FALTANDO NA COLEÇÃO 🔑',
+    'PRA LER EM QUALQUER LUGAR E A QUALQUER HORA 🌍',
+    'HQ QUE ATÉ QUEM NÃO LÊ QUADRINHO FICA VICIADO 🔥',
+    'PRA QUEM SABE QUE ARTE E NARRATIVA ANDAM JUNTAS 💬',
+    'EDIÇÃO QUE VALE PAGAR, TER E GUARDAR 💎',
+    'PRA COMPLETAR A SAGA, A SÉRIE OU O UNIVERSO 🌌',
+    'ESSE AQUI JÁ ESTÁ ESGOTADO EM MUITOS LUGARES — APROVEITA 🎯',
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -4985,6 +5171,53 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['cabo hdmi 4k', 'cabo hdmi', 'cabo usb-c', 'cabo usb'],                      phraseKey: 'cabo hdmi' },
   { kw: ['chromecast', 'fire tv stick', 'fire stick', 'streaming stick'],             phraseKey: 'chromecast' },
   { kw: ['alexa', 'echo dot', 'echo show', 'echo'],                                   phraseKey: 'chromecast' },
+
+  // ─── NICHO: LIVROS — subtipos do mais específico para o mais genérico ─────
+
+  // Mangá (detectar antes de "livro" genérico)
+  { kw: ['mangá', 'manga', 'anime book', 'volume mangá'],                             phraseKey: 'mangá' },
+
+  // Livro de terror / horror
+  { kw: ['livro de terror', 'livro de horror', 'stephen king', 'dean koontz', 'clive barker', 'horror literário'], phraseKey: 'livro de terror' },
+
+  // Livro infantil (mais específico antes de "livro" genérico)
+  { kw: ['livro infantil', 'livro para criança', 'livro ilustrado', 'livro de colorir', 'livro de historinhas', 'literatura infantil'], phraseKey: 'livro infantil' },
+
+  // Quadrinhos / HQ
+  { kw: ['hq', 'história em quadrinhos', 'histórias em quadrinhos', 'graphic novel', 'dc comics', 'marvel comics', 'batman', 'superman', 'homem-aranha', 'vingadores', 'quadrinhos'], phraseKey: 'quadrinhos' },
+
+  // Romance literário
+  { kw: ['romance literário', 'romance histórico', 'livro de romance', 'chick lit', 'new adult', 'literatura romântica'], phraseKey: 'romance' },
+
+  // Autoajuda
+  { kw: ['autoajuda', 'auto-ajuda', 'livro de autoajuda', 'mentalidade', 'mindset', 'hábitos atômicos', 'poder do hábito', 'pense e enriqueça', 'homem mais rico da babilônia'], phraseKey: 'autoajuda' },
+
+  // Desenvolvimento pessoal
+  { kw: ['desenvolvimento pessoal', 'crescimento pessoal', 'liderança', 'inteligência emocional', 'produtividade', 'foco', 'disciplina', 'gestão de tempo'], phraseKey: 'desenvolvimento pessoal' },
+
+  // Negócios / Empreendedorismo
+  { kw: ['livro de negócios', 'empreendedorismo', 'marketing', 'vendas', 'gestão', 'administração', 'startup', 'finanças pessoais', 'investimentos', 'pai rico', 'o jeito warren buffett'], phraseKey: 'negócios' },
+
+  // Ficção científica
+  { kw: ['ficção científica', 'ficcao cientifica', 'sci-fi', 'scifi', 'distopia', 'cyberpunk', 'space opera', 'duna', 'fundação', 'ender', 'asimov'], phraseKey: 'ficção científica' },
+
+  // Fantasia
+  { kw: ['fantasia épica', 'alta fantasia', 'livro de fantasia', 'dragões', 'elfos', 'tolkien', 'george r.r. martin', 'harry potter', 'nome do vento', 'wheel of time'], phraseKey: 'fantasia' },
+
+  // Thriller / Suspense
+  { kw: ['thriller', 'suspense literário', 'policial', 'detetive', 'crime literário', 'agatha christie', 'gillian flynn', 'john grisham', 'lee child'], phraseKey: 'thriller' },
+
+  // Biografia / Autobiografia
+  { kw: ['biografia', 'autobiografia', 'memórias', 'memorias', 'vida e obra', 'a história de', 'elon musk', 'steve jobs', 'michelle obama', 'relato autobiográfico'], phraseKey: 'biografia' },
+
+  // Culinária / Gastronomia
+  { kw: ['livro de receitas', 'livro de culinária', 'gastronomia', 'culinária brasileira', 'confeitaria', 'padaria artesanal', 'chef', 'receitas'], phraseKey: 'culinária' },
+
+  // Livro de história
+  { kw: ['livro de história', 'história do brasil', 'história mundial', 'história geral', 'segunda guerra', 'história política', 'historiografia'], phraseKey: 'livro de história' },
+
+  // Livro genérico (fallback de todo o nicho)
+  { kw: ['livro', 'literatura', 'leitura', 'obra literária'],                         phraseKey: 'livro' },
 ];
 
 /**
@@ -5487,6 +5720,24 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'jogo estratégico': 'jogo estratégico',
   'jogo família':     'jogo família',
   'jogo de tabuleiro': 'jogo de tabuleiro',
+
+  // ── NICHO: LIVROS — subtipos mapeados ──────────────────────────────────────
+  'livro de terror':       'livro de terror',
+  'livro infantil':        'livro infantil',
+  'quadrinhos':            'quadrinhos',
+  'romance':               'romance',
+  'autoajuda':             'autoajuda',
+  'desenvolvimento pessoal': 'desenvolvimento pessoal',
+  'negócios':              'negócios',
+  'ficção científica':     'ficção científica',
+  'fantasia':              'fantasia',
+  'thriller':              'thriller',
+  'suspense':              'thriller',
+  'biografia':             'biografia',
+  'culinária':             'culinária',
+  'livro de história':     'livro de história',
+  'mangá':                 'mangá',
+  'livro':                 'livro',
 };
 
 function getProductSpecificPhrase(title: string): string | null {
