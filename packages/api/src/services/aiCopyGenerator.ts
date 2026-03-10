@@ -4417,18 +4417,21 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
 // O DailyPhraseTracker opera sobre a chave da categoria ("merged:tenis"),
 // então a fila avança independente de qual marca específica foi postada.
 
+// REGRA: apenas nomes de MARCA disparam o merged pool.
+// Termos genéricos (camisa, calça, tênis, panela, furadeira...) NÃO entram aqui —
+// eles usam o pool individual próprio, que tem frases adequadas ao produto.
+// Isso evita que "Camisa Flamengo" receba frase de jeans ou
+// "Furadeira sem marca" receba frase de Bosch.
 const MERGED_POOL_KEYS: Record<string, string[]> = {
   'tenis': [
-    'tênis', 'tenis', 'nike', 'adidas', 'puma', 'new balance', 'asics',
+    'nike', 'adidas', 'puma', 'new balance', 'asics',
     'vans', 'converse', 'all star', 'under armour', 'fila', 'mizuno',
     'olimpikus', 'kappa',
   ],
   'roupas': [
-    'camisa', 'calça', 'roupa', 'polo ralph lauren', 'ralph lauren',
-    'lacoste', 'tommy hilfiger', 'tommy', 'calvin klein', 'ck',
-    "levi's", 'levis', 'insaider',
-    'vestido', 'jaqueta', 'moletom', 'bermuda', 'polo', 'shorts',
-    'blusa', 'regata', 'cropped', 'saia', 'legging', 'pijama',
+    'polo ralph lauren', 'ralph lauren', 'lacoste',
+    'tommy hilfiger', 'calvin klein', 'insaider',
+    "levi's", 'levis',
   ],
   'ferramentas': [
     'bosch professional', 'bosch', 'makita', 'dewalt', 'milwaukee', 'hilti',
@@ -4436,14 +4439,10 @@ const MERGED_POOL_KEYS: Record<string, string[]> = {
     'stanley', 'black+decker', 'black decker', 'irwin', 'craftsman',
     'gedore', 'belzer', 'bahco', 'knipex',
     'tramontina pro', 'tramontina', 'vonder', 'worker', 'gamma', 'sparta',
-    'furadeira', 'parafusadeira', 'esmerilhadeira', 'martelete',
-    'alicate', 'martelo', 'trena', 'serra', 'lixa', 'ferramenta',
   ],
   'cozinha': [
     'brinox', 'rochedo', 'panelux', 'multiflon', 'nigro', 'sanremo',
     'plasútil', 'plasutil',
-    'panela', 'frigideira', 'caçarola', 'wok', 'tigela', 'bowl',
-    'escorredor', 'assadeira', 'jogo de panelas', 'forma de bolo',
   ],
 };
 
