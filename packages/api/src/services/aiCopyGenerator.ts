@@ -712,6 +712,28 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
   ],
   
   // Roupas
+  // ── Camisa Polo ────────────────────────────────────────────────────────────
+  // Produto específico: polo com gola, diferente de camiseta básica
+  'camisa polo': [
+    'POLO: O CLÁSSICO QUE NUNCA SAI DE MODA — E HOJE TÁ EM CONTA 🐊',
+    'GOLA POLO QUE ELEVA QUALQUER LOOK SEM ESFORÇO 👔',
+    'ESSA POLO É PRA QUEM QUER PARECER ARRUMADO ATÉ NA FOLGA 😏',
+    'PRA QUEM QUER CASUAL COM CLASSE — NEM UMA, NEM OUTRA: AS DUAS ✨',
+    'POLO SHIRT: SIMPLES, ELEGANTE, PRÁTICO. FIM DE PAPO 💎',
+    'GOLA QUE FAZ QUALQUER LOOK FICAR 30% MAIS RESPEITÁVEL 😎',
+    'POLO NO CORPO, CONFIANÇA NO OLHAR 💪',
+    'ESSA POLO FUNCIONA NO TRABALHO, NO ALMOÇO E NO ROLÊ 🎯',
+    'PRA QUEM NÃO QUER TERNO MAS TAMBÉM NÃO QUER CAMISETA BÁSICA 🤝',
+    'POLO: A PEÇA QUE RESOLVE QUANDO VOCÊ NÃO SABE O QUE VESTIR 🧠',
+    'ESSA AQUI PASSA EM QUALQUER DRESS CODE SEM PEDIR LICENÇA 🚀',
+    'PRA QUEM QUER ESTILO SEM EXPLICAÇÃO 👑',
+    'POLO CERTA NA HORA CERTA: EFEITO GARANTIDO 💯',
+    'VESTE POLO, PARECE QUE PLANEJOU O LOOK — SEM TER PLANEJADO NADA 😄',
+    'A CAMISA QUE FUNCIONA PARA TUDO MENOS PARA PREGUIÇA DE PASSAR 😂',
+  ],
+
+  // ── Camiseta Básica ────────────────────────────────────────────────────────
+  // T-shirt simples, do dia a dia
   'camisa': [
     'CAMISETA PRA PARECER ARRUMADO SEM ESFORÇO 👕',
     'ESSA CAMISETA SALVA O LOOK ✨',
@@ -730,7 +752,8 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'VESTIU, TÁ PRONTO 🚀',
   ],
 
-  // Camisas de time / futebol — frases específicas para jerseys de clube e seleção
+  // ── Camisa de Time / Futebol ──────────────────────────────────────────────
+  // Frases específicas para jerseys de clube e seleção
   'camisa de time': [
     'VESTIU A CAMISA — NO SENTIDO LITERAL E FIGURATIVO ⚽',
     'DECLARAÇÃO DE AMOR COM NÚMERO NAS COSTAS 💚',
@@ -2250,6 +2273,20 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'SOCIAL SEM COMPLICAÇÃO ✨',
     'PRA QUEM PRECISA IMPRESSIONAR SEM MUITO ESFORÇO 🌟',
     'CAMISA QUE FALA POR VOCÊ 💎',
+    'BOTÃO A BOTÃO, MAIS CONFIANTE 💼',
+    'PARA REUNIÃO, ENTREVISTA OU IMPRESSIONAR A FAMÍLIA DO LADO 😏',
+    'ESSA SOCIAL FAZ ATÉ SEGUNDA PARECER MENOS SEGUNDA 📅',
+    'PRA QUEM PRECISA DE APARÊNCIA PROFISSIONAL EM 5 MINUTOS ⏰',
+    'CAMISA DE BOTÃO: A ARMADURA DO PROFISSIONAL MODERNO 🛡️',
+    'VESTIU A SOCIAL, VIROU OUTRA PESSOA — A VERSÃO SÉRIA 😎',
+    'ESSA CAMISA ABRE PORTAS — LITERALMENTE E FIGURATIVAMENTE 🚪',
+    'SOCIAL PRA QUEM LEVA A PRÓPRIA IMAGEM A SÉRIO 💡',
+    'ELEGÂNCIA COM PREÇO QUE NÃO EXIGE REUNIÃO PRA APROVAR 💰',
+    'PASSADA, ABOTOADA, PRONTO. SIMPLES ASSIM ✅',
+    'PRA ENCARAR O DIA COM CONFIANÇA E ESTILO 👑',
+    'CAMISA QUE MANDA MENSAGEM ANTES DE VOCÊ FALAR QUALQUER COISA 📣',
+    'FECHOU O COLARINHO, FECHOU O LOOK 🔒',
+    'PRA QUEM SAI DA REUNIÃO DIRETO PRA HAPPY HOUR SEM TROCAR DE ROUPA 🥂',
   ],
   'terno': [
     'TERNO QUE FAZ TODO MUNDO VIRAR 👔',
@@ -2420,6 +2457,16 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'BÁSICO QUE COMBINA COM QUALQUER COISA ✨',
     'PRA TREINAR OU CASUAL, FUNCIONA DOS DOIS JEITOS ✅',
     'REGATA HONESTA POR PREÇO JUSTO 💰',
+    'REGATA QUE DEIXA O BRAÇO À VONTADE E O ESTILO NO LUGAR 💪',
+    'PRA QUEM O CALOR NÃO PERDOA — MAS O ESTILO TAMBÉM NÃO 🌡️',
+    'LEVE, FRESCA E AINDA BONITA. QUE MAIS VOCÊ QUER? 😎',
+    'REGATA: A PEÇA QUE O VERÃO SEMPRE PEDE 🌞',
+    'PRA MALHAR, SAIR OU FICAR EM CASA COM ESTILO 🏋️',
+    'ESSA REGATA VALE PRA ACADEMIA E PRA VIDA 💯',
+    'BRAÇOS DE FORA, ATITUDE NO MÁXIMO 🔥',
+    'PRA QUANDO FAZ CALOR ATÉ NA SOMBRA ☀️',
+    'REGATA QUE NÃO SUFOCA E NÃO DECEPCIONA 👌',
+    'LEVE NO PESO, PESADA NO ESTILO ✨',
   ],
   'conjunto fitness': [
     'TOP + LEGGING: LOOK DE ACADEMIA COMPLETO EM DOIS CLIQUES 💪',
@@ -4554,8 +4601,9 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   phraseKey: string;
   brandCat?: string;
 }> = [
-  // ─── Vestuário superior ──────────────────────────────────────────────────
-  // Camisa de time DEVE vir antes das demais camisas (mais específico primeiro)
+  // ─── Vestuário superior — ORDEM: mais específico primeiro ───────────────
+
+  // 1. Camisa de time (jersey de clube/seleção) — detectar ANTES de qualquer outra camisa
   { kw: [
       'camisa de futebol', 'camisa do time', 'camisa oficial', 'camisa retrô', 'camisa retro',
       'jersey oficial', 'camisa de jogo', 'camiseta de time', 'camiseta oficial',
@@ -4568,14 +4616,23 @@ const PRODUCT_TYPE_DETECTORS: Array<{
       // Seleções
       'seleção brasileira', 'selecao brasileira', 'brasil seleção', 'camisa do brasil',
       'seleção', 'selecao', 'canarinho',
-      // Times europeus comuns
+      // Times europeus
       'real madrid', 'barcelona', 'manchester', 'chelsea', 'liverpool', 'arsenal',
       'juventus', 'inter de milão', 'inter de milao', 'ac milan', 'paris saint',
       'psg', 'bayern', 'borussia', 'ajax', 'benfica', 'porto',
     ],                                                                               phraseKey: 'camisa de time' },
-  { kw: ['camisa polo', 'polo shirt'],                                              phraseKey: 'camisa',           brandCat: 'roupas' },
-  { kw: ['camisa social', 'camisa de botão', 'camisa jeans', 'camisa xadrez'],      phraseKey: 'camisa',           brandCat: 'roupas' },
-  { kw: ['camisa', 'camiseta', 'jersey', 'uniforme', 'regata'],                     phraseKey: 'camisa',           brandCat: 'roupas' },
+
+  // 2. Camisa Polo (gola polo, diferente de camiseta básica)
+  { kw: ['camisa polo', 'polo shirt', 'polo masculina', 'polo feminina', 'polo com gola'], phraseKey: 'camisa polo', brandCat: 'roupas' },
+
+  // 3. Camisa Social (de botão, trabalho, eventos)
+  { kw: ['camisa social', 'camisa de botão', 'camisa de botao', 'camisa slim', 'camisa jeans', 'camisa xadrez', 'camisa listrada', 'camisa manga longa', 'camisa manga curta'], phraseKey: 'camisa social', brandCat: 'roupas' },
+
+  // 4. Regata (sem manga)
+  { kw: ['regata', 'camiseta regata', 'top regata'],                                phraseKey: 'regata',           brandCat: 'roupas' },
+
+  // 5. Camiseta básica (t-shirt genérica — vem por último entre as camisas)
+  { kw: ['camiseta', 'camisa', 'jersey', 'uniforme'],                               phraseKey: 'camisa',           brandCat: 'roupas' },
   { kw: ['jaqueta', 'moletom', 'agasalho', 'casaco', 'suéter', 'sueter', 'blusa'], phraseKey: 'roupa',            brandCat: 'roupas' },
   { kw: ['vestido', 'saia', 'cropped', 'top feminino'],                             phraseKey: 'roupa',            brandCat: 'roupas' },
   { kw: ['boné', 'bone', 'cap', 'viseira', 'chapéu', 'chapeu'],                      phraseKey: 'boné',             brandCat: 'roupas' },
@@ -5103,9 +5160,13 @@ function peekProductSpecificPhrase(title: string): string | null {
 const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Calçados → pool 'tenis' (marca+genérico)
   'tênis':    'pool:tenis',
-  // Vestuário → pool 'roupas' (marca+genérico)
+  // Vestuário — subtipos específicos (mais específico primeiro)
   'camisa de time': 'camisa de time',
+  'camisa polo':    'camisa polo',
+  'camisa social':  'camisa social',
+  'regata':         'regata',
   'camisa':         'pool:roupas',
+  'polo':           'polo',
   'calça':          'pool:roupas',
   'roupa':          'pool:roupas',
   'boné':           'boné',
