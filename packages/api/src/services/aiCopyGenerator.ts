@@ -1699,6 +1699,18 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM ODEIA SAPATO FECHADO 😤',
     'PÉ FELIZ, DONO MAIS AINDA 💛',
     'CHINELO QUE DURA DE VERDADE 💪',
+    'O ÚNICO CALÇADO QUE A MÃE USA E AINDA SERVE DE AMEAÇA 😂',
+    'PRA IR NA PADARIA, NA PRAIA OU NO FIM DO MUNDO — CHINELO RESOLVE 🌍',
+    'PÉ NO CHÃO, BOLSO NO AZUL, CONFORTO GARANTIDO 💰',
+    'O BRASIL INTEIRO ENTENDE O QUE É CHINELO BOM 🇧🇷',
+    'PRA QUEM PREFERE O CHÃO SEM INTERMEDIÁRIO 😌',
+    'CALÇADO OFICIAL DO VERÃO QUE NUNCA PASSA 🌞',
+    'PRA QUEM JÁ CANSOU DE AMARRAR CADARÇO 😅',
+    'PRA PRAIA, PISCINA, MERCADO OU SOFÁ — SERVE PRA QUALQUER MISSÃO 🏖️',
+    'O ÚNICO CALÇADO QUE VOCÊ PERDE E AINDA TEM O OUTRO 👀',
+    'SIMPLES, LEVE E SEM ENROLAÇÃO — É ISSO QUE O PÉ PRECISA ⚡',
+    'ESSE AQUI AGUENTA SOL, AREIA, ÁGUA E ATÉ A VIZINHA PEDINDO EMPRESTADO 😂',
+    'PRA QUEM ANDA MUITO E NÃO QUER PAGAR COM DOR NO PÉ 🦶',
   ],
   'bota': [
     'BOTA QUE FINALIZA QUALQUER LOOK 👢',
@@ -2651,6 +2663,52 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'HAVAIANAS: A RESPOSTA CERTA PRA QUALQUER VERÃO 🌞',
     'CONFORTO TESTADO E APROVADO POR TODA UMA NAÇÃO ✅',
     'SIMPLES, DURÁVEL E BRASILEIRO 💚',
+    'ESSE MODELO VENDE HÁ DÉCADAS E NÃO PRECISA EXPLICAR POR QUÊ 😌',
+    'HAVAIANAS: O ÚNICO CALÇADO QUE ATÉ TURISTA QUER LEVAR NA MALA ✈️',
+    'QUEM TEM HAVAIANAS TEM UM PEDAÇO DO BRASIL NO PÉ 🌴',
+    'PRA PRAIA, PISCINA OU QUINTAL — SEMPRE A ESCOLHA CERTA 🏖️',
+    'CONFORTÁVEL COMO UM DIA DE FIM DE SEMANA ☀️',
+    'HAVAIANAS: O ORIGINAL QUE OS OUTROS TENTAM IMITAR 👑',
+    'ESSE AQUI FOI O PRIMEIRO — E CONTINUA O MELHOR 🔥',
+    'PRA QUEM SABE QUE CLÁSSICO NÃO PRECISA DE TENDÊNCIA 💎',
+    'PRA CALOR, VERÃO, FERIADO OU QUALQUER DIA QUE MEREÇA LIBERDADE 🌞',
+    'HAVAIANAS: SE TEM EM CASA É PORQUE JÁ SABE DA BOA 😎',
+  ],
+  'rider': [
+    'RIDER: O CHINELO QUE FAZ O PÉ SE SENTIR EM CASA EM QUALQUER LUGAR 🏡',
+    'PRA QUEM QUER CONFORTO SEM ABRIR MÃO DO ESTILO 😎',
+    'RIDER NO PÉ E O DIA JÁ TÁ MAIS LEVE ⚡',
+    'PRA QUEM PASSA O DIA TODO ANDANDO E NÃO QUER SOFRER 🦶',
+    'RIDER: A ESCOLHA DE QUEM JÁ TESTOU E NÃO VOLTA ATRÁS ✅',
+    'DURÁVEL, CONFORTÁVEL E SEM ENROLAÇÃO 💪',
+    'PRA USAR EM CASA, NA RUA OU NA PRAIA — RIDER SERVE EM QUALQUER MISSÃO 🌍',
+    'ESSE CHINELO AGUENTA O RITMO DO SEU DIA 🔥',
+    'PRA QUEM PREFERE PRATICIDADE COM QUALIDADE 💡',
+    'RIDER: PORQUE PÉ BOM MERECE CHINELO BOM 🌟',
+  ],
+  'kenner': [
+    'KENNER: O ESTILO QUE A GALERA NOTE E O CONFORTO QUE O PÉ AGRADECE 👀',
+    'PRA QUEM QUER CHINELO QUE COMBINA COM O LOOK 🎯',
+    'KENNER NO PÉ E JÁ TÁ COM UM ESTILO A MAIS 😏',
+    'PRA QUEM CURTE STREETWEAR MAS NÃO QUER ABRIR MÃO DO CONFORTO 🛹',
+    'KENNER: PORQUE ATÉ CHINELO TEM QUE TER PERSONALIDADE 🔥',
+    'PRA QUEM NÃO USA QUALQUER UM — TEM GOSTO 💎',
+    'MODELO QUE A GALERA PERGUNTA QUAL É 👁️',
+    'KENNER: A MARCA QUE CRESCEU NA PRAINHA E CHEGOU NA CIDADE 🏖️',
+    'PRA JOVEM QUE QUER ESTILO SEM GASTAR COMO SE FOSSE RICO 💰',
+    'ESSE AQUI DIFERENCIA QUEM USA DE QUEM SÓ CALÇA O QUE TEM ✨',
+  ],
+  'ipanema': [
+    'IPANEMA: FEITO PRA QUEM AMA O SOL, O MAR E O PÉ LIVRE 🌊',
+    'PRA QUEM CARREGA A PRAIA NO CORAÇÃO E O CHINELO NO PÉ 🏖️',
+    'IPANEMA: LEVEZA QUE VOCÊ SÓ ENTENDE QUANDO CALÇA 😌',
+    'PRA QUALQUER DIA QUE PRECISE DE UM POUCO DE VERÃO ☀️',
+    'IPANEMA NO PÉ E O HUMOR JÁ MELHORA SOZINHO 💛',
+    'PRA QUEM QUER ESTILO FEMININO SEM SOFRIMENTO 👡',
+    'FEITO PRA DURAR E PRA FAZER O PÉ FELIZ 💪',
+    'IPANEMA: A MARCA QUE ENTENDE QUE CALÇADO BOM NÃO PODE MACHUCAR 🌟',
+    'PRA PRAIA, PISCINA, RUA OU QUALQUER DESTINO QUE O VERÃO LEVAR 🌴',
+    'IPANEMA: PORQUE O PÉ DA MULHER MERECE RESPEITO E CONFORTO 💎',
   ],
   'salto': [
     'SALTO QUE ELEVA O LOOK E A AUTOESTIMA ✨',
@@ -5173,6 +5231,10 @@ const MERGED_POOL_KEYS: Record<string, string[]> = {
     'brinox', 'rochedo', 'panelux', 'multiflon', 'nigro', 'sanremo',
     'plasútil', 'plasutil',
   ],
+  // Chinelos — marcas brasileiras principais
+  'chinelo': [
+    'havaianas', 'rider', 'kenner', 'ipanema',
+  ],
 };
 
 // Pool unificado por categoria — construído uma vez ao carregar o módulo.
@@ -5209,6 +5271,10 @@ const PRODUCT_POOL: Record<string, string[]> = (() => {
     // ── Ferramentas ──────────────────────────────────────────────────────────
     // Pool = Bosch + Makita + outras + frases genéricas de ferramenta
     'ferramentas': [...(MERGED_CATEGORY_PHRASES['ferramentas'] ?? []), ...merge('ferramenta', 'furadeira', 'parafusadeira')],
+
+    // ── Chinelos ─────────────────────────────────────────────────────────────
+    // Pool = Havaianas + Rider + Kenner + Ipanema + genéricas de chinelo
+    'chinelo': [...(MERGED_CATEGORY_PHRASES['chinelo'] ?? []), ...merge('chinelo')],
   };
 })();
 
@@ -5318,8 +5384,9 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['bota feminina', 'bota de couro', 'bota cano longo', 'bota'],               phraseKey: 'bota' },
   { kw: ['sandália rasteira', 'sandália plataforma', 'sandália feminina'],            phraseKey: 'sandália' },
   { kw: ['sandália', 'sandalia'],                                                     phraseKey: 'sandália' },
-  { kw: ['chinelo de dedo', 'chinelo masculino', 'chinelo feminino'],                 phraseKey: 'chinelo' },
-  { kw: ['chinelo', 'alpargata', 'rasteira', 'tamanco', 'havaianas'],                 phraseKey: 'chinelo' },
+  { kw: ['chinelo de dedo', 'chinelo masculino', 'chinelo feminino', 'chinelo slide'], phraseKey: 'chinelo', brandCat: 'chinelo' },
+  { kw: ['havaianas', 'rider', 'kenner', 'ipanema'],                                  phraseKey: 'chinelo', brandCat: 'chinelo' },
+  { kw: ['chinelo', 'alpargata', 'rasteira', 'tamanco'],                              phraseKey: 'chinelo', brandCat: 'chinelo' },
   { kw: ['sapato social masculino', 'sapato social feminino', 'sapato social'],       phraseKey: 'sapato' },
   { kw: ['mocassim', 'loafer', 'oxford', 'derby'],                                   phraseKey: 'sapato' },
   { kw: ['scarpin', 'salto alto', 'salto stiletto', 'plataforma'],                   phraseKey: 'sapato' },
@@ -6048,8 +6115,9 @@ function peekProductSpecificPhrase(title: string, phraseMode?: 'generic' | 'bran
 // Cada pool tem frases de marca + genéricas misturadas.
 // ══════════════════════════════════════════════════════════════════════════════
 const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
-  // Calçados → pool 'tenis' (marca+genérico)
+  // Calçados → pool unificado (marca+genérico)
   'tênis':    'pool:tenis',
+  'chinelo':  'pool:chinelo',
   // Vestuário — subtipos específicos (mais específico primeiro)
   'camisa de time': 'camisa de time',
   'camisa polo':    'camisa polo',
