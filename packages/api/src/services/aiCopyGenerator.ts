@@ -4460,52 +4460,196 @@ const MERGED_CATEGORY_PHRASES: Record<string, string[]> = (() => {
 // Detecta a qual categoria merged um produto pertence.
 // Usa word boundary (\b) para evitar falsos positivos como
 // 'forma' dentro de 'formato', 'fila' dentro de 'família', etc.
-// Palavras no título que DESQUALIFICAM uma categoria mesmo que a marca bata.
-// Ex: "CAMISA ADIDAS" → marca 'adidas' está em 'tenis', mas 'camisa' é disqualifier → ignora 'tenis'.
-const CATEGORY_DISQUALIFIERS: Record<string, string[]> = {
-  tenis: [
-    'camisa', 'camiseta', 'jersey', 'uniforme', 'regata',
-    'calça', 'calca', 'short', 'shorts', 'bermuda', 'legging',
-    'jaqueta', 'moletom', 'agasalho', 'blusa', 'polo', 'suéter',
-    'boné', 'bone', 'cap', 'chapéu', 'chapeu',
-    'mochila', 'bolsa', 'bag', 'mala',
-    'meias', 'meia', 'luvas', 'luva',
-    'sutiã', 'sutia', 'cueca', 'pijama',
-  ],
-  ferramentas: [
-    'geladeira', 'refrigerador', 'frigorífico',
-    'lava-louça', 'lava louça', 'dishwasher',
-    'forno', 'fogão', 'fogao', 'cooktop', 'churrasqueira',
-    'liquidificador', 'batedeira', 'processador',
-    'air fryer', 'fritadeira', 'microondas', 'microondas',
-    'máquina de lavar', 'lavadora', 'lava e seca',
-    'aspirador', 'purificador', 'aquecedor',
-    'panela', 'frigideira', 'caçarola',
-  ],
-};
+// ══════════════════════════════════════════════════════════════════════════════
+// SISTEMA DE 3 CAMADAS PARA SELEÇÃO DE FRASES
+//
+// Camada 1 — Tipo de produto  (o QUE é o produto?)
+// Camada 2 — Marca do produto (de QUAL marca é?)
+// Camada 3 — Frase correta    (frases da marca se houver; senão genéricas do tipo)
+//
+// Isso evita que "CAMISA ADIDAS" use frases de tênis (Vans, Mizuno…)
+// ou que "GELADEIRA BOSCH" use frases de furadeira.
+// ══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Detectores de tipo de produto ordenados do mais específico para o mais genérico.
+ * `phraseKey` → chave em PRODUCT_SPECIFIC_PHRASES para frases genéricas do tipo.
+ * `brandCat`  → chave em MERGED_POOL_KEYS para buscar marcas válidas para este tipo.
+ */
+const PRODUCT_TYPE_DETECTORS: Array<{
+  kw: string[];
+  phraseKey: string;
+  brandCat?: string;
+}> = [
+  // ─── Vestuário superior ──────────────────────────────────────────────────
+  { kw: ['camisa polo', 'polo shirt'],                                              phraseKey: 'camisa',           brandCat: 'roupas' },
+  { kw: ['camisa social', 'camisa de botão', 'camisa jeans', 'camisa xadrez'],      phraseKey: 'camisa',           brandCat: 'roupas' },
+  { kw: ['camisa', 'camiseta', 'jersey', 'uniforme', 'regata'],                     phraseKey: 'camisa',           brandCat: 'roupas' },
+  { kw: ['jaqueta', 'moletom', 'agasalho', 'casaco', 'suéter', 'sueter', 'blusa'], phraseKey: 'roupa',            brandCat: 'roupas' },
+  { kw: ['vestido', 'saia', 'cropped', 'top feminino'],                             phraseKey: 'roupa',            brandCat: 'roupas' },
+  { kw: ['boné', 'bone', 'cap', 'viseira'],                                         phraseKey: 'roupa',            brandCat: 'roupas' },
+  { kw: ['mochila', 'bolsa', 'bag', 'mala', 'necessaire', 'pochete'],               phraseKey: 'roupa',            brandCat: 'roupas' },
+
+  // ─── Vestuário inferior ──────────────────────────────────────────────────
+  { kw: ['calça jeans', 'jeans masculino', 'jeans feminino'],                       phraseKey: 'calça',            brandCat: 'roupas' },
+  { kw: ['calça', 'calca', 'legging', 'shorts', 'bermuda', 'short '],               phraseKey: 'calça',            brandCat: 'roupas' },
+
+  // ─── Calçados ────────────────────────────────────────────────────────────
+  { kw: ['tênis', 'tenis', 'sneaker', 'sapatênis', 'sapatenis', 'calçado esportivo'], phraseKey: 'tênis',          brandCat: 'tenis' },
+  { kw: ['chuteira', 'botina esportiva'],                                            phraseKey: 'tênis',            brandCat: 'tenis' },
+  { kw: ['sandália', 'sandalia', 'chinelo', 'alpargata', 'rasteira', 'tamanco'],    phraseKey: 'tênis',            brandCat: 'tenis' },
+  { kw: ['sapato', 'mocassim', 'loafer', 'scarpin', 'salto alto'],                  phraseKey: 'tênis',            brandCat: 'tenis' },
+
+  // ─── TV / Projeção ────────────────────────────────────────────────────────
+  { kw: ['smart tv', 'smartv'],                                                     phraseKey: 'smart tv' },
+  { kw: ['televisor', 'televisão', 'televisao', 'tv led', 'tv qled', 'tv oled', 'tv 4k', 'tv 8k', 'tv uhd'], phraseKey: 'tv' },
+  { kw: ['projetor', 'projeção', 'mini projetor'],                                  phraseKey: 'projetor' },
+
+  // ─── Computação ──────────────────────────────────────────────────────────
+  { kw: ['notebook gamer', 'notebook ultrafino', 'notebook ultrabook'],             phraseKey: 'notebook' },
+  { kw: ['notebook', 'laptop'],                                                     phraseKey: 'notebook' },
+  { kw: ['tablet'],                                                                 phraseKey: 'tablet' },
+  { kw: ['monitor gamer', 'monitor curvo', 'monitor'],                              phraseKey: 'monitor' },
+  { kw: ['placa de vídeo', 'placa de video', 'gpu'],                                phraseKey: 'placa de vídeo' },
+  { kw: ['processador', 'cpu'],                                                     phraseKey: 'processador' },
+  { kw: ['memória ram', 'memoria ram'],                                             phraseKey: 'memória ram' },
+  { kw: ['ssd', 'hd externo', 'pendrive', 'pen drive', 'leitor de cartão'],        phraseKey: 'ssd' },
+  { kw: ['mouse gamer', 'mouse sem fio', 'mouse'],                                  phraseKey: 'mouse' },
+  { kw: ['teclado gamer', 'teclado mecânico', 'teclado'],                           phraseKey: 'teclado' },
+  { kw: ['webcam'],                                                                 phraseKey: 'webcam' },
+
+  // ─── Mobile ───────────────────────────────────────────────────────────────
+  { kw: ['iphone'],                                                                 phraseKey: 'iphone' },
+  { kw: ['samsung galaxy', 'galaxy s', 'galaxy a'],                                phraseKey: 'samsung' },
+  { kw: ['xiaomi', 'redmi', 'poco'],                                                phraseKey: 'xiaomi' },
+  { kw: ['celular', 'smartphone'],                                                  phraseKey: 'celular' },
+  { kw: ['smartwatch', 'smart watch', 'relógio inteligente'],                       phraseKey: 'smartwatch' },
+
+  // ─── Áudio ────────────────────────────────────────────────────────────────
+  { kw: ['airpods', 'air pods'],                                                    phraseKey: 'airpods' },
+  { kw: ['fone de ouvido', 'headphone', 'headset', 'earphone', 'earbuds'],          phraseKey: 'fone' },
+  { kw: ['soundbar', 'sound bar'],                                                  phraseKey: 'soundbar' },
+  { kw: ['caixa de som', 'caixinha bluetooth', 'speaker bluetooth'],                phraseKey: 'caixa de som' },
+  { kw: ['toca-disco', 'vitrola'],                                                  phraseKey: 'toca-disco' },
+  { kw: ['microfone'],                                                              phraseKey: 'microfone' },
+
+  // ─── Eletrodomésticos ─────────────────────────────────────────────────────
+  { kw: ['air fryer', 'airfryer', 'fritadeira sem óleo'],                           phraseKey: 'air fryer' },
+  { kw: ['geladeira', 'refrigerador', 'frigobar'],                                  phraseKey: 'geladeira' },
+  { kw: ['microondas'],                                                             phraseKey: 'microondas' },
+  { kw: ['máquina de lavar', 'lavadora', 'lava e seca'],                            phraseKey: 'máquina de lavar' },
+  { kw: ['fogão', 'fogao', 'cooktop'],                                              phraseKey: 'fogão' },
+  { kw: ['liquidificador', 'batedeira', 'processador de alimentos'],                phraseKey: 'liquidificador' },
+  { kw: ['cafeteira', 'máquina de café', 'nespresso', 'dolce gusto'],               phraseKey: 'cafeteira' },
+  { kw: ['aspirador', 'robô aspirador'],                                            phraseKey: 'aspirador' },
+  { kw: ['ventilador', 'climatizador'],                                             phraseKey: 'ventilador' },
+  { kw: ['ar condicionado', 'split'],                                               phraseKey: 'ar condicionado' },
+  { kw: ['ferro de passar', 'vaporizador'],                                         phraseKey: 'ferro de passar' },
+
+  // ─── Cozinha (utensílios) ─────────────────────────────────────────────────
+  { kw: ['conjunto de panelas', 'jogo de panelas', 'kit panelas', 'jogo de cozinha'], phraseKey: 'panela',         brandCat: 'cozinha' },
+  { kw: ['panela de pressão'],                                                      phraseKey: 'panela',           brandCat: 'cozinha' },
+  { kw: ['panela', 'frigideira', 'caçarola', 'wok', 'assadeira'],                   phraseKey: 'panela',           brandCat: 'cozinha' },
+  { kw: ['conjunto de facas', 'kit de facas', 'faca de chef'],                      phraseKey: 'panela',           brandCat: 'cozinha' },
+  { kw: ['pote', 'vasilha', 'recipiente de cozinha', 'porta-mantimentos'],          phraseKey: 'panela',           brandCat: 'cozinha' },
+  { kw: ['garrafa térmica', 'copo térmico', 'squeeze'],                             phraseKey: 'garrafa térmica' },
+
+  // ─── Ferramentas ─────────────────────────────────────────────────────────
+  { kw: ['furadeira', 'parafusadeira', 'esmerilhadeira', 'martelete', 'rotomartelo'], phraseKey: 'ferramenta',    brandCat: 'ferramentas' },
+  { kw: ['policorte', 'serra circular', 'serra tico', 'lixadeira', 'compressor'],   phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
+  { kw: ['chave de impacto', 'chave inglesa', 'chave de fenda', 'torquímetro'],     phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
+  { kw: ['alicate', 'martelo', 'soquete', 'broca', 'rebarbadora', 'nível'],         phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
+  { kw: ['caixa de ferramentas', 'kit de ferramentas', 'maleta de ferramentas'],    phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
+
+  // ─── Perfumaria / Beleza ─────────────────────────────────────────────────
+  { kw: ['perfume feminino', 'eau de parfum feminino', 'colônia feminina'],          phraseKey: 'perfume feminino' },
+  { kw: ['perfume masculino', 'eau de parfum masculino', 'colônia masculina'],       phraseKey: 'perfume masculino' },
+  { kw: ['perfume', 'eau de parfum', 'eau de toilette', 'deo colônia', 'body splash', 'colônia'], phraseKey: 'perfume' },
+  { kw: ['secador de cabelo', 'secador'],                                            phraseKey: 'secador' },
+  { kw: ['chapinha', 'prancha', 'alisador'],                                         phraseKey: 'chapinha' },
+  { kw: ['barbeador elétrico', 'aparelho de barbear'],                               phraseKey: 'barbeador elétrico' },
+
+  // ─── Relógios / Joias ─────────────────────────────────────────────────────
+  { kw: ['relógio masculino', 'relogio masculino'],                                  phraseKey: 'relógio masculino' },
+  { kw: ['relógio feminino', 'relogio feminino'],                                    phraseKey: 'relógio feminino' },
+  { kw: ['relógio', 'relogio'],                                                      phraseKey: 'smartwatch' },
+  { kw: ['corrente masculina', 'corrente de ouro', 'corrente de prata'],             phraseKey: 'corrente masculina' },
+  { kw: ['corrente', 'pulseira', 'anel', 'brinco', 'colar', 'pingente', 'aliança', 'joias', 'bijuteria'], phraseKey: 'corrente masculina' },
+
+  // ─── Games / Entretenimento ───────────────────────────────────────────────
+  { kw: ['playstation 5', 'ps5'],                                                    phraseKey: 'ps5' },
+  { kw: ['playstation 4', 'ps4', 'playstation'],                                     phraseKey: 'playstation' },
+  { kw: ['xbox series x', 'xbox series s', 'xbox'],                                  phraseKey: 'xbox' },
+  { kw: ['nintendo switch', 'nintendo'],                                              phraseKey: 'nintendo switch' },
+  { kw: ['console', 'videogame', 'video game'],                                       phraseKey: 'videogame' },
+
+  // ─── Móveis / Casa ────────────────────────────────────────────────────────
+  { kw: ['sofá', 'sofa', 'poltrona', 'cadeira gamer', 'cadeira de escritório'],      phraseKey: 'sofá' },
+  { kw: ['colchão', 'colchao', 'cama box', 'travesseiro', 'edredom'],                phraseKey: 'colchão' },
+  { kw: ['luminária', 'lâmpada led', 'lâmpada', 'fita led', 'abajur'],              phraseKey: 'lâmpada' },
+
+  // ─── Câmera / Drones ─────────────────────────────────────────────────────
+  { kw: ['câmera dslr', 'câmera mirrorless', 'câmera fotográfica', 'câmera de ação', 'gopro'], phraseKey: 'câmera' },
+  { kw: ['câmera de segurança', 'câmera ip', 'câmera inteligente'],                   phraseKey: 'câmera de segurança' },
+  { kw: ['drone'],                                                                    phraseKey: 'drone' },
+
+  // ─── Esporte / Saúde ─────────────────────────────────────────────────────
+  { kw: ['bicicleta elétrica', 'bike elétrica'],                                     phraseKey: 'bicicleta' },
+  { kw: ['bicicleta', 'bike', 'mtb'],                                                phraseKey: 'bicicleta' },
+  { kw: ['esteira', 'bicicleta ergométrica', 'elíptico'],                             phraseKey: 'esteira' },
+  { kw: ['patinete elétrico', 'scooter elétrica'],                                    phraseKey: 'patinete elétrico' },
+
+  // ─── Conectividade ────────────────────────────────────────────────────────
+  { kw: ['roteador', 'wi-fi', 'mesh', 'repetidor'],                                  phraseKey: 'roteador' },
+  { kw: ['nobreak', 'estabilizador'],                                                 phraseKey: 'nobreak' },
+  { kw: ['power bank', 'carregador portátil'],                                        phraseKey: 'power bank' },
+  { kw: ['carregador sem fio', 'carregador wireless', 'qi'],                          phraseKey: 'carregador sem fio' },
+  { kw: ['cabo hdmi', 'cabo usb', 'cabo de dados'],                                   phraseKey: 'cabo hdmi' },
+  { kw: ['chromecast', 'fire stick', 'streaming stick', 'alexa', 'echo dot'],         phraseKey: 'chromecast' },
+];
+
+/**
+ * Detecta o tipo de produto a partir do título (Camada 1).
+ * Retorna o phraseKey e o brandCat (opcional) do primeiro detector que bater.
+ */
+function detectProductType(titleLower: string): { phraseKey: string; brandCat?: string } | null {
+  for (const det of PRODUCT_TYPE_DETECTORS) {
+    for (const kw of det.kw) {
+      let matched: boolean;
+      if (kw.includes(' ')) {
+        // Multi-palavra: substring simples é suficiente
+        matched = titleLower.includes(kw);
+      } else {
+        // Palavra simples: word-boundary para evitar "bota" em "robotar"
+        const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        matched = new RegExp(`\\b${esc}\\b`).test(titleLower);
+      }
+      if (matched) return { phraseKey: det.phraseKey, brandCat: det.brandCat };
+    }
+  }
+  return null;
+}
+
+/**
+ * Detecta a primeira marca conhecida (dentro de uma categoria de marcas) no título (Camada 2).
+ * Retorna a chave exata da marca em PRODUCT_SPECIFIC_PHRASES.
+ */
+function detectBrandInTitle(titleLower: string, brandCatKey: string): string | null {
+  for (const brandKey of (MERGED_POOL_KEYS[brandCatKey] ?? [])) {
+    const esc = brandKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${esc}\\b`).test(titleLower)) return brandKey;
+  }
+  return null;
+}
 
 function getMergedCategoryKey(title: string): string | null {
   const t = title.toLowerCase();
   const order = ['cozinha', 'tenis', 'roupas', 'ferramentas'];
-
   for (const cat of order) {
     for (const k of (MERGED_POOL_KEYS[cat] ?? [])) {
-      // Escapa caracteres especiais de regex (ex: black+decker, levi's, snap-on)
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`\\b${escaped}\\b`);
-      if (!regex.test(t)) continue;
-
-      // Marca encontrada — verificar se o tipo de produto não conflita com esta categoria
-      const disqualifiers = CATEGORY_DISQUALIFIERS[cat];
-      if (disqualifiers) {
-        const disqualified = disqualifiers.some(word => {
-          const wEscaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          return new RegExp(`\\b${wEscaped}\\b`).test(t);
-        });
-        if (disqualified) continue; // Produto é de outro tipo — ignora esta categoria
-      }
-
-      return cat;
+      if (regex.test(t)) return cat;
     }
   }
   return null;
@@ -4834,37 +4978,90 @@ function getCategoryKey(category?: string | null, title?: string): string {
 // não repita a mesma frase em posts diferentes no mesmo dia.
 // Retorna a frase de produto sem avançar o tracker —
 // reutiliza o que já foi sorteado para este título hoje (ex: Telegram → X).
+// Retorna a última frase sorteada para este título hoje (sem avançar o tracker).
+// Usa o mesmo fluxo de 3 camadas de getProductSpecificPhrase para determinar a chave.
 function peekProductSpecificPhrase(title: string): string | null {
   const titleLower = title.toLowerCase();
 
+  // Camada 1: tipo de produto
+  const productType = detectProductType(titleLower);
+  if (productType) {
+    // Camada 2: marca
+    if (productType.brandCat) {
+      const matchedBrand = detectBrandInTitle(titleLower, productType.brandCat);
+      if (matchedBrand) {
+        const last = peekLastPhrase(matchedBrand);
+        if (last) return last;
+      }
+    }
+    // Camada 3: tipo genérico
+    const last = peekLastPhrase(productType.phraseKey);
+    if (last) return last;
+  }
+
+  // Fallback A: pool unificado por marca
   const mergedCat = getMergedCategoryKey(titleLower);
   if (mergedCat) {
     const last = peekLastPhrase(`merged:${mergedCat}`);
     if (last) return last;
   }
 
-  // Fallback: tentar chaves individuais
-  const priorityOrderPeek = [
-    'relógio masculino', 'relógio feminino', 'smart tv', 'air fryer', 'airpods',
-    'perfume feminino', 'perfume masculino', 'iphone', 'samsung', 'xiaomi',
-    'tv', 'celular', 'notebook', 'fone', 'geladeira', 'microondas',
-    'tênis', 'camisa', 'calça', 'roupa', 'perfume', 'panela',
-  ];
-  for (const key of priorityOrderPeek) {
-    if (titleLower.includes(key)) {
-      const last = peekLastPhrase(key);
-      if (last) return last;
-    }
-  }
   return null;
 }
 
 function getProductSpecificPhrase(title: string): string | null {
   const titleLower = title.toLowerCase();
 
-  // ── 1. Pool unificado por categoria ──────────────────────────────────────
-  // Todas as frases de marca + genéricas da categoria entram no mesmo sorteio.
-  // A chave "merged:<categoria>" garante anti-repetição diária no pool completo.
+  function pickForKey(productKey: string): string | null {
+    const phrases = PRODUCT_SPECIFIC_PHRASES[productKey];
+    if (!phrases || phrases.length === 0) return null;
+    return pickUnusedPhrase(phrases, productKey);
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CAMADA 1 — Detectar tipo de produto
+  // ══════════════════════════════════════════════════════════════════════════
+  const productType = detectProductType(titleLower);
+
+  if (productType) {
+    // ════════════════════════════════════════════════════════════════════════
+    // CAMADA 2 — Há marca conhecida para este tipo de produto?
+    // ════════════════════════════════════════════════════════════════════════
+    if (productType.brandCat) {
+      const matchedBrand = detectBrandInTitle(titleLower, productType.brandCat);
+      if (matchedBrand) {
+        // ══════════════════════════════════════════════════════════════════
+        // CAMADA 3a — Frases específicas da marca (ex: Nike para tênis Nike)
+        // ══════════════════════════════════════════════════════════════════
+        const brandResult = pickForKey(matchedBrand);
+        if (brandResult) return brandResult;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // CAMADA 3b — Sem marca específica → frases genéricas do tipo de produto
+    // ══════════════════════════════════════════════════════════════════════
+    const typeResult = pickForKey(productType.phraseKey);
+    if (typeResult) return typeResult;
+
+    // Alias: tentativas de variação da chave (acentos, plural, etc.)
+    const ALIAS: Record<string, string[]> = {
+      'tênis':   ['tenis'],
+      'calça':   ['calca'],
+      'roupa':   ['camisa', 'camiseta'],
+      'ferramenta': ['furadeira'],
+      'smart tv': ['tv', 'smart tv'],
+    };
+    for (const alias of (ALIAS[productType.phraseKey] ?? [])) {
+      const aliasResult = pickForKey(alias);
+      if (aliasResult) return aliasResult;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FALLBACK A — Produto sem tipo claro → busca por marca no pool unificado
+  // Ex: "Nike Air Max 90" (sem a palavra "tênis" no título)
+  // ══════════════════════════════════════════════════════════════════════════
   const mergedCat = getMergedCategoryKey(titleLower);
   if (mergedCat) {
     const pool = MERGED_CATEGORY_PHRASES[mergedCat];
@@ -4873,13 +5070,9 @@ function getProductSpecificPhrase(title: string): string | null {
     }
   }
 
-  // ── 2. Fallback: lookup individual por produto/marca ─────────────────────
-  // Para produtos que não pertencem a nenhuma categoria merged.
-  function pickForKey(productKey: string): string | null {
-    const phrases = PRODUCT_SPECIFIC_PHRASES[productKey];
-    if (!phrases || phrases.length === 0) return null;
-    return pickUnusedPhrase(phrases, productKey);
-  }
+  // ══════════════════════════════════════════════════════════════════════════
+  // FALLBACK B — Lookup individual por ordem de prioridade (lista completa)
+  // ══════════════════════════════════════════════════════════════════════════
 
   // Relógio masculino (verificar antes de "relógio" genérico)
   if (titleLower.match(/relógio masculino|relogio masculino|relógio.*masculino|relogio.*masculino/)) {
