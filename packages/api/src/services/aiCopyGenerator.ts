@@ -1974,6 +1974,18 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA MARATONAR LEITURA SEM CULPA 😏',
     'MANGÁ DE VERDADE POR PREÇO JUSTO 💰',
     'JÁ PASSOU DA HORA DE TER ESSE 🔥',
+    'SE APEGAR AOS PERSONAGENS É PARTE DA EXPERIÊNCIA 💔',
+    'TEM GENTE QUE ASSISTE O ANIME SÓ PRA DEPOIS LER O MANGÁ — É ASSIM QUE FUNCIONA 😂',
+    'O ARCO QUE O ANIME NÃO MOSTROU AINDA — TÁ AQUI 🎌',
+    'PRA QUEM JÁ ASSISTIU O ANIME E QUER MAIS DETALHES 📖',
+    'PAINEL POR PAINEL, CAPÍTULO POR CAPÍTULO — VICIA SEM AVISO 🌀',
+    'PRA QUEM SABE QUE MANGÁ E ANIME SÃO EXPERIÊNCIAS DIFERENTES ⚡',
+    'ESSE VOLUME É AQUELE QUE MUDA TUDO NA HISTÓRIA 😱',
+    'PRA QUEM JÁ TEM UMA PRATELEIRA SÓ PRA MANGÁ — E PRECISA DE MAIS 📚',
+    'EDIÇÃO FÍSICA QUE FAZ ATÉ FÃ DIGITAL MUDAR DE IDEIA 🇯🇵',
+    'PRA INICIAR A COLEÇÃO OU COMPLETAR A FALTANTE ✅',
+    'PLOT TWIST GARANTIDO EM CADA CAPÍTULO — PODE CONFIAR 🔥',
+    'ARTE JAPONESA, NARRATIVA QUE PRENDE, PREÇO QUE CONVENCE 💡',
   ],
   'manga': [],
   'caderno': [
@@ -3465,6 +3477,320 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM GOSTA DE NARRATIVA SEM FIM ✨',
   ],
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // NICHO: TECNOLOGIA
+  // Sub-nichos:
+  //   1. Criadores de Conteúdo (YouTube, TikTok, Instagram, Streamers)
+  //   2. AI Gadgets (inteligência artificial portátil)
+  //   3. Gadgets Futuristas (produtos que viralizam)
+  //   4. Tech para Celular (acessórios que convertem)
+  // NOTA: headset, teclado gamer, mouse gamer, cadeira gamer, controle gamer,
+  //       monitor gamer já fazem parte do nicho Gamer — não duplicados aqui.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ────────────────────────────────────────────────────────────────────────
+  // SUB-NICHO 1: CRIADORES DE CONTEÚDO
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── Microfone USB (podcast, gravação, streaming) ─────────────────────────
+  'microfone usb': [
+    'VOZ DE PODCAST SEM ESTÚDIO — MAS COM QUALIDADE DE PROFISSIONAL 🎤',
+    'ESSE MICROFONE FAZ ATÉ REUNIÃO DE SEGUNDA SER SUPORTÁVEL 📞',
+    'PLUGOU NO USB, GRAVOU. SEM PLACA DE SOM, SEM DOR DE CABEÇA 🎧',
+    'PRA QUEM QUER PARECER QUE GRAVOU NUM ESTÚDIO SEM SAIR DE CASA 🏠',
+    'MICROFONE QUE FAZ O EDITOR TRABALHAR MENOS 😌',
+    'SOM LIMPO, VOCAL CLARO, CONTEÚDO QUE PRENDE 🎙️',
+    'ESSE É O MICROFONE QUE SEPARA O AMADOR DO CRIADOR 🔥',
+    'PRA QUEM TEM CONTEÚDO BOM MAS VOZ QUE NÃO ENTREGAVA 🎤',
+    'DE USB, MAS COM ALMA DE ESTÚDIO ⚡',
+    'GRAVAÇÃO SEM REVERB, SEM CHIADO, SEM DESCULPA 💪',
+    'PRA PODCAST, LIVE, AULA OU CHAMADA — UM MICROFONE SÓ RESOLVE TUDO 🌟',
+    'O MICROFONE QUE VOCÊ PRECISAVA PRA COMEÇAR DE VERDADE 🚀',
+  ],
+
+  // ── Microfone Lapela (entrevistas, vídeos em movimento) ─────────────────
+  'microfone lapela': [
+    'LAPELA QUE LIBERA AS MÃOS E PRENDE A ATENÇÃO 🎤',
+    'PRA GRAVAR EM MOVIMENTO SEM PERDER UM SEGUNDO DE ÁUDIO 🏃',
+    'SOM QUE ACOMPANHA VOCÊ EM QUALQUER AMBIENTE 🌍',
+    'LAPELA DE QUEM LEVA CONTEÚDO A SÉRIO ⚡',
+    'PRA ENTREVISTA, VLOG OU REPORTAGEM — ÁUDIO NA LAPELA, MENTE NO CONTEÚDO 🎙️',
+    'SEM FIO OU COM FIO, O QUE IMPORTA É O SOM LIMPO 🎧',
+    'O MICROFONE QUE NINGUÉM VÊ MAS TODO MUNDO OUVE 🔊',
+    'PRA QUEM GRAVA NA RUA E QUER QUE O ÁUDIO APAREÇA 💪',
+    'LAPELA DISCRETA, QUALIDADE QUE APARECE 🌟',
+    'PRA GRAVAR VÍDEO SEM PARECER AMADOR NO SOM 🎬',
+    'CONTEÚDO EXTERNO MERECE LAPELA QUE ENTREGA 💡',
+  ],
+
+  // ── Ring Light (iluminação para conteúdo) ───────────────────────────────
+  'ring light': [
+    'RING LIGHT: ONDE A LUZ CHEGA, O CONTEÚDO MELHORA 💡',
+    'PRA QUEM NÃO QUER MAIS DEPENDER DA LUZ DO SOL PRA GRAVAR 🌞',
+    'ILUMINAÇÃO QUE FAZ A CÂMERA TE TRATAR MELHOR 📸',
+    'A LUZ QUE FAZ O FUNDO SER IRRELEVANTE 🔦',
+    'PRA QUEM QUER PARECER PRODUÇÃO CARA COM INVESTIMENTO PEQUENO 💰',
+    'RING LIGHT QUE FAZ ATÉ SELFIE PARECER EDITORIAL 🌟',
+    'GRAVAR DE NOITE, DE DIA, COM NEBLINA — COM RING LIGHT TANTO FAZ 😎',
+    'A ILUMINAÇÃO QUE TODO CRIADOR DEVERIA TER NO SETUP 💡',
+    'PRA QUEM QUER QUE A CÂMERA CAPTE O MELHOR DA CENA 🎬',
+    'LUZ CERTA FAZ O CONTEÚDO PARECER BEM MAIS PROFISSIONAL ⚡',
+    'PRA LIVE, GRAVAÇÃO OU CALL — RING LIGHT MUDA TUDO 🔥',
+  ],
+
+  // ── Tripé Articulado (filmagem flexível) ────────────────────────────────
+  'tripé': [
+    'TRIPÉ QUE SEGURA A CÂMERA E O ÂNGULO DO SEU CONTEÚDO 📸',
+    'PRA GRAVAR SEM PRECISAR DE ALGUÉM SEGURANDO O CELULAR 🙅',
+    'ÂNGULO PERFEITO COMEÇA NUM TRIPÉ QUE FUNCIONA DE VERDADE 🌟',
+    'FLEXÍVEL, LEVE, CONFIÁVEL — EXATAMENTE O QUE O CRIADOR PRECISA ⚡',
+    'PRA QUEM CRIA SOZINHO MAS QUER QUALIDADE DE EQUIPE 💪',
+    'TRIPÉ QUE ACOMPANHA DO ESTÚDIO ATÉ A RUA 🏙️',
+    'PRA GRAVAR NO CELULAR, CÂMERA, MIRRORLESS — SERVE PRA TUDO 📱',
+    'SUPORTE QUE FAZ DIFERENÇA NA ESTABILIDADE E NA QUALIDADE FINAL 🔥',
+    'PRA QUEM QUER ANGULAÇÃO SEM PEDIR FAVOR PRA NINGUÉM 😏',
+    'O ACESSÓRIO QUE LIBERTA O CRIADOR DE DEPENDER DE ALGUÉM 🎬',
+  ],
+
+  // ── Placa de Captura (streaming, conteúdo de gameplay) ──────────────────
+  'placa de captura': [
+    'SEM PLACA DE CAPTURA, SUA PRODUÇÃO PARA NA FONTE 🎮',
+    'CAPTURE TUDO COM QUALIDADE QUE O CHAT (E O EDITOR) NOTA 📺',
+    'A PEÇA QUE FECHA O SETUP DE STREAM DE VERDADE ⚡',
+    'FONTE, CONSOLE, CÂMERA — TUDO PASSA PELA PLACA QUE ENTREGA 🔌',
+    'PRA GRAVAR GAMEPLAY, CÂMERA EXTERNA OU QUALQUER SINAL HDMI 💡',
+    'PLACA QUE FAZ O CONTEÚDO CHEGAR LIMPO ATÉ O ESPECTADOR 🌟',
+    'PRA QUEM QUER STREAM OU GRAVAÇÃO SEM PERDA DE QUALIDADE 💪',
+    'O EQUIPAMENTO QUE SEPARA SETUP DE VERDADE DE SETUP AMADOR 🔥',
+    'PLACA DE CAPTURA: A PEÇA QUE FALTAVA NO SEU SETUP 🎯',
+    'PRA YOUTUBERS, STREAMERS E CRIADORES QUE LEVAM QUALIDADE A SÉRIO ✅',
+  ],
+
+  // ── Stream Deck (produtividade para streamers e criadores) ───────────────
+  'stream deck': [
+    'STREAM DECK: O PAINEL DE CONTROLE QUE TODO CRIADOR QUER 🎛️',
+    'PRA QUEM QUER PARECER QUE TEM EQUIPE INTEIRA SOZINHO 😎',
+    'BOTÃO PROGRAMÁVEL PARA CADA AÇÃO — ISSO SE CHAMA SETUP SÉRIO 💡',
+    'PRA QUEM FAZ LIVE E NÃO QUER FICAR CLICANDO EM JANELA ERRADA 😅',
+    'AUTOMATIZE CENAS, TRANSIÇÕES E ALERTAS COM UM BOTÃO SÓ 🔥',
+    'STREAM DECK: TECNOLOGIA QUE OS PROS USAM E QUE AGORA ESTÁ AO SEU ALCANCE ⚡',
+    'PRA STREAMERS QUE QUEREM CONTROLE TOTAL DA PRODUÇÃO 🎮',
+    'A FERRAMENTA QUE TRANSFORMA SEU STREAM EM PROGRAMA DE TV 📺',
+    'CADA BOTÃO É UMA AÇÃO — E VOCÊ DEFINE QUAIS 🌟',
+  ],
+
+  // ── Teleprompter ─────────────────────────────────────────────────────────
+  'teleprompter': [
+    'TELEPROMPTER: PRA OLHAR PRA CÂMERA E AINDA LER O ROTEIRO 👁️',
+    'ESSE GADGET FAZ ATÉ QUEM ESQUECE O TEXTO PARECER PROFISSIONAL 😂',
+    'PRA QUEM TEM O ROTEIRO NA CABEÇA MAS PREFERE TER NA TELA TAMBÉM 🧠',
+    'LÊ O SCRIPT, OLHA PRA CÂMERA, ENTREGA O CONTEÚDO — SIMPLES 💡',
+    'ÂNCORA DE JORNAL OU CRIADOR DE CONTEÚDO — O TELEPROMPTER FAZ IGUAL 📺',
+    'PRA GRAVAR VÍDEO LONGO SEM PERDER O FIO DA MEADA ⚡',
+    'SETUP DE CRIADOR SÉRIO TEM TELEPROMPTER — AGORA VOCÊ TEM TAMBÉM 🌟',
+    'PROFISSIONAL QUE NÃO ERRA O TEXTO — COM A AJUDA CERTA 🔥',
+  ],
+
+  // ────────────────────────────────────────────────────────────────────────
+  // SUB-NICHO 2: AI GADGETS (Inteligência Artificial)
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── Gravador com IA / Transcrição automática ────────────────────────────
+  'gravador com ia': [
+    'REUNIÃO GRAVADA, TRANSCRITA E RESUMIDA — ENQUANTO VOCÊ PARTICIPAVA 🤖',
+    'IA QUE FAZ O QUE O ESTAGIÁRIO TINHA MEDO DE FAZER ERRADO 😂',
+    'GRAVA, TRANSCREVE E AINDA DESTACA OS PONTOS PRINCIPAIS 🧠',
+    'PRA QUEM NÃO AGUENTA MAIS DIGITAR ATA DE REUNIÃO 📝',
+    'TECNOLOGIA QUE FAZ VOCÊ FOCAR NA CONVERSA, NÃO NAS ANOTAÇÕES 💡',
+    'GRAVADOR QUE PROCESSA TUDO — VOCÊ SÓ PRECISA APARECER 🎙️',
+    'PRA JORNALISTA, ADVOGADO, MÉDICO OU QUALQUER UM QUE GRAVAR SEJA OBRIGAÇÃO 📂',
+    'IA QUE TRANSFORMA ÁUDIO EM TEXTO ANTES DE VOCÊ TERMINAR A REUNIÃO ⚡',
+    'O ASSISTENTE DE REUNIÕES QUE NUNCA FALTA, NUNCA DISTRAI 🌟',
+    'PRA QUEM PRECISA DE DOCUMENTAÇÃO PERFEITA SEM ESFORÇO EXTRA 🔥',
+  ],
+
+  // ── Tradutor Portátil Instantâneo ────────────────────────────────────────
+  'tradutor portátil': [
+    'FALA QUALQUER IDIOMA SEM DEPENDER DE NINGUÉM — A IA TRADUZ 🌍',
+    'PRA QUEM VIAJA E NÃO QUER FICAR APONTANDO PRO CARDÁPIO 😂',
+    'TRADUÇÃO EM TEMPO REAL: O FUTURO QUE JÁ CHEGOU 🤖',
+    'PRA NEGÓCIO INTERNACIONAL, VIAGEM OU SÓ PRÁ IMPRESSIONAR A GALERA ✈️',
+    'FALE COM O MUNDO — O TRADUTOR FAZ O RESTO 🌐',
+    'BARREIRA DE IDIOMA? QUE BARREIRA? ⚡',
+    'PRA QUEM ESTUDA IDIOMA E QUER APOIO INSTANTÂNEO 📚',
+    'O INTÉRPRETE NO BOLSO QUE NUNCA TEM MAL HUMOR 😎',
+    'TECNOLOGIA QUE CONECTA PESSOAS QUE NÃO FALAM A MESMA LÍNGUA 💡',
+    'PRA QUEM TEM CLIENTE ESTRANGEIRO E QUER IMPRESSIONAR 🌟',
+  ],
+
+  // ── Caneta Digitalizadora / Scanner de texto ─────────────────────────────
+  'caneta digitalizadora': [
+    'PASSOU NA LINHA, DIGITALIZOU O TEXTO — SIM, ISSO EXISTE E FUNCIONA 🖊️',
+    'PRA QUEM TEM LIVRO FÍSICO MAS QUER NOTA DIGITAL 📚',
+    'DIGITALIZA ENQUANTO LÊ — ISSO É EFICIÊNCIA DE VERDADE ⚡',
+    'PRA QUEM TEM COLEÇÃO DE LIVROS E NÃO QUER DIGITAR PARÁGRAFO POR PARÁGRAFO 😅',
+    'TECNOLOGIA QUE FINALMENTE FAZ O PAPEL E O DIGITAL CONVERSAR 💡',
+    'CANETA QUE COPIA MELHOR DO QUE QUALQUER ESTUDANTE 🎓',
+    'PRA ESTUDANTE, PESQUISADOR OU QUEM GOSTA DE ANOTAR TUDO 📝',
+    'PASSA NA PÁGINA E O TEXTO APARECE NO COMPUTADOR — MÁGICA? NÃO. TECNOLOGIA 🤖',
+  ],
+
+  // ── Scanner Portátil ─────────────────────────────────────────────────────
+  'scanner portátil': [
+    'DIGITALIZA DOCUMENTO EM QUALQUER LUGAR — SEM IMPRESSORA MULTIFUNCIONAL 📄',
+    'PRA QUEM PRECISAVA DE SCANNER E NÃO QUERIA COMPRAR IMPRESSORA 😅',
+    'DOCUMENTO FÍSICO VIRA ARQUIVO DIGITAL NA HORA ⚡',
+    'PRA QUEM VIVE ENTRE PAPÉIS E PRECISA DE ORGANIZAÇÃO DIGITAL 💡',
+    'COMPACTO, RÁPIDO E FAZ O TRABALHO QUE O CELULAR NÃO CONSEGUE 📱',
+    'PRA ADVOGADO, CONTADOR OU QUALQUER UM QUE DOCUMENTO SEJA SÉRIO 🗂️',
+    'SCANNER QUE CABE NA BOLSA E ENTREGA QUALIDADE DE ESCRITÓRIO 💼',
+    'PRA QUEM TEM PILHA DE DOCUMENTO FÍSICO E QUER RESOLVER DE UMA VEZ 🔥',
+  ],
+
+  // ── Óculos com IA ────────────────────────────────────────────────────────
+  'óculos com ia': [
+    'ÓCULOS QUE VÊ O MUNDO E AINDA PROCESSA INFORMAÇÃO SOBRE ELE 🤖',
+    'O FUTURO NO ROSTO — E CHEGOU ANTES DO QUE VOCÊ ESPERAVA 👓',
+    'PRA QUEM SEMPRE QUIS SOBREPOSIÇÃO DE DADOS NA VIDA REAL 💡',
+    'ÓCULOS DE IA: ENTRE O GADGET E O SUPERPODER 🦾',
+    'TECNOLOGIA QUE FAZ A GALERA OLHAR DUAS VEZES PRA VOCÊ 👀',
+    'PRA PRIMEIROS A ADOTAR TECNOLOGIA ANTES DE VIRAR TENDÊNCIA 🔥',
+    'O ACESSÓRIO QUE FAZ ATÉ NERD PARECER FASHIONISTA 😎',
+    'FUTURO PORTÁTIL: ÓCULOS QUE FAZEM MAIS DO QUE PROTEGER OS OLHOS 🌟',
+  ],
+
+  // ────────────────────────────────────────────────────────────────────────
+  // SUB-NICHO 3: GADGETS FUTURISTAS
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── Teclado Laser ─────────────────────────────────────────────────────────
+  'teclado laser': [
+    'TECLADO QUE PROJETA NA MESA — SIM, ISSO EXISTE E VOCÊ PRECISA 🔴',
+    'PRA QUEM SEMPRE QUIS DIGITAR IGUAL PERSONAGEM DE FILME FUTURISTA 🎬',
+    'SEM TECLAS, SEM FIOS, SEM ESPAÇO OCUPADO — TECLADO LASER 💡',
+    'SETUP QUE FAZ QUALQUER PESSOA NA SALA PARAR E PERGUNTAR QUE É ISSO 😱',
+    'PRA QUEM QUER PRODUTIVIDADE COM ESTÉTICA DE FICÇÃO CIENTÍFICA ⚡',
+    'DIGITA NO AR, SALVA NO DOCUMENTO — O FUTURO CHEGOU 🤖',
+    'TECLADO QUE OCUPA ZERO ESPAÇO E GERA ATENÇÃO MÁXIMA 🔥',
+    'PRA VIAGEM: LIGHTWEIGHT, PORTÁTIL, FUTURISTA ✈️',
+  ],
+
+  // ── Mouse Vertical Ergonômico ─────────────────────────────────────────────
+  'mouse vertical': [
+    'MOUSE QUE CUIDA DA SUA MÃO ENQUANTO VOCÊ TRABALHA 🖱️',
+    'PRA QUEM PASSA HORAS NO COMPUTADOR E QUER PASSAR SEM DOR 💪',
+    'ERGONOMIA QUE VOCÊ SÓ NOTA QUANDO NÃO TEM MAIS 😌',
+    'PRA QUEM IGNOROU A DOR NO PUNHO TEMPO DEMAIS 🚨',
+    'MOUSE VERTICAL: O UPGRADE MAIS SUBESTIMADO DO HOME OFFICE ⚡',
+    'PRA TRABALHAR MAIS HORAS SEM PAGAR COM DOR NO PULSO 🌟',
+    'DESIGN QUE PARECE DIFERENTE MAS FAZ TOTAL SENTIDO 💡',
+    'PRODUTIVIDADE COM SAÚDE — MOUSE ERGONÔMICO FAZ ESSA DIFERENÇA 🔥',
+  ],
+
+  // ── Mini Projetor Portátil ─────────────────────────────────────────────────
+  'mini projetor': [
+    'CINEMA EM QUALQUER PAREDE — SEM TELEVISÃO E SEM BUROCRACIA 🎬',
+    'PRA QUEM QUER TELA GRANDE ONDE QUISER, QUANDO QUISER 📺',
+    'PROJETOR QUE CABE NA MOCHILA E ENTREGA TELA DE CINEMA 🎥',
+    'PRA WATCH PARTY, APRESENTAÇÃO OU SÓ PRA IMPRESSIONAR A GALERA 😎',
+    'FILMES NA PAREDE DO QUARTO — COM QUALIDADE QUE SURPREENDE ⚡',
+    'PRA QUEM NÃO PRECISA DE TV GRANDE QUANDO TEM PAREDE BRANCA 💡',
+    'PROJETOR PORTÁTIL: O PRODUTO QUE SEUS AMIGOS VÃO QUERER PEDIR EMPRESTADO 🌟',
+    'CARREGOU, APONTOU, PROJETOU — MAIS SIMPLES QUE MONTAR TV 🔥',
+    'PRA HOME OFFICE, LAZER OU APRESENTAÇÃO — UM PROJETOR RESOLVE TUDO 💼',
+    'TELA ENORME ONDE VOCÊ DECIDIR — ISSO SE CHAMA LIBERDADE 💪',
+  ],
+
+  // ── Display Holográfico / Quadro Digital ────────────────────────────────
+  'display holográfico': [
+    'HOLOGRAMA NO SEU ESCRITÓRIO: O FUTURO CHEGOU ANTES DO PRAZO 🌀',
+    'ESSE DISPLAY FAZ QUALQUER PESSOA NA SALA PARAR E OLHAR 👀',
+    'PRA QUEM QUER DECORAÇÃO COM TECNOLOGIA EMBUTIDA 💡',
+    'DISPLAY QUE PARECE TRUQUE DE MÁGICA MAS É SÓ TECNOLOGIA 🤖',
+    'PRA LOJAS, ESCRITÓRIOS OU SETUPS QUE QUEREM CHAMAR ATENÇÃO 🔥',
+    'HOLOGRÁFICO É O NOVO POSTER — E JÁ CHEGOU ⚡',
+    'ATRAI OLHAR, RETÉM ATENÇÃO, ENTREGA IMPACTO VISUAL 🌟',
+    'O PRODUTO QUE FAZ ATÉ CEO PARAR A REUNIÃO PRA PERGUNTAR O QUE É 😱',
+  ],
+
+  // ────────────────────────────────────────────────────────────────────────
+  // SUB-NICHO 4: TECH PARA CELULAR
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ── Carregador Magnético MagSafe / Wireless Rápido ───────────────────────
+  'carregador magnético': [
+    'ENCAIXOU, CARREGOU — SEM TENTAR ACHAR O LADO CERTO DO CABO ⚡',
+    'CARREGADOR QUE GRUDA NO CELULAR E LÁ FAZ A MÁGICA 🔋',
+    'PRA QUEM TEM CABO TORTO DE TANTO USO — CHEGOU A HORA DE EVOLUIR 😌',
+    'MAGNÉTICO, RÁPIDO E SEM AQUELE CABO ETERNAMENTE NA TOMADA 💡',
+    'PRA QUEM JÁ ESQUECEU DE PLUGAR O CABO À NOITE — ISSO RESOLVE 😅',
+    'CARREGAMENTO QUE FUNCIONA COM UMA MÃO SÓ 🌟',
+    'PRA QUEM USA MUITO O CELULAR E QUER RECARREGAR SEM PARAR ⚡',
+    'TECNOLOGIA MAGNÉTICA QUE FAZ O CABO PARECER ULTRAPASSADO 🔥',
+  ],
+
+  // ── Power Bank Solar ────────────────────────────────────────────────────
+  'power bank solar': [
+    'CARREGA COM O SOL — E SIM, FUNCIONA MESMO 🌞',
+    'PRA QUEM VAI PRA TRILHA, PRAIA OU FESTIVAL SEM TOMADA 🏕️',
+    'ENERGIA SOLAR NO BOLSO: SUSTENTÁVEL E CONVENIENTE ⚡',
+    'PRA NUNCA MAIS MORRER SEM BATERIA EM LUGAR SEM TOMADA 🔋',
+    'O POWER BANK QUE RECARREGA SOZINHO QUANDO VOCÊ NÃO TÁ OLHANDO 💡',
+    'AVENTURA, ACAMPAMENTO OU EMERGÊNCIA — O SOL TEM VOCÊ 🌟',
+    'PRA QUEM AMA NATUREZA MAS PRECISA DO CELULAR PARA FOTOGRAFÁ-LA 📸',
+    'ENERGIA RENOVÁVEL NO FORMATO DE ACESSÓRIO DE BOLSO 🌱',
+  ],
+
+  // ── Hub USB-C ────────────────────────────────────────────────────────────
+  'hub usb-c': [
+    'UMA PORTA USB-C, DEZENAS DE POSSIBILIDADES — ISSO É HUB 🔌',
+    'PRA QUEM TEM NOTEBOOK COM POUCAS PORTAS E MUITOS ACESSÓRIOS 💻',
+    'CONECTA HDMI, USB, CARTÃO SD, ETHERNET — TUDO AO MESMO TEMPO 💡',
+    'PRA QUEM NÃO AGUENTA MAIS ESCOLHER QUE CABO CONECTAR EM QUE PORTA 😤',
+    'HUB USB-C: O ACESSÓRIO QUE DEVIA VIR DE FÁBRICA 🌟',
+    'EXPANDE O NOTEBOOK SEM PRECISAR COMPRAR NOTEBOOK NOVO ⚡',
+    'PRA HOME OFFICE QUE PRECISA DE MÚLTIPLAS CONEXÕES SIMULTÂNEAS 🏠',
+    'COMPACTO, PODEROSO, RESOLVE EM UM SEGUNDO 🔥',
+  ],
+
+  // ── Dock Station ────────────────────────────────────────────────────────
+  'dock station': [
+    'CHEGOU EM CASA, ENCAIXOU O NOTEBOOK, VIROU DESKTOP — DOCK STATION 💻',
+    'PRA QUEM USA NOTEBOOK NO TRABALHO E QUER CONFORTO DE DESKTOP EM CASA 🏠',
+    'UMA CONEXÃO, MÚLTIPLOS MONITORES, TECLADO E MOUSE — TUDO DE UMA VEZ 🖥️',
+    'DOCK STATION: O SETUP PROFISSIONAL SEM COMPRAR COMPUTADOR NOVO 💡',
+    'PRA QUEM NÃO QUER FICAR LIGANDO E DESLIGANDO CABO TODA VEZ 😌',
+    'PRODUTIVIDADE DE DESKTOP COM A MOBILIDADE DO NOTEBOOK ⚡',
+    'PRA HOME OFFICE QUE LEVA ERGONOMIA E CONEXÃO A SÉRIO 🌟',
+    'ENCAIXOU, JÁ TÁ CONECTADO EM TUDO — SIMPLICIDADE DE VERDADE 🔥',
+  ],
+
+  // ── Lentes para Celular (fotografia mobile) ──────────────────────────────
+  'lentes para celular': [
+    'A CÂMERA DO SEU CELULAR JÁ É BOA — COM ESSAS LENTES FICA INCRÍVEL 📸',
+    'GRANDE ANGULAR, MACRO, TELEOBJETIVA — AGORA NO SEU SMARTPHONE 🌟',
+    'PRA QUEM QUER FOTOGRAFIA PROFISSIONAL SEM COMPRAR CÂMERA PROFISSIONAL 💡',
+    'ENCAIXA EM SEGUNDOS E ABRE UM MUNDO NOVO DE ÂNGULOS ⚡',
+    'PRA FOTÓGRAFO MOBILE QUE QUER MAIS QUE A CÂMERA PADRÃO OFERECE 🔥',
+    'LENTE MACRO QUE FAZ FOTO DE INSETO PARECER PRODUÇÃO NACIONAL 🐞',
+    'PRA VIAGEM, NATUREZA OU MODA — UMA LENTE PRA CADA SITUAÇÃO 🌍',
+    'O ACESSÓRIO QUE DEVOLVE CRIATIVIDADE PRO FOTOGRAFO DE CELULAR 😎',
+  ],
+
+  // ── Gimbal / Estabilizador para Celular ──────────────────────────────────
+  'gimbal': [
+    'GIMBAL: A DIFERENÇA ENTRE VÍDEO AMADOR E VÍDEO QUE IMPRESSIONA 🎬',
+    'PRA GRAVAR EM MOVIMENTO SEM AQUELE TREMIDO QUE ENVERGONHA 😅',
+    'ESTABILIZADOR QUE FAZ QUALQUER CELULAR PARECER CÂMERA DE CINEMA 🎥',
+    'PRA VLOG, EVENTO OU CASAMENTO — SEM VIBRAÇÃO, SEM DESCULPA 💪',
+    'SEGURA O CELULAR, ESTABILIZA O ÂNGULO, ENTREGA O CONTEÚDO 🌟',
+    'PRA QUEM GRAVA CAMINHANDO E NÃO QUER QUE O VÍDEO PAREÇA TERREMOTO 🏃',
+    'INVESTIMENTO PEQUENÍSSIMO, DIFERENÇA ENORME NA QUALIDADE FINAL ⚡',
+    'GIMBAL: O ACESSÓRIO QUE FAZ O EDITOR QUASE NÃO TER TRABALHO 🎯',
+    'PRA CRIADOR QUE GRAVA NA RUA E QUER QUALIDADE DE ESTÚDIO 🔥',
+    'VÍDEO SUAVE, CONTEÚDO FLUIDO, ESPECTADOR SATISFEITO 💡',
+  ],
+
   // ════════════════════════════════════════════════════════════════
   // ESPORTES — expansão
   // ════════════════════════════════════════════════════════════════
@@ -3844,6 +4170,12 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'EDIÇÃO QUE VALE PAGAR, TER E GUARDAR 💎',
     'PRA COMPLETAR A SAGA, A SÉRIE OU O UNIVERSO 🌌',
     'ESSE AQUI JÁ ESTÁ ESGOTADO EM MUITOS LUGARES — APROVEITA 🎯',
+    'GRAPHIC NOVEL QUE PARECE CINEMA EM CADA QUADRO 🎬',
+    'PRA QUEM RESPEITA O ROTEIRISTA E O ARTISTA JUNTOS 🖌️',
+    'O HERÓI QUE VOCÊ ACOMPANHA DESDE SEMPRE — AGORA NA PRATELEIRA ⚡',
+    'UNIVERSO INTEIRO EM QUADROS — E AINDA ASSIM FALTA MAIS 💫',
+    'PRA FÃ DE MARVEL, DC OU QUALQUER UNIVERSO QUE VOCÊ ESCOLHER 🦸',
+    'EDIÇÃO FÍSICA QUE VALE MAIS QUE QUALQUER STREAMING 💰',
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -4990,7 +5322,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['tv qled', 'tv oled', 'tv neo qled'],                                        phraseKey: 'smart tv' },
   { kw: ['tv 4k', 'tv 8k', 'tv uhd', 'tv led', 'tv full hd'],                        phraseKey: 'tv' },
   { kw: ['televisor', 'televisão', 'televisao'],                                      phraseKey: 'tv' },
-  { kw: ['mini projetor', 'projetor portátil', 'projetor'],                           phraseKey: 'projetor' },
+  { kw: ['mini projetor', 'projetor portátil', 'projetor pocket'],                   phraseKey: 'mini projetor' },
+  { kw: ['projetor'],                                                                 phraseKey: 'projetor' },
 
   // ─── Computação (mais específico primeiro) ───────────────────────────────
   { kw: ['notebook gamer', 'laptop gamer'],                                           phraseKey: 'notebook' },
@@ -5005,8 +5338,10 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['memória ram', 'memoria ram', 'pente de ram'],                               phraseKey: 'memória ram' },
   { kw: ['ssd nvme', 'ssd sata', 'ssd m.2', 'ssd'],                                  phraseKey: 'ssd' },
   { kw: ['hd externo', 'hd interno', 'pendrive', 'pen drive', 'leitor de cartão'],   phraseKey: 'ssd' },
+  { kw: ['mouse vertical', 'mouse ergonômico vertical', 'vertical mouse'],             phraseKey: 'mouse vertical' },
   { kw: ['mouse gamer', 'mouse sem fio', 'mouse bluetooth'],                          phraseKey: 'mouse' },
   { kw: ['mouse'],                                                                    phraseKey: 'mouse' },
+  { kw: ['teclado laser', 'teclado de projeção', 'teclado holográfico'],              phraseKey: 'teclado laser' },
   { kw: ['teclado gamer', 'teclado mecânico', 'teclado sem fio'],                     phraseKey: 'teclado' },
   { kw: ['teclado'],                                                                  phraseKey: 'teclado' },
   { kw: ['webcam full hd', 'webcam 4k', 'webcam'],                                   phraseKey: 'webcam' },
@@ -5029,8 +5364,33 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['soundbar com subwoofer', 'soundbar bluetooth', 'soundbar', 'sound bar'],    phraseKey: 'soundbar' },
   { kw: ['caixa de som bluetooth', 'caixinha bluetooth', 'speaker bluetooth'],        phraseKey: 'caixa de som' },
   { kw: ['caixa de som', 'caixa amplificada'],                                        phraseKey: 'caixa de som' },
-  { kw: ['microfone condensador', 'microfone usb', 'microfone'],                      phraseKey: 'microfone' },
+  // ── Microfones (mais específico primeiro) ──────────────────────────────────
+  { kw: ['microfone lapela', 'lapela sem fio', 'microfone de lapela', 'lavalier'],    phraseKey: 'microfone lapela' },
+  { kw: ['microfone usb', 'microfone condensador usb', 'mic usb'],                   phraseKey: 'microfone usb' },
+  { kw: ['microfone gamer', 'microfone para stream'],                                 phraseKey: 'microfone gamer' },
+  { kw: ['microfone condensador', 'microfone cardioide', 'microfone'],               phraseKey: 'microfone' },
   { kw: ['toca-disco', 'vitrola', 'tornamesa'],                                       phraseKey: 'toca-disco' },
+  // ── Tech para Criadores de Conteúdo ───────────────────────────────────────
+  { kw: ['ring light', 'ringlight', 'anel de luz', 'iluminador circular'],           phraseKey: 'ring light' },
+  { kw: ['tripé articulado', 'tripé flexível', 'tripé para celular', 'tripé para câmera', 'tripé de mesa', 'tripé', 'tripe'], phraseKey: 'tripé' },
+  { kw: ['placa de captura', 'capture card', 'captura de vídeo'],                    phraseKey: 'placa de captura' },
+  { kw: ['stream deck', 'streamdeck'],                                                phraseKey: 'stream deck' },
+  { kw: ['teleprompter', 'telepromter', 'teleprompt'],                               phraseKey: 'teleprompter' },
+  // ── AI Gadgets ────────────────────────────────────────────────────────────
+  { kw: ['gravador com ia', 'gravador ia', 'transcrição automática', 'gravador de reunião', 'gravador de voz ia', 'transcrição de áudio'], phraseKey: 'gravador com ia' },
+  { kw: ['tradutor portátil', 'tradutor instantâneo', 'dispositivo tradutor', 'tradutor de bolso'], phraseKey: 'tradutor portátil' },
+  { kw: ['caneta digitalizadora', 'caneta scanner', 'caneta leitora', 'pen scanner'], phraseKey: 'caneta digitalizadora' },
+  { kw: ['scanner portátil', 'scanner de mesa portátil', 'digitalizador portátil'],  phraseKey: 'scanner portátil' },
+  { kw: ['óculos com ia', 'óculos inteligente', 'smart glasses', 'óculos ar', 'óculos de realidade aumentada'], phraseKey: 'óculos com ia' },
+  // ── Gadgets Futuristas ────────────────────────────────────────────────────
+  { kw: ['display holográfico', 'leque holográfico', 'fan holográfico', 'holograma', 'quadro digital led'], phraseKey: 'display holográfico' },
+  // ── Tech para Celular ─────────────────────────────────────────────────────
+  { kw: ['carregador magnético', 'carregador magsafe', 'magsafe', 'carregador mag-safe'], phraseKey: 'carregador magnético' },
+  { kw: ['power bank solar', 'carregador solar portátil', 'bateria solar portátil'], phraseKey: 'power bank solar' },
+  { kw: ['hub usb-c', 'hub usb c', 'hub tipo-c', 'hub para notebook', 'adaptador usb-c multiportas'], phraseKey: 'hub usb-c' },
+  { kw: ['dock station', 'docking station', 'base para notebook'],                   phraseKey: 'dock station' },
+  { kw: ['lente para celular', 'lentes para celular', 'lente macro celular', 'lente grande angular celular', 'kit de lentes'], phraseKey: 'lentes para celular' },
+  { kw: ['gimbal', 'estabilizador gimbal', 'estabilizador para celular', 'gimbal para celular', 'gimbal para câmera'], phraseKey: 'gimbal' },
 
   // ─── Eletrodomésticos (mais específico primeiro) ──────────────────────────
   { kw: ['air fryer digital', 'air fryer elétrica', 'air fryer', 'airfryer', 'fritadeira sem óleo'], phraseKey: 'air fryer' },
@@ -5173,24 +5533,56 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['alexa', 'echo dot', 'echo show', 'echo'],                                   phraseKey: 'chromecast' },
 
   // ─── NICHO: LIVROS — subtipos do mais específico para o mais genérico ─────
+  // NOTA: Muitos títulos de livros/mangás NÃO contêm a palavra "livro".
+  //       Por isso usamos: títulos famosos, nomes de autores, editoras e
+  //       indicadores físicos como "capa mole" / "capa dura".
 
-  // Mangá (detectar antes de "livro" genérico)
-  { kw: ['mangá', 'manga', 'anime book', 'volume mangá'],                             phraseKey: 'mangá' },
+  // Mangá — títulos famosos + editora JBC + formatos comuns
+  { kw: [
+      'mangá', 'manga', 'anime book', 'volume mangá',
+      // Editoras brasileiras de mangá
+      'editora jbc', 'jbc capa', 'panini manga',
+      // Títulos famosos de mangá (detectar mesmo sem "mangá" no título)
+      'death note', 'naruto shippuden', 'one piece', 'dragon ball',
+      'bleach', 'attack on titan', 'shingeki no kyojin',
+      'demon slayer', 'kimetsu no yaiba',
+      'my hero academia', 'boku no hero academia',
+      'fullmetal alchemist', 'sword art online',
+      'tokyo ghoul', 'hunter x hunter',
+      'fairy tail', 'jujutsu kaisen',
+      'chainsaw man', 'spy x family',
+      'vinland saga', 'berserk',
+      'one punch man', 'mob psycho',
+      'black clover', 'seven deadly sins',
+      'ao no exorcist', 'blue exorcist',
+      'neon genesis evangelion', 'cowboy bebop',
+      'sailor moon', 'dragon ball z',
+      'dbz', 'boruto', 'akira',
+      // Formatos de mangá
+      'black edition manga', 'kanzenban', 'wide edition',
+    ],                                                                                 phraseKey: 'mangá' },
 
   // Livro de terror / horror
-  { kw: ['livro de terror', 'livro de horror', 'stephen king', 'dean koontz', 'clive barker', 'horror literário'], phraseKey: 'livro de terror' },
+  { kw: ['livro de terror', 'livro de horror', 'stephen king', 'dean koontz', 'clive barker', 'horror literário', 'it a coisa', 'o iluminado', 'o hobbit'], phraseKey: 'livro de terror' },
 
   // Livro infantil (mais específico antes de "livro" genérico)
-  { kw: ['livro infantil', 'livro para criança', 'livro ilustrado', 'livro de colorir', 'livro de historinhas', 'literatura infantil'], phraseKey: 'livro infantil' },
+  { kw: ['livro infantil', 'livro para criança', 'livro ilustrado', 'livro de colorir', 'livro de historinhas', 'literatura infantil', 'turma da mônica', 'pequeno príncipe'], phraseKey: 'livro infantil' },
 
-  // Quadrinhos / HQ
-  { kw: ['hq', 'história em quadrinhos', 'histórias em quadrinhos', 'graphic novel', 'dc comics', 'marvel comics', 'batman', 'superman', 'homem-aranha', 'vingadores', 'quadrinhos'], phraseKey: 'quadrinhos' },
+  // Quadrinhos / HQ — títulos famosos + formatos + editoras ocidentais
+  { kw: [
+      'hq', 'história em quadrinhos', 'histórias em quadrinhos',
+      'graphic novel', 'dc comics', 'marvel comics',
+      'batman', 'superman', 'homem-aranha', 'spider-man',
+      'vingadores', 'avengers', 'x-men', 'liga da justiça',
+      'flash', 'aquaman', 'pantera negra',
+      'quadrinhos', 'gibi', 'comics',
+    ],                                                                                 phraseKey: 'quadrinhos' },
 
   // Romance literário
-  { kw: ['romance literário', 'romance histórico', 'livro de romance', 'chick lit', 'new adult', 'literatura romântica'], phraseKey: 'romance' },
+  { kw: ['romance literário', 'romance histórico', 'livro de romance', 'chick lit', 'new adult', 'literatura romântica', 'nicholas sparks', 'colleen hoover', 'it ends with us'], phraseKey: 'romance' },
 
   // Autoajuda
-  { kw: ['autoajuda', 'auto-ajuda', 'livro de autoajuda', 'mentalidade', 'mindset', 'hábitos atômicos', 'poder do hábito', 'pense e enriqueça', 'homem mais rico da babilônia'], phraseKey: 'autoajuda' },
+  { kw: ['autoajuda', 'auto-ajuda', 'livro de autoajuda', 'mentalidade', 'mindset', 'hábitos atômicos', 'poder do hábito', 'pense e enriqueça', 'homem mais rico da babilônia', 'os segredos da mente milionária'], phraseKey: 'autoajuda' },
 
   // Desenvolvimento pessoal
   { kw: ['desenvolvimento pessoal', 'crescimento pessoal', 'liderança', 'inteligência emocional', 'produtividade', 'foco', 'disciplina', 'gestão de tempo'], phraseKey: 'desenvolvimento pessoal' },
@@ -5202,10 +5594,10 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['ficção científica', 'ficcao cientifica', 'sci-fi', 'scifi', 'distopia', 'cyberpunk', 'space opera', 'duna', 'fundação', 'ender', 'asimov'], phraseKey: 'ficção científica' },
 
   // Fantasia
-  { kw: ['fantasia épica', 'alta fantasia', 'livro de fantasia', 'dragões', 'elfos', 'tolkien', 'george r.r. martin', 'harry potter', 'nome do vento', 'wheel of time'], phraseKey: 'fantasia' },
+  { kw: ['fantasia épica', 'alta fantasia', 'livro de fantasia', 'dragões', 'elfos', 'tolkien', 'george r.r. martin', 'harry potter', 'nome do vento', 'wheel of time', 'o senhor dos anéis', 'percy jackson'], phraseKey: 'fantasia' },
 
   // Thriller / Suspense
-  { kw: ['thriller', 'suspense literário', 'policial', 'detetive', 'crime literário', 'agatha christie', 'gillian flynn', 'john grisham', 'lee child'], phraseKey: 'thriller' },
+  { kw: ['thriller', 'suspense literário', 'policial', 'detetive', 'crime literário', 'agatha christie', 'gillian flynn', 'john grisham', 'lee child', 'dan brown', 'código da vinci'], phraseKey: 'thriller' },
 
   // Biografia / Autobiografia
   { kw: ['biografia', 'autobiografia', 'memórias', 'memorias', 'vida e obra', 'a história de', 'elon musk', 'steve jobs', 'michelle obama', 'relato autobiográfico'], phraseKey: 'biografia' },
@@ -5216,8 +5608,19 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   // Livro de história
   { kw: ['livro de história', 'história do brasil', 'história mundial', 'história geral', 'segunda guerra', 'história política', 'historiografia'], phraseKey: 'livro de história' },
 
-  // Livro genérico (fallback de todo o nicho)
-  { kw: ['livro', 'literatura', 'leitura', 'obra literária'],                         phraseKey: 'livro' },
+  // Livro genérico — palavra "livro" OU indicadores físicos de livro / editoras conhecidas
+  { kw: [
+      'livro', 'literatura', 'leitura', 'obra literária',
+      // Indicadores físicos de livro (aparecem em títulos sem a palavra "livro")
+      'capa mole', 'capa dura', 'brochura',
+      // Editoras brasileiras conhecidas (livros)
+      'editora rocco', 'editora intrínseca', 'editora sextante',
+      'editora planeta', 'companhia das letras', 'editora record',
+      'editora objetiva', 'editora globo livros', 'editora suma',
+      'editora arqueiro', 'editora verus', 'editora novo conceito',
+      // Indicadores comuns de publicação em português
+      'em português', 'edição brasileira', 'tradução para o português',
+    ],                                                                                 phraseKey: 'livro' },
 ];
 
 /**
@@ -5669,8 +6072,38 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'nobreak':    'nobreak',
   'power bank': 'power bank',
   'carregador sem fio': 'carregador sem fio',
+  'carregador magnético': 'carregador magnético',
   'chromecast': 'chromecast',
   'webcam':     'webcam',
+
+  // ── Tech Criadores de Conteúdo ──────────────────────────────────────────
+  'microfone usb':    'microfone usb',
+  'microfone lapela': 'microfone lapela',
+  'ring light':       'ring light',
+  'tripé':            'tripé',
+  'placa de captura': 'placa de captura',
+  'stream deck':      'stream deck',
+  'teleprompter':     'teleprompter',
+
+  // ── AI Gadgets ───────────────────────────────────────────────────────────
+  'gravador com ia':       'gravador com ia',
+  'tradutor portátil':     'tradutor portátil',
+  'caneta digitalizadora': 'caneta digitalizadora',
+  'scanner portátil':      'scanner portátil',
+  'óculos com ia':         'óculos com ia',
+
+  // ── Gadgets Futuristas ───────────────────────────────────────────────────
+  'teclado laser':      'teclado laser',
+  'mouse vertical':     'mouse vertical',
+  'mini projetor':      'mini projetor',
+  'display holográfico': 'display holográfico',
+
+  // ── Tech para Celular ────────────────────────────────────────────────────
+  'power bank solar':   'power bank solar',
+  'hub usb-c':          'hub usb-c',
+  'dock station':       'dock station',
+  'lentes para celular': 'lentes para celular',
+  'gimbal':             'gimbal',
 
   // Eletrodomésticos
   'liquidificador': 'liquidificador',
