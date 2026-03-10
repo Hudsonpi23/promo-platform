@@ -729,6 +729,28 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'CAMISETA PRA TODO DIA 📅',
     'VESTIU, TÁ PRONTO 🚀',
   ],
+
+  // Camisas de time / futebol — frases específicas para jerseys de clube e seleção
+  'camisa de time': [
+    'VESTIU A CAMISA — NO SENTIDO LITERAL E FIGURATIVO ⚽',
+    'DECLARAÇÃO DE AMOR COM NÚMERO NAS COSTAS 💚',
+    'ESSA CAMISA PESA MAIS QUE RESPONSABILIDADE EM DIA DE JOGO 😂',
+    'PRA ENTRAR EM CAMPO OU NO FEED 📸',
+    'CAMISA OFICIAL: PORQUE RÉPLICA A GENTE NÃO ACEITA 🏆',
+    'VESTIU O CLUBE, DECLAROU O AMOR 🔴⚫',
+    'CAMISA DE TIME QUE DEIXA TODO MUNDO SABENDO O SEU LADO 📣',
+    'O LOOK FALA POR VOCÊ ANTES DE VOCÊ ABRIR A BOCA ⚽',
+    'JOGO OU PASSEIO — ESSA CAMISA MANDA BEM NOS DOIS 💪',
+    'PRA QUEM VIVE O CLUBE ATÉ NO GUARDA-ROUPA 🏅',
+    'ESSA CAMISA TEM HISTÓRIA — E AGORA TEM DESCONTO TAMBÉM 🎯',
+    'TORCEDOR DE CARTEIRINHA USA A ORIGINAL 💳',
+    'COLECIONADOR DE TÍTULO E DE CAMISA 🏆',
+    'QUANDO A PAIXÃO VEM COM NÚMERO NAS COSTAS 🔥',
+    'CAMISA OFICIAL: DO CAMPO PRA RUA SEM PERDER O ESTILO 🌟',
+    'VESTIU O TIME, VIROU PARTE DA HISTÓRIA ⭐',
+    'ESSA CAMISA FAZ ATÉ O ADVERSÁRIO RESPEITAR 😎',
+    'SELEÇÃO, CLUBE OU SAUDADE — QUALQUER MOTIVO É BOCO PRA VESTIR 👊',
+  ],
   'calça': [
     'CALÇA PRA QUEM NÃO ABRE MÃO DO CONFORTO 👖',
     'ESSA JEANS AGUENTA O TRANCO 💪',
@@ -4533,6 +4555,24 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   brandCat?: string;
 }> = [
   // ─── Vestuário superior ──────────────────────────────────────────────────
+  // Camisa de time DEVE vir antes das demais camisas (mais específico primeiro)
+  { kw: [
+      'camisa de futebol', 'camisa do time', 'camisa oficial', 'camisa retrô', 'camisa retro',
+      'jersey oficial', 'camisa de jogo', 'camiseta de time', 'camiseta oficial',
+      // Times brasileiros
+      'flamengo', 'corinthians', 'palmeiras', 'são paulo', 'sao paulo', 'santos',
+      'grêmio', 'gremio', 'internacional', 'atletico mineiro', 'atlético mineiro',
+      'cruzeiro', 'vasco', 'botafogo', 'fluminense', 'fortaleza', 'ceará', 'ceara',
+      'sport recife', 'bahia', 'athletico paranaense', 'coritiba', 'goias', 'goiás',
+      'america mineiro', 'américa mineiro', 'bragantino', 'cuiabá', 'cuiaba',
+      // Seleções
+      'seleção brasileira', 'selecao brasileira', 'brasil seleção', 'camisa do brasil',
+      'seleção', 'selecao', 'canarinho',
+      // Times europeus comuns
+      'real madrid', 'barcelona', 'manchester', 'chelsea', 'liverpool', 'arsenal',
+      'juventus', 'inter de milão', 'inter de milao', 'ac milan', 'paris saint',
+      'psg', 'bayern', 'borussia', 'ajax', 'benfica', 'porto',
+    ],                                                                               phraseKey: 'camisa de time' },
   { kw: ['camisa polo', 'polo shirt'],                                              phraseKey: 'camisa',           brandCat: 'roupas' },
   { kw: ['camisa social', 'camisa de botão', 'camisa jeans', 'camisa xadrez'],      phraseKey: 'camisa',           brandCat: 'roupas' },
   { kw: ['camisa', 'camiseta', 'jersey', 'uniforme', 'regata'],                     phraseKey: 'camisa',           brandCat: 'roupas' },
@@ -5064,10 +5104,11 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Calçados → pool 'tenis' (marca+genérico)
   'tênis':    'pool:tenis',
   // Vestuário → pool 'roupas' (marca+genérico)
-  'camisa':   'pool:roupas',
-  'calça':    'pool:roupas',
-  'roupa':    'pool:roupas',
-  'boné':     'boné',
+  'camisa de time': 'camisa de time',
+  'camisa':         'pool:roupas',
+  'calça':          'pool:roupas',
+  'roupa':          'pool:roupas',
+  'boné':           'boné',
   // Cozinha → pool 'cozinha' (marca+genérico)
   'panela':   'pool:cozinha',
   // Ferramentas → pool 'ferramentas' (marca+genérico)
