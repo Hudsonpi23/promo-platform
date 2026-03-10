@@ -5702,19 +5702,38 @@ const PRODUCT_TYPE_DETECTORS: Array<{
  * Detecta o tipo de produto a partir do título (Camada 1).
  * Retorna o phraseKey e o brandCat (opcional) do primeiro detector que bater.
  */
+/**
+ * Verifica se um caractere é separador de palavra (espaço, pontuação, início/fim).
+ * Usado para word-boundary manual com palavras acentuadas (ex: "boné", "tênis").
+ * O \b nativo do JS não reconhece caracteres Unicode como é, ê, ã, ç.
+ */
+function isWordBoundaryChar(ch: string | undefined): boolean {
+  if (ch === undefined) return true; // início ou fim da string
+  return /[\s\-_.,;:!?/\\()\[\]{}"'@#$%&*+=|<>~`^]/.test(ch);
+}
+
+function matchesKeyword(titleLower: string, kw: string): boolean {
+  if (kw.includes(' ')) {
+    // Multi-palavra: substring simples é suficiente
+    return titleLower.includes(kw);
+  }
+
+  // Palavra simples — verificar boundary manualmente para suportar acentos
+  const idx = titleLower.indexOf(kw);
+  if (idx === -1) return false;
+
+  const charBefore = idx > 0 ? titleLower[idx - 1] : undefined;
+  const charAfter  = idx + kw.length < titleLower.length ? titleLower[idx + kw.length] : undefined;
+
+  return isWordBoundaryChar(charBefore) && isWordBoundaryChar(charAfter);
+}
+
 function detectProductType(titleLower: string): { phraseKey: string; brandCat?: string } | null {
   for (const det of PRODUCT_TYPE_DETECTORS) {
     for (const kw of det.kw) {
-      let matched: boolean;
-      if (kw.includes(' ')) {
-        // Multi-palavra: substring simples é suficiente
-        matched = titleLower.includes(kw);
-      } else {
-        // Palavra simples: word-boundary para evitar "bota" em "robotar"
-        const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        matched = new RegExp(`\\b${esc}\\b`).test(titleLower);
+      if (matchesKeyword(titleLower, kw)) {
+        return { phraseKey: det.phraseKey, brandCat: det.brandCat };
       }
-      if (matched) return { phraseKey: det.phraseKey, brandCat: det.brandCat };
     }
   }
   return null;
@@ -5726,20 +5745,17 @@ function detectProductType(titleLower: string): { phraseKey: string; brandCat?: 
  */
 function detectBrandInTitle(titleLower: string, brandCatKey: string): string | null {
   for (const brandKey of (MERGED_POOL_KEYS[brandCatKey] ?? [])) {
-    const esc = brandKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (new RegExp(`\\b${esc}\\b`).test(titleLower)) return brandKey;
+    if (matchesKeyword(titleLower, brandKey)) return brandKey;
   }
   return null;
 }
 
 function getMergedCategoryKey(title: string): string | null {
   const t = title.toLowerCase();
-  const order = ['cozinha', 'tenis', 'roupas', 'ferramentas'];
+  const order = ['cozinha', 'tenis', 'roupas', 'ferramentas', 'chinelo'];
   for (const cat of order) {
     for (const k of (MERGED_POOL_KEYS[cat] ?? [])) {
-      const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escaped}\\b`);
-      if (regex.test(t)) return cat;
+      if (matchesKeyword(t, k)) return cat;
     }
   }
   return null;
