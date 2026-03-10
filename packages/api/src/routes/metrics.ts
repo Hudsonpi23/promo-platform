@@ -38,6 +38,20 @@ export async function metricsRoutes(app: FastifyInstance) {
         ? Math.round(priceData.reduce((a, p) => a + p.discountPct, 0) / priceData.length)
         : 0;
 
+      // Desconto mediano e médio para simulação de economia (sem distorção por produtos caros)
+      const discountValues = priceData
+        .map(p => p.discountPct)
+        .filter(d => d > 0)
+        .sort((a, b) => a - b);
+      const medianDiscount = (() => {
+        if (!discountValues.length) return 0;
+        const mid = Math.floor(discountValues.length / 2);
+        return discountValues.length % 2 === 0
+          ? Math.round((discountValues[mid - 1] + discountValues[mid]) / 2)
+          : discountValues[mid];
+      })();
+      const meanDiscount = avgDiscount;
+
       // ── 3. Posts por dia (últimos 7 dias) ───────────────────────────────
       const postsByDayRaw = await prisma.publishedPost.findMany({
         where:  { publishedAt: { gte: day7 } },
@@ -270,6 +284,8 @@ export async function metricsRoutes(app: FastifyInstance) {
           postsThisWeek,
           avgDiscount,
           totalSavings: Math.round(totalSavings * 100) / 100,
+          medianDiscount,
+          meanDiscount,
           totalPublications,
           publishedByChannel,
           channelStats,

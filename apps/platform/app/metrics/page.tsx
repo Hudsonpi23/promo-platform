@@ -25,6 +25,7 @@ interface ChannelStat {
 interface MetricsSummary {
   totalPosts: number; totalClicks: number; postsThisWeek: number;
   avgDiscount: number; totalSavings: number;
+  medianDiscount: number; meanDiscount: number;
   totalPublications: number; publishedByChannel: Record<string, number>;
   channelStats: Record<string, ChannelStat>;
 }
@@ -213,15 +214,19 @@ export default function MetricsPage() {
         };
       })();
 
-  // Cálculo da simulação de economia (usa activeData)
-  const avgSavingPerPurchase = activeData.totalPosts > 0
-    ? Math.round(activeData.totalSavings / activeData.totalPosts)
-    : 86;
+  // Simulação de economia — baseada em % de desconto (sem distorção por produtos caros)
+  // 1 compra  → mediana (desconto mais típico de um produto isolado)
+  // 2 compras → blend entre mediana e média (mix de 2 produtos diferentes)
+  // 3 compras → média geral (com 3 produtos já converge para o conjunto real)
+  const medianPct = summary.medianDiscount ?? Math.round((summary.avgDiscount ?? 0) * 0.85);
+  const meanPct   = summary.meanDiscount  ?? summary.avgDiscount ?? 0;
+  const blendPct  = Math.round((medianPct + meanPct) / 2);
 
-  const simulationData = [1, 2, 3].map(n => ({
-    label: `${n} compra${n > 1 ? 's' : ''}`,
-    value: avgSavingPerPurchase * n,
-  }));
+  const simulationData = [
+    { label: '1 compra',   pct: medianPct, sublabel: 'desconto típico por produto' },
+    { label: '2 compras',  pct: blendPct,  sublabel: 'média em 2 produtos diferentes' },
+    { label: '3 compras',  pct: meanPct,   sublabel: 'média real do canal' },
+  ];
 
   // Gauge data (RadialBar)
   const gaugeData = [
@@ -442,34 +447,39 @@ export default function MetricsPage() {
             Se você aproveitasse as promoções da Manu
           </p>
           <p className="text-[10px] text-white/30 text-center mb-4">
-            baseado na média de descontos desta semana
+            desconto real por número de compras — sem distorção por produto caro
           </p>
-          <div className="space-y-3">
+          <div className="space-y-4">
             {simulationData.map((s, i) => {
-              const maxVal = simulationData[simulationData.length - 1].value;
-              const pct    = Math.round((s.value / maxVal) * 100);
-              const colors = ['#8b5cf6', '#ec4899', '#f59e0b'];
+              const maxPctAll = Math.max(...simulationData.map(x => x.pct));
+              const barWidth  = maxPctAll > 0 ? Math.round((s.pct / maxPctAll) * 100) : 0;
+              const colors    = ['#8b5cf6', '#ec4899', '#f59e0b'];
               return (
                 <div key={i}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs text-white/60">{s.label}</span>
-                    <span className="text-sm font-black" style={{ color: colors[i] }}>
-                      {fmtCurrency(s.value)}
+                    <div>
+                      <span className="text-xs text-white/60">{s.label}</span>
+                      <span className="text-[10px] text-white/30 ml-2">{s.sublabel}</span>
+                    </div>
+                    <span className="text-lg font-black" style={{ color: colors[i] }}>
+                      {s.pct}%
                     </span>
                   </div>
                   <div className="h-2 bg-white/5 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
-                      style={{ width: `${pct}%`, background: colors[i] }}
+                      style={{ width: `${barWidth}%`, background: colors[i] }}
                     />
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="mt-5 bg-white/5 rounded-xl px-4 py-3 border border-white/10 text-center">
-            <p className="text-xs text-white/50 leading-relaxed italic">
-              "Se eu tivesse seguido esse perfil, teria economizado dinheiro."
+          <div className="mt-4 bg-white/5 rounded-xl px-4 py-3 border border-white/10 text-center">
+            <p className="text-[10px] text-white/40 leading-relaxed">
+              Ex: com {meanPct}% de desconto, num produto de{' '}
+              <span className="text-white/60 font-semibold">R$ 200</span> você economiza{' '}
+              <span className="text-emerald-400 font-semibold">R$ {Math.round(200 * meanPct / 100)}</span>
             </p>
           </div>
         </ChartCard>
