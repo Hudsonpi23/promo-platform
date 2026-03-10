@@ -4440,9 +4440,11 @@ const MERGED_POOL_KEYS: Record<string, string[]> = {
     'snap-on', 'snap on', 'festool', 'metabo', 'ryobi', 'ridgid',
     'stanley', 'black+decker', 'black decker', 'irwin', 'craftsman',
     'gedore', 'belzer', 'bahco', 'knipex',
-    'tramontina pro', 'tramontina', 'vonder', 'worker', 'gamma', 'sparta',
+    'vonder', 'worker', 'gamma', 'sparta',
   ],
+  // Tramontina pertence a cozinha (panelas, facas, utensílios)
   'cozinha': [
+    'tramontina pro', 'tramontina',
     'brinox', 'rochedo', 'panelux', 'multiflon', 'nigro', 'sanremo',
     'plasútil', 'plasutil',
   ],
@@ -4455,6 +4457,34 @@ const MERGED_CATEGORY_PHRASES: Record<string, string[]> = (() => {
     result[category] = keys.flatMap(k => PRODUCT_SPECIFIC_PHRASES[k] ?? []);
   }
   return result;
+})();
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PRODUCT_POOL — Um pool único por tipo de produto.
+// Cada pool reúne frases de marcas conhecidas + frases genéricas do tipo.
+// O título do produto determina qual pool usar. Simples assim.
+// ══════════════════════════════════════════════════════════════════════════════
+const PRODUCT_POOL: Record<string, string[]> = (() => {
+  function merge(...keys: string[]): string[] {
+    return keys.flatMap(k => PRODUCT_SPECIFIC_PHRASES[k] ?? []);
+  }
+  return {
+    // ── Calçados ─────────────────────────────────────────────────────────────
+    // Pool = todas as marcas de tênis + frases genéricas de tênis
+    'tenis': [...(MERGED_CATEGORY_PHRASES['tenis'] ?? []), ...merge('tênis', 'tenis')],
+
+    // ── Vestuário ─────────────────────────────────────────────────────────────
+    // Pool = todas as marcas de roupas + camisa + calça + roupa genérica
+    'roupas': [...(MERGED_CATEGORY_PHRASES['roupas'] ?? []), ...merge('camisa', 'camiseta', 'calça', 'calca', 'roupa')],
+
+    // ── Cozinha ──────────────────────────────────────────────────────────────
+    // Pool = Tramontina + Brinox + outras + frases genéricas de panela
+    'cozinha': [...(MERGED_CATEGORY_PHRASES['cozinha'] ?? []), ...merge('panela', 'frigideira')],
+
+    // ── Ferramentas ──────────────────────────────────────────────────────────
+    // Pool = Bosch + Makita + outras + frases genéricas de ferramenta
+    'ferramentas': [...(MERGED_CATEGORY_PHRASES['ferramentas'] ?? []), ...merge('ferramenta', 'furadeira', 'parafusadeira')],
+  };
 })();
 
 // Detecta a qual categoria merged um produto pertence.
@@ -4979,296 +5009,160 @@ function getCategoryKey(category?: string | null, title?: string): string {
 // Retorna a frase de produto sem avançar o tracker —
 // reutiliza o que já foi sorteado para este título hoje (ex: Telegram → X).
 // Retorna a última frase sorteada para este título hoje (sem avançar o tracker).
-// Usa o mesmo fluxo de 3 camadas de getProductSpecificPhrase para determinar a chave.
+// Usa o mesmo mapeamento de getProductSpecificPhrase.
 function peekProductSpecificPhrase(title: string): string | null {
   const titleLower = title.toLowerCase();
 
-  // Camada 1: tipo de produto
+  // 1. Tipo de produto → mesma chave de pool
   const productType = detectProductType(titleLower);
   if (productType) {
-    // Camada 2: marca
-    if (productType.brandCat) {
-      const matchedBrand = detectBrandInTitle(titleLower, productType.brandCat);
-      if (matchedBrand) {
-        const last = peekLastPhrase(matchedBrand);
-        if (last) return last;
-      }
-    }
-    // Camada 3: tipo genérico
-    const last = peekLastPhrase(productType.phraseKey);
+    const poolId = PRODUCT_TYPE_POOL_MAP[productType.phraseKey] ?? productType.phraseKey;
+    const peekKey = poolId.startsWith('pool:') ? poolId : poolId;
+    const last = peekLastPhrase(peekKey);
     if (last) return last;
   }
 
-  // Fallback A: pool unificado por marca
+  // 2. Fallback: marca detectada → pool merged
   const mergedCat = getMergedCategoryKey(titleLower);
   if (mergedCat) {
-    const last = peekLastPhrase(`merged:${mergedCat}`);
+    const last = peekLastPhrase(`pool:${mergedCat}`);
     if (last) return last;
   }
 
   return null;
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// PRODUCT_TYPE_POOL_MAP
+// Mapeia a chave detectada em detectProductType → qual pool usar.
+//
+// Regra simples: título → tipo → pool → sortear frase.
+// Cada pool tem frases de marca + genéricas misturadas.
+// ══════════════════════════════════════════════════════════════════════════════
+const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
+  // Calçados → pool 'tenis' (marca+genérico)
+  'tênis':    'pool:tenis',
+  // Vestuário → pool 'roupas' (marca+genérico)
+  'camisa':   'pool:roupas',
+  'calça':    'pool:roupas',
+  'roupa':    'pool:roupas',
+  // Cozinha → pool 'cozinha' (marca+genérico)
+  'panela':   'pool:cozinha',
+  // Ferramentas → pool 'ferramentas' (marca+genérico)
+  'ferramenta': 'pool:ferramentas',
+
+  // Eletrônicos — PRODUCT_SPECIFIC_PHRASES individuais
+  'smart tv':   'smart tv',
+  'tv':         'tv',
+  'notebook':   'notebook',
+  'celular':    'celular',
+  'smartwatch': 'smartwatch',
+  'fone':       'fone',
+  'geladeira':  'geladeira',
+  'microondas': 'microondas',
+  'air fryer':  'air fryer',
+  'monitor':    'monitor gamer',
+  'tablet':     'tablet',
+  'iphone':     'iphone',
+  'samsung':    'samsung',
+  'xiaomi':     'xiaomi',
+  'poco':       'poco',
+  'soundbar':   'soundbar',
+  'caixa de som': 'caixinha',
+  'airpods':    'airpods',
+  'projetor':   'projetor',
+  'drone':      'drone',
+  'câmera':     'câmera',
+  'câmera de segurança': 'câmera de segurança',
+  'ssd':        'ssd',
+  'mouse':      'mouse',
+  'teclado':    'teclado',
+  'roteador':   'roteador',
+  'nobreak':    'nobreak',
+  'power bank': 'power bank',
+  'carregador sem fio': 'carregador sem fio',
+  'chromecast': 'chromecast',
+  'webcam':     'webcam',
+
+  // Eletrodomésticos
+  'liquidificador': 'liquidificador',
+  'cafeteira':      'cafeteira',
+  'aspirador':      'aspirador',
+  'ventilador':     'ventilador',
+  'ar condicionado': 'ar condicionado',
+  'ferro de passar': 'ferro de passar',
+  'secador':        'secador',
+  'chapinha':       'chapinha',
+  'barbeador elétrico': 'barbeador elétrico',
+
+  // Perfumaria
+  'perfume feminino':  'perfume feminino',
+  'perfume masculino': 'perfume masculino',
+  'perfume':           'perfume',
+
+  // Relógios / Joias
+  'relógio masculino': 'relógio masculino',
+  'relógio feminino':  'relógio feminino',
+  'corrente masculina': 'corrente masculina',
+
+  // Games
+  'ps5':            'ps5',
+  'playstation':    'playstation',
+  'xbox':           'xbox',
+  'nintendo switch': 'nintendo switch',
+  'videogame':      'videogame',
+
+  // Móveis / Casa
+  'sofá':     'sofá',
+  'colchão':  'colchão',
+  'lâmpada':  'lâmpada led',
+
+  // Esporte / Saúde
+  'bicicleta':  'bicicleta',
+  'esteira':    'esteira',
+  'patinete elétrico': 'patinete elétrico',
+
+  // Jogos de tabuleiro
+  'war':              'war',
+  'jogo estratégico': 'jogo estratégico',
+  'jogo família':     'jogo família',
+  'jogo de tabuleiro': 'jogo de tabuleiro',
+};
+
 function getProductSpecificPhrase(title: string): string | null {
   const titleLower = title.toLowerCase();
 
-  function pickForKey(productKey: string): string | null {
-    const phrases = PRODUCT_SPECIFIC_PHRASES[productKey];
-    if (!phrases || phrases.length === 0) return null;
-    return pickUnusedPhrase(phrases, productKey);
+  function fromPool(poolId: string): string | null {
+    if (poolId.startsWith('pool:')) {
+      const cat = poolId.slice(5);
+      const pool = PRODUCT_POOL[cat];
+      return pool?.length ? pickUnusedPhrase(pool, `pool:${cat}`) : null;
+    }
+    const pool = PRODUCT_SPECIFIC_PHRASES[poolId];
+    return pool?.length ? pickUnusedPhrase(pool, poolId) : null;
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // CAMADA 1 — Detectar tipo de produto
-  // ══════════════════════════════════════════════════════════════════════════
+  // ── 1. Detectar tipo de produto pelo título ────────────────────────────────
   const productType = detectProductType(titleLower);
-
   if (productType) {
-    // ════════════════════════════════════════════════════════════════════════
-    // CAMADA 2 — Há marca conhecida para este tipo de produto?
-    // ════════════════════════════════════════════════════════════════════════
-    if (productType.brandCat) {
-      const matchedBrand = detectBrandInTitle(titleLower, productType.brandCat);
-      if (matchedBrand) {
-        // ══════════════════════════════════════════════════════════════════
-        // CAMADA 3a — Frases específicas da marca (ex: Nike para tênis Nike)
-        // ══════════════════════════════════════════════════════════════════
-        const brandResult = pickForKey(matchedBrand);
-        if (brandResult) return brandResult;
-      }
-    }
-
-    // ══════════════════════════════════════════════════════════════════════
-    // CAMADA 3b — Sem marca específica → frases genéricas do tipo de produto
-    // ══════════════════════════════════════════════════════════════════════
-    const typeResult = pickForKey(productType.phraseKey);
-    if (typeResult) return typeResult;
-
-    // Alias: tentativas de variação da chave (acentos, plural, etc.)
-    const ALIAS: Record<string, string[]> = {
-      'tênis':   ['tenis'],
-      'calça':   ['calca'],
-      'roupa':   ['camisa', 'camiseta'],
-      'ferramenta': ['furadeira'],
-      'smart tv': ['tv', 'smart tv'],
-    };
-    for (const alias of (ALIAS[productType.phraseKey] ?? [])) {
-      const aliasResult = pickForKey(alias);
-      if (aliasResult) return aliasResult;
-    }
+    const poolId = PRODUCT_TYPE_POOL_MAP[productType.phraseKey] ?? productType.phraseKey;
+    const result = fromPool(poolId);
+    if (result) return result;
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // FALLBACK A — Produto sem tipo claro → busca por marca no pool unificado
-  // Ex: "Nike Air Max 90" (sem a palavra "tênis" no título)
-  // ══════════════════════════════════════════════════════════════════════════
+  // ── 2. Fallback: produto sem palavra-chave de tipo → detecta por marca ─────
+  // Ex: "Nike Air Max 90" sem "tênis" no título → ainda cai no pool de tenis
   const mergedCat = getMergedCategoryKey(titleLower);
   if (mergedCat) {
-    const pool = MERGED_CATEGORY_PHRASES[mergedCat];
-    if (pool && pool.length > 0) {
-      return pickUnusedPhrase(pool, `merged:${mergedCat}`);
-    }
+    const poolId = `pool:${mergedCat}`;
+    const result = fromPool(poolId);
+    if (result) return result;
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // FALLBACK B — Lookup individual por ordem de prioridade (lista completa)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // Relógio masculino (verificar antes de "relógio" genérico)
-  if (titleLower.match(/relógio masculino|relogio masculino|relógio.*masculino|relogio.*masculino/)) {
-    return pickForKey('relógio masculino');
-  }
-  // Relógio feminino
-  if (titleLower.match(/relógio feminino|relogio feminino|relógio.*feminino|relogio.*feminino/)) {
-    return pickForKey('relógio feminino');
-  }
-
-  // Jogos de tabuleiro específicos (War, Banco Imobiliário, Monopoly)
-  if (titleLower.includes('war') || titleLower.includes('banco imobiliário') || titleLower.includes('banco imobiliario') || titleLower.includes('monopoly')) {
-    return pickForKey('war');
-  }
-
-  if (titleLower.includes('jogo') && titleLower.includes('tabuleiro')) {
-    if (titleLower.match(/estratégico|estrategico|xadrez|damas|war|risk|dominion|catan|chess|banco imobiliário|banco imobiliario|monopoly/)) {
-      return pickForKey('jogo estratégico');
-    }
-    if (titleLower.match(/família|familia|familiar|kids|criança|crianca|infantil|party|festa/)) {
-      return pickForKey('jogo família');
-    }
-    return pickForKey('jogo de tabuleiro');
-  }
-
-  // Ordem de prioridade: produtos mais específicos primeiro.
-  // Produtos principais vêm ANTES de acessórios do mesmo grupo.
-  const priorityOrder = [
-    'monitor gamer', 'smart tv', 'air fryer', 'airpods', 'ps5', 'nintendo switch',
-    'perfume feminino', 'perfume masculino', 'perfume importado',
-    'malbec', 'uomini',
-    'iphone', 'samsung', 'xiaomi', 'poco',
-    'war', 'banco imobiliário', 'monopoly',
-    'jogo estratégico', 'jogo família', 'jogo familia', 'jogo familiar',
-    'jogo de tabuleiro', 'jogo tabuleiro',
-    'relógio masculino', 'relogio masculino', 'relógio feminino', 'relogio feminino',
-    'corrente masculina', 'corrente', 'brinco', 'brincos', 'colar', 'colares',
-    'pulseira', 'pulseiras', 'anel', 'aneis', 'anéis', 'relógio', 'relogio', 'watch',
-    'playstation', 'xbox', 'nintendo',
-    'polo ralph lauren', 'ralph lauren', 'lacoste', 'tommy hilfiger', 'tommy',
-    'calvin klein', 'ck', "levi's", 'levis', 'insaider',
-    'nike', 'adidas', 'puma', 'new balance', 'asics', 'vans', 'converse', 'all star',
-    'under armour', 'fila', 'mizuno', 'olimpikus', 'kappa',
-    'bosch professional', 'bosch', 'makita', 'dewalt', 'milwaukee', 'hilti',
-    'snap-on', 'snap on', 'festool', 'metabo', 'ryobi', 'ridgid',
-    'stanley', 'black+decker', 'black decker', 'irwin', 'craftsman',
-    'gedore', 'belzer', 'bahco', 'knipex',
-    'tramontina pro', 'tramontina', 'vonder', 'worker', 'gamma', 'sparta',
-    'brinox', 'rochedo', 'panelux', 'multiflon', 'nigro', 'sanremo', 'plasútil', 'plasutil',
-    'tv', 'televisor', 'monitor', 'celular', 'smartphone', 'notebook', 'laptop',
-    'tabuleiro', 'estratégico',
-    'extensão', 'extensao', 'réguas', 'regua', 'tira',
-    'fone', 'headphone', 'tênis', 'tenis', 'perfume', 'colônia', 'colonia',
-    'geladeira', 'microondas', 'camisa', 'calça', 'roupa', 'fritadeira',
-  // Eletrônicos adicionais (ordem: mais específico primeiro)
-  'soundbar', 'home theater', 'projetor', 'drone', 'câmera de segurança', 'câmera ip',
-  'câmera', 'camera', 'tablet', 'smartwatch', 'caixa de som', 'caixinha',
-  'ssd', 'memória ram', 'placa de vídeo', 'processador', 'cpu',
-  'hd externo', 'pen drive', 'pendrive', 'leitor de cartão',
-  'impressora multifuncional', 'impressora', 'scanner',
-  'nobreak', 'estabilizador',
-  'roteador', 'adaptador wifi',
-  'smart speaker', 'echo dot', 'alexa', 'chromecast', 'fire stick',
-  'carregador sem fio', 'carregador wireless',
-  'cabo hdmi', 'microfone', 'patinete elétrico', 'scooter elétrica',
-  'toca-disco', 'vitrola',
-  'mouse', 'teclado', 'webcam', 'power bank', 'carregador portátil',
-  // Moda adicional (multi-palavra antes de simples)
-  'camisa social', 'meia-calça', 'conjunto fitness', 'kit de bijuteria',
-  'vestido', 'jaqueta', 'moletom', 'bermuda', 'sandália', 'sandalia', 'chinelo',
-  'bota', 'sapato', 'bolsa', 'óculos', 'oculos',
-  'polo', 'terno', 'blazer', 'colete', 'shorts', 'cueca', 'meia', 'meia soquete',
-  'pijama', 'saia', 'top', 'cropped', 'blusa', 'biquíni', 'maiô', 'lingerie', 'legging',
-  'cinto', 'gravata', 'lenço', 'cachecol', 'touca', 'luvas', 'carteira',
-  'necessaire', 'regata', 'sutiã', 'havaianas', 'salto', 'scarpin',
-  'mocassim', 'loafer', 'alpargata', 'chuteira', 'bolsa de cintura', 'tote bag',
-  'porta-cartão', 'mochila casual', 'mochila escolar', 'piercing',
-  // Casa adicional (multi-palavra antes de simples)
-  'jogo de cama', 'jogo de pratos', 'jogo de copos', 'jogo de toalhas',
-  'tapete de banheiro', 'tapete automotivo', 'tapete',
-  'toalha de banho', 'ferro de passar', 'panela de pressão', 'conjunto de panelas',
-  'mesa de jantar', 'mesa de centro', 'mesa dobrável',
-  'relógio de parede', 'câmera de segurança', 'fechadura eletrônica',
-  'tomada inteligente', 'porta-retrato', 'porta-tempero', 'porta-sabonete',
-  'vaso decorativo', 'quadro decorativo', 'caixa organizadora', 'escova de banheiro',
-  'organizador de porta-malas',
-  'lençol', 'liquidificador', 'cafeteira', 'aspirador', 'ventilador',
-  'panela', 'frigideira', 'tigela', 'bowl', 'taça', 'caneca', 'garrafa térmica',
-  'tábua de cortar', 'faca', 'conjunto de facas', 'forma',
-  'sofá', 'poltrona', 'estante', 'prateleira', 'rack', 'painel',
-  'espelho', 'luminária', 'lâmpada led', 'lâmpada', 'fita led', 'abajur',
-  'almofada', 'cortina', 'persiana', 'cobertor', 'edredom', 'colcha', 'fronha',
-  'travesseiro', 'colchão', 'cama box',
-  'cadeira', 'banqueta', 'banco', 'escorredor', 'lixeira', 'saboneteira',
-  'churrasqueira', 'grelha', 'despertador', 'cofre', 'fechadura',
-  'vassoura', 'rodo', 'mop', 'organizador',
-  'ar condicionado', 'purificador de ar', 'umidificador',
-  'jogo de cama', 'toalha de banho',
-  // Beleza adicional
-  'protetor solar', 'máscara facial', 'espelho de maquiagem', 'kit de pincéis',
-  'kit de maquiagem', 'pincel de maquiagem', 'loção pós-barba',
-  'creme hidratante', 'sérum', 'esfoliante', 'sabonete', 'desodorante',
-  'loção corporal', 'óleo corporal', 'batom', 'base', 'blush', 'sombra',
-  'máscara de cílios', 'delineador', 'lápis de olho', 'esmalte',
-  'removedor de esmalte', 'acetona',
-  'aparelho de barbear', 'barbeador elétrico', 'gel de barbear', 'creme de barbear',
-  'pomada para cabelo', 'gel para cabelo', 'leave-in', 'óleo capilar',
-  'tinta de cabelo', 'escova de cabelo', 'pente',
-  'secador', 'chapinha', 'prancha', 'shampoo', 'condicionador',
-  // Saúde / Mercado
-  'cápsula de café', 'pasta de amendoim', 'erva-mate', 'barra de proteína',
-  'ômega 3', 'colágeno', 'pré-treino', 'creatina', 'granola', 'aveia',
-  'café', 'chá', 'azeite',
-  'kit de primeiros socorros', 'aparelho de pressão', 'oxímetro',
-  'glicosímetro', 'nebulizador', 'balança digital', 'massageador',
-  'joelheira', 'cotoveleira', 'tornozeleira', 'palmilha ortopédica',
-  'whey', 'suplemento', 'vitamina', 'termômetro', 'termometro', 'medidor de pressão',
-  // Esportes adicional
-  'bicicleta ergométrica', 'luva de boxe', 'saco de boxe', 'corda de pular',
-  'yoga mat', 'tapete de yoga', 'bola de pilates', 'faixa elástica', 'miniband',
-  'rolo de espuma', 'bola de futebol', 'bola de basquete', 'bola de vôlei',
-  'bola infantil', 'kettlebell', 'barra de supino', 'luva de musculação',
-  'óculos de natação', 'touca de natação', 'garrafa de água esportiva',
-  'camiseta esportiva', 'short esportivo', 'colchonete',
-  'bicicleta', 'esteira', 'raquete', 'halter', 'anilha',
-  // Livros / Papelaria
-  'ficção científica', 'livro infantil', 'kit científico',
-  'romance', 'autoajuda', 'desenvolvimento pessoal', 'negócios', 'fantasia',
-  'thriller', 'suspense', 'biografia', 'culinária', 'quadrinhos',
-  'livro', 'mangá', 'manga',
-  'marcador de texto', 'lápis de cor', 'giz de cera', 'pincel de arte',
-  'bloco de notas', 'planner', 'agenda', 'fichário', 'pasta',
-  'grampeador', 'perfurador', 'fita adesiva', 'post-it', 'tesoura',
-  'compasso', 'régua', 'estojo', 'cola', 'papel', 'aquarela', 'tinta',
-  'mochila escolar', 'caderno', 'caneta',
-  // Brinquedos
-  'tablet infantil', 'cozinha de brinquedo', 'brinquedo educativo',
-  'urso de pelúcia', 'pelúcia', 'bicicleta infantil',
-  'quebra-cabeça', 'jogo de memória', 'jogo de cartas', 'card game',
-  'pula-pula', 'escorregador', 'balanço', 'piscina infantil',
-  'patinete', 'triciclo', 'patins',
-  'massinha de modelar', 'slime', 'boneco', 'boneca',
-  'carrinho de brinquedo', 'lego', 'blocos de montar', 'nerf', 'dominó',
-  // Pets
-  'bebedouro automático', 'comedouro automático', 'bolsa de transporte pet',
-  'brinquedo para cachorro', 'brinquedo para gato', 'arranhador para gato',
-  'comedouro para gato', 'casinha de cachorro', 'guia retrátil', 'arnês',
-  'shampoo para cachorro', 'areia para gato', 'tapete higiênico', 'antipulgas',
-  'cama pet', 'ração para peixe', 'aquário', 'petisco', 'coleira', 'ração', 'racao',
-  // Bebê e Criança
-  'monitor de bebê', 'carrinho de bebê', 'carrinho bebe',
-  'almofada de amamentação', 'saco de dormir para bebê',
-  'banheira de bebê', 'cadeirinha de alimentação', 'copo de transição',
-  'toalha de bebê', 'sabonete infantil', 'shampoo infantil',
-  'mamadeira', 'chupeta', 'prato infantil', 'berço',
-  'mochila maternidade', 'andador de bebê', 'body de bebê', 'macacão de bebê',
-  'sapato de bebê', 'fralda',
-  // Automotivo
-  'rastreador veicular', 'câmera ré', 'camera re',
-  'organizador de porta-malas', 'capa de banco', 'tapete automotivo',
-  'modulador bluetooth', 'carregador veicular', 'lixeira automotiva',
-  'aromatizador automotivo', 'cera automotiva', 'palheta de limpador',
-  'macaco hidráulico', 'compressor de ar', 'extintor automotivo',
-  'suporte celular',
-  // Ferramentas
-  'kit de ferramentas', 'kit ferramentas', 'bancada de trabalho',
-  'parafusadeira', 'furadeira', 'lixadeira', 'esmerilhadeira',
-  'serra circular', 'soprador de ar', 'podadora', 'enxada', 'pá',
-  'caixa de ferramentas', 'martelo', 'chave inglesa', 'alicate',
-  'serrote', 'fita métrica', 'nível',
-  // Viagem
-  'cubo organizador', 'porta-documentos', 'cadeado de mala',
-  'almofada de viagem', 'toalha de microfibra', 'saco de dormir',
-  'barraca de camping', 'adaptador universal', 'mochila de viagem',
-  'tapa-olhos', 'garrafa de água', 'lanterna', 'mala',
-  // Acessórios
-  'capa de celular', 'película protetora', 'pop socket',
-  'bolsa de cintura', 'tote bag', 'porta-cartão', 'mochila casual',
-  'kit de bijuteria', 'piercing',
-  // Games adicional
-  'mousepad gamer', 'teclado gamer', 'microfone gamer',
-  'suporte para headset', 'funko pop', 'rpg',
-  'headset', 'controle gamer', 'cadeira gamer',
-  ];
-
-  for (const product of priorityOrder) {
-    if (titleLower.includes(product)) {
-      const result = pickForKey(product);
-      if (result) return result;
-    }
-  }
-
-  // Fallback: verificar todos (caso produto não esteja na lista de prioridade)
-  for (const [product, phrases] of Object.entries(PRODUCT_SPECIFIC_PHRASES)) {
-    if (!priorityOrder.includes(product) && titleLower.includes(product) && phrases.length > 0) {
-      return pickUnusedPhrase(phrases, product);
+  // ── 3. Último recurso: varrer PRODUCT_SPECIFIC_PHRASES por keyword ──────────
+  for (const [key, phrases] of Object.entries(PRODUCT_SPECIFIC_PHRASES)) {
+    if (phrases.length > 0 && titleLower.includes(key)) {
+      return pickUnusedPhrase(phrases, key);
     }
   }
 
