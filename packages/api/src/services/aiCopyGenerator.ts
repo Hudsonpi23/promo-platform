@@ -166,6 +166,143 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'CHEIRO DE RICO POR PREÇO DE POBRE 👑',
     'ESSE TE DEIXA CHEIROSO DEMAIS 🔥',
   ],
+  // ══════════════════════════════════════════════════════════════════════════
+  // NICHO: PERFUMARIA
+  // Subtipos: perfume feminino | perfume masculino | importado | árabe |
+  //           body splash | colônia | kit de perfume | perfume genérico
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Perfume Feminino ──────────────────────────────────────────────────────
+  'perfume feminino': [
+    'CHEIRO DE PROTAGONISTA 👑',
+    'PERFUME QUE CHEGA ANTES DE VOCÊ — E FICA DEPOIS 💨',
+    'PASSOU, TODO MUNDO NOTOU E NINGUÉM ESQUECEU 👀',
+    'CHEIRO DE MULHER QUE SABE O QUE QUER 💪',
+    'ESSE PERFUME NÃO PEDE LICENÇA PRA IMPRESSIONAR 🔥',
+    'FLORAL, FRUTAL OU ORIENTAL — ELA MANDA BEM EM TODOS 🌸',
+    'CHEIRO DE ELOGIO INEVITÁVEL 💐',
+    'PASSA POUCO PRA NÃO HUMILHAR EM CADA AMBIENTE 😏',
+    'ESSE PERFUME É MAIS QUE CHEIRO — É DECLARAÇÃO 🌟',
+    'PRA QUEM QUER SER LEMBRADA MUITO DEPOIS DE TER SAÍDO ✨',
+    'FRAGRÂNCIA QUE LEVANTA SOBRANCELHA DA CONCORRÊNCIA 😎',
+    'ESSE AQUI É PRA QUEM JÁ É DONA DO AMBIENTE 👸',
+    'NÃO PRECISA FALAR NADA — O PERFUME JÁ APRESENTOU VOCÊ 💬',
+    'CHEIRO QUE FAZ OLHAR DUAS VEZES 🔄',
+    'PRA QUEM FAZ O AMBIENTE FICAR MELHOR SÓ DE ENTRAR 🚪',
+    'PERFUME QUE DURA TANTO QUANTO A LEMBRANÇA BOA 🧠',
+    'SOFTNESS OU IMPACTO — ESSA FRAGRÂNCIA ENTREGA OS DOIS 💎',
+    'DO TRABALHO À BALADA SEM TROCAR O PERFUME 🎯',
+  ],
+
+  // ── Perfume Masculino ─────────────────────────────────────────────────────
+  'perfume masculino': [
+    'CHEIRO DE PRESENÇA QUE NÃO PRECISA GRITAR 💪',
+    'PERFUME DE RESPEITO — O TIPO QUE FAZ SILÊNCIO NA SALA 👔',
+    'ESSE PERFUME IMPÕE ANTES DE VOCÊ ABRIR A BOCA 🔥',
+    'CHEIRO DE HOMEM QUE CHEGOU PRA RESOLVER 😎',
+    'PASSOU, MARCOU, NÃO SAIU DA MEMÓRIA 💯',
+    'PERFUME PRA CHEGAR CHEGANDO — SEM CERIMÔNIA 🚀',
+    'CHEIRO FORTE NA MEDIDA CERTA: NEM A MAIS, NEM A MENOS ⚡',
+    'ESSE CHEIRO NÃO PASSA BATIDO EM LUGAR NENHUM 👃',
+    'MADEIROSO, FRESCO OU INTENSO — QUALQUER UM FUNCIONA 🌲',
+    'PRA QUEM ENTRA NA SALA E O AMBIENTE MUDA 🚪',
+    'PERFUME QUE DISPENSA APRESENTAÇÃO 🎯',
+    'DO ESCRITÓRIO À NOITE — UM PERFUME SÓ RESOLVE TUDO 💼',
+    'ESSE AQUI É PRA QUEM LEVA A PRÓPRIA PRESENÇA A SÉRIO 💎',
+    'FRAGRÂNCIA QUE FICA NA ROUPA E NA MEMÓRIA DE QUEM CRUZOU 🧠',
+    'NÃO PRECISA SER FALADO — ELE JÁ DIZ TUDO 💬',
+    'CHEIRO DE CONFIANÇA. BOTTLED. 💡',
+    'PRA QUEM QUER SER LEMBRADO PELA PRESENÇA — NÃO SÓ PELO LOOK 👁️',
+    'PERFUME QUE FAZ REUNIÃO FICAR MAIS RESPEITOSA 😏',
+  ],
+
+  // ── Perfume Importado / Grife ─────────────────────────────────────────────
+  'perfume importado': [
+    'IMPORTADO POR PREÇO QUE NÃO PARECE IMPORTADO 💰',
+    'CHEIRO DE GRIFE POR PREÇO HONESTO 👑',
+    'PERFUME QUE FALA ANTES DE VOCÊ ENTRAR — E EM OUTRO IDIOMA 💨',
+    'IMPORTADO SEM PRECISAR IMPORTAR O CARTÃO 🌟',
+    'ESSE CHEIRO NÃO É NACIONAL — MAS O DESCONTO É 😎',
+    'PASSOU, TODO MUNDO PERGUNTOU QUAL É — E NÃO VAI ACREDITAR NO PREÇO ❓',
+    'FRAGRÂNCIA INTERNACIONAL. OPORTUNIDADE LOCAL 🌍',
+    'GRIFE NO CORPO. DINHEIRO NO BOLSO 💎',
+    'PRA QUEM SEMPRE QUIS O ORIGINAL E HOJE PODE 🏆',
+    'IMPORTADO DE VERDADE. SEM RÉPLICA, SEM DESCULPA ✅',
+    'ESSE AQUI FAZ ATÉ QUEM ENTENDE PARAR PRA PERGUNTAR 🧐',
+    'NÍVEL EUROPEU POR PREÇO BRASILEIRO 🇧🇷',
+    'PERFUME DE VITRINE COM PREÇO DE OFERTA 🏷️',
+    'O CHEIRO QUE VOCÊ SEMPRE ELOGIOU EM ALGUÉM — AGORA É SEU 🎁',
+    'IMPORTADO QUE O BOLSO APROVA E O NARIZ AGRADECE ✨',
+  ],
+
+  // ── Perfume Árabe / Oud ───────────────────────────────────────────────────
+  'perfume árabe': [
+    'OUD QUE FAZ A SALA VIRAR DUBAI 🕌',
+    'FRAGRÂNCIA ÁRABE: INTENSIDADE QUE RESPEITA 💎',
+    'ESSE CHEIRO É MISTICISMO EM FRASCO 🌙',
+    'ORIENTAL DE VERDADE — FIXAÇÃO QUE DURA DIAS 💪',
+    'PRA QUEM QUER DEIXAR RASTRO ATÉ ONDE NÃO FOI 👃',
+    'OUD: O CHEIRO QUE O ORIENTE EXPORTOU E O MUNDO ADOTOU 🌍',
+    'FRAGRÂNCIA QUE FAZ ATÉ O AR FICAR MAIS ELEGANTE ✨',
+    'ESSE NÃO É PERFUME — É EXPERIÊNCIA SENSORIAL 🔥',
+    'INTENSO, MARCANTE E COMPLETAMENTE INESQUECÍVEL 🧠',
+    'PRA QUEM ENTENDE QUE FIXAÇÃO É A PRINCIPAL QUALIDADE 💯',
+    'ÁRABE LEGÍTIMO: CHEIRO QUE CONTA HISTÓRIA 📜',
+    'DO GOLFO PRA VOCÊ — SEM ESCALA E COM DESCONTO 🛫',
+    'OUD + ESPECIARIAS = COMBINAÇÃO QUE NÃO PRECISA DE EXPLICAÇÃO 🌶️',
+    'PRA USAR POUCO E IMPRESSIONAR MUITO 🎯',
+    'ESSE PERFUME ENCHE O AMBIENTE. NO BOM SENTIDO 🚀',
+  ],
+
+  // ── Body Splash / Bruma Corporal ──────────────────────────────────────────
+  'body splash': [
+    'LEVINHO, FRESQUINHO E BEM-CHEIROSO — SEM EXAGERO 🌸',
+    'BODY SPLASH PRA USAR DO CAFÉ DA MANHÃ ATÉ A ACADEMIA 💦',
+    'FRESQUEZA QUE DURA O SUFICIENTE PRA VOCÊ SER LEMBRADA ✨',
+    'CHEIRO QUE CONVIDA SEM GRITAR 🌷',
+    'PRA QUEM GOSTA DE LEVEZA NO DIA A DIA 😌',
+    'BODY SPLASH: A VERSÃO DESCOMPLICADA DE CHEIRAR BEM 💡',
+    'FRESH TODOS OS DIAS SEM ESTOURAR O ORÇAMENTO 💰',
+    'PASSA DEPOIS DO BANHO E JÁ CHEGOU 🚿',
+    'LEVE, DELICADO E COMPLETAMENTE IRRESISTÍVEL 💐',
+    'CHEIRO DE QUEM CUIDA DE SI SEM ESFORÇO APARENTE 😎',
+    'DO GEL ATÉ O BODY SPLASH — O KIT FICOU COMPLETO 🎯',
+    'PRA USAR NA BOLSA E RENOVAR O CHEIRO A QUALQUER HORA 👜',
+    'BRUMA QUE FAZ A PELE PERFUMADA O DIA TODO 🌟',
+    'FRESCOR QUE NÃO PESA NO BOLSO E NEM NO AR 💨',
+  ],
+
+  // ── Colônia / Eau de Cologne ──────────────────────────────────────────────
+  'colônia': [
+    'COLÔNIA CLÁSSICA QUE NUNCA SAI DE MODA 🏆',
+    'CHEIRO LIMPO, FRESCO E DE BOA COMPANHIA 💨',
+    'DEO COLÔNIA: O CLÁSSICO QUE TODO GUARDA-ROUPA PRECISA 👔',
+    'LEVE NO CHEIRO, FORTE NA LEMBRANÇA 🧠',
+    'FRESQUEZA QUE FUNCIONA DO TRABALHO AO FIM DE SEMANA 🎯',
+    'COLÔNIA BOA É AQUELA QUE TODO MUNDO PEDE O NOME 🙋',
+    'CHEIRO LIMPO DE QUEM SE CUIDA ✅',
+    'PRA QUEM QUER SER LEMBRADO POSITIVAMENTE 😊',
+    'DEO COLÔNIA QUE ENCERRA A DISCUSSÃO SOBRE QUAL USAR 💡',
+    'FRASCO PEQUENO, IMPACTO GRANDE 💥',
+    'COLÔNIA PRA O DIA A DIA QUE FAZ DIFERENÇA 💎',
+    'CHEIRO DE PESSOA ORGANIZADA — LITERALMENTE 🗂️',
+  ],
+
+  // ── Kit de Perfume / Presente ─────────────────────────────────────────────
+  'kit de perfume': [
+    'KIT QUE RESOLVE QUALQUER PRESENTE SEM PENSAR MUITO 🎁',
+    'PRESENTE COMPLETO EMBALADO E PRONTO 🎀',
+    'PRA QUEM NÃO SABE O QUE DAR — E AGORA SABE 💡',
+    'KIT DE PERFUME: O PRESENTE QUE TODO MUNDO GOSTA 💯',
+    'COMPLETO, ELEGANTE E POR UM PREÇO JUSTO 💰',
+    'DE ANIVERSÁRIO, NATAL OU DIA DAS MÃES — QUALQUER OCASIÃO 📅',
+    'PRA DAR E RECEBER ELOGIO DO PRESENTEADO 😏',
+    'KIT PERFUMADO QUE DISPENSA LAÇO — JÁ É BONITO DO JEITO QUE TÁ 🌟',
+    'PRESENTOU COM ESSE? JÁ É FAVORITO GARANTIDO 👑',
+    'O PRESENTE QUE NINGUÉM TROCA E TODO MUNDO USA 🔥',
+  ],
+
+  // ── Perfume Genérico (fallback) ────────────────────────────────────────────
   'perfume': [
     'CHEIRO DE RICO POR PREÇO DE POBRE 👑',
     'PERFUME QUE CHEGA NA SALA ANTES DE VOCÊ 💨',
@@ -182,37 +319,9 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'CHEIRO QUE FICA NA MEMÓRIA 🧠',
     'PASSOU, FICOU 💯',
     'PERFUME PRA NÃO SER ESQUECIDO 🔖',
-  ],
-  'colônia': [],
-  'perfume importado': [
-    'PERFUME PRA QUEM GOSTA DE IMPACTO 💥',
-    'IMPORTADO POR PREÇO QUE NÃO PARECE 💰',
-    'CHEIRO DE RICO POR PREÇO HONESTO 👑',
-    'PERFUME QUE FALA ANTES DE VOCÊ ENTRAR 💨',
-    'IMPORTADO SEM IMPORTAR O VALOR 🌟',
-    'ESSE CHEIRO NÃO É NACIONAL (MAS O PREÇO É) 😎',
-    'PASSOU, TODO MUNDO PERGUNTOU QUAL É ❓',
-    'IMPORTADO QUE O BOLSO CONSEGUE ✨',
-  ],
-  'perfume feminino': [
-    'CHEIRO DE PROTAGONISTA 👑',
-    'PERFUME QUE CHEGA CHEGANDO 💨',
-    'PASSOU, TODO MUNDO NOTOU 👀',
-    'CHEIRO DE MULHER SEGURA 💪',
-    'ESSE PERFUME NÃO PEDE LICENÇA 🔥',
-    'PERFUME PRA MARCAR PRESENÇA ⭐',
-    'CHEIRO DE ELOGIO 💐',
-    'PASSA POUCO PRA NÃO HUMILHAR 😏',
-  ],
-  'perfume masculino': [
-    'CHEIRO DE PRESENÇA 💪',
-    'PERFUME DE RESPEITO 👔',
-    'ESSE PERFUME IMPÕE 🔥',
-    'CHEIRO DE HOMEM SEGURO 😎',
-    'PASSOU, MARCOU 💯',
-    'PERFUME PRA CHEGAR CHEGANDO 🚀',
-    'CHEIRO FORTE NA MEDIDA ⚡',
-    'ESSE CHEIRO NÃO PASSA BATIDO 👃',
+    'BOAS FRAGRÂNCIAS SÃO LEMBRANÇAS QUE ANDAM COM VOCÊ 🌟',
+    'PRA QUEM ENTENDE QUE CHEIRO É PARTE DA IDENTIDADE 💎',
+    'FRAGRÂNCIA QUE TRANSFORMA A ROTINA EM ALGO MELHOR ✨',
   ],
   
   // Monitores
@@ -4785,11 +4894,33 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['nível a laser', 'nível digital', 'nível'],                                  phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
   { kw: ['caixa de ferramentas', 'kit de ferramentas', 'maleta de ferramentas'],      phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
 
-  // ─── Perfumaria / Beleza (mais específico primeiro) ──────────────────────
-  { kw: ['perfume feminino', 'eau de parfum feminino', 'colônia feminina', 'deo colônia feminina'], phraseKey: 'perfume feminino' },
-  { kw: ['perfume masculino', 'eau de parfum masculino', 'colônia masculina', 'deo colônia masculina'], phraseKey: 'perfume masculino' },
-  { kw: ['perfume importado', 'perfume grife', 'parfum'],                             phraseKey: 'perfume importado' },
-  { kw: ['perfume', 'eau de parfum', 'eau de toilette', 'deo colônia', 'body splash', 'colônia'], phraseKey: 'perfume' },
+  // ─── NICHO: PERFUMARIA — subtipos do mais específico para o mais genérico ──
+
+  // 1. Perfume árabe / Oud — detectar antes de "perfume" genérico
+  { kw: ['perfume árabe', 'perfume arabe', 'oud', 'oudh', 'bakhoor', 'attar', 'amouage', 'lattafa', 'maison alhambra', 'rasasi'], phraseKey: 'perfume árabe' },
+
+  // 2. Perfume importado / grife
+  { kw: ['perfume importado', 'perfume grife', 'parfum importado', 'dior', 'chanel', 'givenchy', 'yves saint laurent', 'ysl', 'armani', 'versace', 'hugo boss', 'calvin klein parfum', 'mont blanc', 'paco rabanne', 'creed', 'tom ford', 'thierry mugler', 'lancome', 'guerlain', 'hermes parfum', 'burberry'], phraseKey: 'perfume importado' },
+
+  // 3. Kit de perfume / presente
+  { kw: ['kit de perfume', 'kit perfume', 'conjunto de perfume', 'presente perfume', 'caixa de perfume', 'gift set perfume'], phraseKey: 'kit de perfume' },
+
+  // 4. Perfume feminino
+  { kw: ['perfume feminino', 'eau de parfum feminino', 'fragrance feminino', 'parfum feminino', 'perfume para mulher', 'perfume feminino floral', 'perfume feminino frutal', 'perfume feminino oriental'], phraseKey: 'perfume feminino' },
+
+  // 5. Perfume masculino
+  { kw: ['perfume masculino', 'eau de parfum masculino', 'fragrance masculino', 'parfum masculino', 'perfume para homem', 'perfume masculino madeiroso', 'perfume masculino fresco', 'perfume masculino intenso'], phraseKey: 'perfume masculino' },
+
+  // 6. Body splash / bruma / splash
+  { kw: ['body splash', 'body mist', 'bruma corporal', 'bruma perfumada', 'splash corporal'], phraseKey: 'body splash' },
+
+  // 7. Colônia / deo colônia
+  { kw: ['deo colônia masculino', 'deo colônia feminino', 'deo colônia', 'colônia masculina', 'colônia feminina', 'eau de cologne'], phraseKey: 'colônia' },
+
+  // 8. Perfume genérico (fallback do nicho)
+  { kw: ['perfume', 'eau de parfum', 'eau de toilette', 'fragrance', 'fragrância', 'colônia'], phraseKey: 'perfume' },
+
+  // ─── Beleza / Cabelo ──────────────────────────────────────────────────────
   { kw: ['secador de cabelo profissional', 'secador de cabelo', 'secador'],           phraseKey: 'secador' },
   { kw: ['chapinha profissional', 'prancha de cabelo', 'chapinha', 'prancha'],        phraseKey: 'chapinha' },
   { kw: ['barbeador elétrico', 'aparelho de barbear', 'aparador de pelos'],           phraseKey: 'barbeador elétrico' },
@@ -5319,9 +5450,14 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'chapinha':       'chapinha',
   'barbeador elétrico': 'barbeador elétrico',
 
-  // Perfumaria
+  // Perfumaria — subtipos do nicho
+  'perfume árabe':     'perfume árabe',
+  'perfume importado': 'perfume importado',
+  'kit de perfume':    'kit de perfume',
   'perfume feminino':  'perfume feminino',
   'perfume masculino': 'perfume masculino',
+  'body splash':       'body splash',
+  'colônia':           'colônia',
   'perfume':           'perfume',
 
   // Relógios / Joias
