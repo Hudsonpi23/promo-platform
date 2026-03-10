@@ -4460,15 +4460,52 @@ const MERGED_CATEGORY_PHRASES: Record<string, string[]> = (() => {
 // Detecta a qual categoria merged um produto pertence.
 // Usa word boundary (\b) para evitar falsos positivos como
 // 'forma' dentro de 'formato', 'fila' dentro de 'família', etc.
+// Palavras no título que DESQUALIFICAM uma categoria mesmo que a marca bata.
+// Ex: "CAMISA ADIDAS" → marca 'adidas' está em 'tenis', mas 'camisa' é disqualifier → ignora 'tenis'.
+const CATEGORY_DISQUALIFIERS: Record<string, string[]> = {
+  tenis: [
+    'camisa', 'camiseta', 'jersey', 'uniforme', 'regata',
+    'calça', 'calca', 'short', 'shorts', 'bermuda', 'legging',
+    'jaqueta', 'moletom', 'agasalho', 'blusa', 'polo', 'suéter',
+    'boné', 'bone', 'cap', 'chapéu', 'chapeu',
+    'mochila', 'bolsa', 'bag', 'mala',
+    'meias', 'meia', 'luvas', 'luva',
+    'sutiã', 'sutia', 'cueca', 'pijama',
+  ],
+  ferramentas: [
+    'geladeira', 'refrigerador', 'frigorífico',
+    'lava-louça', 'lava louça', 'dishwasher',
+    'forno', 'fogão', 'fogao', 'cooktop', 'churrasqueira',
+    'liquidificador', 'batedeira', 'processador',
+    'air fryer', 'fritadeira', 'microondas', 'microondas',
+    'máquina de lavar', 'lavadora', 'lava e seca',
+    'aspirador', 'purificador', 'aquecedor',
+    'panela', 'frigideira', 'caçarola',
+  ],
+};
+
 function getMergedCategoryKey(title: string): string | null {
   const t = title.toLowerCase();
   const order = ['cozinha', 'tenis', 'roupas', 'ferramentas'];
+
   for (const cat of order) {
     for (const k of (MERGED_POOL_KEYS[cat] ?? [])) {
       // Escapa caracteres especiais de regex (ex: black+decker, levi's, snap-on)
       const escaped = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`\\b${escaped}\\b`);
-      if (regex.test(t)) return cat;
+      if (!regex.test(t)) continue;
+
+      // Marca encontrada — verificar se o tipo de produto não conflita com esta categoria
+      const disqualifiers = CATEGORY_DISQUALIFIERS[cat];
+      if (disqualifiers) {
+        const disqualified = disqualifiers.some(word => {
+          const wEscaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          return new RegExp(`\\b${wEscaped}\\b`).test(t);
+        });
+        if (disqualified) continue; // Produto é de outro tipo — ignora esta categoria
+      }
+
+      return cat;
     }
   }
   return null;
