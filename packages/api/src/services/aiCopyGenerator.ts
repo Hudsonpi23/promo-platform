@@ -757,6 +757,27 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM SABE QUE APARÊNCIA É IMPORTANTE 👑',
   ],
 
+  'boné': [
+    'BONÉ QUE COBRE A CABEÇA E ELEVA O LOOK 🧢',
+    'COBRE O CABELO BAGUNÇADO, ENTREGA O ESTILO 😏',
+    'A ABA QUE FAZ TODO LOOK FAZER SENTIDO 🎯',
+    'PRA QUEM NÃO ESCONDE A CARA — SÓ O CABELO 😂',
+    'O BONÉ QUE COMPLETA SEM COMPLICAR ✨',
+    'COBERTURA TOTAL: CABEÇA E LOOK 😎',
+    'PRA QUEM O SOL RESPEITA — E O ESTILO TAMBÉM 🌞',
+    'BONÉ: O ACESSÓRIO QUE NUNCA ERRA 🎯',
+    'COLOCOU O BONÉ, FECHOU O LOOK 🔒',
+    'PRA SAIR SEM PENSAR E AINDA CHEGAR BEM 🚀',
+    'ABA RETA OU CURVADA — DE QUALQUER JEITO FICA BOM 👌',
+    'O DETALHE QUE FALTA NO LOOK — E TÁ AQUI 💡',
+    'BONÉ CERTO NA HORA CERTA: RESULTADO GARANTIDO 💯',
+    'PRA QUEM PREFERE PRATICIDADE COM ESTILO 🕶️',
+    'ESSE AQUI COMPLETA QUALQUER COMBINAÇÃO 🎨',
+    'BONÉ QUE NÃO PASSA VERGONHA EM NENHUMA OCASIÃO 🤝',
+    'CHAPÉU DE VERDADE PRA QUEM LEVA O VISUAL A SÉRIO 👑',
+    'PRA USAR NO SOL, NA SOMBRA E NO ESPELHO 😄',
+  ],
+
   // Roupas - Marcas Premium
   'polo ralph lauren': [
     'POLO RALPH LAUREN: PRA QUEM QUER PARECER QUE TEM IATE SEM TER IATE 🛥️',
@@ -4517,7 +4538,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['camisa', 'camiseta', 'jersey', 'uniforme', 'regata'],                     phraseKey: 'camisa',           brandCat: 'roupas' },
   { kw: ['jaqueta', 'moletom', 'agasalho', 'casaco', 'suéter', 'sueter', 'blusa'], phraseKey: 'roupa',            brandCat: 'roupas' },
   { kw: ['vestido', 'saia', 'cropped', 'top feminino'],                             phraseKey: 'roupa',            brandCat: 'roupas' },
-  { kw: ['boné', 'bone', 'cap', 'viseira'],                                         phraseKey: 'roupa',            brandCat: 'roupas' },
+  { kw: ['boné', 'bone', 'cap', 'viseira', 'chapéu', 'chapeu'],                      phraseKey: 'boné',             brandCat: 'roupas' },
   { kw: ['mochila', 'bolsa', 'bag', 'mala', 'necessaire', 'pochete'],               phraseKey: 'roupa',            brandCat: 'roupas' },
 
   // ─── Vestuário inferior ──────────────────────────────────────────────────
@@ -5046,6 +5067,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'camisa':   'pool:roupas',
   'calça':    'pool:roupas',
   'roupa':    'pool:roupas',
+  'boné':     'boné',
   // Cozinha → pool 'cozinha' (marca+genérico)
   'panela':   'pool:cozinha',
   // Ferramentas → pool 'ferramentas' (marca+genérico)
