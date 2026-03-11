@@ -2328,6 +2328,74 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM NÃO SUPORTA MÁ POSTURA E MAU RESULTADO 😤',
     'CADEIRA DE RESPEITO POR PREÇO HONESTO 💰',
     'PRA SENTAR BEM EM QUALQUER JOGO 🔥',
+    'A CADEIRA QUE O SEU SETUP TAVA PEDINDO 🎯',
+    'HORAS DE JOGO SEM DOR NAS COSTAS — ISSO TEM NOME 🪑',
+    'PRA QUEM LEVA A POSTURA TÃO A SÉRIO QUANTO O RANK 💡',
+    'SETUP BOM COMEÇA NA CADEIRA ⚡',
+    'ESSA CADEIRA AGUENTA AS SUAS HORAS DE GRIND 💪',
+    'CONFORTO QUE O INIMIGO NÃO TEM 😤',
+    'PRA JOGAR HORAS E LEVANTAR SEM RECLAMAR 🌟',
+    'A BASE DE TODO SETUP QUE SE RESPEITA 🏆',
+    'SUPORTE LOMBAR PRA QUEM NÃO PARA DE JOGAR 🔥',
+    'PRA QUEM TROCOU A CADEIRA TORTA PELO SETUP CERTO 💰',
+  ],
+
+  // ── Marcas de Cadeira Gamer ───────────────────────────────────────────────
+  'dxracer': [
+    'DXRACER: A REFERÊNCIA QUE OS PRO PLAYERS CONHECEM 🏆',
+    'DXRACER NO SETUP É DECLARAÇÃO DE INTENÇÃO 🎮',
+    'PRA QUEM NÃO ACEITA MENOS DO QUE PRO PLAYER 💪',
+    'DXRACER — ONDE ERGONOMIA ENCONTRA O ESTILO 🌟',
+    'A CADEIRA DOS CAMPEÕES TÁ NO SEU PREÇO 🔥',
+    'DXRACER: PORQUE VOCÊ MERECE SENTAR BEM 🪑',
+    'SETUP SEM DXRACER TÁ INCOMPLETO 💡',
+    'DXRACER — QUALIDADE QUE SE VÊ E SE SENTE ⚡',
+  ],
+  'thunderx3': [
+    'THUNDERX3: PERFORMANCE ATÉ NA HORA DE SENTAR ⚡',
+    'PRA QUEM LEVA O SETUP TÃO A SÉRIO QUANTO O JOGO 🎮',
+    'THUNDERX3 — ERGONOMIA DE COMPETIÇÃO 💪',
+    'CADEIRA QUE ACOMPANHA CADA PARTIDA 🔥',
+    'THUNDERX3: PORQUE DOR NAS COSTAS AFETA O KDA 🌟',
+    'O CONFORTO QUE O SEU RANK MERECE 🏆',
+    'THUNDERX3 NO SETUP É NÍVEL ACIMA 💰',
+    'PRA QUEM JOGA SÉRIO E SENTA SÉRIO ✅',
+  ],
+  'cougar gamer': [
+    'COUGAR: FORÇA E CONFORTO NO MESMO ASSENTO 🐆',
+    'PRA QUEM GOSTA DE SETUP COM PERSONALIDADE 🎮',
+    'COUGAR — A CADEIRA QUE GROWLA DE QUALIDADE 💪',
+    'COUGAR: ESTILO GAMER COM ERGONOMIA DE VERDADE 🔥',
+    'PRA QUEM NÃO FAZ CONCESSÃO NO SETUP 🌟',
+    'CADEIRA COUGAR: PORQUE JOGAR BEM COMEÇA EM SENTAR BEM ✅',
+    'COUGAR NO SETUP — STATEMENT FEITO 🏆',
+    'CONFORTO DE NÍVEL COUGAR PRA LONGAS SESSÕES ⚡',
+  ],
+  'secretlab': [
+    'SECRETLAB: A CADEIRA QUE OS PROS NÃO ABREM MÃO 🏆',
+    'PRA QUEM INVESTIU NO SETUP E NÃO VAI TRAIR NA CADEIRA 💪',
+    'SECRETLAB — CONSTRUÍDA PRA DURAR QUANTO O SEU AMOR POR GAMES 🎮',
+    'QUALIDADE SECRETLAB: VOCÊ SENTE NA PRIMEIRA SENTADA 🌟',
+    'A CADEIRA QUE APARECE NOS SETUP TOURS DOS CRIADORES 🔥',
+    'SECRETLAB: PREMIUM SEM PRECISAR PEDIR DESCULPA 💰',
+    'PRA QUEM SABE QUE SETUP BOM É INVESTIMENTO ⚡',
+    'SECRETLAB NO SETUP — NÍVEL DESBLOQUEADO 🎯',
+  ],
+
+  // ── Poltrona Gamer ────────────────────────────────────────────────────────
+  'poltrona gamer': [
+    'POLTRONA GAMER: PRA QUEM QUER CONFORTO E ESTILO NO MESMO ASSENTO 🛋️',
+    'RECLINÁVEL, CONFORTÁVEL E COM CARA DE SETUP 🎮',
+    'PRA MARATONAR JOGO OU SÉRIE SEM SENTIR O TEMPO PASSAR 🌟',
+    'POLTRONA GAMER QUE COMBINA COM QUALQUER SETUP 💡',
+    'RECLINAR PRA GANHAR — LITERALMENTE 🔥',
+    'PRA QUEM QUER O MELHOR DOS DOIS MUNDOS: JOGO E DESCANSO 🪑',
+    'POLTRONA QUE O INIMIGO NÃO TEM 😤',
+    'CONFORTO NÍVEL FINAL BOSS 🏆',
+    'PRA QUEM JOGA DEITADO E NÃO TEM VERGONHA DISSO 😏',
+    'POLTRONA GAMER: PORQUE A CAMA JÁ FICOU PEQUENA PRA TANTA SESSÃO ✅',
+    'ESTILO GAMER ATÉ NA HORA DE RELAXAR ⚡',
+    'PRA QUEM CUIDA DO SETUP E DO CORPO 💪',
   ],
 
   // ════════════════════════════════════════════════════════════════
@@ -5343,6 +5411,10 @@ const MERGED_POOL_KEYS: Record<string, string[]> = {
   'chinelo': [
     'havaianas', 'rider', 'kenner', 'ipanema',
   ],
+  // Cadeiras Gamer — marcas mais vendidas no Brasil
+  'cadeira gamer': [
+    'dxracer', 'thunderx3', 'cougar gamer', 'secretlab', 'razer',
+  ],
 };
 
 // Pool unificado por categoria — construído uma vez ao carregar o módulo.
@@ -5383,6 +5455,10 @@ const PRODUCT_POOL: Record<string, string[]> = (() => {
     // ── Chinelos ─────────────────────────────────────────────────────────────
     // Pool = Havaianas + Rider + Kenner + Ipanema + genéricas de chinelo
     'chinelo': [...(MERGED_CATEGORY_PHRASES['chinelo'] ?? []), ...merge('chinelo')],
+
+    // ── Cadeiras Gamer ───────────────────────────────────────────────────────
+    // Pool = DXRacer + ThunderX3 + Cougar + SecretLab + Razer + genéricas de cadeira gamer
+    'cadeira gamer': [...(MERGED_CATEGORY_PHRASES['cadeira gamer'] ?? []), ...merge('cadeira gamer', 'poltrona gamer')],
   };
 })();
 
@@ -5680,7 +5756,14 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['controle de videogame', 'joystick', 'controle gamer'],                      phraseKey: 'videogame' },
   { kw: ['console', 'videogame', 'video game'],                                       phraseKey: 'videogame' },
   { kw: ['jogo ps5', 'jogo ps4', 'jogo xbox', 'jogo nintendo'],                       phraseKey: 'videogame' },
-  { kw: ['cadeira gamer'],                                                             phraseKey: 'sofá' },
+  // ─── Cadeiras e Poltronas Gamer (mais específico primeiro) ──────────────────
+  { kw: ['poltrona gamer', 'poltrona reclinável gamer'],                               phraseKey: 'poltrona gamer', brandCat: 'cadeira gamer' },
+  { kw: ['cadeira gamer dxracer', 'dxracer'],                                          phraseKey: 'cadeira gamer', brandCat: 'cadeira gamer' },
+  { kw: ['cadeira gamer thunderx3', 'thunderx3'],                                      phraseKey: 'cadeira gamer', brandCat: 'cadeira gamer' },
+  { kw: ['cadeira gamer cougar', 'cougar gaming chair', 'cougar gamer'],               phraseKey: 'cadeira gamer', brandCat: 'cadeira gamer' },
+  { kw: ['cadeira gamer secretlab', 'secretlab'],                                      phraseKey: 'cadeira gamer', brandCat: 'cadeira gamer' },
+  { kw: ['cadeira gamer razer', 'razer iskur'],                                        phraseKey: 'cadeira gamer', brandCat: 'cadeira gamer' },
+  { kw: ['cadeira gamer'],                                                              phraseKey: 'cadeira gamer', brandCat: 'cadeira gamer' },
 
   // ─── Móveis / Casa (mais específico primeiro) ─────────────────────────────
   { kw: ['sofá retrátil', 'sofá de canto', 'sofá cama', 'sofá', 'sofa'],             phraseKey: 'sofá' },
@@ -6369,6 +6452,10 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'xbox':           'xbox',
   'nintendo switch': 'nintendo switch',
   'videogame':      'videogame',
+
+  // Cadeiras e Poltronas Gamer
+  'cadeira gamer':  'pool:cadeira gamer',
+  'poltrona gamer': 'poltrona gamer',
 
   // Móveis / Casa
   'sofá':     'sofá',
