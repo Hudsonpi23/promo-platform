@@ -7978,11 +7978,16 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     return null;
   })();
 
-  const couponLine = input.couponCode ? `🏷️ Cupom: ${input.couponCode}` : null;
+  // No X: extrair apenas o código do cupom (até 20 chars) para economizar caracteres pro título
+  const rawCoupon = input.couponCode ?? null;
+  const xCouponCode = rawCoupon
+    ? (rawCoupon.match(/[A-Z0-9]{4,20}/i)?.[0] ?? rawCoupon.substring(0, 20))
+    : null;
+  const couponLine = xCouponCode ? `🏷️ ${xCouponCode}` : null;
 
+  // Subtitle omitido no X — libera espaço para o título completo do produto
   const fixedLines = [
     hook,
-    ...(subtitle ? [subtitle] : []),
     '',
     // título vai aqui — não incluído no cálculo
     '',
@@ -7994,7 +7999,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     `👉 ${urlPlaceholder}`,
   ];
   const fixedChars = fixedLines.join('\n').length;
-  const titleLimit = Math.max(50, TWITTER_LIMIT - fixedChars);
+  const titleLimit = Math.max(80, TWITTER_LIMIT - fixedChars);
 
   // Usa o título completo se couber; senão corta na última palavra inteira
   let xTitle = input.title;
@@ -8013,7 +8018,6 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Montar post linha a linha ──
   const lines: string[] = [
     hook,
-    ...(subtitle ? [subtitle] : []),
     '',
     xTitle,
     '',
