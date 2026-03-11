@@ -141,6 +141,21 @@ https://amzn.to/xyz123`}
           />
         </div>
 
+        {/* Cupom de desconto */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            🏷️ Cupom de desconto <span className="text-text-muted font-normal">(opcional — aparece no post)</span>
+          </label>
+          <input
+            type="text"
+            value={couponCode}
+            onChange={e => setCouponCode(e.target.value.toUpperCase())}
+            disabled={loading}
+            placeholder="Ex: OFERTA15"
+            className="w-full sm:w-64 px-4 py-2 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm uppercase tracking-widest"
+          />
+        </div>
+
         {/* Canais */}
         <div className="flex gap-6 mt-4 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer select-none">
