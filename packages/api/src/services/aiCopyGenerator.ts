@@ -8279,6 +8279,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // Subtitle omitido no X — libera espaço para o título completo do produto
   const fixedLines = [
     hook,
+    '',
     // título vai aqui — não incluído no cálculo
     '',
     ...priceBlock,
@@ -8289,7 +8290,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     `👉 ${urlPlaceholder}`,
   ];
   const fixedChars = fixedLines.join('\n').length;
-  const titleLimit = Math.max(80, TWITTER_LIMIT - fixedChars);
+  const titleLimit = Math.max(120, TWITTER_LIMIT - fixedChars);
 
   // Usa o título completo se couber; senão corta na última palavra inteira
   let xTitle = input.title;
@@ -8308,6 +8309,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Montar post linha a linha ──
   const lines: string[] = [
     hook,
+    '',
     xTitle,
     '',
     ...priceBlock,
