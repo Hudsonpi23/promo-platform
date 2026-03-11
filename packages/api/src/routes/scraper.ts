@@ -95,47 +95,82 @@ export async function scraperRoutes(app: FastifyInstance) {
 
         console.log('[Scraper] Usando Playwright...');
 
-        // Para URLs sociais do ML: abrir página social, pegar link do produto, navegar e scrape normal
+        // Para URLs sociais do ML: buscar HTML via axios, extrair link do produto com Cheerio
         if (isMlSocialUrl) {
-          console.log('[Scraper ML Social] Abrindo página social...');
-          await page.goto(url, { waitUntil: 'load', timeout: 40000 });
-          await page.waitForTimeout(4000);
+          console.log('[Scraper ML Social] Buscando página social via HTTP...');
 
-          // Coletar TODOS os links da página e logar para depuração
-          const allLinks: string[] = await page.$$eval('a[href]', (els: any[]) =>
-            els.map((el: any) => el.href).filter((h: string) => h && h.startsWith('http'))
-          ).catch(() => []);
+          // Remover forceInApp=true que causa redirecionamento para o app
+          const cleanSocialUrl = url.replace(/[?&]forceInApp=true/g, '').replace(/&&/g, '&');
 
-          console.log('[Scraper ML Social] Total de links encontrados:', allLinks.length);
-          console.log('[Scraper ML Social] Primeiros links:', allLinks.slice(0, 5));
+          let productLink: string | null = null;
 
-          // Encontrar o link do produto (exclui social, perfil, home, categorias)
-          const productLink = allLinks.find((href: string) =>
-            href.includes('mercadolivre.com.br') &&
-            !href.includes('/social/') &&
-            !href.includes('/perfil/') &&
-            !href.includes('mercadolivre.com.br/categorias') &&
-            !href.includes('mercadolivre.com.br/ofertas') &&
-            !href.includes('mercadolivre.com.br/cupons') &&
-            !href.includes('mercadolivre.com.br/assinaturas') &&
-            href.length > 50
-          ) || null;
+          try {
+            const socialRes = await axios.get(cleanSocialUrl, {
+              timeout: 15000,
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'pt-BR,pt;q=0.9',
+              },
+            });
 
-          if (productLink) {
-            console.log('[Scraper ML Social] Link do produto:', productLink.substring(0, 100));
-            resolvedUrl = productLink;
-            await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await page.waitForTimeout(2000);
-          } else {
-            console.warn('[Scraper ML Social] Nenhum link de produto encontrado. Links disponíveis:', allLinks.slice(0, 10));
+            const $social = cheerio.load(socialRes.data);
+
+            // Tentar encontrar links de produto ML (padrão /p/MLB ou /MLB)
+            const EXCLUDED = ['/social/', '/perfil/', '/categorias', '/ofertas', '/cupons', '/assinaturas', 'mercadolivre.com.br/#'];
+            $social('a[href]').each((_: any, el: any) => {
+              if (productLink) return;
+              const href: string = $social(el).attr('href') || '';
+              const fullHref = href.startsWith('http') ? href : `https://www.mercadolivre.com.br${href}`;
+              const isExcluded = EXCLUDED.some(e => fullHref.includes(e));
+              if (
+                fullHref.includes('mercadolivre.com.br') &&
+                !isExcluded &&
+                fullHref.length > 50
+              ) {
+                productLink = fullHref;
+              }
+            });
+
+            console.log('[Scraper ML Social] Link encontrado via HTTP:', productLink?.substring(0, 100) ?? 'nenhum');
+          } catch (httpErr: any) {
+            console.warn('[Scraper ML Social] Falha HTTP, tentando Playwright...', httpErr.message);
+          }
+
+          // Fallback: Playwright para abrir a página social
+          if (!productLink) {
+            console.log('[Scraper ML Social] Tentando via Playwright...');
+            await page.goto(cleanSocialUrl, { waitUntil: 'load', timeout: 40000 });
+            await page.waitForTimeout(5000);
+
+            const allLinks: string[] = await page.$$eval('a[href]', (els: any[]) =>
+              els.map((el: any) => el.href).filter((h: string) => h && h.startsWith('http'))
+            ).catch(() => []);
+
+            const EXCLUDED_PW = ['/social/', '/perfil/', '/categorias', '/ofertas', '/cupons', '/assinaturas'];
+            productLink = allLinks.find((href: string) =>
+              href.includes('mercadolivre.com.br') &&
+              !EXCLUDED_PW.some(e => href.includes(e)) &&
+              href.length > 50
+            ) || null;
+
+            console.log('[Scraper ML Social] Links encontrados via Playwright:', allLinks.length, '| produto:', productLink?.substring(0, 80) ?? 'nenhum');
+          }
+
+          if (!productLink) {
             return reply.status(400).send({
               success: false,
               error: {
                 code: 'SOCIAL_LINK_NOT_FOUND',
-                message: 'Não foi possível encontrar o link do produto nesta página social. Tente usar a URL direta do produto.',
+                message: 'Não foi possível encontrar o link do produto nesta página. Use a URL direta do produto.',
               },
             });
           }
+
+          resolvedUrl = productLink;
+          await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.waitForTimeout(2000);
+
         } else {
           await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
           await page.waitForTimeout(2000);
