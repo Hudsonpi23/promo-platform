@@ -37,6 +37,7 @@ import { customPhrasesRoutes } from './routes/customPhrases';
 import { autoPublishRoutes } from './routes/autoPublish';
 import { videoPublishRoutes } from './routes/videoPublish';
 import { metricsRoutes } from './routes/metrics';
+import { imageSearchRoutes } from './routes/imageSearch';
 
 const DEFAULT_NICHES = [
   { name: 'Eletrônicos',    slug: 'eletronicos',  icon: '📱', color: '#3B82F6' },
@@ -367,6 +368,7 @@ async function main() {
   server.register(autoPublishRoutes,  { prefix: '/api/auto-publish' });
   server.register(videoPublishRoutes, { prefix: '/api/video-publish' });
   server.register(metricsRoutes,      { prefix: '/api/metrics' });
+  server.register(imageSearchRoutes,  { prefix: '/api' });
 
 
   // ==================== ROTAS PÚBLICAS ====================

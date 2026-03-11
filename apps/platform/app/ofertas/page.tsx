@@ -60,6 +60,12 @@ export default function OfertasPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
 
+  // 🔍 Busca de imagens (Google B + Scraper A como fallback)
+  const [searchingImages, setSearchingImages] = useState(false);
+  const [imageResults, setImageResults] = useState<{ url: string; thumbnail: string; title: string }[]>([]);
+  const [imageSearchMode, setImageSearchMode] = useState<'google' | 'scraper' | null>(null);
+  const [scraperImages, setScraperImages] = useState<string[]>([]);
+
   // Estado de loading
   const [isCreating, setIsCreating] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
@@ -137,10 +143,14 @@ export default function OfertasPage() {
 
       // Preview da galeria
       if (productData.images && productData.images.length > 1) {
-        setGalleryPreviews(productData.images.slice(1)); // Pular a primeira (mainImage)
+        setGalleryPreviews(productData.images.slice(1));
       }
 
-      alert(`✅ Dados extraídos com sucesso!\n\n📦 Produto: ${productData.title}\n💰 Preço: R$ ${productData.finalPrice}\n🏪 Loja: ${data.store}\n\nConfira os dados e adicione mais imagens se quiser!`);
+      // 🔍 Disparar busca de imagens automaticamente (B primeiro, A como fallback)
+      const allScraperImgs = productData.images ?? (productData.mainImage ? [productData.mainImage] : []);
+      handleSearchImages(productData.title || '', allScraperImgs);
+
+      alert(`✅ Dados extraídos!\n\n📦 ${productData.title}\n💰 R$ ${productData.finalPrice}\n🔍 Buscando imagens reais...`);
 
     } catch (error: any) {
       console.error('Erro ao buscar dados:', error);
@@ -159,6 +169,67 @@ export default function OfertasPage() {
       alert(`❌ Erro ao buscar dados do produto:\n\n${errorMessage}\n\nTente colar manualmente os dados.`);
     } finally {
       setIsScraping(false);
+    }
+  };
+
+  // 🔍 Buscar imagens — B (Google) primeiro, A (scraper) como fallback
+  const handleSearchImages = async (title: string, scraperImgs?: string[]) => {
+    if (!title) return;
+    setSearchingImages(true);
+    setImageResults([]);
+    setImageSearchMode(null);
+
+    // Guardar imagens do scraper para fallback
+    if (scraperImgs && scraperImgs.length > 0) {
+      setScraperImages(scraperImgs);
+    }
+
+    try {
+      const response = await fetchWithAuth(`/api/images/search?q=${encodeURIComponent(title)}`);
+      const data = await response.json();
+
+      if (response.ok && data.images && data.images.length > 0) {
+        setImageResults(data.images);
+        setImageSearchMode('google');
+      } else {
+        // Google falhou → fallback para imagens do anúncio
+        loadScraperFallback(scraperImgs);
+      }
+    } catch {
+      loadScraperFallback(scraperImgs);
+    } finally {
+      setSearchingImages(false);
+    }
+  };
+
+  const loadScraperFallback = (imgs?: string[]) => {
+    const all = imgs ?? scraperImages;
+    if (all.length > 0) {
+      setImageResults(all.map(url => ({ url, thumbnail: url, title: 'Foto do anúncio' })));
+      setImageSearchMode('scraper');
+    }
+  };
+
+  const handleSelectImage = async (imageUrl: string) => {
+    setUploadingImage(true);
+    try {
+      const response = await fetchWithAuth('/api/upload/url', {
+        method: 'POST',
+        body: JSON.stringify({ imageUrl, folder: 'promo-platform/offers' }),
+      });
+      const data = await response.json();
+      if (response.ok && data.data?.url) {
+        setForm(prev => ({ ...prev, mainImage: data.data.url }));
+        setImagePreview(data.data.url);
+        setImageResults([]);
+        setImageSearchMode(null);
+      } else {
+        alert('❌ Não foi possível usar essa imagem. Tente outra.');
+      }
+    } catch {
+      alert('❌ Erro ao carregar imagem. Tente outra.');
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -778,11 +849,97 @@ export default function OfertasPage() {
             </div>
           </div>
           
+          {/* 🔍 Grade de Busca de Imagens */}
+          {(searchingImages || imageResults.length > 0) && (
+            <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-sm font-medium text-text-primary">
+                    {searchingImages
+                      ? '🔍 Buscando imagens reais...'
+                      : imageSearchMode === 'google'
+                        ? '🌐 Imagens encontradas no Google'
+                        : '📦 Fotos do anúncio'}
+                  </p>
+                  {!searchingImages && imageSearchMode === 'scraper' && (
+                    <p className="text-xs text-text-muted mt-0.5">Google não retornou imagens — usando fotos do anúncio</p>
+                  )}
+                  {!searchingImages && imageSearchMode === 'google' && (
+                    <button
+                      type="button"
+                      onClick={() => loadScraperFallback()}
+                      className="text-xs text-primary underline mt-0.5"
+                    >
+                      Ver fotos do anúncio
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setImageResults([]); setImageSearchMode(null); }}
+                  className="text-xs text-text-muted hover:text-error transition-colors"
+                >
+                  ✕ Fechar
+                </button>
+              </div>
+
+              {searchingImages ? (
+                <div className="flex items-center justify-center py-8 text-text-muted text-sm">
+                  <span className="animate-pulse">Buscando imagens lifestyle...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                  {imageResults.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSelectImage(img.url)}
+                      disabled={uploadingImage}
+                      className="relative group rounded-lg overflow-hidden border-2 border-transparent hover:border-primary transition-all aspect-square"
+                      title={img.title}
+                    >
+                      <img
+                        src={img.thumbnail}
+                        alt={img.title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 text-white text-lg">✓</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {!searchingImages && form.title && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchImages(form.title, scraperImages)}
+                  className="mt-3 text-xs text-primary underline"
+                >
+                  🔄 Buscar novamente
+                </button>
+              )}
+            </div>
+          )}
+
           {/* 🤖 v2.0: Upload de Imagem */}
           <div className="mb-6 p-4 rounded-lg border-2 border-dashed border-primary/50 bg-primary/5">
-            <label className="block text-sm font-medium text-text-primary mb-3">
-              📷 Imagem Principal <span className="text-error">* OBRIGATÓRIO</span>
-            </label>
+            <div className="flex items-center justify-between mb-3">
+              <label className="block text-sm font-medium text-text-primary">
+                📷 Imagem Principal <span className="text-error">* OBRIGATÓRIO</span>
+              </label>
+              {form.title && !searchingImages && imageResults.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleSearchImages(form.title, scraperImages)}
+                  className="px-3 py-1 rounded-lg bg-primary/20 text-primary text-xs font-medium hover:bg-primary/30 transition-all"
+                >
+                  🔍 Buscar imagens reais
+                </button>
+              )}
+            </div>
             
             {imagePreview ? (
               <div className="flex items-start gap-4">
