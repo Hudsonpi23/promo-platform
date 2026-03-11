@@ -95,31 +95,46 @@ export async function scraperRoutes(app: FastifyInstance) {
 
         console.log('[Scraper] Usando Playwright...');
 
-        // Para URLs sociais do ML: abrir a página social, extrair o link do produto e navegar até ele
+        // Para URLs sociais do ML: abrir página social, pegar link do produto, navegar e scrape normal
         if (isMlSocialUrl) {
-          console.log('[Scraper ML Social] Abrindo página social para extrair link do produto...');
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-          await page.waitForTimeout(3000);
+          console.log('[Scraper ML Social] Abrindo página social...');
+          await page.goto(url, { waitUntil: 'load', timeout: 40000 });
+          await page.waitForTimeout(4000);
 
-          // Extrair o link do botão "Ir para produto" — ele já vem com matt_word e matt_tool
-          const productLink: string | null = await page.$eval(
-            'a[href*="mercadolivre.com.br"]:not([href*="/social/"])',
-            (el: any) => el.href
-          ).catch(() => null);
+          // Coletar TODOS os links da página e logar para depuração
+          const allLinks: string[] = await page.$$eval('a[href]', (els: any[]) =>
+            els.map((el: any) => el.href).filter((h: string) => h && h.startsWith('http'))
+          ).catch(() => []);
+
+          console.log('[Scraper ML Social] Total de links encontrados:', allLinks.length);
+          console.log('[Scraper ML Social] Primeiros links:', allLinks.slice(0, 5));
+
+          // Encontrar o link do produto (exclui social, perfil, home, categorias)
+          const productLink = allLinks.find((href: string) =>
+            href.includes('mercadolivre.com.br') &&
+            !href.includes('/social/') &&
+            !href.includes('/perfil/') &&
+            !href.includes('mercadolivre.com.br/categorias') &&
+            !href.includes('mercadolivre.com.br/ofertas') &&
+            !href.includes('mercadolivre.com.br/cupons') &&
+            !href.includes('mercadolivre.com.br/assinaturas') &&
+            href.length > 50
+          ) || null;
 
           if (productLink) {
-            console.log('[Scraper ML Social] Link do produto encontrado:', productLink.substring(0, 80));
-            resolvedUrl = productLink; // Scrape na página real do produto
-            // Preservar como affiliateUrl — tem os parâmetros de rastreamento matt_*
-            // (será definido depois em productData.affiliateUrl)
-          } else {
-            console.warn('[Scraper ML Social] Link não encontrado na página social, tentando scrape direto...');
-          }
-
-          // Navegar para a página do produto (ou continuar na social se não encontrou link)
-          if (resolvedUrl !== url) {
+            console.log('[Scraper ML Social] Link do produto:', productLink.substring(0, 100));
+            resolvedUrl = productLink;
             await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
             await page.waitForTimeout(2000);
+          } else {
+            console.warn('[Scraper ML Social] Nenhum link de produto encontrado. Links disponíveis:', allLinks.slice(0, 10));
+            return reply.status(400).send({
+              success: false,
+              error: {
+                code: 'SOCIAL_LINK_NOT_FOUND',
+                message: 'Não foi possível encontrar o link do produto nesta página social. Tente usar a URL direta do produto.',
+              },
+            });
           }
         } else {
           await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
