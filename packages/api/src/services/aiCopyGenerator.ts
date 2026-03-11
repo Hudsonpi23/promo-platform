@@ -3017,6 +3017,26 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'CABO QUE FUNCIONA DE VERDADE ⚡',
     'SIMPLES, MAS INDISPENSÁVEL 🌍',
   ],
+
+  // ── Transmissor HDMI Sem Fio / Wireless HDMI ──────────────────────────────
+  'transmissor hdmi': [
+    'ESPELHA QUALQUER TELA NA TV — SEM FIOS, SEM STRESS ⚡',
+    'PRA QUEM CANSOU DE FICAR PROCURANDO CABO HDMI 🔌',
+    'TRANSMISSOR QUE FAZ O NOTEBOOK APARECER NA TV EM SEGUNDOS 📺',
+    'PRA APRESENTAÇÃO, REUNIÃO OU MARATONA — SEM FIO NENHUM 💡',
+    'HDMI WIRELESS: O FIM DOS CABOS NO MEIO DA SALA ✅',
+    'PRA QUEM QUER ESPELHAR O PS5, O PC OU O NOTEBOOK NA TV 🎮',
+    'TRANSMITE EM FULL HD SEM LAG — E O PREÇO SURPREENDE 🌟',
+    'PRA QUEM FAZ APRESENTAÇÃO E NÃO QUER DEPENDER DE CABO 💼',
+    'CONECTA, TRANSMITE E IMPRESSIONA — SEM FIO ALGUM 🔥',
+    'PRA HOME OFFICE, SALA DE REUNIÃO OU SETUP GAMER LIMPO 😎',
+    'WIRELESS HDMI QUE FUNCIONA COM TV, MONITOR E PROJETOR 📽️',
+    'PRA QUEM QUER SETUP ORGANIZADO SEM FIOS ATRAVESSANDO A SALA 💎',
+    'TRANSMITE ÁUDIO E VÍDEO EM ALTA QUALIDADE — SEM PERDER NADA ⚡',
+    'PRA QUEM TEM SMART TV MAS QUER ESPELHAR O PC COM QUALIDADE 🖥️',
+    'O ACESSÓRIO QUE TODO MUNDO QUE VIU QUIS TER NA HORA 🏆',
+  ],
+
   'leitor de cartão': [
     'LÊ QUALQUER CARTÃO SEM PRECISAR DE ADAPTADOR 💳',
     'PRA PASSAR FOTO DE CÂMERA PRO PC COM FACILIDADE 📸',
@@ -6675,6 +6695,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['nobreak', 'estabilizador de voltagem', 'estabilizador'],                    phraseKey: 'nobreak' },
   { kw: ['power bank 20000mah', 'power bank 10000mah', 'power bank'],                 phraseKey: 'power bank' },
   { kw: ['carregador sem fio', 'carregador wireless', 'carregador qi'],               phraseKey: 'carregador sem fio' },
+  { kw: ['transmissor hdmi sem fio', 'transmissor receptor hdmi', 'hdmi wireless', 'hdmi sem fio', 'transmissor wireless hdmi', 'receptor hdmi wireless', 'espelhar tv sem fio'], phraseKey: 'transmissor hdmi' },
   { kw: ['cabo hdmi 4k', 'cabo hdmi', 'cabo usb-c', 'cabo usb'],                      phraseKey: 'cabo hdmi' },
   { kw: ['chromecast', 'fire tv stick', 'fire stick', 'streaming stick'],             phraseKey: 'chromecast' },
   { kw: ['alexa', 'echo dot', 'echo show', 'echo'],                                   phraseKey: 'chromecast' },
@@ -7269,6 +7290,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'power bank': 'power bank',
   'carregador sem fio': 'carregador sem fio',
   'carregador magnético': 'carregador magnético',
+  'transmissor hdmi': 'transmissor hdmi',
   'chromecast': 'chromecast',
   'webcam':     'webcam',
 
