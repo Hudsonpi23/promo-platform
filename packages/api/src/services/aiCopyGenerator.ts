@@ -822,6 +822,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'DEPOIS DESSA, A ANTIGA VIROU MINIBAR 🍻',
   ],
   
+  // ── Adega Climatizada ────────────────────────────────────────────────────
+  'adega climatizada': [
+    'VINHO NA TEMPERATURA CERTA É OUTRA EXPERIÊNCIA 🍷',
+    'PRA QUEM LEVA VINHO A SÉRIO E QUER GUARDAR DO JEITO CERTO ❄️',
+    'ADEGA QUE TRANSFORMA QUALQUER CANTO EM MINI BAR DE HOTEL 🏨',
+    'PRA QUEM RECEBE VISITA E QUER IMPRESSIONAR SEM ESFORÇO 😏',
+    'VINHO GELADO, SERVIDO NA TEMPERATURA IDEAL — ISSO SE CHAMA CLASSE 💎',
+    'PRA QUEM COLECIONA VINHO E NÃO QUER ESTRAGAR NENHUMA GARRAFA 🍾',
+    'ADEGA CLIMATIZADA: O UPGRADE QUE A SUA SALA ESTAVA PEDINDO ✨',
+    'PRA QUEM SABE QUE VINHO BOM MERECE ARMAZENAMENTO BOM 🌟',
+    'CLIMATIZA, CONSERVA E AINDA DECORA — TUDO EM UMA SÓ ADEGA 🔥',
+    'PRA QUEM QUER SERVIR O VINHO CERTO NA HORA CERTA SEM IMPROVISO ⚡',
+    'ADEGA QUE CABE NA SALA, NO ESCRITÓRIO OU NA COZINHA 🏠',
+    'PRA QUEM PRESENTEIA COM CLASSE E QUER DAR ALGO DIFERENTE 🎁',
+    'TEMPERATURA CONTROLADA QUE PRESERVA O SABOR DE CADA GARRAFA 💡',
+    'PRA ENÓFILOS, APRECIADORES OU QUEM SIMPLESMENTE AMA UM BOM VINHO 🍷',
+    'A ADEGA QUE FAZ A VISITA PERGUNTAR ONDE COMPROU 💪',
+  ],
+
   // Microondas
   'microondas': [
     'ESQUENTA RÁPIDO PRA QUEM TEM FOME ⚡',
@@ -2207,6 +2226,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'O SECADOR QUE FAZ O SALÃO PARECER DESNECESSÁRIO 💸',
     'CABELO IMPECÁVEL TODA MANHÃ — ESSE É O ACORDO 💇',
   ],
+  // ── Escova Rotativa / Modeladora ─────────────────────────────────────────
+  'escova rotativa': [
+    'ESCOVA QUE SECA E MODELA AO MESMO TEMPO — SEM DOIS APARELHOS 💇',
+    'PRA QUEM QUER VOLUME, BRILHO E MOVIMENTO SEM IR AO SALÃO ✨',
+    'ESCOVA ROTATIVA QUE FAZ O CABELO GIRAR E O ELOGIO APARECER 🌀',
+    'PRA QUEM CANSOU DE SECAR COM UM E MODELAR COM OUTRO 😤',
+    'UM APARELHO SÓ QUE FAZ O TRABALHO DE DOIS — E FAZ MELHOR 💡',
+    'PRA QUEM QUER CABELO DE SALÃO EM CASA SEM PAGAR DE SALÃO 💰',
+    'ESCOVA QUE GIRA, AQUECE E ENTREGA RESULTADO EM MINUTOS ⚡',
+    'PRA QUEM QUER AQUELE VOLUME DOS ANOS 90 DE VOLTA 🔥',
+    'DO BANHO PRA RUA COM CABELO IMPECÁVEL — ESSE É O ACORDO 🌟',
+    'PRA CABELO LISO, ONDULADO OU COM VOLUME — ADAPTA EM TUDO 💎',
+    'ESCOVA ROTATIVA: O SEGREDO DAS MULHERES QUE SEMPRE SAEM PERFEITAS 😏',
+    'PRA QUEM TEM POUCO TEMPO E QUER MUITO RESULTADO 🚀',
+    'AQUECE RÁPIDO, MODELA BONITO, DURA MUITO — PEDIU MAIS? ✅',
+    'PRA QUEM JÁ TENTOU COM ESCOVA COMUM E NUNCA FICOU IGUAL 💪',
+    'O UPGRADE NO KIT DE BELEZA QUE VOCÊ NÃO SABIA QUE PRECISAVA 🏆',
+  ],
+
   'chapinha': [
     'CABELO LISO SEM SAIR DO BANHEIRO 💇',
     'PRA QUEM GOSTA DE CONTROLAR O VOLUME (DO CABELO) 😏',
@@ -6569,6 +6607,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
 
   // ─── Eletrodomésticos (mais específico primeiro) ──────────────────────────
   { kw: ['air fryer digital', 'air fryer elétrica', 'air fryer', 'airfryer', 'fritadeira sem óleo'], phraseKey: 'air fryer' },
+  { kw: ['adega climatizada', 'adega de vinho', 'adega para vinho', 'cave de vinho', 'refrigerador de vinho'], phraseKey: 'adega climatizada' },
   { kw: ['geladeira frost free', 'geladeira side by side', 'geladeira duplex'],       phraseKey: 'geladeira' },
   { kw: ['geladeira', 'refrigerador', 'frigobar'],                                   phraseKey: 'geladeira' },
   { kw: ['microondas de bancada', 'microondas com grill', 'microondas'],              phraseKey: 'microondas' },
@@ -6657,7 +6696,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['secador de cabelo profissional', 'secador de cabelo', 'secador'],           phraseKey: 'secador' },
   { kw: ['chapinha profissional', 'prancha de cabelo', 'chapinha', 'prancha'],        phraseKey: 'chapinha' },
   { kw: ['barbeador elétrico', 'aparelho de barbear', 'aparador de pelos'],           phraseKey: 'barbeador elétrico' },
-  { kw: ['escova secadora', 'escova rotativa'],                                       phraseKey: 'secador' },
+  { kw: ['escova rotativa', 'escova secadora rotativa', 'escova com rotação', 'babyliss rotativa', 'escova styling'], phraseKey: 'escova rotativa' },
+  { kw: ['escova secadora', 'escova alisadora', 'escova modeladora'],                phraseKey: 'escova rotativa' },
 
   // ─── Relógios / Joias (mais específico primeiro) ──────────────────────────
   { kw: ['relógio masculino', 'relogio masculino', 'watch masculino'],                phraseKey: 'relógio masculino' },
@@ -7320,6 +7360,8 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'celular':    'celular',
   'smartwatch': 'smartwatch',
   'fone':       'fone',
+  'adega climatizada': 'adega climatizada',
+  'escova rotativa':   'escova rotativa',
   'geladeira':  'geladeira',
   'microondas': 'microondas',
   'air fryer':  'air fryer',
