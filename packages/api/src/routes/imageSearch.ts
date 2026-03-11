@@ -58,15 +58,8 @@ export async function imageSearchRoutes(fastify: FastifyInstance) {
         timeout: 10000,
       });
 
-      const rawItems: GoogleImageItem[] = response.data.items ?? [];
-      console.log('[ImageSearch] Resultados Google:', rawItems.length);
-
-      // Filtrar ML do resultado — fotos do ML já estão disponíveis via scraper (fallback)
-      const items = rawItems.filter(item => {
-        const src = item.link?.toLowerCase() ?? '';
-        const ctx = item.image?.contextLink?.toLowerCase() ?? '';
-        return !src.includes('mlstatic') && !ctx.includes('mercadolivre');
-      });
+      const items: GoogleImageItem[] = response.data.items ?? [];
+      console.log('[ImageSearch] Resultados Google:', items.length);
 
       const images = items.map(item => ({
         url:       item.link,
