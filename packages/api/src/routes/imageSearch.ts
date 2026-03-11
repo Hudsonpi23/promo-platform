@@ -45,15 +45,18 @@ export async function imageSearchRoutes(fastify: FastifyInstance) {
 
       const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
         params: {
-          key:        GOOGLE_API_KEY,
-          cx:         GOOGLE_ENGINE_ID,
-          q:          searchQuery,
-          searchType: 'image',
-          num:        10,
-          imgSize:    'large',
-          imgType:    'photo',
-          safe:       'active',
-          gl:         'br',
+          key:            GOOGLE_API_KEY,
+          cx:             GOOGLE_ENGINE_ID,
+          q:              searchQuery,
+          searchType:     'image',
+          num:            10,
+          imgSize:        'large',
+          imgType:        'photo',
+          safe:           'active',
+          gl:             'br',
+          // Excluir ML — fotos do ML já estão disponíveis via scraper
+          siteSearch:     'mercadolivre.com.br',
+          siteSearchFilter: 'e',
         },
         timeout: 10000,
       });
