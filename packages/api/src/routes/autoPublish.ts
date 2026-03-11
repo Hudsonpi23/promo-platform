@@ -44,9 +44,10 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       postTelegram?: boolean;
       postTwitter?: boolean;
       isFlash?: boolean;
-      flashMinutes?: number; // duração em minutos (ex: 180 = 3h)
+      flashMinutes?: number;
+      couponCode?: string;
     };
-    const { urls, postTelegram = true, postTwitter = true, isFlash = false, flashMinutes = 180 } = body;
+    const { urls, postTelegram = true, postTwitter = true, isFlash = false, flashMinutes = 180, couponCode } = body;
 
     if (!urls || !Array.isArray(urls) || urls.length === 0) {
       return reply.status(400).send({ error: 'Forneça ao menos uma URL.' });
@@ -179,6 +180,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
             promoType: isFlash ? 'RELAMPAGO' : 'NORMAL',
             expiresAt: flashExpiresAt,
             curationStatus: 'APPROVED',
+            couponCode: couponCode || null,
           },
           include: { store: { select: { name: true } } },
         });
@@ -205,10 +207,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           }
 
           goCode = nanoid(8);
-          const discountLine = discountPct > 0
-            ? `${discountPct}% de desconto!`
-            : '';
-          const copyText = `🔥 ${offer.title}\n\nDe R$ ${offer.originalPrice ?? offer.finalPrice} por R$ ${offer.finalPrice}${discountLine ? '\n\n' + discountLine : ''}`;
+          const discountLine = discountPct > 0 ? `${discountPct}% de desconto!` : '';
+          const couponLine = couponCode ? `\n\n🏷️ Cupom: ${couponCode}` : '';
+          const copyText = `🔥 ${offer.title}\n\nDe R$ ${offer.originalPrice ?? offer.finalPrice} por R$ ${offer.finalPrice}${discountLine ? '\n\n' + discountLine : ''}${couponLine}`;
 
           await prisma.publishedPost.create({
             data: {
@@ -251,6 +252,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           siteUrl: siteLink,
           isFlash,
           flashMinutes,
+          couponCode: couponCode || undefined,
         });
 
         // ── 8. POSTAR NO TELEGRAM ─────────────────────────────────────────

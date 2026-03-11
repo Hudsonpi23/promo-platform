@@ -41,6 +41,7 @@ export default function AutoPublicarPage() {
   const [isFlash, setIsFlash] = useState(false);
   const [flashHours, setFlashHours] = useState(3);
   const [flashMins, setFlashMins] = useState(0);
+  const [couponCode, setCouponCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<PublishResult[] | null>(null);
   const [summary, setSummary] = useState<{ total: number; successCount: number; errorCount: number } | null>(null);
@@ -72,6 +73,7 @@ export default function AutoPublicarPage() {
           postTwitter,
           isFlash,
           flashMinutes: isFlash ? flashMinutes : undefined,
+          couponCode: couponCode.trim() || undefined,
         }),
       });
 
@@ -123,6 +125,21 @@ https://amzn.to/xyz123`}
         {urlList.length > 0 && (
           <p className="text-xs text-text-muted mt-1">{urlList.length} link(s) detectado(s)</p>
         )}
+
+        {/* Cupom de desconto */}
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            🏷️ Cupom de Desconto <span className="text-text-muted text-xs">(opcional — aplica a todos os links)</span>
+          </label>
+          <input
+            type="text"
+            value={couponCode}
+            onChange={e => setCouponCode(e.target.value.toUpperCase())}
+            disabled={loading}
+            placeholder="Ex: OFERTA15"
+            className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm uppercase tracking-widest"
+          />
+        </div>
 
         {/* Canais */}
         <div className="flex gap-6 mt-4 flex-wrap">
