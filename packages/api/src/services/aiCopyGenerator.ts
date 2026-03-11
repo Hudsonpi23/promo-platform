@@ -7978,8 +7978,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     return null;
   })();
 
-  const couponLine = input.couponCode ? `🏷️ Cupom: ${input.couponCode}` : null;
-
+  // X não exibe linha de cupom (limite de caracteres — cupom fica só no Telegram)
   const fixedLines = [
     hook,
     ...(subtitle ? [subtitle] : []),
@@ -7988,7 +7987,6 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     '',
     ...priceBlock,
     ...(discountLine ? ['', discountLine] : []),
-    ...(couponLine ? ['', couponLine] : []),
     ...(flashTimeLine ? ['', flashTimeLine] : []),
     '',
     `${cta} ${urlPlaceholder}`,
@@ -8025,10 +8023,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     lines.push(discountLine);
   }
 
-  if (couponLine) {
-    lines.push('');
-    lines.push(couponLine);
-  }
+  // Cupom removido do X — exibido apenas no Telegram
 
   if (flashTimeLine) {
     lines.push('');
