@@ -7989,7 +7989,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     ...(discountLine ? ['', discountLine] : []),
     ...(flashTimeLine ? ['', flashTimeLine] : []),
     '',
-    `${cta} ${urlPlaceholder}`,
+    `👉 ${urlPlaceholder}`,
   ];
   const fixedChars = fixedLines.join('\n').length;
   const titleLimit = Math.max(50, TWITTER_LIMIT - fixedChars);
@@ -8031,7 +8031,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   }
 
   lines.push('');
-  lines.push(`${cta} ${input.trackingUrl}`);
+  lines.push(`👉 ${input.trackingUrl}`);
 
   let finalText = lines.join('\n');
 
