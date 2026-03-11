@@ -60,38 +60,13 @@ export async function scraperRoutes(app: FastifyInstance) {
 
       console.log('[Scraper] Loja detectada:', store);
 
-      // Se for URL de compartilhamento/social do ML, seguir o redirect para obter a URL real do produto
+      // Detectar se é URL social/compartilhamento do ML
+      const isMlSocialUrl = store === 'mercadolivre' && (
+        urlLower.includes('/social/') ||
+        urlLower.includes('/s/') ||
+        urlLower.includes('mlgo.to')
+      );
       let resolvedUrl = url;
-      if (store === 'mercadolivre' && (urlLower.includes('/social/') || urlLower.includes('/s/') || urlLower.includes('mlgo.to'))) {
-        try {
-          console.log('[Scraper] URL de compartilhamento detectada, seguindo redirect...');
-          const redirectRes = await axios.get(url, {
-            maxRedirects: 10,
-            timeout: 10000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36' },
-            validateStatus: () => true,
-          });
-          // axios armazena a URL final em request.res.responseUrl
-          const finalUrl: string = (redirectRes.request as any)?.res?.responseUrl || url;
-          console.log('[Scraper] URL final após redirect:', finalUrl);
-          if (finalUrl && finalUrl !== url) {
-            resolvedUrl = finalUrl;
-          }
-        } catch (redirectErr: any) {
-          console.warn('[Scraper] Falha ao seguir redirect:', redirectErr.message);
-        }
-        // Se ainda continua sendo URL social após tentativa de resolução, rejeitar
-        if (resolvedUrl.toLowerCase().includes('/social/')) {
-          return reply.status(400).send({
-            success: false,
-            error: {
-              code: 'INVALID_PRODUCT_PAGE',
-              message: 'Esta URL não é uma página de produto. Por favor, forneça a URL direta do produto no Mercado Livre.',
-            },
-          });
-        }
-        console.log('[Scraper] Usando URL resolvida:', resolvedUrl);
-      }
 
       let productData: any = {};
 
@@ -128,7 +103,9 @@ export async function scraperRoutes(app: FastifyInstance) {
         console.log('[Scraper] Título da página:', pageTitle.substring(0, 100));
 
         // Scraping específico por loja
-        if (store === 'mercadolivre') {
+        if (store === 'mercadolivre' && isMlSocialUrl) {
+          productData = await scrapeMercadoLivreSocial(page, url);
+        } else if (store === 'mercadolivre') {
           productData = await scrapeMercadoLivre(page);
         } else if (store === 'magalu') {
           productData = await scrapeMagalu(page);
@@ -209,8 +186,8 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o preço do produto.');
         }
 
-        // Adicionar URL original (ou a resolvida se veio de link social)
-        productData.affiliateUrl = resolvedUrl;
+        // URL afiliada: social tem prioridade (cookies de rastreamento ML já embutidos)
+        productData.affiliateUrl = productData.affiliateUrl || url;
 
         console.log('[Scraper] Dados extraídos:', {
           title: productData.title?.substring(0, 50),
@@ -275,6 +252,98 @@ export async function scraperRoutes(app: FastifyInstance) {
 }
 
 // ==================== SCRAPERS ESPECÍFICOS ====================
+
+/**
+ * Scraper para páginas sociais/compartilhamento do ML
+ * Ex: mercadolivre.com.br/social/dh20260120130733?matt_word=...
+ * A URL social JÁ contém os cookies de rastreamento do afiliado.
+ */
+async function scrapeMercadoLivreSocial(page: any, originalSocialUrl: string) {
+  console.log('[Scraper] Usando scraper de página social do Mercado Livre...');
+
+  // Aguardar o card do produto carregar
+  await page.waitForTimeout(2000);
+
+  // Título — tentar vários seletores usados nas páginas sociais do ML
+  const title = await page.$eval('h1', (el: any) => el.textContent?.trim())
+    .catch(() => page.$eval('[class*="title"]', (el: any) => el.textContent?.trim()))
+    .catch(() => page.$eval('[class*="product-title"]', (el: any) => el.textContent?.trim()))
+    .catch(() => page.title().then((t: string) => t.replace('| Mercado Livre', '').trim()))
+    .catch(() => '');
+
+  // Preços — coletar todos os valores monetários e classificar
+  let finalPrice = 0;
+  let originalPrice: number | null = null;
+
+  try {
+    // Preço riscado (original)
+    const origFraction = await page.$eval(
+      '.andes-money-amount--previous .andes-money-amount__fraction',
+      (el: any) => el.textContent?.replace(/\D/g, '') || ''
+    ).catch(() => '');
+    const origCents = await page.$eval(
+      '.andes-money-amount--previous .andes-money-amount__cents',
+      (el: any) => el.textContent?.replace(/\D/g, '').padStart(2, '0') || '00'
+    ).catch(() => '00');
+
+    if (origFraction) {
+      originalPrice = parseFloat(`${origFraction}.${origCents}`);
+    }
+
+    // Preço final (não riscado)
+    const finalFraction = await page.$eval(
+      '.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__fraction',
+      (el: any) => el.textContent?.replace(/\D/g, '') || ''
+    ).catch(() => '');
+    const finalCents = await page.$eval(
+      '.andes-money-amount:not(.andes-money-amount--previous) .andes-money-amount__cents',
+      (el: any) => el.textContent?.replace(/\D/g, '').padStart(2, '0') || '00'
+    ).catch(() => '00');
+
+    if (finalFraction) {
+      finalPrice = parseFloat(`${finalFraction}.${finalCents}`);
+    }
+  } catch (e) {
+    console.warn('[Scraper ML Social] Erro ao extrair preços:', e);
+  }
+
+  // Desconto
+  let discount = 0;
+  if (originalPrice && originalPrice > finalPrice && finalPrice > 0) {
+    discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+  }
+
+  // Imagem principal
+  const mainImage = await page.$eval('img[src*="mlstatic"]', (el: any) => el.src)
+    .catch(() => page.$eval('figure img', (el: any) => el.src))
+    .catch(() => page.$eval('img[src^="https"]', (el: any) => el.src))
+    .catch(() => '');
+
+  // Imagens adicionais
+  const images = await page.$$eval('img[src]', (imgs: any[]) =>
+    imgs.map((el: any) => el.src as string)
+      .filter((src: string) => src && src.startsWith('http') && !src.includes('logo') && !src.includes('icon') && src.length > 30)
+  ).catch(() => [mainImage]);
+
+  // Link do botão "Ir para o produto" — URL do produto com parâmetros de rastreamento
+  const productLink = await page.$eval(
+    'a[href*="mercadolivre"]:not([href*="/social/"])',
+    (el: any) => el.href
+  ).catch(() => null);
+
+  console.log('[Scraper ML Social] Dados extraídos:', { title: title?.substring(0,50), finalPrice, originalPrice, discount });
+
+  return {
+    title,
+    finalPrice,
+    originalPrice: (originalPrice && originalPrice !== finalPrice) ? originalPrice : null,
+    discount,
+    mainImage,
+    images: (images as string[]).slice(0, 10),
+    // URL afiliada: preferir o link direto do produto (tem parâmetros matt_*), senão usar social
+    affiliateUrl: productLink || originalSocialUrl,
+  };
+}
 
 async function scrapeMercadoLivre(page: any) {
   console.log('[Scraper] Usando scraper do Mercado Livre...');
