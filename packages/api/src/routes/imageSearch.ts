@@ -45,25 +45,28 @@ export async function imageSearchRoutes(fastify: FastifyInstance) {
 
       const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
         params: {
-          key:            GOOGLE_API_KEY,
-          cx:             GOOGLE_ENGINE_ID,
-          q:              searchQuery,
-          searchType:     'image',
-          num:            10,
-          imgSize:        'large',
-          imgType:        'photo',
-          safe:           'active',
-          gl:             'br',
-          // Excluir ML — fotos do ML já estão disponíveis via scraper
-          siteSearch:     'mercadolivre.com.br',
-          siteSearchFilter: 'e',
+          key:        GOOGLE_API_KEY,
+          cx:         GOOGLE_ENGINE_ID,
+          q:          searchQuery,
+          searchType: 'image',
+          num:        10,
+          imgSize:    'large',
+          imgType:    'photo',
+          safe:       'active',
+          gl:         'br',
         },
         timeout: 10000,
       });
 
-      console.log('[ImageSearch] Resultados Google:', response.data.items?.length ?? 0);
+      const rawItems: GoogleImageItem[] = response.data.items ?? [];
+      console.log('[ImageSearch] Resultados Google:', rawItems.length);
 
-      const items: GoogleImageItem[] = response.data.items ?? [];
+      // Filtrar ML do resultado — fotos do ML já estão disponíveis via scraper (fallback)
+      const items = rawItems.filter(item => {
+        const src = item.link?.toLowerCase() ?? '';
+        const ctx = item.image?.contextLink?.toLowerCase() ?? '';
+        return !src.includes('mlstatic') && !ctx.includes('mercadolivre');
+      });
 
       const images = items.map(item => ({
         url:       item.link,
