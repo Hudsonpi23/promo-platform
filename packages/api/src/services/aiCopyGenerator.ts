@@ -7983,7 +7983,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   const xCouponCode = rawCoupon
     ? (rawCoupon.match(/[A-Z0-9]{4,20}/i)?.[0] ?? rawCoupon.substring(0, 20))
     : null;
-  const couponLine = xCouponCode ? `🏷️ ${xCouponCode}` : null;
+  const couponLine = xCouponCode ? `🏷️ Cupom: ${xCouponCode}` : null;
 
   // Subtitle omitido no X — libera espaço para o título completo do produto
   const fixedLines = [
