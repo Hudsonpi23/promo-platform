@@ -33,20 +33,32 @@ export async function imageSearchRoutes(fastify: FastifyInstance) {
     }
 
     try {
+      // Limpar título: remover modelo/código técnico para query mais eficaz no Google
+      const cleanQuery = q.trim()
+        .replace(/\b[A-Z]{2,}\d{3,}[A-Z0-9]*\b/g, '') // remover códigos tipo CWB09BB, MLB123
+        .replace(/\s{2,}/g, ' ')
+        .trim();
+      const searchQuery = cleanQuery.length > 10 ? cleanQuery : q.trim();
+
+      console.log('[ImageSearch] Query original:', q.trim().substring(0, 60));
+      console.log('[ImageSearch] Query limpa:', searchQuery.substring(0, 60));
+
       const response = await axios.get('https://www.googleapis.com/customsearch/v1', {
         params: {
           key:        GOOGLE_API_KEY,
           cx:         GOOGLE_ENGINE_ID,
-          q:          q.trim(),
+          q:          searchQuery,
           searchType: 'image',
           num:        10,
           imgSize:    'large',
+          imgType:    'photo',
           safe:       'active',
-          lr:         'lang_pt',
           gl:         'br',
         },
         timeout: 10000,
       });
+
+      console.log('[ImageSearch] Resultados Google:', response.data.items?.length ?? 0);
 
       const items: GoogleImageItem[] = response.data.items ?? [];
 
