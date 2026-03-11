@@ -93,19 +93,45 @@ export async function scraperRoutes(app: FastifyInstance) {
         });
         const page = await context.newPage();
 
-        // Navegar para a página (usar resolvedUrl se foi redirecionado de URL social)
         console.log('[Scraper] Usando Playwright...');
-        await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForTimeout(2000);
+
+        // Para URLs sociais do ML: abrir a página social, extrair o link do produto e navegar até ele
+        if (isMlSocialUrl) {
+          console.log('[Scraper ML Social] Abrindo página social para extrair link do produto...');
+          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.waitForTimeout(3000);
+
+          // Extrair o link do botão "Ir para produto" — ele já vem com matt_word e matt_tool
+          const productLink: string | null = await page.$eval(
+            'a[href*="mercadolivre.com.br"]:not([href*="/social/"])',
+            (el: any) => el.href
+          ).catch(() => null);
+
+          if (productLink) {
+            console.log('[Scraper ML Social] Link do produto encontrado:', productLink.substring(0, 80));
+            resolvedUrl = productLink; // Scrape na página real do produto
+            // Preservar como affiliateUrl — tem os parâmetros de rastreamento matt_*
+            // (será definido depois em productData.affiliateUrl)
+          } else {
+            console.warn('[Scraper ML Social] Link não encontrado na página social, tentando scrape direto...');
+          }
+
+          // Navegar para a página do produto (ou continuar na social se não encontrou link)
+          if (resolvedUrl !== url) {
+            await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForTimeout(2000);
+          }
+        } else {
+          await page.goto(resolvedUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await page.waitForTimeout(2000);
+        }
 
         // Verificar se a página carregou corretamente
         const pageTitle = await page.title().catch(() => '');
         console.log('[Scraper] Título da página:', pageTitle.substring(0, 100));
 
         // Scraping específico por loja
-        if (store === 'mercadolivre' && isMlSocialUrl) {
-          productData = await scrapeMercadoLivreSocial(page, url);
-        } else if (store === 'mercadolivre') {
+        if (store === 'mercadolivre') {
           productData = await scrapeMercadoLivre(page);
         } else if (store === 'magalu') {
           productData = await scrapeMagalu(page);
@@ -186,8 +212,9 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o preço do produto.');
         }
 
-        // URL afiliada: social tem prioridade (cookies de rastreamento ML já embutidos)
-        productData.affiliateUrl = productData.affiliateUrl || url;
+        // URL afiliada: para URLs sociais usar resolvedUrl (link do produto com matt_word/matt_tool)
+        // Para URLs diretas usar a URL original
+        productData.affiliateUrl = productData.affiliateUrl || resolvedUrl || url;
 
         console.log('[Scraper] Dados extraídos:', {
           title: productData.title?.substring(0, 50),
