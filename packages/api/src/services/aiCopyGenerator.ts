@@ -4562,6 +4562,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRODUTIVIDADE COM SAÚDE — MOUSE ERGONÔMICO FAZ ESSA DIFERENÇA 🔥',
   ],
 
+  // ── Projetor Smart ─────────────────────────────────────────────────────────
+  'projetor smart': [
+    'PROJETOR SMART: NETFLIX, YOUTUBE E PRIME NA PAREDE SEM TV 📽️',
+    'PRA QUEM QUER STREAMING EM QUALQUER TAMANHO QUE IMAGINAR 🎬',
+    'CONECTA NO WI-FI E JÁ PROJETA — SEM CABO, SEM FRESCURA ⚡',
+    'ESSE PROJETOR SUBSTITUI A TV E AINDA FAZ MAIS 🔥',
+    'PRA QUEM QUER TELA DE 100 POLEGADAS SEM PAGAR 100 POLEGADAS 💡',
+    'SMART PROJETOR: O CINEMA QUE VOCÊ CONTROLA PELO CELULAR 📱',
+    'PRA MARATONAR, APRESENTAR E JOGAR — TUDO NO MESMO APARELHO 🎮',
+    'PROJETOR COM ANDROID EMBUTIDO — ESQUECE O CHROMECAST 🤖',
+    'PRA QUEM QUER O MÁXIMO DE IMAGEM NO MÍNIMO DE ESPAÇO 💎',
+    'A PAREDE VIROU TELA E A TELA VIROU CINEMA DE VERDADE 🌟',
+    'WI-FI, BLUETOOTH, STREAMING — TUDO JUNTO EM UM SÓ PROJETOR 🔗',
+    'PRA QUEM CANSOU DE TV PEQUENA E NÃO QUER GASTAR COM TV GRANDE 😏',
+    'ESSE PROJETOR TEM MAIS RECURSO QUE SMART TV DA CONCORRENTE 📺',
+    'PRA QUEM MORA EM APARTAMENTO PEQUENO MAS PENSA EM TELA GRANDE 🏠',
+    'PROJETOR SMART QUE ENTREGA QUALIDADE 4K NA HORA QUE VOCÊ QUISER 🎥',
+  ],
+
   // ── Mini Projetor Portátil ─────────────────────────────────────────────────
   'mini projetor': [
     'CINEMA EM QUALQUER PAREDE — SEM TELEVISÃO E SEM BUROCRACIA 🎬',
@@ -6265,6 +6284,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['tv qled', 'tv oled', 'tv neo qled'],                                        phraseKey: 'smart tv' },
   { kw: ['tv 4k', 'tv 8k', 'tv uhd', 'tv led', 'tv full hd'],                        phraseKey: 'tv' },
   { kw: ['televisor', 'televisão', 'televisao'],                                      phraseKey: 'tv' },
+  { kw: ['projetor smart', 'smart projector', 'projetor android', 'projetor wifi', 'projetor wi-fi'], phraseKey: 'projetor smart' },
   { kw: ['mini projetor', 'projetor portátil', 'projetor pocket'],                   phraseKey: 'mini projetor' },
   { kw: ['projetor'],                                                                 phraseKey: 'projetor' },
 
@@ -7095,6 +7115,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'soundbar':   'soundbar',
   'caixa de som': 'pool:caixa de som',
   'airpods':    'airpods',
+  'projetor smart': 'projetor smart',
   'projetor':   'projetor',
   'drone':       'drone',
   'telescópio':  'telescópio',
