@@ -2636,6 +2636,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'FRALDA DE QUALIDADE POR MENOS 🌟',
   ],
 
+  // ── Fralda Geriátrica / Adulto ──────────────────────────────────────────
+  'fralda geriátrica': [
+    'CONFORTO E DIGNIDADE QUE TODO IDOSO MERECE 💛',
+    'PRA QUEM CUIDA COM AMOR E PRECISA CONFIAR NO PRODUTO 🛡️',
+    'ABSORÇÃO QUE AGUENTA O DIA TODO SEM VAZAR 💧',
+    'PRA CUIDAR DE QUEM VOCÊ AMA SEM PREOCUPAÇÃO ❤️',
+    'FRALDA QUE RESPEITA A PELE SENSÍVEL E A DIGNIDADE DE QUEM USA 🌸',
+    'PRA QUEM CUIDA DE IDOSO E QUER O MELHOR PELO MENOR PREÇO 💰',
+    'SEGURANÇA E DISCRIÇÃO EM CADA FRALDA — DO JEITO QUE PRECISA SER ✅',
+    'PRA NOITES TRANQUILAS PARA QUEM CUIDA E PRA QUEM É CUIDADO 🌙',
+    'FRALDA QUE DÁ LIBERDADE SEM CONSTRANGIMENTO 💎',
+    'PRA CUIDAR COM CARINHO E EFICIÊNCIA AO MESMO TEMPO 💪',
+    'ABSORÇÃO MÁXIMA QUE PROTEGE A PELE E PRESERVA O CONFORTO 🌟',
+    'PRA QUEM BUSCA QUALIDADE REAL SEM GASTAR DEMAIS NO MÊS 🔥',
+    'FRALDA GERIÁTRICA QUE FAZ A DIFERENÇA NO DIA A DIA DE QUEM CUIDA 🏠',
+    'PRA IDOSOS ATIVOS OU EM REPOUSO — ADAPTA EM QUALQUER ROTINA ⚡',
+    'O CUIDADO QUE A FAMÍLIA OFERECE COMEÇA PELA ESCOLHA CERTA 💕',
+  ],
+
   // ── Ferramentas / Automotivo ────────────────────────────────────
   'furadeira': [
     'AGORA VOCÊ NÃO TEM DESCULPA PRA AQUELE QUADRO NA PAREDE 🔧',
@@ -6665,6 +6684,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['ventilador de teto', 'ventilador de mesa', 'climatizador', 'ventilador'],   phraseKey: 'ventilador' },
   { kw: ['ar condicionado split', 'ar condicionado portátil', 'ar condicionado'],     phraseKey: 'ar condicionado' },
   { kw: ['ferro de passar a vapor', 'ferro de passar', 'vaporizador'],                phraseKey: 'ferro de passar' },
+  { kw: ['fralda geriátrica', 'fralda para adulto', 'fralda adulto', 'fralda de idoso', 'fralda geriátricas', 'absorvente geriátrico', 'roupa íntima descartável adulto'], phraseKey: 'fralda geriátrica' },
   { kw: ['depilador elétrico', 'depilador feminino', 'epilador', 'depilador corporal', 'depilador', 'barbeador feminino'], phraseKey: 'depilador elétrico' },
   { kw: ['máquina de cortar cabelo', 'cortador de cabelo', 'clipper de cabelo', 'máquina de cabelo', 'máquina corte de cabelo'], phraseKey: 'máquina de cortar cabelo' },
 
@@ -7475,6 +7495,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'ferro de passar': 'ferro de passar',
   'secador':        'secador',
   'chapinha':       'chapinha',
+  'fralda geriátrica': 'fralda geriátrica',
   'depilador elétrico': 'depilador elétrico',
   'barbeador elétrico': 'barbeador elétrico',
   'máquina de lavar':   'máquina de lavar',
