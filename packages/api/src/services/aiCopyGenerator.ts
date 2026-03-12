@@ -4208,6 +4208,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'BARBA IMPECÁVEL TODOS OS DIAS 💎',
   ],
 
+  // ── Depilador Elétrico ───────────────────────────────────────────────────
+  'depilador elétrico': [
+    'TCHAU LÂMINA, OLÁ DEPILADOR QUE RESOLVE DE VERDADE 🪒',
+    'PRA QUEM QUER PELE LISA SEM SAIR DE CASA ✨',
+    'DEPILAÇÃO EM CASA: MAIS PRÁTICO, MAIS BARATO, MAIS RÁPIDO ⚡',
+    'PRA QUEM CANSOU DE PAGAR CARO NO SALÃO TODO MÊS 💰',
+    'DEPILADOR QUE FAZ O TRABALHO SEM VOCÊ PRECISAR SAIR 🏠',
+    'PRA QUEM QUER PELE LISINHA NA HORA QUE QUISER 💎',
+    'PEQUENO, POTENTE E RESOLVE SEM DOR EXCESSIVA 💡',
+    'PRA QUEM JÁ GASTOU DEMAIS COM CERA E QUER UMA SOLUÇÃO DEFINITIVA 😤',
+    'DEPILAÇÃO FEITA POR VOCÊ, NO SEU RITMO, NO SEU TEMPO ✅',
+    'PRA QUEM QUER RESULTADO DE SALÃO SEM PAGAR PREÇO DE SALÃO 🌟',
+    'ESSE DEPILADOR VIROU FAVORITO DE QUEM TESTOU UMA VEZ 🔥',
+    'PRA VIAGEM, ROTINA OU EMERGÊNCIA — CABE NA BOLSA E RESOLVE 👜',
+    'PELE LISINHA 365 DIAS POR ANO SEM MARCAR HORÁRIO 📅',
+    'PRA QUEM QUER PRATICIDADE E NÃO ABRE MÃO DE RESULTADO 💪',
+    'O DEPILADOR QUE FAZ A PELE AGRADECER E O BOLSO TAMBÉM 🏆',
+  ],
+
   // ── Máquina de Cortar Cabelo ─────────────────────────────────────────────
   'máquina de cortar cabelo': [
     'CORTE EM CASA SEM PAGAR BARBEIRO 💈',
@@ -6630,7 +6649,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['ventilador de teto', 'ventilador de mesa', 'climatizador', 'ventilador'],   phraseKey: 'ventilador' },
   { kw: ['ar condicionado split', 'ar condicionado portátil', 'ar condicionado'],     phraseKey: 'ar condicionado' },
   { kw: ['ferro de passar a vapor', 'ferro de passar', 'vaporizador'],                phraseKey: 'ferro de passar' },
-  { kw: ['depilador', 'barbeador feminino'],                                          phraseKey: 'barbeador elétrico' },
+  { kw: ['depilador elétrico', 'depilador feminino', 'epilador', 'depilador corporal', 'depilador', 'barbeador feminino'], phraseKey: 'depilador elétrico' },
   { kw: ['máquina de cortar cabelo', 'cortador de cabelo', 'clipper de cabelo', 'máquina de cabelo', 'máquina corte de cabelo'], phraseKey: 'máquina de cortar cabelo' },
 
   // ─── Vestuário Impermeável ─────────────────────────────────────────────
@@ -7439,6 +7458,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'ferro de passar': 'ferro de passar',
   'secador':        'secador',
   'chapinha':       'chapinha',
+  'depilador elétrico': 'depilador elétrico',
   'barbeador elétrico': 'barbeador elétrico',
   'máquina de lavar':   'máquina de lavar',
   'fogão de indução':   'fogão de indução',
