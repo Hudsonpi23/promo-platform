@@ -1922,6 +1922,20 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM GOSTA DE LIBERDADE NAS PERNAS 🌬️',
     'BERMUDA HONESTA POR UM PREÇO JUSTO 💰',
   ],
+  // ── Crocs / Clog ──────────────────────────────────────────────────────────
+  'crocs': [
+    'O SAPATO QUE TODO MUNDO CRITICOU E TODO MUNDO ACABOU COMPRANDO 😏',
+    'PRA QUEM PRIORIZA PÉ FELIZ ACIMA DE QUALQUER TENDÊNCIA 🦶',
+    'LEVE NO PÉ, LEVE NO BOLSO, PESADO NO CONFORTO 💡',
+    'PRA QUEM TRABALHA O DIA TODO EM PÉ E QUER SOBREVIVER 💪',
+    'VENTILADO, LEVE E LAVÁVEL — SANDÁLIA QUE FAZ SENTIDO 🌬️',
+    'PRA QUEM DESCOBRIU QUE CONFORTO É MAIS IMPORTANTE QUE OPINIÃO 😎',
+    'ESSE CALÇADO DIVIDE OPINIÕES MAS UNE QUEM USA 🌟',
+    'PRA USAR EM CASA, NA RUA OU NA PRAIA — RESOLVE IGUAL 🏖️',
+    'QUEM COMPRA UMA VEZ COMPRA A SEGUNDA SEM PENSAR MUITO ✅',
+    'PRA QUEM JÁ PASSOU DA FASE DE SOFRER COM SAPATO BONITO 🔥',
+  ],
+
   'sandália': [
     'SANDÁLIA QUE O PÉ AGRADECE 👡',
     'PRA QUEM NÃO GOSTA DE PÉ PRESO 🌞',
@@ -6526,6 +6540,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['chuteira society', 'chuteira campo', 'chuteira futsal', 'chuteira'],        phraseKey: 'chuteira' },
   { kw: ['botina de segurança', 'botina de trabalho', 'botina'],                      phraseKey: 'bota' },
   { kw: ['bota feminina', 'bota de couro', 'bota cano longo', 'bota'],               phraseKey: 'bota' },
+  { kw: ['crocs bayaband', 'crocs classic', 'crocs clog', 'sandalia crocs', 'sandália crocs', 'crocs'],  phraseKey: 'crocs' },
+  { kw: ['crocs bayaband', 'crocs classic', 'crocs clog', 'sandália crocs', 'crocs'],  phraseKey: 'crocs' },
   { kw: ['sandália rasteira', 'sandália plataforma', 'sandália feminina'],            phraseKey: 'sandália' },
   { kw: ['sandália', 'sandalia'],                                                     phraseKey: 'sandália' },
   { kw: ['chinelo de dedo', 'chinelo masculino', 'chinelo feminino', 'chinelo slide'], phraseKey: 'chinelo', brandCat: 'chinelo' },
@@ -7344,6 +7360,7 @@ function peekProductSpecificPhrase(title: string, phraseMode?: 'generic' | 'bran
 // ══════════════════════════════════════════════════════════════════════════════
 const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Calçados → pool unificado (marca+genérico)
+  'crocs':    'crocs',
   'tênis':    'pool:tenis',
   'chinelo':  'pool:chinelo',
   // Vestuário — subtipos específicos (mais específico primeiro)
