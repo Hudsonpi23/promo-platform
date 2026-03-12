@@ -3268,6 +3268,16 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'CUECA QUE NÃO MACHUCA E NÃO DECEPCIONA ✅',
     'PRA QUEM LEVA CONFORTO A SÉRIO 💪',
     'O BÁSICO QUE TEM QUE TER QUALIDADE 🌟',
+    'SEM COSTURA, SEM DOR, SEM ARREPENDIMENTO 🔥',
+    'PRA QUEM SABE QUE CONFORTO COMEÇA NA PEÇA MAIS ÍNTIMA 💎',
+    'KIT QUE RESOLVE A SEMANA INTEIRA DE UMA VEZ ⚡',
+    'PRA QUEM NÃO ABRE MÃO DE QUALIDADE ATÉ NO QUE NÃO APARECE 💡',
+    'CUECA BOA É AQUELA QUE VOCÊ ESQUECE QUE TÁ USANDO ✨',
+    'PRA QUEM QUER TECIDO LEVE, FRESCO E SEM APERTO O DIA TODO 🌬️',
+    'COMPRA O KIT E ESQUECE O PROBLEMA POR MESES 💰',
+    'PRA QUEM TROCA ROUPA ÍNTIMA SEM CULPA E COM INTELIGÊNCIA 😏',
+    'CUECA QUE AGUENTA A ROTINA E AINDA VOLTA BOA PRA PRÓXIMA LAVAGEM 💪',
+    'O INVESTIMENTO MAIS INTELIGENTE DO GUARDA-ROUPA MASCULINO 🏆',
   ],
   'meia': [
     'PÉ FELIZ = DIA MELHOR 🧦',
@@ -6571,6 +6581,10 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['calça de moletom', 'calça sweatpants'],                                     phraseKey: 'calça' },
   { kw: ['calça', 'calca'],                                                           phraseKey: 'calça',            brandCat: 'roupas' },
 
+  // ─── Roupa Íntima (detectar ANTES de marcas esportivas para evitar conflito) ──
+  { kw: ['cueca boxer', 'cueca brief', 'cueca slip', 'kit cueca', 'cueca sem costura', 'cueca masculina', 'cueca'], phraseKey: 'cueca' },
+  { kw: ['calcinha', 'calcinha fio dental', 'calcinha sem costura', 'kit calcinha'],  phraseKey: 'cueca' },
+
   // ─── Calçados (mais específico primeiro) ─────────────────────────────────
   { kw: ['tênis running', 'tênis de corrida', 'tênis esportivo', 'tênis training'],   phraseKey: 'tênis',            brandCat: 'tenis' },
   { kw: ['tênis casual', 'tênis lifestyle', 'tênis chunky'],                          phraseKey: 'tênis',            brandCat: 'tenis' },
@@ -7404,6 +7418,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'chinelo':  'pool:chinelo',
   // Vestuário — subtipos específicos (mais específico primeiro)
   'insider':        'insider',
+  'cueca':          'cueca',
   'camisa de time': 'camisa de time',
   'camisa polo':    'camisa polo',
   'camisa social':  'camisa social',
