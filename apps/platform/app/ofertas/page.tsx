@@ -611,7 +611,7 @@ export default function OfertasPage() {
         ? parseFloat(instValRaw.replace(',', '.'))
         : undefined;
 
-      const phraseMode = cardPhraseMode[offerId] ?? 'brand';
+      const phraseMode = cardPhraseMode[offerId] ?? 'generic';
       const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -720,7 +720,7 @@ export default function OfertasPage() {
         ? parseFloat(instValRaw.replace(',', '.'))
         : undefined;
 
-      const phraseModeT = cardPhraseMode[offerId] ?? 'brand';
+      const phraseModeT = cardPhraseMode[offerId] ?? 'generic';
       const response = await fetchWithAuth(`/api/telegram/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1418,7 +1418,7 @@ export default function OfertasPage() {
                       key={mode}
                       onClick={() => setCardPhraseMode(prev => ({ ...prev, [offer.id]: mode }))}
                       className={`flex-1 py-1 rounded text-[11px] font-medium transition-all border ${
-                        (cardPhraseMode[offer.id] ?? 'brand') === mode
+                        (cardPhraseMode[offer.id] ?? 'generic') === mode
                           ? 'bg-primary/20 border-primary text-primary'
                           : 'border-border text-text-muted hover:border-primary/30'
                       }`}
