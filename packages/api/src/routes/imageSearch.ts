@@ -18,14 +18,32 @@ export async function imageSearchRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: 'Parâmetro q obrigatório (mínimo 3 caracteres)' });
     }
 
-    // Limpar query: remover códigos técnicos para melhor resultado
-    const cleanQuery = q.trim()
-      .replace(/\b[A-Z]{2,}\d{3,}[A-Z0-9]*\b/g, '')
+    // ── Limpar query ──────────────────────────────────────────────────────────
+    // 1. Remover códigos técnicos de modelo (ex: HQ24IP200, BLS-01-B, MLB123)
+    // 2. Remover voltagem/tensão (127v, 220v, bivolt)
+    // 3. Remover dimensões isoladas (24", 50ml, 1400w)
+    // 4. Remover marcas de loja/plataforma (Mercado Livre, Amazon, etc.)
+    // 5. Pegar apenas as primeiras palavras relevantes (máx 6 palavras)
+    const rawTitle = q.trim();
+
+    const cleaned = rawTitle
+      .replace(/\b[A-Z]{1,4}\d{2,}[A-Z0-9\-]*\b/gi, '')   // códigos de modelo
+      .replace(/\b\d+\s*(?:v|w|hz|ml|l|kg|cm|mm|gb|tb|mp|pol|"\b)/gi, '') // voltagem, watts, etc
+      .replace(/\b(?:bivolt|127v|220v|full\s*hd|4k|uhd|oled|qled)\b/gi, '')
+      .replace(/\b(?:mercado livre|amazon|shopee|magalu|americanas)\b/gi, '')
+      .replace(/[^\w\sÀ-ú]/g, ' ')  // remover caracteres especiais
       .replace(/\s{2,}/g, ' ')
       .trim();
-    const searchQuery = cleanQuery.length > 10 ? cleanQuery : q.trim();
 
-    console.log('[ImageSearch] Query:', searchQuery.substring(0, 60));
+    // Pegar as primeiras 6 palavras para focar no nome do produto
+    const shortTitle = cleaned.split(' ').slice(0, 6).join(' ');
+    const baseQuery = shortTitle.length > 8 ? shortTitle : rawTitle.split(' ').slice(0, 5).join(' ');
+
+    // Adicionar "lifestyle" para forçar fotos de produto em uso real
+    const searchQuery = `${baseQuery} lifestyle`;
+
+    console.log('[ImageSearch] Query original:', rawTitle.substring(0, 60));
+    console.log('[ImageSearch] Query lifestyle:', searchQuery);
 
     // ── 1. SerpApi (Google Images real) ───────────────────────────────────
     if (SERPAPI_KEY) {
