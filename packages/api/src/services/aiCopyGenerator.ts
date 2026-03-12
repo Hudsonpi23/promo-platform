@@ -1050,6 +1050,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM SE VESTE BEM MESMO NOS DIAS QUE NÃO QUER SAIR 💎',
     'LACOSTE: QUANDO O TÊNIS DE CLUBE VIROU O TÊNIS DA ROTA 🎯',
   ],
+  // ── Insider ───────────────────────────────────────────────────────────────
+  'insider': [
+    'INSIDER: A ROUPA QUE PASSOU, VESTIU E JÁ TÁ PRONTA — SEM FERRO, SEM FRESCURA ⚡',
+    'PRA QUEM MORA SOZINHO E NÃO TEM TEMPO PRA FICAR PASSANDO ROUPA 🏠',
+    'INSIDER: O TECIDO QUE SE MOLDA NO CORPO E NÃO AMASSA NUNCA 💎',
+    'PRA QUEM QUER PARECER ARRUMADO SEM TER FEITO NADA 😏',
+    'TIROU DA MALA, VESTIU, TÁ PERFEITO — SÓ A INSIDER FAZ ISSO ✈️',
+    'PRA QUEM TEM ROTINA CORRIDA E QUER ROUPA QUE ACOMPANHA O RITMO ⚡',
+    'INSIDER: A CORINGA DO GUARDA-ROUPA QUE COMBINA COM TUDO 🃏',
+    'PRA QUEM NÃO QUER PENSAR EM ROUPA MAS QUER SEMPRE ESTAR BEM 💡',
+    'TECNOLOGIA NO TECIDO QUE FAZ A ROUPA TRABALHAR POR VOCÊ 🔬',
+    'PRA QUEM AMASSA A ROUPA SÓ DE OLHAR — ESSA RESISTE A TUDO 😂',
+    'INSIDER: LEVE, FRESCA E AINDA SIM ELEGANTE O DIA TODO 🌟',
+    'PRA QUEM VIAJA MUITO E NÃO QUER CHEGAR AMASSADO NO DESTINO 🧳',
+    'INSIDER: A MARCA QUE ENTENDE A VIDA DE QUEM NÃO PARA 💪',
+    'PRA QUEM QUER QUALIDADE REAL SEM DEPENDER DE FERRO E AMIDO 🔥',
+    'A ROUPA QUE SE CUIDA SOZINHA — LITERALMENTE 🏆',
+  ],
+
   'tommy hilfiger': [
     'TOMMY HILFIGER: O AMERICANO QUE TODO MUNDO RESPEITA SEM SABER EXATAMENTE POR QUÊ 🇺🇸',
     'PRA QUEM QUER CASUAL CHIC MAS SEM PARECER QUE TENTOU DEMAIS 😏',
@@ -6368,7 +6387,7 @@ const MERGED_POOL_KEYS: Record<string, string[]> = {
   ],
   'roupas': [
     'polo ralph lauren', 'ralph lauren', 'lacoste',
-    'tommy hilfiger', 'calvin klein', 'insaider',
+    'tommy hilfiger', 'calvin klein', 'insider', 'insaider',
     "levi's", 'levis',
   ],
   'ferramentas': [
@@ -6502,6 +6521,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['regata', 'camiseta regata', 'top regata'],                                phraseKey: 'regata',           brandCat: 'roupas' },
 
   // 5. Camiseta básica (t-shirt genérica — vem por último entre as camisas)
+  { kw: ['insider camiseta', 'camiseta insider', 'insider camisa', 'camisa insider', 'insider shorts', 'shorts insider', 'insider'],  phraseKey: 'insider', brandCat: 'roupas' },
   { kw: ['camiseta', 'camisa', 'jersey', 'uniforme'],                               phraseKey: 'camisa',           brandCat: 'roupas' },
   // ─── Vestuário externo (mais específico primeiro) ─────────────────────────
   { kw: ['jaqueta masculina', 'jaqueta para homem', 'jaqueta bomber masculina', 'jaqueta corta-vento masculina', 'jaqueta puffer masculina'], phraseKey: 'jaqueta masculina' },
@@ -7383,6 +7403,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'tênis':    'pool:tenis',
   'chinelo':  'pool:chinelo',
   // Vestuário — subtipos específicos (mais específico primeiro)
+  'insider':        'insider',
   'camisa de time': 'camisa de time',
   'camisa polo':    'camisa polo',
   'camisa social':  'camisa social',
