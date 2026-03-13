@@ -2623,6 +2623,25 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'ARTE JAPONESA, NARRATIVA QUE PRENDE, PREÇO QUE CONVENCE 💡',
   ],
   'manga': [],
+  // ── Papel A4 / Sulfite / Resma ───────────────────────────────────────────
+  'papel a4': [
+    'RESMA QUE NÃO ACABA NA HORA ERRADA — AGORA VOCÊ TEM ESTOQUE 📄',
+    'PRA QUEM IMPRIME CURRÍCULO, BOLETO OU OS DOIS AO MESMO TEMPO 😂',
+    'PAPEL QUE NÃO AMASSA, NÃO ENROSCA E NÃO DÁ DOR DE CABEÇA NA IMPRESSORA ✅',
+    'PRA ESCRITÓRIO, ESCOLA OU HOME OFFICE — ESSE PAPEL RESOLVE 💡',
+    'RESMA COMPLETA PRA QUEM VIVE IMPRIMINDO TUDO 🔥',
+    'PRA QUEM SEMPRE ACABA O PAPEL NO PIOR MOMENTO POSSÍVEL 😤',
+    'PAPEL A4 DE QUALIDADE QUE A IMPRESSORA AGRADECE 🖨️',
+    'PRA QUEM COMPRA EM QUANTIDADE E NÃO QUER PREOCUPAÇÃO 💰',
+    'PAPEL BRANCO, PREÇO JUSTO E ENTREGA RÁPIDA — SIMPLES ASSIM ⚡',
+    'PRA QUEM TRABALHA COM DOCUMENTO E PRECISA DE CONFIANÇA NO PAPEL 💎',
+    'ESTOQUE QUE DURA E FAZ O DIA A DIA MAIS TRANQUILO 🌟',
+    'PRA QUEM ODEIA DESCOBRIR QUE ACABOU O PAPEL NA HORA DE IMPRIMIR 😅',
+    'RESMA PREMIUM QUE PASSA CREDIBILIDADE EM QUALQUER IMPRESSÃO 🏆',
+    'PRA HOME OFFICE, EMPRESA OU AQUELA IMPRESSÃO DE ÚLTIMA HORA 🚀',
+    'O PAPEL QUE TODO ESCRITÓRIO PRECISA E NINGUÉM LEMBRA DE PEDIR 💡',
+  ],
+
   'caderno': [
     'CADERNO PRA QUEM AINDA ESCREVE À MÃO (SIM, EXISTE) ✏️',
     'ORGANIZA A VIDA, COMEÇA PELO CADERNO 📝',
@@ -6795,6 +6814,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
 
   // ─── Acessórios de vestuário ───────────────────────────────────────────────
   { kw: ['boné', 'bone', 'cap', 'viseira', 'chapéu', 'chapeu'],                      phraseKey: 'boné',             brandCat: 'roupas' },
+  { kw: ['papel a4', 'papel sulfite', 'resma de papel', 'resma papel', 'papel para impressora', 'papel de impressão', 'papel report', 'papel 75g', 'papel 90g', 'folhas a4'], phraseKey: 'papel a4' },
   { kw: ['mochila escolar', 'mochila infantil', 'mochila escolar infantil'],           phraseKey: 'mochila escolar' },
   { kw: ['mochila para notebook', 'mochila para pc', 'mochila executiva'],            phraseKey: 'mochila casual' },
   { kw: ['mochila de viagem', 'mochila trekking', 'mochila mochileiro'],              phraseKey: 'mochila de viagem' },
@@ -7700,6 +7720,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Bolsas e mochilas
   'bolsa':              'bolsa',
   'mochila':            'mochila',
+  'papel a4':           'papel a4',
   'mochila escolar':    'mochila escolar',
   'mochila de viagem':  'mochila de viagem',
   'mochila casual':     'mochila casual',
