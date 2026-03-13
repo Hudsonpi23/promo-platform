@@ -1987,6 +1987,26 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'ESSE AQUI AGUENTA SOL, AREIA, ÁGUA E ATÉ A VIZINHA PEDINDO EMPRESTADO 😂',
     'PRA QUEM ANDA MUITO E NÃO QUER PAGAR COM DOR NO PÉ 🦶',
   ],
+
+  // ── Slide de Marca (Nike, Adidas, Lacoste, etc.) ─────────────────────────
+  'slide': [
+    'O SLIDE QUE TODO MUNDO RECONHECE SEM VER O LOGO 👀',
+    'PRA QUEM QUER CONFORTO COM NOME ESCRITO NO TIRA 😎',
+    'SLIDE DE MARCA QUE ELEVA ATÉ O LOOK MAIS SIMPLES 🌟',
+    'PRA IR NA ACADEMIA, NA PRAIA OU NA PADARIA — COM ESTILO 🏖️',
+    'O SLIDE QUE VIROU ÍCONE DE STREETWEAR SEM QUERER 🔥',
+    'PRA QUEM DESCANSOU OS PÉS E AINDA FICOU ESTILOSO ⚡',
+    'SLIDE QUE COMBINA COM BERMUDA, MOLETOM E ATÉ COM BOM GOSTO 😏',
+    'PRA QUEM TEM TÊNIS BOM E QUER SLIDE À ALTURA 💎',
+    'O CONFORTO DO CHINELO COM O STATUS DA MARCA 💪',
+    'PRA QUEM SABE QUE ATÉ DESCANSANDO PRECISA PARECER BOM 🏆',
+    'SLIDE QUE O PÉ LEMBRA NO DIA SEGUINTE POR SAUDADE ✨',
+    'PRA QUEM INVESTE EM CALÇADO DE VERDADE — ATÉ NO CASUAL 💡',
+    'O SLIDE QUE FAZ A GALERA PERGUNTAR ONDE COMPROU 🎯',
+    'PRA USAR PÓS-TREINO, PÓS-PRAIA OU PÓS-QUALQUER COISA 🌊',
+    'SLIDE ORIGINAL: PORQUE CÓPIA NÃO ENTRA NO MESMO LOOK 💎',
+  ],
+
   'bota': [
     'BOTA QUE FINALIZA QUALQUER LOOK 👢',
     'PRA QUEM QUER CHEGAR COM ESTILO ✨',
@@ -6604,6 +6624,10 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['cueca boxer', 'cueca brief', 'cueca slip', 'kit cueca', 'cueca sem costura', 'cueca masculina', 'cueca'], phraseKey: 'cueca' },
   { kw: ['calcinha', 'calcinha fio dental', 'calcinha sem costura', 'kit calcinha'],  phraseKey: 'cueca' },
 
+  // ─── Slides de Marca (detectar ANTES de Nike/Adidas/Lacoste para evitar pool errado) ──
+  { kw: ['slide nike', 'chinelo nike', 'nike slide', 'chinelo adidas', 'slide adidas', 'adidas slide', 'chinelo lacoste', 'slide lacoste', 'lacoste slide', 'chinelo puma', 'slide puma', 'puma slide', 'chinelo fila', 'slide fila', 'chinelo vans', 'slide vans'], phraseKey: 'slide' },
+  { kw: ['slide masculino', 'slide feminino', 'slide esportivo', 'chinelo slide', 'slide'],  phraseKey: 'slide' },
+
   // ─── Calçados (mais específico primeiro) ─────────────────────────────────
   { kw: ['tênis running', 'tênis de corrida', 'tênis esportivo', 'tênis training'],   phraseKey: 'tênis',            brandCat: 'tenis' },
   { kw: ['tênis casual', 'tênis lifestyle', 'tênis chunky'],                          phraseKey: 'tênis',            brandCat: 'tenis' },
@@ -7438,6 +7462,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Calçados → pool unificado (marca+genérico)
   'crocs':    'crocs',
   'tênis':    'pool:tenis',
+  'slide':    'slide',
   'chinelo':  'pool:chinelo',
   // Vestuário — subtipos específicos (mais específico primeiro)
   'insider':        'insider',
