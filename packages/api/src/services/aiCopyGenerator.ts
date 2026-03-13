@@ -4611,6 +4611,30 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM QUER SURPREENDER SEM PRECISAR PENSAR MUITO 💎',
   ],
 
+  // ── Paçoca / Barra de Amendoim ────────────────────────────────────────────
+  'paçoca': [
+    'PAÇOCA QUE DERRETE NA BOCA ANTES DE VOCÊ TERMINAR DE MASTIGAR 🥜',
+    'PRA QUEM AMA AMENDOIM E QUER ISSO EM FORMATO DE DOCE 😋',
+    'CLÁSSICO BRASILEIRO QUE NUNCA SAI DE MODA 🇧🇷',
+    'PRA COMPARTILHAR NA FESTA JUNINA OU COMER SOZINHO SEM CULPA 🎪',
+    'BARRA DE AMENDOIM QUE FAZ QUALQUER COFFEE BREAK FICAR MELHOR ☕',
+    'PRA QUEM CRESCEU COMENDO E NUNCA CONSEGUIU PARAR 💛',
+    'PAÇOCA: O DOCE QUE TODO MUNDO CONCORDA QUE É BOM 🌟',
+    'PRA QUEM QUER DOCINHO SEM COMPLICAÇÃO E COM SABOR DE INFÂNCIA 🏆',
+  ],
+
+  // ── Bala / Goma / Pirulito ────────────────────────────────────────────────
+  'bala': [
+    'A BALA QUE RESOLVE A REUNIÃO E O MAU HÁLITO 😏',
+    'PRA QUEM PRECISA DE ALGO NA BOCA QUE NÃO SEJA CAFÉ 😂',
+    'BALA QUE FAZ O TEMPO PASSAR E O SORRISO APARECER 🍬',
+    'PRA QUEM DISTRIBUI NA RECEPÇÃO E VIRA A PESSOA MAIS AMADA DO ESCRITÓRIO 💛',
+    'PACOTÃO QUE SERVE A SEMANA INTEIRA — OU O DIA, DEPENDE 😋',
+    'PRA QUEM SEMPRE TEM UMA BALINHA NO BOLSO QUANDO ALGUÉM PRECISA 🎉',
+    'GOMA, BALA OU PIRULITO — QUALQUER UM RESOLVE A VONTADE 🍭',
+    'PRA QUEM AMA UM DOCINHO SEM PESO E SEM DRAMA 🌟',
+  ],
+
   'pasta de amendoim': [
     'PROTEÍNA QUE GOSTOSA E NUTRITIVA 💪',
     'PRA QUEM GOSTA DE LANCHE QUE ALIMENTA 😏',
@@ -7004,6 +7028,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['barra de creatina', 'creatina em barra'],                                   phraseKey: 'barra de proteína' },
   { kw: ['barra de proteína', 'barra proteica', 'protein bar'],                       phraseKey: 'barra de proteína' },
   { kw: ['barra de cereal', 'barra cereal', 'granola bar', 'snack barra'],            phraseKey: 'barra de cereal' },
+  { kw: ['paçoca', 'pacoca', 'barra de amendoim', 'barra amendoim', 'amendoim doce'], phraseKey: 'paçoca' },
+  { kw: ['bala de goma', 'bala de gelatina', 'bala mastigável', 'goma de mascar', 'chiclete', 'pirulito'], phraseKey: 'bala' },
   { kw: ['creatina monohidratada', 'creatine', 'creatina'],                           phraseKey: 'creatina' },
 
   // ─── Roupas de Academia / Fitness ────────────────────────────────────────
@@ -7755,6 +7781,9 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'barra de proteína': 'barra de proteína',
   'barra de cereal':   'barra de cereal',
   'roupa de academia': 'roupa de academia',
+
+  'paçoca':     'paçoca',
+  'bala':       'bala',
 
   // Jogos de tabuleiro
   'war':              'war',
