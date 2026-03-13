@@ -957,6 +957,60 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'VESTIU, TÁ PRONTO 🚀',
   ],
 
+  // ── Oakley (marca) ────────────────────────────────────────────────────────
+  'oakley': [
+    'OAKLEY: A MARCA QUE TRANSFORMA QUALQUER LOOK EM ATITUDE 🔥',
+    'PRA QUEM USA OAKLEY E SABE QUE QUALIDADE NÃO É FRESCURA 💎',
+    'ESTILO OAKLEY: DO ESPORTE PRA RUA SEM PERDER A IDENTIDADE 💪',
+    'PRA QUEM JÁ ENTENDEU QUE OAKLEY NÃO É MARCA — É ESTILO DE VIDA 🌟',
+    'OAKLEY QUE VALE O INVESTIMENTO, E O BOLSO CONCORDA 💰',
+    'PRA QUEM GOSTA DE VESTIR O QUE TEM HISTÓRIA 🏆',
+    'CAMISETA, BERMUDA OU ÓCULOS — OAKLEY MANDA BEM EM TUDO 😎',
+    'PRA QUEM NÃO ABRE MÃO DA QUALIDADE MESMO COM DESCONTO 🎯',
+    'OAKLEY: ICÔNICA DESDE O PRIMEIRO DIA QUE VOCÊ VESTIU ✨',
+    'PRA QUEM QUER ROUPA DE MARCA SEM PAGAR PREÇO ABSURDO 💡',
+    'CADA PEÇA OAKLEY É UM CLÁSSICO EM EVOLUÇÃO 🌍',
+    'PRA QUEM JOGA TUDO NO ESTILO E GANHA SEMPRE COM OAKLEY 🥇',
+    'DO ESPORTE PRA BALADA — OAKLEY ACOMPANHA QUALQUER ROTINA 🏃',
+    'PRA QUEM QUER QUALIDADE PREMIUM POR UM PREÇO QUE COUBE NO BOLSO ⚡',
+    'OAKLEY: A ESCOLHA DE QUEM SABE O QUE QUER 🎯',
+  ],
+
+  // ── Óculos Oakley ─────────────────────────────────────────────────────────
+  'óculos oakley': [
+    'ÓCULOS OAKLEY: PROTEÇÃO, PERFORMANCE E ESTILO EM UM SÓ 😎',
+    'PRA QUEM LEVOU O SOL A SÉRIO E ESCOLHEU OAKLEY 🌞',
+    'ESSES ÓCULOS FAZEM ATÉ FOTO FEIA FICAR BOA 📸',
+    'PRA QUEM QUER ÓCULOS QUE FUNCIONA NA RUA, NA PRAIA E NO ESPORTE 🏖️',
+    'OAKLEY: O ÓCULOS QUE OS ATLETAS USAM E VOCÊ TAMBÉM MERECE 🏆',
+    'PRA QUEM SABE QUE ÓCULOS BOM PROTEGE DE VERDADE 💡',
+    'POLARIZADO, RESISTENTE E CHEIO DE ESTILO — ESSE É O OAKLEY 🔥',
+    'PRA QUEM TEM ESTILO DEMAIS PRA USAR ÓCULOS QUALQUER UM 💎',
+    'ESSES ÓCULOS COMPLETAM QUALQUER LOOK COM AUTORIDADE 💪',
+    'PRA QUEM NÃO ABRE MÃO DE QUALIDADE ÓPTICA E VISUAL ✨',
+    'OAKLEY: O ÓCULOS QUE DURA E AINDA IMPRESSIONA 🌟',
+    'PRA QUEM COMPRA UMA VEZ E NÃO VOLTA ATRÁS 🎯',
+  ],
+
+  // ── Plus Size (Moda Inclusiva) ─────────────────────────────────────────────
+  'plus size': [
+    'MODA QUE CABE EM VOCÊ — DO JEITO QUE VOCÊ É 💛',
+    'PRA QUEM MERECE ROUPA BOA EM QUALQUER NUMERAÇÃO 🌟',
+    'PLUS SIZE QUE TEM ESTILO, QUALIDADE E PREÇO QUE FAZ SENTIDO 💰',
+    'PRA QUEM CANSOU DE NÃO ACHAR O NÚMERO E NUNCA MAIS VAI PASSAR POR ISSO ✅',
+    'CONFORTO E ESTILO SEM LIMITE DE TAMANHO 💎',
+    'PRA QUEM QUER SE VESTIR BEM SEM ABRIR MÃO DA IDENTIDADE 🔥',
+    'MODA INCLUSIVA QUE ENTREGA ESTILO DE VERDADE 🎨',
+    'PRA QUEM TEM ESTILO GRANDE E MERECE ROUPA À ALTURA 💪',
+    'ROUPA PLUS SIZE COM ACABAMENTO PREMIUM E PREÇO JUSTO 🏆',
+    'PRA QUEM SÓ QUERIA UMA ROUPINHA BOA — E ENCONTROU 😍',
+    'MODA QUE NÃO DISCRIMINA NUMERAÇÃO E NEM BOLSO 💡',
+    'PRA QUEM QUER SE SENTIR BEM COM O QUE VESTE — TODOS OS DIAS ✨',
+    'LOOK COMPLETO, CONFORTÁVEL E CHEIO DE ESTILO EM QUALQUER TAMANHO 😎',
+    'PRA QUEM TEM PERSONALIDADE GRANDE E QUER ROUPA QUE ACOMPANHE 🌈',
+    'PLUS SIZE QUE CHEGOU PRA MUDAR O JOGO DA MODA 🚀',
+  ],
+
   // ── Camisa de Time / Futebol ──────────────────────────────────────────────
   // Frases específicas para jerseys de clube e seleção
   'camisa de time': [
@@ -1939,6 +1993,13 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'VERÃO, ACADEMIA OU SOFÁ — ELA RESOLVE 💪',
     'PRA QUEM GOSTA DE LIBERDADE NAS PERNAS 🌬️',
     'BERMUDA HONESTA POR UM PREÇO JUSTO 💰',
+    'A BERMUDA QUE COMBINA COM QUALQUER CAMISETA QUE VOCÊ JÁ TEM 🎨',
+    'PRA USAR DO CAFÉ DA MANHÃ À ACADEMIA SEM TROCAR 🔥',
+    'BERMUDA DE BRIM QUE DURA E AINDA FICA BONITA 👖',
+    'PRA QUEM PREFERE PRATICIDADE SEM ABRIR MÃO DO ESTILO ✨',
+    'LEVE, FRESCA E PRONTA PRA QUALQUER ROLÊ 🌟',
+    'PRA SAIR, TRABALHAR E RELAXAR — TEM QUE SER BERMUDA 💡',
+    'ESSA AQUI AGUENTA O VERÃO INTEIRO 💪',
   ],
   // ── Crocs / Clog ──────────────────────────────────────────────────────────
   'crocs': [
@@ -3281,6 +3342,11 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA USAR EM CASA, NA RUA E NA ACADEMIA 💪',
     'SHORTS HONESTO POR PREÇO JUSTO 💰',
     'PRA QUEM GOSTA DE LEVEZA 🌬️',
+    'O SHORTS QUE COMBINA COM A CAMISETA E COM A PREGUIÇA 😏',
+    'PRA QUEM QUER AGILIDADE SEM ABRIR MÃO DO ESTILO ✨',
+    'VERÃO OU ACADEMIA — ESSE AQUI RESOLVE OS DOIS 🔥',
+    'LEVE, FRESQUINHO E PRÁTICO PRA QUALQUER ROLÊ 🌟',
+    'PRA SAIR EM 2 MINUTOS E AINDA FICAR APRESENTÁVEL 😎',
   ],
   'cueca': [
     'CONFORTO QUE COMEÇA DE BAIXO PRA CIMA 😎',
@@ -6675,6 +6741,11 @@ const PRODUCT_TYPE_DETECTORS: Array<{
 
   // 5. Camiseta básica (t-shirt genérica — vem por último entre as camisas)
   { kw: ['insider camiseta', 'camiseta insider', 'insider camisa', 'camisa insider', 'insider shorts', 'shorts insider', 'insider'],  phraseKey: 'insider', brandCat: 'roupas' },
+  // ─── Oakley (brand) ───────────────────────────────────────────────────────
+  { kw: ['óculos oakley', 'oculos oakley', 'oakley óculos', 'oakley oculos', 'lente oakley', 'armação oakley'], phraseKey: 'óculos oakley' },
+  { kw: ['oakley camiseta', 'camiseta oakley', 'oakley bermuda', 'bermuda oakley', 'oakley shorts', 'shorts oakley', 'oakley calça', 'oakley polo', 'polo oakley', 'oakley'], phraseKey: 'oakley' },
+  // ─── Plus Size ────────────────────────────────────────────────────────────
+  { kw: ['plus size', 'tamanho grande', 'tamanho extra', 'size plus', 'gg', 'xgg', 'eg', 'tamanho especial', 'moda plus', 'roupa plus'], phraseKey: 'plus size' },
   { kw: ['camiseta', 'camisa', 'jersey', 'uniforme'],                               phraseKey: 'camisa',           brandCat: 'roupas' },
   // ─── Vestuário externo (mais específico primeiro) ─────────────────────────
   { kw: ['jaqueta masculina', 'jaqueta para homem', 'jaqueta bomber masculina', 'jaqueta corta-vento masculina', 'jaqueta puffer masculina'], phraseKey: 'jaqueta masculina' },
@@ -7583,6 +7654,9 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Vestuário — subtipos específicos (mais específico primeiro)
   'insider':        'insider',
   'cueca':          'cueca',
+  'oakley':         'oakley',
+  'óculos oakley':  'óculos oakley',
+  'plus size':      'plus size',
   'camisa de time': 'camisa de time',
   'camisa polo':    'camisa polo',
   'camisa social':  'camisa social',
