@@ -4531,6 +4531,86 @@ const PRODUCT_SPECIFIC_PHRASES: Record<string, string[]> = {
     'PRA QUEM NÃO ABRE MÃO DO AZEITE CERTO ✅',
     'COZINHA QUE USA AZEITE BOM ENTREGA MELHOR 🌟',
   ],
+  // ── Doces — Genérico ─────────────────────────────────────────────────────
+  'doce': [
+    'PRA QUEM SABE QUE A VIDA É MAIS GOSTOSA COM UM DOCINHO 🍬',
+    'AQUELE DOCINHO QUE DEIXA O DIA MAIS LEVE 😌',
+    'PRA QUEM MERECE UMA PAUSA GOSTOSA NO MEIO DO DIA ✨',
+    'DOCE QUE FAZ A CRIANÇA SORRIR E O ADULTO TAMBÉM 💛',
+    'PRA QUEM NÃO CONSEGUE RESISTIR QUANDO VÊ 😏',
+    'PORQUE TODO DIA TEM QUE TER UM MOMENTINHO DOCE 🌟',
+    'PRA PRESENTEAR OU PRA SE PRESENTEAR — OS DOIS VALEM 🎁',
+    'DOCE NO PREÇO, GOSTOSO DE VERDADE 💰',
+    'PRA QUEM AMA DOCE E NÃO TEM VERGONHA DE ADMITIR 🔥',
+    'O PRAZER QUE CABE NO BOLSO E NO CORAÇÃO 💕',
+  ],
+
+  // ── Chocolate ────────────────────────────────────────────────────────────
+  'chocolate': [
+    'CHOCOLATE QUE RESOLVE QUALQUER MAU HUMOR EM 30 SEGUNDOS 🍫',
+    'PRA QUEM PASSA MAL SE NÃO COMER CHOCOLATE POR MAIS DE UM DIA 😂',
+    'A CIÊNCIA PROVOU: CHOCOLATE MELHORA O HUMOR — E O NOSSO BOLSO TAMBÉM 💡',
+    'PRA QUEM TEM CHOCOLATE COMO GRUPO ALIMENTAR SEPARADO 😏',
+    'TABLETE QUE SOME ANTES DO FIM DO DIA, TODO DIA 🔥',
+    'PRA QUEM DIZ QUE VAI COMER SÓ UM QUADRADINHO 🤥',
+    'CHOCOLATE BOM É AQUELE QUE ACABA E VOCÊ JÁ QUER O PRÓXIMO ⚡',
+    'PRA PRESENTEAR QUEM MERECE OU PRA SE PRESENTEAR — OS DOIS VALEM 🎁',
+    'O SABOR QUE A INFÂNCIA TINHA E O ADULTO AINDA PRECISA 💛',
+    'PRA QUEM NÃO AGUENTA VER CHOCOLATE E NÃO COMPRAR 😍',
+    'CHOCOLATE DE QUALIDADE POR PREÇO QUE FAZ SENTIDO 💰',
+    'PRA QUEM USA CHOCOLATE COMO REMÉDIO — E FUNCIONA ✅',
+    'ESSE TABLETE VEM COM FELICIDADE INCLUSA 🌟',
+    'PRA QUEM AMA CHOCOLATE AMARGO, AO LEITE OU BRANCO — TANTO FAZ 💎',
+    'O ÚNICO VÍCIO QUE TODO MUNDO ENTENDE E NINGUÉM JULGA 😎',
+  ],
+
+  // ── Nutella / Creme de Avelã ──────────────────────────────────────────────
+  'nutella': [
+    'NUTELLA: O CREME QUE TRANSFORMOU TORRADA EM EXPERIÊNCIA GASTRONÔMICA 🍫',
+    'PRA QUEM COLOCA NUTELLA EM TUDO E NÃO SE ARREPENDE DE NADA 😏',
+    'O POTE QUE SOME MISTERIOSAMENTE ANTES DO FIM DE SEMANA 😂',
+    'PRA QUEM COME COM COLHER DIRETO DO POTE ÀS 2H DA MANHÃ ✨',
+    'NUTELLA: PORQUE ALGUMAS COISAS NA VIDA SÃO IRRESISTÍVEIS 💎',
+    'PRA QUEM FINGE QUE VAI USAR NA RECEITA MAS COME NA HORA 🤥',
+    'O CREME QUE FAZ ATÉ PÃO VELHO PARECER SOBREMESA GOURMET 🔥',
+    'PRA QUEM TEM NUTELLA COMO ITEM FIXO NA LISTA DE COMPRAS 💰',
+    'CREME DE AVELÃ QUE VICIOU GERAÇÕES E VAI VICIAR MAIS 🌟',
+    'PRA PRESENTEAR QUEM VOCÊ GOSTA — OU PRA GUARDAR SÓ PRA VOCÊ 🎁',
+    'NUTELLA: A ÚNICA COISA QUE TODO MUNDO CONCORDA QUE É BOM 💛',
+    'PRA QUEM SABE QUE CAFÉ DA MANHÃ SEM NUTELLA É SÓ UM DESJEJUM 😎',
+    'O POTE QUE FAZ CRIANÇA SORRIR E ADULTO REGREDIR 😍',
+    'PRA QUEM COMPRA O POTE GRANDE ACHANDO QUE VAI DURAR — BOA SORTE ⚡',
+    'NUTELLA: O MOTIVO PELO QUAL O PÃO DE FORMA AINDA É RELEVANTE 🍞',
+  ],
+
+  // ── Barra de Amendoim / Paçoca ────────────────────────────────────────────
+  'barra de amendoim': [
+    'BARRA DE AMENDOIM QUE MATA A FOME E AINDA FICA GOSTOSO 🥜',
+    'PRA QUEM QUER LANCHE RÁPIDO, GOSTOSO E SEM CULPA 💡',
+    'O DOCINHO BRASILEIRO QUE NUNCA SAI DE MODA 🇧🇷',
+    'PRA QUEM AMA AMENDOIM EM QUALQUER FORMATO 😏',
+    'CROCANTE, DOCE E IRRESISTÍVEL — CLÁSSICO QUE NÃO TEM ERRO ✅',
+    'PRA LEVAR NA BOLSA, NA MOCHILA OU NO BOLSO E RESOLVER NA HORA ⚡',
+    'BARRA QUE ALIMENTA E SATISFAZ DO COMEÇO AO FIM 💪',
+    'PRA QUEM PASSA O DIA CORRIDO E PRECISA DE ENERGIA RÁPIDA 🔥',
+    'O LANCHE DA INFÂNCIA QUE O ADULTO AINDA AMA 💛',
+    'PRA QUEM SABE QUE AMENDOIM É O MELHOR AMIGO DO LANCHE 🌟',
+  ],
+
+  // ── Kit/Caixa de Chocolates / Presente ────────────────────────────────────
+  'kit chocolate': [
+    'O PRESENTE QUE NINGUÉM REJEITA E TODO MUNDO AGRADECE 🎁',
+    'PRA PRESENTEAR QUEM MERECE O MELHOR — E MERECE CHOCOLATE 🍫',
+    'KIT DE CHOCOLATE QUE CHEGA E JÁ FAZ O DIA MELHOR 💛',
+    'PRA DATAS ESPECIAIS OU SEM DATA ESPECIAL NENHUMA ✨',
+    'PRESENTE QUE AGRADA CRIANÇA, ADULTO E ATÉ QUEM ESTÁ DE DIETA 😂',
+    'PRA QUEM NÃO SABE O QUE DAR DE PRESENTE — ESSE AQUI NUNCA ERRA 💡',
+    'KIT QUE COMBINA VARIEDADE, QUALIDADE E SABOR NO MESMO PACOTE 🌟',
+    'PRA NATAL, PÁSCOA, ANIVERSÁRIO OU SEGUNDA-FEIRA 🎉',
+    'O PRESENTE MAIS HONESTO DO MUNDO: TODO MUNDO AMA CHOCOLATE 🔥',
+    'PRA QUEM QUER SURPREENDER SEM PRECISAR PENSAR MUITO 💎',
+  ],
+
   'pasta de amendoim': [
     'PROTEÍNA QUE GOSTOSA E NUTRITIVA 💪',
     'PRA QUEM GOSTA DE LANCHE QUE ALIMENTA 😏',
@@ -6910,6 +6990,16 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['balança digital', 'balança inteligente'],                                   phraseKey: 'esteira' },
   { kw: ['massageador elétrico', 'massageador de pescoço', 'massageador'],            phraseKey: 'massageador' },
 
+  // ─── Doces / Confeitaria (mais específico primeiro) ─────────────────────
+  { kw: ['kit chocolate', 'caixa de chocolate', 'cesta de chocolate', 'box chocolate', 'presente de chocolate'], phraseKey: 'kit chocolate' },
+  { kw: ['nutella', 'creme de avelã', 'creme de avela', 'ferrero nutella'],           phraseKey: 'nutella' },
+  { kw: ['barra de amendoim', 'paçoca', 'pacoca', 'doce de amendoim', 'amendoim coberto', 'amendoim caramelizado'], phraseKey: 'barra de amendoim' },
+  { kw: ['barra de chocolate', 'tablete de chocolate', 'chocolate ao leite', 'chocolate amargo', 'chocolate branco', 'chocolate meio amargo', 'kit kat', 'snickers', 'twix', 'ferrero rocher', 'Ferrero', 'bombom', 'trufa', 'chocolate recheado', 'chocolate importado'], phraseKey: 'chocolate' },
+  { kw: ['bala de goma', 'bala mastigável', 'bala de gelatina', 'bala de fruta', 'balas', 'bala', 'gummy', 'gummies', 'marshmallow', 'algodão doce', 'pirulito', 'drops'], phraseKey: 'doce' },
+  { kw: ['caramelo', 'toffee', 'wafer', 'biscoito recheado', 'biscoito doce', 'cookie', 'cookies'], phraseKey: 'doce' },
+  { kw: ['doce caseiro', 'brigadeiro', 'beijinho', 'cajuzinho', 'doce de leite', 'maria mole', 'cocada', 'quindim'], phraseKey: 'doce' },
+  { kw: ['doce', 'candy', 'guloseima', 'sobremesa'],                                  phraseKey: 'doce' },
+
   // ─── Suplementos / Alimentação Fitness ───────────────────────────────────
   { kw: ['barra de creatina', 'creatina em barra'],                                   phraseKey: 'barra de proteína' },
   { kw: ['barra de proteína', 'barra proteica', 'protein bar'],                       phraseKey: 'barra de proteína' },
@@ -7652,6 +7742,13 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'halter':             'halter',
   'kettlebell':         'kettlebell',
   'barra de supino':    'barra de supino',
+
+  // Doces / Confeitaria
+  'doce':              'doce',
+  'chocolate':         'chocolate',
+  'nutella':           'nutella',
+  'barra de amendoim': 'barra de amendoim',
+  'kit chocolate':     'kit chocolate',
 
   // Suplementos / Alimentação Fitness
   'creatina':          'creatina',
