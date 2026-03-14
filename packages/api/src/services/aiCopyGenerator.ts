@@ -6,7 +6,7 @@
  * 
  * ESTILO:
  * - Tom engraçado, focado em jovens 16-25 anos
- * - Referências à cultura jovem (ex: Malbec = perfume de quem trai)
+ * - Frases genéricas criativas, divertidas, com duplo sentido
  * - Frases pequenas e chamativas
  * - SEMPRE destacar desconto quando houver
  * - TODAS as frases em MAIÚSCULAS
@@ -46,11 +46,8 @@ export interface CopyInputData {
   /** Valor por parcela inserido manualmente (sobrepõe o cálculo automático price/installments) */
   installmentValue?: number;
   /**
-   * Modo de seleção de frases:
-   *   'brand'   → detecta a marca no título e usa SÓ as frases daquela marca;
-   *               se a marca não tiver frases, usa genéricas do tipo de produto.
-   *   'generic' → usa SÓ frases genéricas do tipo de produto (ignora marcas).
-   *   undefined → comportamento padrão (pool unificado — marca + genérico misturados).
+   * Modo de seleção de frases (legado — mantido por compatibilidade).
+   * O sistema usa apenas frases genéricas criativas.
    */
   phraseMode?: 'generic' | 'brand';
   /** Código de cupom de desconto (ex: "PROMO10", "20% OFF") */
@@ -134,95 +131,22 @@ const OPENINGS_BY_CATEGORY: Record<string, string[]> = {
 // ==================== PRODUCT PHRASES (importado de ./phrases/) ====================
 import { PRODUCT_SPECIFIC_PHRASES } from './phrases/index';
 
-// REGRA: apenas nomes de MARCA disparam o merged pool.
-// Termos genéricos (camisa, calça, tênis, panela, furadeira...) NÃO entram aqui —
-// eles usam o pool individual próprio, que tem frases adequadas ao produto.
-// Isso evita que "Camisa Flamengo" receba frase de jeans ou
-// "Furadeira sem marca" receba frase de Bosch.
-const MERGED_POOL_KEYS: Record<string, string[]> = {
-  'tenis': [
-    'nike', 'adidas', 'puma', 'new balance', 'asics',
-    'vans', 'converse', 'all star', 'under armour', 'fila', 'mizuno',
-    'olimpikus', 'kappa',
-  ],
-  'roupas': [
-    'polo ralph lauren', 'ralph lauren', 'lacoste',
-    'tommy hilfiger', 'calvin klein', 'insider', 'insaider',
-    "levi's", 'levis',
-  ],
-  'ferramentas': [
-    'bosch professional', 'bosch', 'makita', 'dewalt', 'milwaukee', 'hilti',
-    'snap-on', 'snap on', 'festool', 'metabo', 'ryobi', 'ridgid',
-    'stanley', 'black+decker', 'black decker', 'irwin', 'craftsman',
-    'gedore', 'belzer', 'bahco', 'knipex',
-    'vonder', 'worker', 'gamma', 'sparta',
-  ],
-  // Tramontina pertence a cozinha (panelas, facas, utensílios)
-  'cozinha': [
-    'tramontina pro', 'tramontina',
-    'brinox', 'rochedo', 'panelux', 'multiflon', 'nigro', 'sanremo',
-    'plasútil', 'plasutil',
-  ],
-  // Chinelos — marcas brasileiras principais
-  'chinelo': [
-    'havaianas', 'rider', 'kenner', 'ipanema',
-  ],
-  // Cadeiras Gamer — marcas mais vendidas no Brasil
-  'cadeira gamer': [
-    'dxracer', 'thunderx3', 'cougar gamer', 'secretlab', 'razer',
-  ],
-  // Caixas de Som / Speakers
-  'caixa de som': [
-    'jbl', 'bose', 'marshall', 'sony caixa',
-  ],
-};
-
-// Pool unificado por categoria — construído uma vez ao carregar o módulo.
-const MERGED_CATEGORY_PHRASES: Record<string, string[]> = (() => {
-  const result: Record<string, string[]> = {};
-  for (const [category, keys] of Object.entries(MERGED_POOL_KEYS)) {
-    result[category] = keys.flatMap(k => PRODUCT_SPECIFIC_PHRASES[k] ?? []);
-  }
-  return result;
-})();
-
 // ══════════════════════════════════════════════════════════════════════════════
-// PRODUCT_POOL — Um pool único por tipo de produto.
-// Cada pool reúne frases de marcas conhecidas + frases genéricas do tipo.
-// O título do produto determina qual pool usar. Simples assim.
+// PRODUCT_POOL — Pool único por tipo de produto com frases genéricas criativas.
+// Apenas frases genéricas — sem marcas específicas.
 // ══════════════════════════════════════════════════════════════════════════════
 const PRODUCT_POOL: Record<string, string[]> = (() => {
   function merge(...keys: string[]): string[] {
     return keys.flatMap(k => PRODUCT_SPECIFIC_PHRASES[k] ?? []);
   }
   return {
-    // ── Calçados ─────────────────────────────────────────────────────────────
-    // Pool = todas as marcas de tênis + frases genéricas de tênis
-    'tenis': [...(MERGED_CATEGORY_PHRASES['tenis'] ?? []), ...merge('tênis', 'tenis')],
-
-    // ── Vestuário ─────────────────────────────────────────────────────────────
-    // Pool = todas as marcas de roupas + camisa + calça + roupa genérica
-    'roupas': [...(MERGED_CATEGORY_PHRASES['roupas'] ?? []), ...merge('camisa', 'camiseta', 'calça', 'calca', 'roupa')],
-
-    // ── Cozinha ──────────────────────────────────────────────────────────────
-    // Pool = Tramontina + Brinox + outras + frases genéricas de panela
-    'cozinha': [...(MERGED_CATEGORY_PHRASES['cozinha'] ?? []), ...merge('panela', 'frigideira')],
-
-    // ── Ferramentas ──────────────────────────────────────────────────────────
-    // Pool = Bosch + Makita + outras + frases genéricas de ferramenta
-    'ferramentas': [...(MERGED_CATEGORY_PHRASES['ferramentas'] ?? []), ...merge('ferramenta', 'furadeira', 'parafusadeira')],
-
-    // ── Chinelos ─────────────────────────────────────────────────────────────
-    // Pool = Havaianas + Rider + Kenner + Ipanema + genéricas de chinelo
-    'chinelo': [...(MERGED_CATEGORY_PHRASES['chinelo'] ?? []), ...merge('chinelo')],
-
-    // ── Cadeiras Gamer ───────────────────────────────────────────────────────
-    // Pool = DXRacer + ThunderX3 + Cougar + SecretLab + Razer + genéricas de cadeira gamer
-    'cadeira gamer': [...(MERGED_CATEGORY_PHRASES['cadeira gamer'] ?? []), ...merge('cadeira gamer', 'poltrona gamer')],
-
-    // ── Caixa de Som ─────────────────────────────────────────────────────────
-    // Pool = JBL + Bose + Marshall + Sony + frases genéricas de caixa de som
-    'caixa de som': [...(MERGED_CATEGORY_PHRASES['caixa de som'] ?? []), ...merge('caixa de som')],
+    'tenis':       merge('tênis', 'tenis'),
+    'roupas':      merge('camisa', 'camiseta', 'calça', 'calca', 'roupa'),
+    'cozinha':     merge('panela', 'frigideira'),
+    'ferramentas': merge('ferramenta', 'furadeira', 'parafusadeira'),
+    'chinelo':     merge('chinelo'),
+    'cadeira gamer': merge('cadeira gamer', 'poltrona gamer'),
+    'caixa de som':  merge('caixa de som'),
   };
 })();
 
@@ -281,10 +205,6 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['regata', 'camiseta regata', 'top regata'],                                phraseKey: 'regata',           brandCat: 'roupas' },
 
   // 5. Camiseta básica (t-shirt genérica — vem por último entre as camisas)
-  { kw: ['insider camiseta', 'camiseta insider', 'insider camisa', 'camisa insider', 'insider shorts', 'shorts insider', 'insider'],  phraseKey: 'insider', brandCat: 'roupas' },
-  // ─── Oakley (brand) ───────────────────────────────────────────────────────
-  { kw: ['óculos oakley', 'oculos oakley', 'oakley óculos', 'oakley oculos', 'lente oakley', 'armação oakley'], phraseKey: 'óculos oakley' },
-  { kw: ['oakley camiseta', 'camiseta oakley', 'oakley bermuda', 'bermuda oakley', 'oakley shorts', 'shorts oakley', 'oakley calça', 'oakley polo', 'polo oakley', 'oakley'], phraseKey: 'oakley' },
   // ─── Plus Size ────────────────────────────────────────────────────────────
   { kw: ['plus size', 'tamanho grande', 'tamanho extra', 'size plus', 'gg', 'xgg', 'eg', 'tamanho especial', 'moda plus', 'roupa plus'], phraseKey: 'plus size' },
 
@@ -400,9 +320,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['crocs bayaband', 'crocs classic', 'crocs clog', 'sandália crocs', 'crocs'],  phraseKey: 'crocs' },
   { kw: ['sandália rasteira', 'sandália plataforma', 'sandália feminina'],            phraseKey: 'sandália' },
   { kw: ['sandália', 'sandalia'],                                                     phraseKey: 'sandália' },
-  { kw: ['chinelo de dedo', 'chinelo masculino', 'chinelo feminino', 'chinelo slide'], phraseKey: 'chinelo', brandCat: 'chinelo' },
-  { kw: ['havaianas', 'rider', 'kenner', 'ipanema'],                                  phraseKey: 'chinelo', brandCat: 'chinelo' },
-  { kw: ['chinelo', 'alpargata', 'rasteira', 'tamanco'],                              phraseKey: 'chinelo', brandCat: 'chinelo' },
+  { kw: ['chinelo de dedo', 'chinelo masculino', 'chinelo feminino', 'chinelo slide'], phraseKey: 'chinelo' },
+  { kw: ['chinelo', 'alpargata', 'rasteira', 'tamanco'],                              phraseKey: 'chinelo' },
   { kw: ['sapato social masculino', 'sapato social feminino', 'sapato social'],       phraseKey: 'sapato' },
   { kw: ['mocassim', 'loafer', 'oxford', 'derby'],                                   phraseKey: 'sapato' },
   { kw: ['scarpin', 'salto alto', 'salto stiletto', 'plataforma'],                   phraseKey: 'sapato' },
@@ -993,24 +912,14 @@ export function getProductEmoji(title: string): string {
 }
 
 /**
- * Detecta a primeira marca conhecida (dentro de uma categoria de marcas) no título (Camada 2).
- * Retorna a chave exata da marca em PRODUCT_SPECIFIC_PHRASES.
+ * Detecta se um título pertence a uma categoria merged (mantido por compatibilidade).
+ * Com a remoção de frases de marca, sempre retorna null.
  */
-function detectBrandInTitle(titleLower: string, brandCatKey: string): string | null {
-  for (const brandKey of (MERGED_POOL_KEYS[brandCatKey] ?? [])) {
-    if (matchesKeyword(titleLower, brandKey)) return brandKey;
-  }
+function detectBrandInTitle(_titleLower: string, _brandCatKey: string): string | null {
   return null;
 }
 
-function getMergedCategoryKey(title: string): string | null {
-  const t = title.toLowerCase();
-  const order = ['cozinha', 'tenis', 'roupas', 'ferramentas', 'chinelo'];
-  for (const cat of order) {
-    for (const k of (MERGED_POOL_KEYS[cat] ?? [])) {
-      if (matchesKeyword(t, k)) return cat;
-    }
-  }
+function getMergedCategoryKey(_title: string): string | null {
   return null;
 }
 
