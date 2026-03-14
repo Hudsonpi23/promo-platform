@@ -262,6 +262,20 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           });
 
           result.site = true;
+
+          // Registrar no histórico para as métricas (canal SITE)
+          try {
+            await prisma.postHistory.create({
+              data: {
+                offerId: offer.id,
+                channel: 'SITE',
+                humorStyle: 'NEUTRO',
+                uniqueHash: `manual-SITE-${offer.id}-${Date.now()}`,
+                copyText: offer.title,
+                externalId: slug,
+              },
+            });
+          } catch (_e) { /* não bloquear o fluxo */ }
         } catch (siteErr: any) {
           console.warn('[AutoPublish] Falha ao publicar no site:', siteErr.message);
           result.site = false;
@@ -294,6 +308,22 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               imageUrl: mainImage || undefined,
             });
             result.telegram = { success: telegramRes.success, error: telegramRes.error };
+
+            // Registrar no histórico para as métricas (canal TELEGRAM)
+            if (telegramRes.success) {
+              try {
+                await prisma.postHistory.create({
+                  data: {
+                    offerId: offer.id,
+                    channel: 'TELEGRAM',
+                    humorStyle: 'NEUTRO',
+                    uniqueHash: `manual-TELEGRAM-${offer.id}-${Date.now()}`,
+                    copyText: copies.telegram,
+                    externalId: (telegramRes as any).messageId ? String((telegramRes as any).messageId) : null,
+                  },
+                });
+              } catch (_e) { /* não bloquear o fluxo */ }
+            }
           } catch (e: any) {
             result.telegram = { success: false, error: e.message };
           }
@@ -316,6 +346,22 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               preGeneratedCopy: copies.x,
             });
             result.twitter = { success: twitterRes.success, error: twitterRes.error };
+
+            // Registrar no histórico para as métricas (canal TWITTER)
+            if (twitterRes.success) {
+              try {
+                await prisma.postHistory.create({
+                  data: {
+                    offerId: offer.id,
+                    channel: 'TWITTER',
+                    humorStyle: 'NEUTRO',
+                    uniqueHash: `manual-TWITTER-${offer.id}-${Date.now()}`,
+                    copyText: copies.x,
+                    externalId: (twitterRes as any).tweetId || null,
+                  },
+                });
+              } catch (_e) { /* não bloquear o fluxo */ }
+            }
           } catch (e: any) {
             result.twitter = { success: false, error: e.message };
           }
