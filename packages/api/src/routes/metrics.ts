@@ -16,10 +16,12 @@ export async function metricsRoutes(app: FastifyInstance) {
       day7.setHours(0, 0, 0, 0);
 
       // ── 1. Totais gerais ─────────────────────────────────────────────────
+      // PostHistory cobre todos os canais (SITE, TELEGRAM, TWITTER)
+      // PublishedPost é exclusivo do site (usado para vitrine e descontos)
       const [totalPosts, totalClicks, postsThisWeek] = await Promise.all([
-        prisma.publishedPost.count(),
+        prisma.postHistory.count(),
         prisma.click.count(),
-        prisma.publishedPost.count({ where: { publishedAt: { gte: day7 } } }),
+        prisma.postHistory.count({ where: { postedAt: { gte: day7 } } }),
       ]);
 
       // ── 2. Desconto médio e economia total ───────────────────────────────
@@ -52,11 +54,11 @@ export async function metricsRoutes(app: FastifyInstance) {
       })();
       const meanDiscount = avgDiscount;
 
-      // ── 3. Posts por dia (últimos 7 dias) ───────────────────────────────
-      const postsByDayRaw = await prisma.publishedPost.findMany({
-        where:  { publishedAt: { gte: day7 } },
-        select: { publishedAt: true },
-        orderBy: { publishedAt: 'asc' },
+      // ── 3. Posts por dia (últimos 7 dias) — todos os canais ─────────────
+      const postsByDayRaw = await prisma.postHistory.findMany({
+        where:  { postedAt: { gte: day7 } },
+        select: { postedAt: true },
+        orderBy: { postedAt: 'asc' },
       });
 
       const dayMap: Record<string, number> = {};
@@ -67,7 +69,7 @@ export async function metricsRoutes(app: FastifyInstance) {
         dayMap[key] = 0;
       }
       postsByDayRaw.forEach(p => {
-        const key = p.publishedAt.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
+        const key = p.postedAt.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' });
         if (key in dayMap) dayMap[key]++;
       });
       const postsByDay = Object.entries(dayMap).map(([day, posts]) => ({ day, posts }));
