@@ -565,6 +565,24 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['fita led', 'luminária led', 'luminária'],                                   phraseKey: 'lâmpada' },
   { kw: ['espelho decorativo', 'espelho de banheiro', 'espelho'],                     phraseKey: 'espelho' },
   { kw: ['tapete sala', 'tapete quarto', 'tapete'],                                   phraseKey: 'tapete' },
+
+  // ─── Plantas / Vasinhos Decorativos (ANTES de pet/ração para não confundir) ──
+  { kw: [
+      'planta artificial', 'flor artificial', 'flores artificiais',
+      'planta decorativa', 'plantas decorativas', 'arranjo de flores',
+      'arranjo floral', 'bouquet', 'buquê artificial',
+      'vasinho de planta', 'vasinhos de planta', 'kit vasinhos',
+      'vasinho decorativo', 'vasinhos decorativos',
+      'vaso de planta', 'vasos de planta', 'vaso com planta',
+      'vaso de flores', 'vasos de flores', 'vaso com flores',
+      'suculenta', 'cacto artificial', 'mini planta',
+      'plant pot', 'flower pot',
+    ],                                                                               phraseKey: 'planta decorativa' },
+  { kw: [
+      'planta natural', 'planta real', 'muda de planta', 'muda de flor',
+      'orquídea', 'bromélia', 'samambaia', 'palmeira', 'bonsai',
+      'suculenta natural', 'cacto natural', 'mini jardim', 'jardim vertical',
+    ],                                                                               phraseKey: 'planta decorativa' },
   { kw: ['prateleira', 'nicho', 'rack para tv', 'painel tv', 'rack'],                phraseKey: 'sofá' },
 
   // ─── Câmera / Drones (mais específico primeiro) ───────────────────────────
@@ -899,6 +917,12 @@ export function getProductEmoji(title: string): string {
   if (has('papel a4') || has('resma') || has('sulfite'))                   return '📄';
   if (has('caneta') || has('lápis') || has('lapiseira'))                   return '✏️';
   if (has('mochila escolar') || has('estojo'))                             return '🎒';
+
+  // ── Plantas / Vasinhos Decorativos (ANTES de pet para não confundir) ───────
+  if (has('planta artificial') || has('planta decorativa') || has('vasinho') ||
+      has('vaso de planta') || has('vaso de flor') || has('suculenta') ||
+      has('flor artificial') || has('arranjo floral') || has('bouquet') ||
+      has('kit vasinhos') || has('vasinhos') || has('mini planta'))        return '🌿';
 
   // ── Pet ──────────────────────────────────────────────────────────────────
   if (has('ração') || has('racao') || has('petisco') || has('pet '))       return '🐾';
