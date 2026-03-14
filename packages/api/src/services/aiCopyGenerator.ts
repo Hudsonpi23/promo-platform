@@ -174,6 +174,21 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   phraseKey: string;
   brandCat?: string;
 }> = [
+  // ─── Bonecos / Figuras Colecionáveis genéricos — ANTES de qualquer roupa ──
+  // (ex: "Patolino Calça De Shopping" contém "Calça" mas é um boneco)
+  { kw: [
+      'boneco colecionável', 'figura colecionável', 'boneco de coleção',
+      'boneco looney tunes', 'looney tunes', 'patolino', 'pernalonga', 'piu-piu',
+      'frajola', 'papa-léguas', 'coyote', 'tasmanian devil', 'taz devil',
+      'boneco disney', 'figura disney', 'disney colecionável',
+      'mickey figure', 'minnie figure', 'donald duck',
+      'boneco cartoon', 'figura cartoon', 'cartoon network figure',
+      'hanna-barbera', 'scooby-doo', 'fred flintstone', 'zé colméia',
+      'boneco warner', 'warner bros figure',
+      'estátua colecionável', 'estatueta colecionável',
+      'boneco articulado colecionável', 'boneco decorativo colecionável',
+    ],                                                                               phraseKey: 'boneco colecionável' },
+
   // ─── Vestuário superior — ORDEM: mais específico primeiro ───────────────
 
   // 1. Camisa de time (jersey de clube/seleção) — detectar ANTES de qualquer outra camisa
@@ -207,6 +222,26 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   // 5. Camiseta básica (t-shirt genérica — vem por último entre as camisas)
   // ─── Plus Size ────────────────────────────────────────────────────────────
   { kw: ['plus size', 'tamanho grande', 'tamanho extra', 'size plus', 'gg', 'xgg', 'eg', 'tamanho especial', 'moda plus', 'roupa plus'], phraseKey: 'plus size' },
+
+  // ─── Bonecos Colecionáveis Genéricos (ANTES de qualquer detector de roupa) ───
+  // Captura "Boneco Colecionável X Calça/Vestido/..." antes de detectar roupa
+  { kw: [
+      'boneco colecionável', 'boneco colecionavel', 'figura colecionável', 'figura colecionavel',
+      'boneco looney tunes', 'boneco looney', 'looney tunes',
+      'boneco disney', 'figura disney', 'boneco pixar', 'figura pixar',
+      'boneco turma da mônica', 'boneco turma da monica',
+      'boneco hanna-barbera', 'boneco hanna barbera',
+      'boneco patolino', 'boneco pernalonga', 'boneco frajola', 'boneco tweety',
+      'boneco tom e jerry', 'boneco scooby-doo', 'boneco scooby doo',
+      'boneco fred flintstone', 'boneco yogi bear',
+      'boneco mickey', 'boneco minnie', 'boneco donald', 'boneco pato donald',
+      'boneco pateta', 'boneco pluto', 'boneco goofy',
+      'boneco frozen', 'boneco moana', 'boneco encanto',
+      'boneco star wars', 'boneco marvel', 'boneco dc comics',
+      'boneco articulado', 'figura articulada', 'miniatura colecionável',
+      'estatueta colecionável', 'estatueta decorativa', 'boneco de resina',
+      'colecionável premium', 'edition collector',
+    ],                                                                               phraseKey: 'boneco colecionável' },
 
   // ─── Anime / Geek / Superhero (ANTES do detector genérico de camiseta) ───
   // Figuras colecionáveis / action figures
@@ -874,7 +909,10 @@ export function getProductEmoji(title: string): string {
   // ── Colecionáveis / Anime / Geek ────────────────────────────────────────
   if (has('funko pop') || has('funko'))                                     return '🧸';
   if (has('nendoroid') || has('figma') || has('figuarts'))                  return '🏆';
-  if (has('figura') || has('action figure') || has('boneco colecionável') || has('estatueta')) return '🎭';
+  if (has('looney tunes') || has('patolino') || has('pernalonga') || has('tweety') || has('frajola')) return '🎭';
+  if (has('mickey') || has('minnie') || has('donald') || has('pateta') || has('scooby')) return '🎭';
+  if (has('boneco colecionável') || has('boneco colecionavel') || has('figura colecionável')) return '🎭';
+  if (has('figura') || has('action figure') || has('estatueta')) return '🎭';
 
   // ── Games ────────────────────────────────────────────────────────────────
   if (has('ps5') || has('playstation'))                                     return '🎮';
@@ -1500,6 +1538,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'corrente masculina': 'corrente masculina',
 
   // ── Anime / Geek / Colecionáveis ────────────────────────────────────────
+  'boneco colecionável': 'boneco colecionável',
   'figura anime':   'figura anime',
   'funko pop':      'funko pop',
   'nendoroid':      'nendoroid',
