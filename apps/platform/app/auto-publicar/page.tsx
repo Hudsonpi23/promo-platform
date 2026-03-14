@@ -16,6 +16,7 @@ interface PublishResult {
   twitter?: { success: boolean; error?: string };
   site: boolean;
   error?: string;
+  paymentMethod?: string;
 }
 
 function formatPrice(value?: number) {
@@ -34,46 +35,138 @@ function StatusBadge({ ok, label }: { ok?: boolean; label: string }) {
   );
 }
 
+function PaymentBadge({ method }: { method?: string }) {
+  if (!method) return null;
+  if (method === 'pix') return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400">
+      🏦 PIX
+    </span>
+  );
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
+      💵 À Vista
+    </span>
+  );
+}
+
+const parseUrls = (raw: string) =>
+  raw.split('\n').map(u => u.trim()).filter(u => u.length > 0);
+
+interface LinkBoxProps {
+  id: string;
+  label: string;
+  icon: string;
+  borderColor: string;
+  headerColor: string;
+  badgeClass: string;
+  value: string;
+  onChange: (v: string) => void;
+  coupon?: string;
+  onCouponChange?: (v: string) => void;
+  placeholder?: string;
+  disabled: boolean;
+}
+
+function LinkBox({
+  label, icon, borderColor, headerColor, badgeClass,
+  value, onChange, coupon, onCouponChange, disabled,
+}: LinkBoxProps) {
+  const count = parseUrls(value).length;
+  return (
+    <div className={`rounded-xl border-2 ${borderColor} bg-background/40 overflow-hidden transition-all`}>
+      <div className={`px-4 py-3 ${headerColor} flex items-center justify-between`}>
+        <span className="font-semibold text-sm flex items-center gap-2">
+          {icon} {label}
+        </span>
+        {count > 0 && (
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+            {count} link{count !== 1 ? 's' : ''}
+          </span>
+        )}
+      </div>
+      <div className="p-3 space-y-2">
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          disabled={disabled}
+          rows={5}
+          placeholder={`Cole os links aqui\n(um por linha)`}
+          className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-xs resize-none"
+        />
+        {onCouponChange !== undefined && (
+          <input
+            type="text"
+            value={coupon ?? ''}
+            onChange={e => onCouponChange(e.target.value.toUpperCase())}
+            disabled={disabled}
+            placeholder="Código do cupom  (ex: MELIMERCADO)"
+            className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-xs uppercase tracking-widest"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AutoPublicarPage() {
-  const [rawUrls, setRawUrls] = useState('');
+  // ── Caixa 1: À Vista (sem cupom) ──────────────────────────────────────────
+  const [urlsAvista, setUrlsAvista] = useState('');
+  // ── Caixa 2: PIX (sem cupom) ──────────────────────────────────────────────
+  const [urlsPix, setUrlsPix] = useState('');
+  // ── Caixa 3: PIX + Cupom ──────────────────────────────────────────────────
+  const [urlsPixCupom, setUrlsPixCupom] = useState('');
+  const [couponPix, setCouponPix] = useState('');
+  // ── Caixa 4: À Vista + Cupom ──────────────────────────────────────────────
+  const [urlsAvistaCupom, setUrlsAvistaCupom] = useState('');
+  const [couponAvista, setCouponAvista] = useState('');
+
+  // ── Opções globais ────────────────────────────────────────────────────────
   const [postTelegram, setPostTelegram] = useState(true);
   const [postTwitter, setPostTwitter] = useState(true);
   const [isFlash, setIsFlash] = useState(false);
   const [flashHours, setFlashHours] = useState(3);
   const [flashMins, setFlashMins] = useState(0);
-  const [couponCode, setCouponCode] = useState('');
+
+  // ── Estado de execução ────────────────────────────────────────────────────
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<PublishResult[] | null>(null);
   const [summary, setSummary] = useState<{ total: number; successCount: number; errorCount: number } | null>(null);
   const [currentStep, setCurrentStep] = useState('');
 
-  const urlList = rawUrls
-    .split('\n')
-    .map(u => u.trim())
-    .filter(u => u.length > 0);
+  const totalLinks =
+    parseUrls(urlsAvista).length +
+    parseUrls(urlsPix).length +
+    parseUrls(urlsPixCupom).length +
+    parseUrls(urlsAvistaCupom).length;
 
   const handlePublish = async () => {
-    if (urlList.length === 0) {
-      alert('Cole ao menos um link afiliado.');
+    if (totalLinks === 0) {
+      alert('Cole ao menos um link em qualquer caixa.');
       return;
     }
+
+    const groups = [
+      { urls: parseUrls(urlsAvista),      paymentMethod: 'avista' as const },
+      { urls: parseUrls(urlsPix),         paymentMethod: 'pix'    as const },
+      { urls: parseUrls(urlsPixCupom),    paymentMethod: 'pix'    as const, couponCode: couponPix.trim()    || undefined },
+      { urls: parseUrls(urlsAvistaCupom), paymentMethod: 'avista' as const, couponCode: couponAvista.trim() || undefined },
+    ].filter(g => g.urls.length > 0);
 
     setLoading(true);
     setResults(null);
     setSummary(null);
-    setCurrentStep(`Processando ${urlList.length} link(s)... isso pode levar alguns minutos.`);
+    setCurrentStep(`Processando ${totalLinks} link(s)... isso pode levar alguns minutos.`);
 
     try {
       const flashMinutes = flashHours * 60 + flashMins;
       const response = await fetchWithAuth('/api/auto-publish/publish', {
         method: 'POST',
         body: JSON.stringify({
-          urls: urlList,
+          groups,
           postTelegram,
           postTwitter,
           isFlash,
           flashMinutes: isFlash ? flashMinutes : undefined,
-          couponCode: couponCode.trim() || undefined,
         }),
       });
 
@@ -86,7 +179,14 @@ export default function AutoPublicarPage() {
 
       setResults(data.results);
       setSummary({ total: data.total, successCount: data.successCount, errorCount: data.errorCount });
-      setRawUrls('');
+
+      // Limpar todas as caixas após sucesso
+      setUrlsAvista('');
+      setUrlsPix('');
+      setUrlsPixCupom('');
+      setCouponPix('');
+      setUrlsAvistaCupom('');
+      setCouponAvista('');
     } catch (err: any) {
       alert(`Erro de conexão: ${err.message}`);
     } finally {
@@ -96,68 +196,73 @@ export default function AutoPublicarPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
           ⚡ Auto Publicar
         </h1>
         <p className="text-text-secondary mt-1">
-          Cole os links afiliados abaixo. A IA vai criar os posts e publicar automaticamente no Telegram, X e site.
+          Cole os links nas caixas de acordo com o tipo de pagamento. A IA cria os posts e publica automaticamente.
         </p>
       </div>
 
-      {/* Form */}
-      <div className="bg-surface border border-border rounded-xl p-6 mb-6">
-        <label className="block text-sm font-medium text-text-secondary mb-2">
-          Links Afiliados <span className="text-text-muted">(um por linha, máx. 20)</span>
-        </label>
-        <textarea
-          value={rawUrls}
-          onChange={e => setRawUrls(e.target.value)}
+      {/* 4 Caixas de Links */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <LinkBox
+          id="avista"
+          label="À Vista"
+          icon="💵"
+          borderColor="border-blue-500/40 hover:border-blue-500/70"
+          headerColor="bg-blue-500/10 text-blue-400"
+          badgeClass="bg-blue-500/30 text-blue-300"
+          value={urlsAvista}
+          onChange={setUrlsAvista}
           disabled={loading}
-          rows={8}
-          placeholder={`https://mercadolivre.com.br/produto/p/MLB123?matt_event_ts=...
-https://mercadolivre.com.br/outro-produto/p/MLB456?matt_event_ts=...
-https://amzn.to/xyz123`}
-          className="w-full px-4 py-3 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm resize-none"
         />
-        {urlList.length > 0 && (
-          <p className="text-xs text-text-muted mt-1">{urlList.length} link(s) detectado(s)</p>
-        )}
+        <LinkBox
+          id="pix"
+          label="PIX"
+          icon="🏦"
+          borderColor="border-emerald-500/40 hover:border-emerald-500/70"
+          headerColor="bg-emerald-500/10 text-emerald-400"
+          badgeClass="bg-emerald-500/30 text-emerald-300"
+          value={urlsPix}
+          onChange={setUrlsPix}
+          disabled={loading}
+        />
+        <LinkBox
+          id="avista-cupom"
+          label="À Vista + Cupom"
+          icon="🎟️"
+          borderColor="border-violet-500/40 hover:border-violet-500/70"
+          headerColor="bg-violet-500/10 text-violet-400"
+          badgeClass="bg-violet-500/30 text-violet-300"
+          value={urlsAvistaCupom}
+          onChange={setUrlsAvistaCupom}
+          coupon={couponAvista}
+          onCouponChange={setCouponAvista}
+          disabled={loading}
+        />
+        <LinkBox
+          id="pix-cupom"
+          label="PIX + Cupom"
+          icon="🏷️"
+          borderColor="border-teal-500/40 hover:border-teal-500/70"
+          headerColor="bg-teal-500/10 text-teal-400"
+          badgeClass="bg-teal-500/30 text-teal-300"
+          value={urlsPixCupom}
+          onChange={setUrlsPixCupom}
+          coupon={couponPix}
+          onCouponChange={setCouponPix}
+          disabled={loading}
+        />
+      </div>
 
-        {/* Cupom de desconto */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-text-secondary mb-2">
-            🏷️ Cupom de Desconto <span className="text-text-muted text-xs">(opcional — aplica a todos os links)</span>
-          </label>
-          <input
-            type="text"
-            value={couponCode}
-            onChange={e => setCouponCode(e.target.value.toUpperCase())}
-            disabled={loading}
-            placeholder="Ex: OFERTA15"
-            className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm uppercase tracking-widest"
-          />
-        </div>
-
-        {/* Cupom de desconto */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-text-secondary mb-2">
-            🏷️ Cupom de desconto <span className="text-text-muted font-normal">(opcional — aparece no post)</span>
-          </label>
-          <input
-            type="text"
-            value={couponCode}
-            onChange={e => setCouponCode(e.target.value.toUpperCase())}
-            disabled={loading}
-            placeholder="Ex: OFERTA15"
-            className="w-full sm:w-64 px-4 py-2 rounded-lg bg-background border border-border text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm uppercase tracking-widest"
-          />
-        </div>
-
+      {/* Opções globais */}
+      <div className="bg-surface border border-border rounded-xl p-5 mb-5 space-y-4">
         {/* Canais */}
-        <div className="flex gap-6 mt-4 flex-wrap">
+        <div className="flex gap-6 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -185,10 +290,8 @@ https://amzn.to/xyz123`}
         </div>
 
         {/* ⚡ Oferta Relâmpago */}
-        <div className={`mt-4 rounded-xl border-2 transition-all ${
-          isFlash
-            ? 'border-amber-500 bg-amber-500/10'
-            : 'border-border bg-background/40'
+        <div className={`rounded-xl border-2 transition-all ${
+          isFlash ? 'border-amber-500 bg-amber-500/10' : 'border-border bg-background/40'
         }`}>
           <label className="flex items-center gap-3 cursor-pointer select-none p-4">
             <div
@@ -217,10 +320,7 @@ https://amzn.to/xyz123`}
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2">
                   <input
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={flashHours}
+                    type="number" min={0} max={23} value={flashHours}
                     onChange={e => setFlashHours(Number(e.target.value))}
                     disabled={loading}
                     className="w-16 px-2 py-1.5 rounded-lg bg-background border border-amber-500/40 text-text-primary text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -229,10 +329,7 @@ https://amzn.to/xyz123`}
                 </div>
                 <div className="flex items-center gap-2">
                   <input
-                    type="number"
-                    min={0}
-                    max={59}
-                    value={flashMins}
+                    type="number" min={0} max={59} value={flashMins}
                     onChange={e => setFlashMins(Number(e.target.value))}
                     disabled={loading}
                     className="w-16 px-2 py-1.5 rounded-lg bg-background border border-amber-500/40 text-text-primary text-center text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -247,10 +344,11 @@ https://amzn.to/xyz123`}
           )}
         </div>
 
+        {/* Botão Publicar */}
         <button
           onClick={handlePublish}
-          disabled={loading || urlList.length === 0}
-          className="mt-5 w-full py-3 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          disabled={loading || totalLinks === 0}
+          className="w-full py-3 rounded-lg bg-primary text-white font-semibold text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
         >
           {loading ? (
             <>
@@ -261,15 +359,14 @@ https://amzn.to/xyz123`}
               Processando...
             </>
           ) : (
-            <>
-              {isFlash ? '⚡ Publicar Relâmpago' : '🚀 Processar e Publicar'}
-              {' '}({urlList.length} link{urlList.length !== 1 ? 's' : ''})
+            <>{isFlash ? '⚡ Publicar Relâmpago' : '🚀 Processar e Publicar'}{' '}
+              ({totalLinks} link{totalLinks !== 1 ? 's' : ''})
             </>
           )}
         </button>
 
         {loading && currentStep && (
-          <p className="text-xs text-text-muted text-center mt-3 animate-pulse">{currentStep}</p>
+          <p className="text-xs text-text-muted text-center animate-pulse">{currentStep}</p>
         )}
       </div>
 
@@ -299,27 +396,18 @@ https://amzn.to/xyz123`}
             <div
               key={i}
               className={`bg-surface border rounded-xl p-4 ${
-                r.status === 'success'
-                  ? 'border-emerald-500/30'
-                  : 'border-red-500/30'
+                r.status === 'success' ? 'border-emerald-500/30' : 'border-red-500/30'
               }`}
             >
               <div className="flex gap-4">
-                {/* Imagem */}
                 {r.image && (
-                  <img
-                    src={r.image}
-                    alt={r.title}
-                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                  />
+                  <img src={r.image} alt={r.title} className="w-16 h-16 object-cover rounded-lg flex-shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   {r.status === 'success' ? (
                     <>
-                      <p className="font-medium text-text-primary text-sm leading-tight mb-1 truncate">
-                        {r.title}
-                      </p>
-                      <div className="flex items-center gap-3 mb-2">
+                      <p className="font-medium text-text-primary text-sm leading-tight mb-1 truncate">{r.title}</p>
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <span className="text-emerald-400 font-bold text-sm">{formatPrice(r.finalPrice)}</span>
                         {r.originalPrice && r.originalPrice > (r.finalPrice || 0) && (
                           <span className="text-text-muted text-xs line-through">{formatPrice(r.originalPrice)}</span>
@@ -329,6 +417,7 @@ https://amzn.to/xyz123`}
                             -{r.discountPct}% OFF
                           </span>
                         ) : null}
+                        <PaymentBadge method={r.paymentMethod} />
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         <StatusBadge ok={r.site} label="Site" />

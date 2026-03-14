@@ -31,42 +31,72 @@ interface PublishResult {
   twitter?: { success: boolean; error?: string };
   site: boolean;
   error?: string;
+  paymentMethod?: string;
+}
+
+interface LinkGroup {
+  urls: string[];
+  paymentMethod?: 'avista' | 'pix';
+  couponCode?: string;
 }
 
 export async function autoPublishRoutes(app: FastifyInstance) {
   /**
    * POST /api/auto-publish/publish
-   * Recebe lista de URLs afiliadas, scrapa, cria oferta e posta automaticamente.
+   * Recebe grupos de URLs (cada grupo com paymentMethod e couponCode próprios).
+   * Também aceita o formato legado { urls, couponCode } para compatibilidade.
    */
   app.post('/publish', { preHandler: [authGuard] }, async (request, reply) => {
     const body = request.body as {
-      urls: string[];
+      // Novo formato: grupos com tipo de pagamento
+      groups?: LinkGroup[];
+      // Formato legado
+      urls?: string[];
+      couponCode?: string;
+      // Opções globais
       postTelegram?: boolean;
       postTwitter?: boolean;
       isFlash?: boolean;
       flashMinutes?: number;
-      couponCode?: string;
     };
-    const { urls, postTelegram = true, postTwitter = true, isFlash = false, flashMinutes = 180, couponCode } = body;
 
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
+    const { postTelegram = true, postTwitter = true, isFlash = false, flashMinutes = 180 } = body;
+
+    // Normalizar para array de grupos
+    let groups: LinkGroup[] = [];
+    if (body.groups && Array.isArray(body.groups) && body.groups.length > 0) {
+      groups = body.groups;
+    } else if (body.urls && Array.isArray(body.urls) && body.urls.length > 0) {
+      // Compatibilidade com formato legado
+      groups = [{ urls: body.urls, paymentMethod: 'avista', couponCode: body.couponCode }];
+    }
+
+    if (groups.length === 0) {
       return reply.status(400).send({ error: 'Forneça ao menos uma URL.' });
     }
 
-    const validUrls = urls
-      .map((u: string) => u.trim())
-      .filter((u: string) => {
-        try { new URL(u); return true; } catch { return false; }
-      })
-      .slice(0, 20);
+    // Expandir grupos em lista plana de { url, paymentMethod, couponCode }
+    // Limite global de 20 URLs no total
+    const allItems: { url: string; paymentMethod: 'avista' | 'pix'; couponCode?: string }[] = [];
+    for (const group of groups) {
+      const pm = group.paymentMethod ?? 'avista';
+      const cc = group.couponCode?.trim() || undefined;
+      for (const raw of (group.urls ?? [])) {
+        const u = raw.trim();
+        try { new URL(u); } catch { continue; }
+        if (allItems.length >= 20) break;
+        allItems.push({ url: u, paymentMethod: pm, couponCode: cc });
+      }
+      if (allItems.length >= 20) break;
+    }
 
-    if (validUrls.length === 0) {
+    if (allItems.length === 0) {
       return reply.status(400).send({ error: 'Nenhuma URL válida encontrada.' });
     }
 
     const results: PublishResult[] = [];
 
-    for (const url of validUrls) {
+    for (const { url, paymentMethod, couponCode } of allItems) {
       const result: PublishResult = { url, status: 'error', site: false };
 
       try {
@@ -238,9 +268,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         }
 
         // ── 7. GERAR COPY COM IA ───────────────────────────────────────────
-        // siteLink: usa URL do produto se goCode disponível, senão URL base
-        // IMPORTANTE: sempre inclui o link do site independente do resultado
         const siteLink = goCode ? `${SITE_URL}/go/${goCode}` : SITE_URL;
+
+        result.paymentMethod = paymentMethod;
 
         const copies = generateCopies({
           title: offer.title,
@@ -252,6 +282,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           siteUrl: siteLink,
           isFlash,
           flashMinutes,
+          paymentMethod,
           couponCode: couponCode || undefined,
         });
 
@@ -300,7 +331,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       results.push(result);
 
       // Pausa entre URLs para evitar rate limiting
-      if (validUrls.indexOf(url) < validUrls.length - 1) {
+      if (allItems.indexOf(allItems.find(i => i.url === url)!) < allItems.length - 1) {
         await new Promise(resolve => setTimeout(resolve, 1500));
       }
     }
