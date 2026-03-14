@@ -236,31 +236,7 @@ export async function telegramRoutes(app: FastifyInstance) {
         console.error('[PostHistory/Telegram] Erro ao registrar publicação:', e);
       }
 
-      // Registrar também no PublishedPost para aparecer nas métricas
-      try {
-        const slug    = `tg-${offerId}-${nanoid(6)}`;
-        const goCode  = nanoid(8);
-        await prisma.publishedPost.create({
-          data: {
-            offerId,
-            slug,
-            goCode,
-            title:         offer.title,
-            copyText:      text,
-            price:         offer.finalPrice,
-            originalPrice: offer.originalPrice ?? null,
-            discountPct:   offer.discountPct ?? 0,
-            affiliateUrl:  offer.affiliateUrl!,
-            imageUrl:      offer.imageUrl ?? null,
-            urgency:       offer.urgency ?? 'NORMAL',
-            nicheId:       offer.nicheId,
-            storeId:       offer.storeId!,
-            isActive:      true,
-          },
-        });
-      } catch (e) {
-        console.error('[PublishedPost/Telegram] Erro ao registrar nas métricas:', e);
-      }
+      // Nota: PublishedPost é exclusivo para o site (evita duplicatas na vitrine)
     }
 
     return {
