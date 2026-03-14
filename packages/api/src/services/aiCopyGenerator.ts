@@ -843,6 +843,156 @@ function detectProductType(titleLower: string): { phraseKey: string; brandCat?: 
 }
 
 /**
+ * Retorna um emoji temático para o produto — usado exclusivamente no post do X (Twitter).
+ * Ordem: mais específico primeiro. Fallback: '🛒'
+ */
+export function getProductEmoji(title: string): string {
+  const t = title.toLowerCase();
+  const has = (kw: string) => t.includes(kw);
+
+  // ── Eletrônicos ──────────────────────────────────────────────────────────
+  if (has('ar condicionado') || has('ar-condicionado') || has('split'))     return '❄️';
+  if (has('geladeira') || has('refrigerador') || has('frigobar'))           return '🧊';
+  if (has('microondas') || has('micro-ondas') || has('micro ondas'))        return '📡';
+  if (has('notebook') || has('laptop'))                                      return '💻';
+  if (has('smart tv') || has('smarttv'))                                    return '📺';
+  if (has('televisor') || has('televisão') || (has('tv ') && !has('suporte para tv'))) return '📺';
+  if (has('monitor gamer') || has('monitor'))                               return '🖥️';
+  if (has('smartphone') || has('celular') || has('iphone') || has('galaxy') || has('moto g') || has('redmi') || has('poco x')) return '📱';
+  if (has('tablet') || has('ipad'))                                         return '📱';
+  if (has('fone de ouvido') || has('headphone') || has('headset') || has('airpod') || has('earphone') || has('earbuds')) return '🎧';
+  if (has('soundbar') || has('caixa de som') || has('speaker') || has('caixinha de som')) return '🔊';
+  if (has('smartwatch') || has('relogio inteligente') || has('relógio inteligente')) return '⌚';
+  if (has('drone'))                                                          return '🚁';
+  if (has('câmera') || has('camera') || has('webcam'))                      return '📷';
+  if (has('projetor'))                                                       return '📽️';
+  if (has('teclado'))                                                        return '⌨️';
+  if (has('mouse'))                                                          return '🖱️';
+  if (has('ssd') || has('hd externo') || has('pen drive') || has('memória'))return '💾';
+  if (has('roteador') || has('wi-fi') || has('wifi'))                       return '📶';
+  if (has('power bank') || has('carregador portátil') || has('carregador portatil')) return '🔋';
+  if (has('carregador'))                                                     return '🔌';
+  if (has('nobreak') || has('estabilizador'))                               return '⚡';
+  if (has('impressora') || has('scanner'))                                  return '🖨️';
+
+  // ── Eletrodomésticos ─────────────────────────────────────────────────────
+  if (has('chuveiro') || has('ducha'))                                      return '🚿';
+  if (has('air fryer') || has('airfryer'))                                  return '🥘';
+  if (has('cafeteira') || has('café') || has('espresso'))                   return '☕';
+  if (has('liquidificador') || has('mixer') || has('processador de alimento')) return '🫙';
+  if (has('sanduicheira') || has('grill') || has('waffle'))                 return '🥪';
+  if (has('máquina de lavar') || has('lavadora') || has('lava e seca'))    return '🫧';
+  if (has('aspirador'))                                                      return '🌀';
+  if (has('ventilador'))                                                     return '🌬️';
+  if (has('purificador de ar') || has('umidificador') || has('ar purif'))  return '💨';
+  if (has('secador') || has('chapinha') || has('modelador de cabelo'))      return '💇';
+  if (has('barbeador') || has('aparador') || has('máquina de cortar cabelo')) return '🪒';
+  if (has('ferro de passar') || has('vaporizador'))                        return '👔';
+  if (has('fogão') || has('cooktop'))                                       return '🍳';
+  if (has('adega') || has('cervejeira'))                                    return '🍷';
+  if (has('forno'))                                                          return '🔥';
+
+  // ── Ferramentas ──────────────────────────────────────────────────────────
+  if (has('furadeira') || has('parafusadeira') || has('martelete') || has('esmerilhadeira') || has('serra') || has('lixadeira')) return '🔧';
+  if (has('kit ferramenta') || has('caixa de ferramenta'))                  return '🧰';
+
+  // ── Moda / Vestuário ─────────────────────────────────────────────────────
+  if (has('camiseta anime') || has('camisa anime') || has('camiseta geek') || has('camiseta nerd') || has('camiseta marvel') || has('camiseta dc') || has('camiseta otaku')) return '👕';
+  if (has('tênis') || has('sneaker') || has('tenis '))                      return '👟';
+  if (has('chuteira'))                                                       return '⚽';
+  if (has('óculos de sol') || has('oculos de sol'))                         return '🕶️';
+  if (has('óculos') || has('oculos'))                                       return '👓';
+  if (has('relógio') || has('relogio'))                                     return '⌚';
+  if (has('bolsa') || has('carteira'))                                       return '👜';
+  if (has('mochila'))                                                        return '🎒';
+  if (has('boné') || has('bone ') || has('chapéu') || has('chapeu'))        return '🧢';
+  if (has('meia') || has('meias'))                                           return '🧦';
+  if (has('cueca') || has('calcinha') || has('sutiã'))                      return '👙';
+  if (has('jaqueta') || has('casaco') || has('puffer') || has('parka'))     return '🧥';
+  if (has('moletom'))                                                        return '🧤';
+  if (has('vestido'))                                                        return '👗';
+  if (has('calça jeans') || has('calca jeans'))                             return '👖';
+  if (has('bermuda') || has('shorts'))                                       return '🩳';
+  if (has('camiseta') || has('camisa') || has('blusa'))                     return '👕';
+  if (has('roupa'))                                                          return '👔';
+  if (has('sandália') || has('sandalia') || has('chinelo') || has('slide')) return '🩴';
+
+  // ── Colecionáveis / Anime / Geek ────────────────────────────────────────
+  if (has('funko pop') || has('funko'))                                     return '🧸';
+  if (has('nendoroid') || has('figma') || has('figuarts'))                  return '🏆';
+  if (has('figura') || has('action figure') || has('boneco colecionável') || has('estatueta')) return '🎭';
+
+  // ── Games ────────────────────────────────────────────────────────────────
+  if (has('ps5') || has('playstation'))                                     return '🎮';
+  if (has('xbox'))                                                           return '🎮';
+  if (has('nintendo switch') || has('nintendo'))                            return '🎮';
+  if (has('controle') || has('joystick') || has('gamepad'))                 return '🕹️';
+  if (has('cadeira gamer') || has('setup gamer') || has('headset gamer'))   return '🎮';
+
+  // ── Livros / Cultura ─────────────────────────────────────────────────────
+  if (has('mangá') || has('manga ') || has('quadrinho') || has('hq '))     return '📖';
+  if (has('livro') || has('revista'))                                       return '📚';
+
+  // ── Beleza / Saúde ───────────────────────────────────────────────────────
+  if (has('perfume') || has('colônia') || has('body splash') || has('eau de'))  return '🌸';
+  if (has('batom') || has('gloss') || has('maquiagem') || has('base ') || has('blush')) return '💄';
+  if (has('creme') || has('hidratante') || has('sérum') || has('protetor solar')) return '🧴';
+  if (has('shampoo') || has('condicionador') || has('máscara capilar'))    return '🧴';
+  if (has('fralda') && !has('geriátrica'))                                  return '🍼';
+  if (has('fralda geriátrica'))                                             return '💊';
+  if (has('suplemento') || has('whey') || has('creatina') || has('proteína') || has('colágeno')) return '💪';
+  if (has('medicamento') || has('remédio') || has('vitamina'))              return '💊';
+  if (has('aparelho de pressão') || has('oxímetro') || has('termômetro'))  return '🩺';
+
+  // ── Alimentos ────────────────────────────────────────────────────────────
+  if (has('chocolate') || has('nutella') || has('kit kat') || has('barra de chocolate')) return '🍫';
+  if (has('paçoca') || has('pacoca') || has('amendoim'))                   return '🥜';
+  if (has('bala ') || has('pirulito') || has('chiclete') || has('doce '))  return '🍬';
+  if (has('café ') || has('nescafé') || has('pilão'))                      return '☕';
+  if (has('pizza') || has('hamburguer') || has('lanche'))                  return '🍕';
+  if (has('whiskey') || has('cerveja') || has('vinho'))                    return '🍺';
+
+  // ── Casa / Móveis ────────────────────────────────────────────────────────
+  if (has('colchão') || has('colchao') || has('travesseiro'))              return '🛏️';
+  if (has('sofá') || has('sofa'))                                           return '🛋️';
+  if (has('escrivaninha') || has('mesa de escritório') || has('mesa de jantar')) return '🪑';
+  if (has('guarda-roupa') || has('roupeiro'))                               return '🚪';
+  if (has('lâmpada') || has('lampada') || has('luminária'))                return '💡';
+  if (has('panela') || has('frigideira') || has('wok'))                    return '🍳';
+  if (has('copo') || has('caneca') || has('garrafa térmica') || has('stanley')) return '🥤';
+  if (has('batedeira') || has('kitchen aid'))                              return '🍰';
+
+  // ── Esporte / Academia ───────────────────────────────────────────────────
+  if (has('bicicleta') || has('bike '))                                     return '🚲';
+  if (has('patinete'))                                                       return '🛴';
+  if (has('esteira'))                                                        return '🏃';
+  if (has('haltere') || has('halter') || has('anilha') || has('kettlebell') || has('barra de supino')) return '🏋️';
+  if (has('bola de futebol') || has('bola futsal'))                         return '⚽';
+  if (has('roupa de academia') || has('shorts academia') || has('legging')) return '🏋️';
+  if (has('elíptico') || has('spinning'))                                   return '🚴';
+
+  // ── Automotivo ───────────────────────────────────────────────────────────
+  if (has('pneu') || has('amortecedor') || has('freio') || has('filtro de óleo')) return '🚗';
+  if (has('carro elétrico') || has('veículo elétrico'))                    return '⚡';
+  if (has('câmera de ré') || has('rastreador veicular') || has('alarme veicular')) return '🚗';
+
+  // ── Papelaria ────────────────────────────────────────────────────────────
+  if (has('papel a4') || has('resma') || has('sulfite'))                   return '📄';
+  if (has('caneta') || has('lápis') || has('lapiseira'))                   return '✏️';
+  if (has('mochila escolar') || has('estojo'))                             return '🎒';
+
+  // ── Pet ──────────────────────────────────────────────────────────────────
+  if (has('ração') || has('racao') || has('petisco') || has('pet '))       return '🐾';
+  if (has('coleira') || has('casinha pet') || has('brinquedo pet'))        return '🐕';
+
+  // ── Viagem ───────────────────────────────────────────────────────────────
+  if (has('mala') || has('mala de viagem'))                                return '🧳';
+  if (has('passagem') || has('hotel') || has('hospedagem'))                return '✈️';
+
+  return '🛒';
+}
+
+/**
  * Detecta a primeira marca conhecida (dentro de uma categoria de marcas) no título (Camada 2).
  * Retorna a chave exata da marca em PRODUCT_SPECIFIC_PHRASES.
  */
@@ -2232,19 +2382,26 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   const fixedChars = fixedLines.join('\n').length;
   const titleLimit = Math.max(120, TWITTER_LIMIT - fixedChars);
 
+  // Prefixar o título com emoji temático (exclusivo do X)
+  const productEmoji = getProductEmoji(input.title);
+  const emojiPrefix = productEmoji + ' ';
+
   // Usa o título completo se couber; senão corta na última palavra inteira
+  // O titleLimit precisa descontar o espaço do emoji
   let xTitle = input.title;
-  if (xTitle.length > titleLimit) {
+  const titleLimitWithEmoji = Math.max(100, titleLimit - emojiPrefix.length);
+  if (xTitle.length > titleLimitWithEmoji) {
     const words = xTitle.split(' ');
     let trimmed = '';
     for (const word of words) {
       const candidate = trimmed ? `${trimmed} ${word}` : word;
-      if (candidate.length <= titleLimit - 3) {
+      if (candidate.length <= titleLimitWithEmoji - 3) {
         trimmed = candidate;
       } else break;
     }
-    xTitle = (trimmed || xTitle.substring(0, titleLimit - 3)) + '...';
+    xTitle = (trimmed || xTitle.substring(0, titleLimitWithEmoji - 3)) + '...';
   }
+  xTitle = emojiPrefix + xTitle;
 
   // ── Montar post linha a linha ──
   const lines: string[] = [
