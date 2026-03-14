@@ -606,8 +606,25 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['halter ajustável', 'halter de ferro', 'halter', 'halteres'],               phraseKey: 'halter' },
   { kw: ['kettlebell'],                                                                phraseKey: 'kettlebell' },
   { kw: ['luva de boxe', 'saco de boxe', 'protetor bucal'],                           phraseKey: 'esteira' },
-  { kw: ['balança digital', 'balança inteligente'],                                   phraseKey: 'esteira' },
+  { kw: ['balança digital', 'balança inteligente', 'balança corporal'],               phraseKey: 'balança digital' },
   { kw: ['massageador elétrico', 'massageador de pescoço', 'massageador'],            phraseKey: 'massageador' },
+
+  // ─── Saúde / Monitoramento ────────────────────────────────────────────────
+  { kw: [
+      'medidor de pressão', 'aparelho medidor de pressão', 'aparelho de pressão',
+      'monitor de pressão', 'esfigmomanômetro', 'esfigmomanometro',
+      'manguito pressão', 'braçadeira pressão', 'monitor pressão arterial',
+      'pressão arterial digital', 'medidor pressão arterial',
+    ],                                                                               phraseKey: 'aparelho de pressão' },
+  { kw: ['oxímetro', 'oximetro', 'saturação de oxigênio', 'saturação sanguínea', 'monitor de oxigênio'], phraseKey: 'oxímetro' },
+  { kw: ['termômetro digital', 'termômetro infravermelho', 'termômetro clínico', 'termômetro de testa', 'termômetro axilar', 'termômetro'], phraseKey: 'termômetro' },
+  { kw: ['glicosímetro', 'glicosimetro', 'medidor de glicose', 'monitor de glicose', 'fita de glicemia', 'diabetes kit'], phraseKey: 'glicosímetro' },
+  { kw: ['nebulizador', 'inalador', 'inalação', 'compressor de ar nebulizador'],     phraseKey: 'nebulizador' },
+  { kw: ['joelheira ortopédica', 'joelheira de compressão', 'joelheira de silicone', 'joelheira'], phraseKey: 'joelheira' },
+  { kw: ['cotoveleira ortopédica', 'cotoveleira de compressão', 'cotoveleira'],      phraseKey: 'cotoveleira' },
+  { kw: ['tornozeleira ortopédica', 'tornozeleira de compressão', 'tornozeleira'],   phraseKey: 'tornozeleira' },
+  { kw: ['palmilha ortopédica', 'palmilha de silicone', 'palmilha gel', 'palmilha'],  phraseKey: 'palmilha ortopédica' },
+  { kw: ['kit de primeiros socorros', 'kit primeiros socorros', 'maleta primeiros socorros', 'estojo médico'], phraseKey: 'kit de primeiros socorros' },
 
   // ─── Doces / Confeitaria (mais específico primeiro) ─────────────────────
   { kw: ['kit chocolate', 'caixa de chocolate', 'cesta de chocolate', 'box chocolate', 'presente de chocolate'], phraseKey: 'kit chocolate' },
@@ -1522,6 +1539,19 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'halter':             'halter',
   'kettlebell':         'kettlebell',
   'barra de supino':    'barra de supino',
+  'balança digital':    'balança digital',
+
+  // Saúde / Monitoramento
+  'aparelho de pressão':      'aparelho de pressão',
+  'oxímetro':                 'oxímetro',
+  'termômetro':               'termômetro',
+  'glicosímetro':             'glicosímetro',
+  'nebulizador':              'nebulizador',
+  'joelheira':                'joelheira',
+  'cotoveleira':              'cotoveleira',
+  'tornozeleira':             'tornozeleira',
+  'palmilha ortopédica':      'palmilha ortopédica',
+  'kit de primeiros socorros': 'kit de primeiros socorros',
 
   // Doces / Confeitaria
   'doce':              'doce',
