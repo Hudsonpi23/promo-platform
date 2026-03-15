@@ -570,6 +570,24 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   // 8. Perfume genérico (fallback do nicho)
   { kw: ['perfume', 'eau de parfum', 'eau de toilette', 'fragrance', 'fragrância', 'colônia'], phraseKey: 'perfume' },
 
+  // ─── Shampoo / Cabelo ────────────────────────────────────────────────────
+  // Shampoo masculino (for men, 3 em 1) — ANTES do genérico
+  { kw: [
+      'shampoo for men', 'shampoo masculino', 'shampoo homem', 'shampoo para homens',
+      'shampoo 3 em 1', 'shampoo 2 em 1', 'shampoo cabelo e corpo',
+      'shampoo cabelo barba', 'shampoo barba e cabelo',
+      'kit shampoo masculino', 'kit shampoo for men',
+    ],                                                                               phraseKey: 'shampoo masculino' },
+  // Shampoo infantil — ANTES do genérico
+  { kw: ['shampoo infantil', 'shampoo bebê', 'shampoo bebe', 'shampoo criança', 'johnson shampoo', 'shampoo sem lágrimas'], phraseKey: 'shampoo infantil' },
+  // Shampoo genérico
+  { kw: [
+      'kit shampoo', 'kit shampoo e condicionador', 'shampoo e condicionador',
+      'shampoo anticaspa', 'shampoo hidratante', 'shampoo nutritivo',
+      'shampoo low poo', 'shampoo no poo', 'shampoo vegano',
+      'shampoo', 'condicionador', 'máscara capilar', 'leave-in',
+    ],                                                                               phraseKey: 'shampoo' },
+
   // ─── Beleza / Cabelo ──────────────────────────────────────────────────────
   { kw: ['secador de cabelo profissional', 'secador de cabelo', 'secador'],           phraseKey: 'secador' },
   { kw: ['chapinha profissional', 'prancha de cabelo', 'chapinha', 'prancha'],        phraseKey: 'chapinha' },
