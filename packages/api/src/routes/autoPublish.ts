@@ -139,8 +139,26 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           continue;
         }
 
-        // Garantir affiliateUrl = URL original (com params de afiliado)
-        productData.affiliateUrl = url;
+        // Converter link Amazon em link de afiliado automaticamente
+        let finalUrl = url;
+        if (store === 'amazon') {
+          try {
+            const amazonUrl = new URL(url);
+            amazonUrl.searchParams.set('tag', 'manudaspromoc-20');
+            // Remover parâmetros de rastreamento desnecessários, manter só o essencial
+            const cleanUrl = new URL(`https://www.amazon.com.br${amazonUrl.pathname}`);
+            cleanUrl.searchParams.set('tag', 'manudaspromoc-20');
+            finalUrl = cleanUrl.toString();
+          } catch {
+            // Se falhar a limpeza, adiciona o tag na URL original
+            finalUrl = url.includes('?')
+              ? `${url}&tag=manudaspromoc-20`
+              : `${url}?tag=manudaspromoc-20`;
+          }
+        }
+
+        // Garantir affiliateUrl = URL de afiliado
+        productData.affiliateUrl = finalUrl;
 
         result.title = productData.title;
         result.finalPrice = productData.finalPrice;
@@ -446,6 +464,21 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           ? Math.round(((productData.originalPrice - productData.finalPrice) / productData.originalPrice) * 100)
           : 0);
 
+      // Converter link Amazon em link de afiliado
+      let scrapedAffiliateUrl = url;
+      if (store === 'amazon') {
+        try {
+          const amazonUrl = new URL(url);
+          const cleanUrl = new URL(`https://www.amazon.com.br${amazonUrl.pathname}`);
+          cleanUrl.searchParams.set('tag', 'manudaspromoc-20');
+          scrapedAffiliateUrl = cleanUrl.toString();
+        } catch {
+          scrapedAffiliateUrl = url.includes('?')
+            ? `${url}&tag=manudaspromoc-20`
+            : `${url}?tag=manudaspromoc-20`;
+        }
+      }
+
       return reply.send({
         success: true,
         title:         productData.title,
@@ -454,7 +487,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         discountPct,
         mainImage:     productData.mainImage || null,
         images:        productData.images || [],
-        affiliateUrl:  url,
+        affiliateUrl:  scrapedAffiliateUrl,
         store,
       });
     } catch (err: any) {

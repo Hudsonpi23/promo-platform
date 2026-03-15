@@ -269,6 +269,21 @@ export async function offersRoutes(app: FastifyInstance) {
       // Garantir que imageUrl tenha valor (mainImage ou imageUrl do body)
       const finalImageUrl = bodyWithAI.mainImage || body.imageUrl;
 
+      // Converter link Amazon em afiliado ao salvar a oferta
+      let offerAffiliateUrl = body.affiliateUrl || '';
+      if (offerAffiliateUrl && offerAffiliateUrl.toLowerCase().includes('amazon')) {
+        try {
+          const amazonUrl = new URL(offerAffiliateUrl);
+          const cleanUrl = new URL(`https://www.amazon.com.br${amazonUrl.pathname}`);
+          cleanUrl.searchParams.set('tag', 'manudaspromoc-20');
+          offerAffiliateUrl = cleanUrl.toString();
+        } catch {
+          offerAffiliateUrl = offerAffiliateUrl.includes('?')
+            ? `${offerAffiliateUrl}&tag=manudaspromoc-20`
+            : `${offerAffiliateUrl}?tag=manudaspromoc-20`;
+        }
+      }
+
       const offer = await prisma.offer.create({
         data: {
           title: body.title,
@@ -276,7 +291,7 @@ export async function offersRoutes(app: FastifyInstance) {
           originalPrice: body.originalPrice,
           finalPrice: body.finalPrice,
           discountPct,
-          affiliateUrl: body.affiliateUrl || '',
+          affiliateUrl: offerAffiliateUrl,
           imageUrl: finalImageUrl,  // 🔥 FIX: Usar mainImage se imageUrl não fornecido
           nicheId,
           storeId,

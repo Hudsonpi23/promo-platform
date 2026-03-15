@@ -266,6 +266,21 @@ export async function scraperRoutes(app: FastifyInstance) {
         // Para URLs diretas usar a URL original
         productData.affiliateUrl = productData.affiliateUrl || resolvedUrl || url;
 
+        // Converter link Amazon em link de afiliado automaticamente
+        if (store === 'amazon' && productData.affiliateUrl) {
+          try {
+            const amazonUrl = new URL(productData.affiliateUrl);
+            const cleanUrl = new URL(`https://www.amazon.com.br${amazonUrl.pathname}`);
+            cleanUrl.searchParams.set('tag', 'manudaspromoc-20');
+            productData.affiliateUrl = cleanUrl.toString();
+          } catch {
+            const base = productData.affiliateUrl;
+            productData.affiliateUrl = base.includes('?')
+              ? `${base}&tag=manudaspromoc-20`
+              : `${base}?tag=manudaspromoc-20`;
+          }
+        }
+
         console.log('[Scraper] Dados extraídos:', {
           title: productData.title?.substring(0, 50),
           finalPrice: productData.finalPrice,
