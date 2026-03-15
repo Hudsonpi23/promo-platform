@@ -541,7 +541,18 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   // 4. Perfume feminino
   { kw: ['perfume feminino', 'eau de parfum feminino', 'fragrance feminino', 'parfum feminino', 'perfume para mulher', 'perfume feminino floral', 'perfume feminino frutal', 'perfume feminino oriental'], phraseKey: 'perfume feminino' },
 
-  // 5. Perfume masculino
+  // 5a. Perfume com feromônio / afrodisíaco — detectar ANTES do masculino genérico
+  { kw: [
+      'feromônio', 'feromonio', 'feromonios', 'feromônios',
+      'pheromone', 'pheromones', 'pheromax',
+      'afrodisíaco', 'afrodisiaco', 'afrodisiaca',
+      'perfume sedução', 'perfume seducao', 'perfume atrair',
+      'atrair mulheres', 'atrai mulheres', 'seduzir mulheres',
+      'perfume hipnos', 'hipnos kalya', 'diesel fuel perfume',
+      'perfume concentrado sedução', 'deo parfum sedução',
+    ],                                                                               phraseKey: 'perfume feromônio' },
+
+  // 5b. Perfume masculino
   { kw: ['perfume masculino', 'eau de parfum masculino', 'fragrance masculino', 'parfum masculino', 'perfume para homem', 'perfume masculino madeiroso', 'perfume masculino fresco', 'perfume masculino intenso'], phraseKey: 'perfume masculino' },
 
   // 6. Body splash / bruma / splash
@@ -1537,8 +1548,9 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'perfume árabe':     'perfume árabe',
   'perfume importado': 'perfume importado',
   'kit de perfume':    'kit de perfume',
-  'perfume feminino':  'perfume feminino',
-  'perfume masculino': 'perfume masculino',
+  'perfume feminino':   'perfume feminino',
+  'perfume feromônio':  'perfume feromônio',
+  'perfume masculino':  'perfume masculino',
   'body splash':       'body splash',
   'colônia':           'colônia',
   'perfume':           'perfume',
