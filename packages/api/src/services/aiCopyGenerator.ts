@@ -340,6 +340,16 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['cueca boxer', 'cueca brief', 'cueca slip', 'kit cueca', 'cueca sem costura', 'cueca masculina', 'cueca'], phraseKey: 'cueca' },
   { kw: ['calcinha', 'calcinha fio dental', 'calcinha sem costura', 'kit calcinha'],  phraseKey: 'cueca' },
 
+  // ─── Meias ────────────────────────────────────────────────────────────────
+  { kw: [
+      'meia soquete', 'meia cano alto', 'meia cano médio', 'meia cano curto',
+      'meia esportiva', 'meia de compressão', 'meia antiderrapante',
+      'meia térmica', 'meia feminina', 'meia masculina', 'meia infantil',
+      'meia de algodão', 'meia de lã', 'meia sem costura',
+      'kit de meias', 'kit meias', 'pacote de meias',
+      'meia', 'meias',
+    ],                                                                               phraseKey: 'meia' },
+
   // ─── Slides de Marca (detectar ANTES de Nike/Adidas/Lacoste para evitar pool errado) ──
   { kw: ['slide nike', 'chinelo nike', 'nike slide', 'chinelo adidas', 'slide adidas', 'adidas slide', 'chinelo lacoste', 'slide lacoste', 'lacoste slide', 'chinelo puma', 'slide puma', 'puma slide', 'chinelo fila', 'slide fila', 'chinelo vans', 'slide vans'], phraseKey: 'slide' },
   { kw: ['slide masculino', 'slide feminino', 'slide esportivo', 'chinelo slide', 'slide'],  phraseKey: 'slide' },
@@ -1380,6 +1390,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   // Vestuário — subtipos específicos (mais específico primeiro)
   'insider':        'insider',
   'cueca':          'cueca',
+  'meia':           'meia',
   'oakley':         'oakley',
   'óculos oakley':  'óculos oakley',
   'plus size':      'plus size',
