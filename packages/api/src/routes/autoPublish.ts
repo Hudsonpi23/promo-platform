@@ -110,16 +110,45 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         else if (urlLower.includes('amazon')) store = 'amazon';
 
         // ── 2. SCRAPING ────────────────────────────────────────────────────
+        const isAmazon = store === 'amazon';
         const httpResp = await axios.get(url, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            ...(isAmazon && {
+              'sec-ch-ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+              'sec-ch-ua-mobile': '?0',
+              'sec-ch-ua-platform': '"Windows"',
+              'sec-fetch-dest': 'document',
+              'sec-fetch-mode': 'navigate',
+              'sec-fetch-site': 'none',
+              'upgrade-insecure-requests': '1',
+            }),
           },
           timeout: 30000,
         });
 
         const $ = cheerio.load(httpResp.data);
+
+        // Detectar página de CAPTCHA da Amazon
+        if (store === 'amazon') {
+          const pageText = $('body').text().toLowerCase();
+          const isCaptcha = pageText.includes('robot check') ||
+                            pageText.includes('captcha') ||
+                            pageText.includes('enter the characters') ||
+                            $('form[action*="captcha"]').length > 0 ||
+                            $('input[name="amzn-r"]').length > 0;
+          if (isCaptcha) {
+            result.error = 'A Amazon bloqueou o acesso automático. Cole o link na página de Ofertas ou tente novamente em alguns minutos.';
+            results.push(result);
+            continue;
+          }
+        }
+
         let productData: any;
 
         if (store === 'mercadolivre') productData = await scrapeMercadoLivreHTTP($);
@@ -128,7 +157,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
         else productData = await scrapeGenericHTTP($);
 
         if (!productData.title || productData.title.trim().length === 0) {
-          result.error = 'Não foi possível extrair o título do produto.';
+          result.error = store === 'amazon'
+            ? 'Amazon bloqueou a leitura do produto. Tente novamente em alguns minutos ou use a página de Ofertas.'
+            : 'Não foi possível extrair o título do produto.';
           results.push(result);
           continue;
         }
@@ -435,16 +466,38 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       else if (urlLower.includes('magazineluiza') || urlLower.includes('magalu')) store = 'magalu';
       else if (urlLower.includes('amazon')) store = 'amazon';
 
+      const isAmazonScrape = store === 'amazon';
       const httpResp = await axios.get(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache',
+          ...(isAmazonScrape && {
+            'sec-ch-ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
+            'sec-fetch-dest': 'document',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-site': 'none',
+            'upgrade-insecure-requests': '1',
+          }),
         },
         timeout: 30000,
       });
 
       const $ = cheerio.load(httpResp.data);
+
+      // Detectar CAPTCHA da Amazon
+      if (isAmazonScrape) {
+        const pageText = $('body').text().toLowerCase();
+        if (pageText.includes('robot check') || pageText.includes('captcha') ||
+            $('form[action*="captcha"]').length > 0) {
+          return reply.status(422).send({ error: 'A Amazon bloqueou o acesso automático. Tente novamente em alguns minutos.' });
+        }
+      }
+
       let productData: any;
 
       if (store === 'mercadolivre') productData = await scrapeMercadoLivreHTTP($);
