@@ -101,21 +101,119 @@ export async function scrapeMagaluHTTP($: cheerio.CheerioAPI) {
 export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
   console.log('[Scraper HTTP] Usando scraper HTTP da Amazon...');
 
-  const title = $('#productTitle').first().text().trim() || '';
+  // ── Título ────────────────────────────────────────────────────────────────
+  const title =
+    $('#productTitle').first().text().trim() ||
+    $('h1#title span').first().text().trim() ||
+    $('h1.a-size-large').first().text().trim() ||
+    $('h1').first().text().trim() ||
+    $('[data-feature-name="title"] span').first().text().trim() || '';
 
-  const finalPriceText = $('.a-price .a-offscreen').first().text().trim() || '0';
-  const finalPrice = parseFloat(finalPriceText.replace(/[^\d,]/g, '').replace(',', '.')) || 0;
+  // ── Preço final ───────────────────────────────────────────────────────────
+  // Amazon tem vários formatos dependendo do produto/promoção
+  const priceSelectors = [
+    '.a-price[data-a-color="price"] .a-offscreen',
+    '.a-price .a-offscreen',
+    '#priceblock_ourprice',
+    '#priceblock_dealprice',
+    '#priceblock_saleprice',
+    '.a-price-whole',
+    '#price_inside_buybox',
+    '#newBuyBoxPrice',
+    '.apexPriceToPay .a-offscreen',
+    '#corePrice_feature_div .a-offscreen',
+    '#corePriceDisplay_desktop_feature_div .a-offscreen',
+    '.reinventPricePolicyMessage .a-offscreen',
+  ];
 
-  const mainImage = $('#landingImage').first().attr('src') ||
-                    $('.a-dynamic-image').first().attr('src') || '';
+  let finalPriceText = '';
+  for (const sel of priceSelectors) {
+    const val = $(sel).first().text().trim();
+    if (val && val !== '0') { finalPriceText = val; break; }
+  }
+
+  // Limpar e converter: "R$ 1.299,90" → 1299.90
+  let finalPrice = 0;
+  if (finalPriceText) {
+    const cleaned = finalPriceText
+      .replace(/R\$\s*/g, '')
+      .replace(/\./g, '')
+      .replace(',', '.')
+      .replace(/[^\d.]/g, '');
+    finalPrice = parseFloat(cleaned) || 0;
+  }
+
+  // Fallback: .a-price-whole + .a-price-fraction
+  if (finalPrice === 0) {
+    const whole    = $('.a-price-whole').first().text().replace(/\D/g, '');
+    const fraction = $('.a-price-fraction').first().text().replace(/\D/g, '') || '00';
+    if (whole) finalPrice = parseFloat(`${whole}.${fraction}`) || 0;
+  }
+
+  // ── Preço original (riscado) ──────────────────────────────────────────────
+  const originalPriceSelectors = [
+    '.a-price[data-a-strike="true"] .a-offscreen',
+    '#priceblock_was_price',
+    '.a-text-strike',
+    '#listPrice',
+    '[data-a-strike="true"] .a-offscreen',
+    '.basisPrice .a-offscreen',
+  ];
+
+  let originalPrice: number | null = null;
+  for (const sel of originalPriceSelectors) {
+    const val = $(sel).first().text().trim();
+    if (val) {
+      const cleaned = val
+        .replace(/R\$\s*/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .replace(/[^\d.]/g, '');
+      const parsed = parseFloat(cleaned);
+      if (parsed > 0 && parsed > finalPrice) { originalPrice = parsed; break; }
+    }
+  }
+
+  // ── Desconto ──────────────────────────────────────────────────────────────
+  let discount = 0;
+  if (originalPrice && originalPrice > finalPrice && finalPrice > 0) {
+    discount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+  } else {
+    // Tenta extrair badge de desconto: "-20%"
+    const badgeText = $('.a-badge-text, .savingPriceOverride, #saleprice_savings').first().text().trim();
+    const pctMatch = badgeText.match(/(\d+)%/);
+    if (pctMatch) discount = parseInt(pctMatch[1]);
+  }
+
+  // ── Imagem principal ──────────────────────────────────────────────────────
+  const mainImage =
+    $('#landingImage').first().attr('src') ||
+    $('#imgBlkFront').first().attr('src') ||
+    $('#main-image').first().attr('src') ||
+    $('img#imgTagWrapperId img').first().attr('src') ||
+    $('#imageBlock img').first().attr('src') ||
+    $('.a-dynamic-image').first().attr('src') ||
+    $('img[data-a-dynamic-image]').first().attr('src') || '';
+
+  // ── Galeria ───────────────────────────────────────────────────────────────
+  const images: string[] = [];
+  $('img[data-a-dynamic-image], #altImages img, .imageThumbnail img').each((_, el) => {
+    const src = $(el).attr('src') || '';
+    if (src && src.startsWith('http') && !src.includes('sprite') && !images.includes(src)) {
+      images.push(src);
+    }
+  });
+  if (mainImage && !images.includes(mainImage)) images.unshift(mainImage);
+
+  console.log('[Amazon HTTP] title:', title?.substring(0, 50), '| price:', finalPrice, '| orig:', originalPrice);
 
   return {
     title,
     finalPrice,
-    originalPrice: null,
-    discount: 0,
+    originalPrice,
+    discount,
     mainImage,
-    images: [mainImage],
+    images: images.slice(0, 10),
   };
 }
 
