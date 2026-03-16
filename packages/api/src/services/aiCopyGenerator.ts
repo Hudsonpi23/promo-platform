@@ -425,7 +425,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['airpods pro', 'airpods max', 'airpods'],                                    phraseKey: 'airpods' },
   { kw: ['fone de ouvido sem fio', 'fone bluetooth', 'headphone bluetooth'],          phraseKey: 'fone' },
   { kw: ['fone de ouvido com fio', 'fone p2', 'headphone com fio'],                   phraseKey: 'fone' },
-  { kw: ['headset gamer', 'headset'],                                                 phraseKey: 'fone' },
+  { kw: ['headset gamer', 'headset rgb', 'headset ps5', 'headset xbox', 'headset surround', 'headset'],  phraseKey: 'headset' },
   { kw: ['fone de ouvido', 'headphone', 'earphone', 'earbuds', 'in-ear'],            phraseKey: 'fone' },
   { kw: ['soundbar com subwoofer', 'soundbar bluetooth', 'soundbar', 'sound bar'],    phraseKey: 'soundbar' },
   { kw: ['jbl charge', 'jbl flip', 'jbl xtreme', 'jbl boombox', 'jbl go', 'jbl clip', 'jbl partybox', 'jbl'], phraseKey: 'caixa de som', brandCat: 'caixa de som' },
@@ -630,6 +630,25 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['playstation 5', 'ps5'],                                                     phraseKey: 'ps5' },
   { kw: ['playstation 4', 'ps4', 'playstation'],                                      phraseKey: 'playstation' },
   { kw: ['xbox series x', 'xbox series s', 'xbox one', 'xbox'],                       phraseKey: 'xbox' },
+  // ─── Periféricos de videogame (mais específico primeiro) ────────────────────
+  { kw: [
+      'base de carregamento ps5', 'base carregamento dualsense', 'dock ps5',
+      'estação de carregamento ps5', 'carregador dualsense', 'carregador ps5',
+      'base de carregamento xbox', 'dock xbox', 'carregador controle xbox',
+      'estação de carregamento controle', 'base carregamento controle',
+      'dock de carregamento', 'base de carregamento para controle',
+    ],                                                                               phraseKey: 'base de carregamento' },
+  { kw: [
+      'mousepad gamer', 'mouse pad gamer', 'mousepad rgb', 'mouse pad rgb',
+      'mousepad xxl', 'mouse pad xxl', 'mouse pad speed', 'mousepad speed',
+      'mousepad', 'mouse pad',
+    ],                                                                               phraseKey: 'mousepad gamer' },
+  { kw: [
+      'volante gamer', 'volante de corrida', 'volante para ps5', 'volante para xbox',
+      'steering wheel', 'logitech g29', 'logitech g920', 'thrustmaster t300',
+      'thrustmaster t150', 'thrustmaster', 'pedal de corrida',
+    ],                                                                               phraseKey: 'volante gamer' },
+
   { kw: ['nintendo switch oled', 'nintendo switch lite', 'nintendo switch'],          phraseKey: 'nintendo switch' },
   // ─── Controles específicos (mais específico primeiro) ─────────────────────
   { kw: ['dualsense', 'dual sense', 'controle ps5', 'controle playstation 5'],        phraseKey: 'dualsense' },
@@ -1655,15 +1674,19 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'camiseta anime': 'camiseta anime',
 
   // Games
-  'ps5':            'ps5',
-  'playstation':    'playstation',
-  'xbox':           'xbox',
-  'nintendo switch': 'nintendo switch',
-  'dualsense':        'dualsense',
-  'controle xbox':    'controle xbox',
-  'controle nintendo': 'controle nintendo',
-  'controle gamer':   'controle gamer',
-  'videogame':      'videogame',
+  'ps5':                   'ps5',
+  'playstation':           'playstation',
+  'xbox':                  'xbox',
+  'nintendo switch':       'nintendo switch',
+  'dualsense':             'dualsense',
+  'controle xbox':         'controle xbox',
+  'controle nintendo':     'controle nintendo',
+  'controle gamer':        'controle gamer',
+  'headset':               'headset',
+  'base de carregamento':  'base de carregamento',
+  'mousepad gamer':        'mousepad gamer',
+  'volante gamer':         'volante gamer',
+  'videogame':             'videogame',
 
   // Cadeiras e Poltronas Gamer
   'cadeira gamer':  'pool:cadeira gamer',
