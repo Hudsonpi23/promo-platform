@@ -504,6 +504,12 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['capa de chuva', 'capa impermeável', 'capa para moto', 'capa moto chuva', 'poncho impermeável', 'poncho chuva', 'roupa impermeável', 'jaqueta impermeável', 'corta-vento impermeável'], phraseKey: 'capa de chuva' },
 
   // ─── Cozinha — utensílios (mais específico primeiro) ─────────────────────
+  { kw: [
+      'conjunto de bowls', 'jogo de bowls', 'kit de bowls', 'bowl de inox', 'bowls de inox',
+      'tigela de inox', 'tigelas de inox', 'conjunto de tigelas', 'jogo de tigelas',
+      'bowl com tampa', 'tigela com tampa', 'bowl para misturar', 'tigela para misturar',
+      'bowl electrolux', 'bowl tramontina', 'bowl brinox',
+    ],                                                                               phraseKey: 'bowl' },
   { kw: ['conjunto de panelas', 'jogo de panelas', 'kit panelas', 'jogo de cozinha'], phraseKey: 'panela',           brandCat: 'cozinha' },
   { kw: ['panela de pressão elétrica', 'panela de pressão'],                          phraseKey: 'panela',           brandCat: 'cozinha' },
   { kw: ['frigideira antiaderente', 'frigideira de ferro', 'frigideira'],             phraseKey: 'panela',           brandCat: 'cozinha' },
@@ -511,7 +517,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['assadeira', 'forma de bolo', 'forma de pizza', 'forma'],                    phraseKey: 'panela',           brandCat: 'cozinha' },
   { kw: ['kit de facas', 'conjunto de facas', 'faca de chef', 'faca'],                phraseKey: 'panela',           brandCat: 'cozinha' },
   { kw: ['tábua de cortar', 'tábua de madeira'],                                      phraseKey: 'panela',           brandCat: 'cozinha' },
-  { kw: ['pote hermético', 'pote de vidro', 'vasilha', 'pote'],                       phraseKey: 'panela',           brandCat: 'cozinha' },
+  { kw: ['pote hermético', 'pote de vidro', 'vasilha', 'pote organizador', 'pote de cozinha'], phraseKey: 'panela', brandCat: 'cozinha' },
   { kw: ['stanley quencher', 'stanley tumbler', 'stanley copo', 'copo stanley', 'garrafa stanley', 'stanley térmica', 'stanley 40oz', 'stanley 30oz'], phraseKey: 'stanley térmica' },
   { kw: ['garrafa térmica', 'copo térmico', 'squeeze térmico', 'squeeze', 'copo de viagem', 'copo inox'], phraseKey: 'garrafa térmica' },
 
@@ -1581,6 +1587,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'moletom':           'moletom',
 
   // Copos e Garrafas Térmicas / Bebidas
+  'bowl':            'bowl',
   'stanley térmica': 'stanley térmica',
   'garrafa térmica': 'garrafa térmica',
   'caneca':          'caneca',
