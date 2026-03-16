@@ -808,7 +808,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['carregador sem fio', 'carregador wireless', 'carregador qi'],               phraseKey: 'carregador sem fio' },
   { kw: ['tela de projeção elétrica', 'tela de projeção retrátil', 'tela elétrica projetor', 'tela para projetor', 'tela de projeção', 'tela projeção'], phraseKey: 'tela de projeção' },
   { kw: ['transmissor hdmi sem fio', 'transmissor receptor hdmi', 'hdmi wireless', 'hdmi sem fio', 'transmissor wireless hdmi', 'receptor hdmi wireless', 'espelhar tv sem fio'], phraseKey: 'transmissor hdmi' },
-  { kw: ['cabo hdmi 4k', 'cabo hdmi', 'cabo usb-c', 'cabo usb'],                      phraseKey: 'cabo hdmi' },
+  { kw: ['cabo hdmi 4k', 'cabo hdmi'],                                                 phraseKey: 'cabo hdmi' },
+  { kw: ['cabo usb-c', 'cabo tipo c', 'cabo type-c', 'cabo para celular', 'cabo de carregamento', 'cabo nylon', 'cabo trançado', 'cabo usb'], phraseKey: 'cabo usb' },
   { kw: ['chromecast', 'fire tv stick', 'fire stick', 'streaming stick'],             phraseKey: 'chromecast' },
   { kw: ['assistente virtual', 'caixa inteligente', 'alto-falante inteligente', 'speaker inteligente', 'echo dot', 'echo show', 'echo plus', 'alexa'], phraseKey: 'assistente virtual' },
 
@@ -1573,6 +1574,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'carregador portátil': 'carregador portátil',
   'carregador sem fio':  'carregador sem fio',
   'carregador magnético': 'carregador magnético',
+  'cabo usb':           'cabo usb',
   'transmissor hdmi':   'transmissor hdmi',
   'tela de projeção':   'tela de projeção',
   'assistente virtual': 'assistente virtual',
