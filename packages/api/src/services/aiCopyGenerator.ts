@@ -705,6 +705,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['tornozeleira ortopédica', 'tornozeleira de compressão', 'tornozeleira'],   phraseKey: 'tornozeleira' },
   { kw: ['palmilha ortopédica', 'palmilha de silicone', 'palmilha gel', 'palmilha'],  phraseKey: 'palmilha ortopédica' },
   { kw: ['kit de primeiros socorros', 'kit primeiros socorros', 'maleta primeiros socorros', 'estojo médico'], phraseKey: 'kit de primeiros socorros' },
+  { kw: ['extrato de própolis', 'extrato de propolis', 'própolis verde', 'propolis verde', 'própolis', 'propolis'], phraseKey: 'extrato de própolis' },
 
   // ─── Doces / Confeitaria (mais específico primeiro) ─────────────────────
   { kw: ['kit chocolate', 'caixa de chocolate', 'cesta de chocolate', 'box chocolate', 'presente de chocolate'], phraseKey: 'kit chocolate' },
@@ -1638,6 +1639,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'tornozeleira':             'tornozeleira',
   'palmilha ortopédica':      'palmilha ortopédica',
   'kit de primeiros socorros': 'kit de primeiros socorros',
+  'extrato de própolis':       'extrato de própolis',
 
   // Doces / Confeitaria
   'doce':              'doce',
