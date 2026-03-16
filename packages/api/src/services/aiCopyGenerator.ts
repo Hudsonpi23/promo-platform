@@ -736,6 +736,16 @@ const PRODUCT_TYPE_DETECTORS: Array<{
       'antipulgas para cães', 'antipulgas para gatos',
     ],                                                                               phraseKey: 'antipulgas' },
 
+  // ─── Complemento Alimentar / Vitaminas (ANTES do chocolate — evita "Sabor Chocolate" cair em frases erradas) ─
+  { kw: [
+      'complemento alimentar', 'suplemento alimentar', 'composto lácteo',
+      'sustagen', 'ensure', 'aptamil adulto', 'pediasure', 'glucerna',
+      'bebida láctea proteica', 'leite em pó enriquecido',
+      'vitaminas e minerais', 'vitamina c efervescente', 'vitamina d3',
+      'vitamina c mastigável', 'multivitamínico', 'polivitamínico',
+      'complexo vitamínico', 'suplemento vitamínico',
+    ],                                                                                phraseKey: 'complemento alimentar' },
+
   // ─── Doces / Confeitaria (mais específico primeiro) ─────────────────────
   { kw: ['kit chocolate', 'caixa de chocolate', 'cesta de chocolate', 'box chocolate', 'presente de chocolate'], phraseKey: 'kit chocolate' },
   { kw: ['nutella', 'creme de avelã', 'creme de avela', 'ferrero nutella'],           phraseKey: 'nutella' },
@@ -839,6 +849,8 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['desenvolvimento pessoal', 'crescimento pessoal', 'liderança', 'inteligência emocional', 'produtividade', 'foco', 'disciplina', 'gestão de tempo'], phraseKey: 'desenvolvimento pessoal' },
 
   // Bitcoin / Criptomoedas / Blockchain (mais específico antes de negócios)
+  { kw: ['jeff booth', 'o preço do amanhã', 'preco do amanha', 'preço do amanhã'],     phraseKey: 'o preço do amanhã' },
+
   { kw: [
       'bitcoin', 'criptomoeda', 'criptomoedas', 'blockchain', 'ethereum', 'cripto',
       'satoshi', 'halving', 'wallet cripto', 'carteira bitcoin', 'defi', 'web3',
@@ -1691,6 +1703,9 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'kit de primeiros socorros': 'kit de primeiros socorros',
   'extrato de própolis':       'extrato de própolis',
 
+  // Complemento Alimentar / Vitaminas
+  'complemento alimentar': 'complemento alimentar',
+
   // Doces / Confeitaria
   'doce':              'doce',
   'chocolate':         'chocolate',
@@ -1714,6 +1729,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'jogo de tabuleiro': 'jogo de tabuleiro',
 
   // ── NICHO: LIVROS — subtipos mapeados ──────────────────────────────────────
+  'o preço do amanhã':     'o preço do amanhã',
   'bitcoin':               'bitcoin',
   'livro de terror':       'livro de terror',
   'livro infantil':        'livro infantil',

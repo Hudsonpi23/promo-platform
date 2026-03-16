@@ -20,6 +20,10 @@ export const PHRASES_LIVROS: Record<string, string[]> = {
     'ESSE AQUI FAZ VOCÊ ENTENDER POR QUE BITCOIN NÃO É MODA — É REVOLUÇÃO 🔥',
   ],
 
+  'o preço do amanhã': [
+    'PARA QUEM PRETENDE ENTENDER AS TRANSFORMAÇÕES QUE O MUNDO ATRAVESSA 🌐',
+  ],
+
   'livro de terror': [
     'LER DE DIA PRA NÃO ARREPENDER DE NOITE 🌙',
     'LIVRO QUE FAZ VOCÊ VERIFICAR O ARMÁRIO ANTES DE DORMIR 😰',
