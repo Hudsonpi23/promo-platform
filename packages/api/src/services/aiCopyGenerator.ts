@@ -602,6 +602,20 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['escova secadora', 'escova alisadora', 'escova modeladora'],                phraseKey: 'escova rotativa' },
 
   // ─── Relógios / Joias (mais específico primeiro) ──────────────────────────
+  { kw: [
+      'relógio de parede', 'relogio de parede', 'relógio parede',
+      'relógio decorativo', 'relógio para parede',
+    ],                                                                               phraseKey: 'relógio de parede' },
+  { kw: [
+      'despertador digital', 'despertador analógico', 'despertador led',
+      'despertador com luz', 'despertador de mesa', 'despertador',
+    ],                                                                               phraseKey: 'despertador' },
+  { kw: [
+      'relógio digital temperatura', 'relógio termômetro', 'relógio com termômetro',
+      'relógio com temperatura', 'relógio led temperatura', 'relógio multicolorido',
+      'relógio higrômetro', 'estação meteorológica', 'relógio digital de mesa',
+      'relógio digital led', 'relógio led', 'relógio digital',
+    ],                                                                               phraseKey: 'relógio digital' },
   { kw: ['relógio masculino', 'relogio masculino', 'watch masculino'],                phraseKey: 'relógio masculino' },
   { kw: ['relógio feminino', 'relogio feminino', 'watch feminino'],                   phraseKey: 'relógio feminino' },
   { kw: ['relógio de luxo', 'relógio automático', 'relógio analógico'],               phraseKey: 'relógio masculino' },
@@ -1606,6 +1620,9 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'perfume':           'perfume',
 
   // Relógios / Joias
+  'relógio de parede': 'relógio de parede',
+  'despertador':       'despertador',
+  'relógio digital':   'relógio digital',
   'relógio masculino': 'relógio masculino',
   'relógio feminino':  'relógio feminino',
   'corrente masculina': 'corrente masculina',
