@@ -755,14 +755,26 @@ const PRODUCT_TYPE_DETECTORS: Array<{
       'antipulgas para cães', 'antipulgas para gatos',
     ],                                                                               phraseKey: 'antipulgas' },
 
-  // ─── Complemento Alimentar / Vitaminas (ANTES do chocolate — evita "Sabor Chocolate" cair em frases erradas) ─
+  // ─── Vitaminas / Minerais / Suplementos (ANTES do fallback — evita palavras como "malato" cair em "mala") ─
+  { kw: [
+      'magnésio', 'magnesio', 'magnesium',
+      'bisglicinato', 'malato', 'taurato', 'glicinato',
+      'vitamina b12', 'vitamina b6', 'vitamina b complex', 'complexo b',
+      'vitamina d', 'vitamina d3', 'vitamina k2', 'vitamina e',
+      'vitamina c', 'zinco', 'ferro quelato', 'cálcio quelato',
+      'ômega 3', 'omega 3', 'fish oil', 'óleo de peixe',
+      'coenzima q10', 'coq10', 'resveratrol', 'curcumina', 'cúrcuma',
+      'melatonina', 'triptofano', 'ashwagandha', 'maca peruana',
+      'vitamina', 'mineral', 'caps', 'cápsulas softgel',
+    ],                                                                                phraseKey: 'vitamina' },
+
+  // ─── Complemento Alimentar / Vitaminas em Lata ───────────────────────────────
   { kw: [
       'complemento alimentar', 'suplemento alimentar', 'composto lácteo',
       'sustagen', 'ensure', 'aptamil adulto', 'pediasure', 'glucerna',
       'bebida láctea proteica', 'leite em pó enriquecido',
-      'vitaminas e minerais', 'vitamina c efervescente', 'vitamina d3',
-      'vitamina c mastigável', 'multivitamínico', 'polivitamínico',
-      'complexo vitamínico', 'suplemento vitamínico',
+      'multivitamínico', 'polivitamínico', 'complexo vitamínico',
+      'suplemento vitamínico',
     ],                                                                                phraseKey: 'complemento alimentar' },
 
   // ─── Doces / Confeitaria (mais específico primeiro) ─────────────────────
@@ -1728,6 +1740,8 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'kit de primeiros socorros': 'kit de primeiros socorros',
   'extrato de própolis':       'extrato de própolis',
 
+  // Vitaminas / Minerais
+  'vitamina':              'vitamina',
   // Complemento Alimentar / Vitaminas
   'complemento alimentar': 'complemento alimentar',
 
