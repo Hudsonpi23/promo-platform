@@ -838,6 +838,14 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   // Desenvolvimento pessoal
   { kw: ['desenvolvimento pessoal', 'crescimento pessoal', 'liderança', 'inteligência emocional', 'produtividade', 'foco', 'disciplina', 'gestão de tempo'], phraseKey: 'desenvolvimento pessoal' },
 
+  // Bitcoin / Criptomoedas / Blockchain (mais específico antes de negócios)
+  { kw: [
+      'bitcoin', 'criptomoeda', 'criptomoedas', 'blockchain', 'ethereum', 'cripto',
+      'satoshi', 'halving', 'wallet cripto', 'carteira bitcoin', 'defi', 'web3',
+      'nft livro', 'livro de bitcoin', 'livro de cripto', 'livro sobre bitcoin',
+      'investir em bitcoin', 'guia bitcoin', 'manual bitcoin',
+    ],                                                                                 phraseKey: 'bitcoin' },
+
   // Negócios / Empreendedorismo
   { kw: ['livro de negócios', 'empreendedorismo', 'marketing', 'vendas', 'gestão', 'administração', 'startup', 'finanças pessoais', 'investimentos', 'pai rico', 'o jeito warren buffett'], phraseKey: 'negócios' },
 
@@ -1706,6 +1714,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'jogo de tabuleiro': 'jogo de tabuleiro',
 
   // ── NICHO: LIVROS — subtipos mapeados ──────────────────────────────────────
+  'bitcoin':               'bitcoin',
   'livro de terror':       'livro de terror',
   'livro infantil':        'livro infantil',
   'quadrinhos':            'quadrinhos',
