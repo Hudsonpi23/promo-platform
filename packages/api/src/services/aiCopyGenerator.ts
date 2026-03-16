@@ -707,6 +707,15 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['kit de primeiros socorros', 'kit primeiros socorros', 'maleta primeiros socorros', 'estojo médico'], phraseKey: 'kit de primeiros socorros' },
   { kw: ['extrato de própolis', 'extrato de propolis', 'própolis verde', 'propolis verde', 'própolis', 'propolis'], phraseKey: 'extrato de própolis' },
 
+  // ─── Pet — Saúde / Tratamentos ────────────────────────────────────────────
+  { kw: [
+      'antipulgas', 'antipulga', 'antiparasitário', 'carrapato',
+      'nexgard', 'bravecto', 'frontline', 'simparic', 'advocate',
+      'coleira antipulgas', 'coleira carrapato', 'coleira antiparasitária',
+      'tablete mastigável antipulgas', 'pipeta antipulgas',
+      'antipulgas para cães', 'antipulgas para gatos',
+    ],                                                                               phraseKey: 'antipulgas' },
+
   // ─── Doces / Confeitaria (mais específico primeiro) ─────────────────────
   { kw: ['kit chocolate', 'caixa de chocolate', 'cesta de chocolate', 'box chocolate', 'presente de chocolate'], phraseKey: 'kit chocolate' },
   { kw: ['nutella', 'creme de avelã', 'creme de avela', 'ferrero nutella'],           phraseKey: 'nutella' },
@@ -716,6 +725,15 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['caramelo', 'toffee', 'wafer', 'biscoito recheado', 'biscoito doce', 'cookie', 'cookies'], phraseKey: 'doce' },
   { kw: ['doce caseiro', 'brigadeiro', 'beijinho', 'cajuzinho', 'doce de leite', 'maria mole', 'cocada', 'quindim'], phraseKey: 'doce' },
   { kw: ['doce', 'candy', 'guloseima', 'sobremesa'],                                  phraseKey: 'doce' },
+
+  // ─── Pet / Animais de Estimação ──────────────────────────────────────────
+  { kw: ['ração para cachorro', 'ração para cão', 'ração premium', 'ração pet', 'ração para gato', 'ração adulto', 'ração filhote', 'ração sênior', 'ração'], phraseKey: 'ração' },
+  { kw: ['cama para cachorro', 'cama pet', 'cama para gato', 'caminha pet', 'caminha para cachorro', 'almofada pet'], phraseKey: 'cama pet' },
+  { kw: ['coleira para cachorro', 'coleira para gato', 'coleira pet', 'guia para cachorro', 'peitoral pet', 'coleira'], phraseKey: 'coleira pet' },
+  { kw: ['brinquedo para cachorro', 'brinquedo para gato', 'brinquedo pet', 'mordedor para cachorro', 'bolinha pet'], phraseKey: 'brinquedo pet' },
+  { kw: ['arranhador para gato', 'arranhador gato', 'arranhador pet'],              phraseKey: 'arranhador' },
+  { kw: ['shampoo para cachorro', 'shampoo para cão', 'shampoo pet', 'shampoo para gato', 'condicionador pet'], phraseKey: 'shampoo para cachorro' },
+  { kw: ['petisco para cachorro', 'petisco para gato', 'petisco pet', 'snack pet', 'osso para cachorro'], phraseKey: 'petisco' },
 
   // ─── Suplementos / Alimentação Fitness ───────────────────────────────────
   { kw: ['barra de creatina', 'creatina em barra'],                                   phraseKey: 'barra de proteína' },
