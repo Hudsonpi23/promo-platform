@@ -493,6 +493,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['ferro de passar a vapor', 'ferro de passar', 'vaporizador'],                phraseKey: 'ferro de passar' },
   { kw: ['fralda geriátrica', 'fralda para adulto', 'fralda adulto', 'fralda de idoso', 'fralda geriátricas', 'absorvente geriátrico', 'roupa íntima descartável adulto'], phraseKey: 'fralda geriátrica' },
   { kw: ['fralda descartável', 'fralda infantil', 'fralda bebê', 'fralda bebe', 'fralda recém-nascido', 'fralda recem nascido', 'fralda turma da mônica', 'fralda huggies', 'fralda pampers', 'fralda babysec', 'fralda pom pom', 'pacote de fralda', 'pacote fralda', 'kit fralda', 'fralda'], phraseKey: 'fralda' },
+  { kw: ['anti estrias', 'antiestrias', 'creme estrias', 'maternité', 'maternite', 'creme para estrias', 'óleo para estrias', 'creme pós-parto', 'creme gravidez', 'payot maternite'], phraseKey: 'anti estrias' },
   { kw: ['gloss labial', 'lip gloss', 'gloss lábio', 'gloss fran', 'gloss mel', 'gloss hidratante', 'gloss brilhoso', 'gloss'], phraseKey: 'gloss' },
   { kw: ['batom líquido', 'batom matte', 'batom gloss', 'batom', 'lip balm', 'lip tint'], phraseKey: 'batom' },
   { kw: ['gloss labial', 'lip gloss', 'gloss lip', 'batom gloss', 'gloss hidratante', 'gloss brilhoso', 'gloss'], phraseKey: 'gloss' },
@@ -510,6 +511,11 @@ const PRODUCT_TYPE_DETECTORS: Array<{
       'bowl com tampa', 'tigela com tampa', 'bowl para misturar', 'tigela para misturar',
       'bowl electrolux', 'bowl tramontina', 'bowl brinox',
     ],                                                                               phraseKey: 'bowl' },
+  { kw: [
+      'torneira flexível', 'torneira flex', 'torneira de cozinha', 'torneira de banheiro',
+      'torneira com bico', 'torneira monocomando', 'torneira misturadora',
+      'torneira cascata', 'torneira', 'bica flexível',
+    ],                                                                               phraseKey: 'torneira' },
   { kw: ['conjunto de panelas', 'jogo de panelas', 'kit panelas', 'jogo de cozinha'], phraseKey: 'panela',           brandCat: 'cozinha' },
   { kw: ['panela de pressão elétrica', 'panela de pressão'],                          phraseKey: 'panela',           brandCat: 'cozinha' },
   { kw: ['frigideira antiaderente', 'frigideira de ferro', 'frigideira'],             phraseKey: 'panela',           brandCat: 'cozinha' },
@@ -538,6 +544,10 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['broca para madeira', 'broca para metal', 'broca para concreto', 'broca'],  phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
   { kw: ['nível a laser', 'nível digital', 'nível'],                                  phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
   { kw: ['caixa de ferramentas', 'kit de ferramentas', 'maleta de ferramentas'],      phraseKey: 'ferramenta',       brandCat: 'ferramentas' },
+  { kw: [
+      'bolsa cinto para ferramentas', 'cinto porta ferramentas', 'bolsa de ferramentas',
+      'cinto de ferramentas', 'avental de ferramentas', 'porta ferramentas cinto',
+    ],                                                                                 phraseKey: 'cinto de ferramentas' },
 
   // ─── NICHO: PERFUMARIA — subtipos do mais específico para o mais genérico ──
 
@@ -682,6 +692,11 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['edredom', 'cobertor', 'manta'],                                             phraseKey: 'jogo de cama' },
   { kw: ['lâmpada led', 'lâmpada inteligente', 'lâmpada', 'lampada'],                phraseKey: 'lâmpada' },
   { kw: ['fita led', 'luminária led', 'luminária'],                                   phraseKey: 'lâmpada' },
+  { kw: [
+      'lanterna tática', 'lanterna de cabeça', 'lanterna led', 'lanterna recarregável',
+      'lanterna solar', 'lanterna de camping', 'lanterna profissional',
+      'lanterna super potente', 'lanterna militar', 'lanterna',
+    ],                                                                                 phraseKey: 'lanterna' },
   { kw: ['espelho decorativo', 'espelho de banheiro', 'espelho'],                     phraseKey: 'espelho' },
   { kw: ['tapete sala', 'tapete quarto', 'tapete'],                                   phraseKey: 'tapete' },
 
@@ -1541,10 +1556,12 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'mochila de viagem':  'mochila de viagem',
   'mochila casual':     'mochila casual',
   'mochila maternidade': 'mochila maternidade',
+  'torneira':  'torneira',
   // Cozinha → pool 'cozinha' (marca+genérico)
   'panela':   'pool:cozinha',
   // Ferramentas → pool 'ferramentas' (marca+genérico)
-  'ferramenta': 'pool:ferramentas',
+  'ferramenta':            'pool:ferramentas',
+  'cinto de ferramentas':  'cinto de ferramentas',
 
   // Eletrônicos — PRODUCT_SPECIFIC_PHRASES individuais
   'smart tv':   'smart tv',
@@ -1636,6 +1653,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'chapinha':       'chapinha',
   'fralda geriátrica': 'fralda geriátrica',
   'fralda':            'fralda',
+  'anti estrias':       'anti estrias',
   'gloss':              'gloss',
   'batom':              'batom',
   'depilador elétrico': 'depilador elétrico',
