@@ -2494,13 +2494,14 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     }
     priceBlock.push(`por ${priceNow}`);
   } else if (pm === 'parcelado') {
-    // Usa o valor por parcela inserido manualmente; se não fornecido, calcula a partir do preço total
+    // Usa o valor por parcela inserido manualmente; se não fornecido, calcula a partir do preço final
     const instValue = (input.installmentValue && input.installmentValue > 0)
       ? input.installmentValue
       : input.price / inst;
     if (input.oldPrice && input.oldPrice > input.price) {
       priceBlock.push(`De ${formatPrice(input.oldPrice)}`);
     }
+    priceBlock.push(`por ${priceNow}`);
     priceBlock.push(`À vista ou ${inst}x de ${formatPrice(instValue)}`);
   } else {
     if (input.oldPrice && input.oldPrice > input.price) {
