@@ -221,7 +221,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
 
   // 5. Camiseta básica (t-shirt genérica — vem por último entre as camisas)
   // ─── Plus Size ────────────────────────────────────────────────────────────
-  { kw: ['plus size', 'tamanho grande', 'tamanho extra', 'size plus', 'gg', 'xgg', 'eg', 'tamanho especial', 'moda plus', 'roupa plus'], phraseKey: 'plus size' },
+  { kw: ['plus size', 'tamanho grande', 'tamanho extra', 'size plus', 'tamanho gg', 'tamanho xgg', 'tamanho eg', 'tamanho especial', 'moda plus', 'roupa plus'], phraseKey: 'plus size' },
 
   // ─── Bonecos Colecionáveis Genéricos (ANTES de qualquer detector de roupa) ───
   // Captura "Boneco Colecionável X Calça/Vestido/..." antes de detectar roupa
@@ -491,7 +491,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['ventilador de teto', 'ventilador de mesa', 'climatizador', 'ventilador'],   phraseKey: 'ventilador' },
   { kw: ['ar condicionado split', 'ar condicionado portátil', 'ar condicionado'],     phraseKey: 'ar condicionado' },
   { kw: ['ferro de passar a vapor', 'ferro de passar', 'vaporizador'],                phraseKey: 'ferro de passar' },
-  { kw: ['fralda geriátrica', 'fralda para adulto', 'fralda adulto', 'fralda de idoso', 'fralda geriátricas', 'absorvente geriátrico', 'roupa íntima descartável adulto'], phraseKey: 'fralda geriátrica' },
+  { kw: ['fralda geriátrica', 'fralda geriátricas', 'fralda para adulto', 'fraldas para adulto', 'fralda adulto', 'fraldas adulto', 'fralda de adulto', 'fraldas de adulto', 'fralda de idoso', 'fraldas para idoso', 'absorvente geriátrico', 'roupa íntima descartável adulto', 'descartáveis adulto', 'descartável adulto', 'calça geriátrica', 'pants adulto', 'confort master pants', 'confort master'], phraseKey: 'fralda geriátrica' },
   { kw: ['fralda descartável', 'fralda infantil', 'fralda bebê', 'fralda bebe', 'fralda recém-nascido', 'fralda recem nascido', 'fralda turma da mônica', 'fralda huggies', 'fralda pampers', 'fralda babysec', 'fralda pom pom', 'pacote de fralda', 'pacote fralda', 'kit fralda', 'fralda'], phraseKey: 'fralda' },
   { kw: ['anti estrias', 'antiestrias', 'creme estrias', 'maternité', 'maternite', 'creme para estrias', 'óleo para estrias', 'creme pós-parto', 'creme gravidez', 'payot maternite'], phraseKey: 'anti estrias' },
   { kw: ['gloss labial', 'lip gloss', 'gloss lábio', 'gloss fran', 'gloss mel', 'gloss hidratante', 'gloss brilhoso', 'gloss'], phraseKey: 'gloss' },
