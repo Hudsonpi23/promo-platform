@@ -297,32 +297,44 @@ export async function twitterRoutes(app: FastifyInstance) {
    */
   app.get('/preview/:offerId', { preHandler: [authGuard] }, async (request, reply) => {
     const { offerId } = request.params as { offerId: string };
+    const q = request.query as {
+      paymentMethod?: string;
+      installments?: string;
+      installmentValue?: string;
+      phraseMode?: string;
+    };
 
-    // Buscar oferta
+    const paymentMethod    = (['pix','avista','parcelado'].includes(q.paymentMethod || '') ? q.paymentMethod : 'avista') as 'pix'|'avista'|'parcelado';
+    const installments     = q.installments ? parseInt(q.installments) : 12;
+    const installmentValue = q.installmentValue ? parseFloat(q.installmentValue) : undefined;
+    const phraseMode       = (q.phraseMode === 'brand' || q.phraseMode === 'generic') ? q.phraseMode : undefined;
+
     const offer = await prisma.offer.findUnique({
       where: { id: offerId },
-      include: {
-        store: { select: { name: true } },
-      },
+      include: { store: { select: { name: true } } },
     });
 
     if (!offer) {
-      return reply.status(404).send({
-        success: false,
-        error: 'Oferta não encontrada',
-      });
+      return reply.status(404).send({ success: false, error: 'Oferta não encontrada' });
     }
 
-    // Gerar preview do tweet
-    const tweetText = generateTweetText({
+    const copies = generateCopies({
       title: offer.title,
-      originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
-      finalPrice: Number(offer.finalPrice),
-      discount: offer.discountPct || undefined,
-      affiliateUrl: offer.affiliateUrl || undefined,
+      price: Number(offer.finalPrice),
+      oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
+      discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
+      advertiserName: offer.store?.name,
       storeName: offer.store?.name,
+      category: null,
+      trackingUrl: offer.affiliateUrl || '',
+      paymentMethod,
+      installments,
+      installmentValue,
+      phraseMode,
+      couponCode: (offer as any).couponCode || undefined,
     });
 
+    const tweetText = copies.x;
     return {
       success: true,
       preview: tweetText,

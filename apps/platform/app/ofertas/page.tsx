@@ -53,39 +53,33 @@ export default function OfertasPage() {
   const [previewModal, setPreviewModal] = useState<{
     offerId: string;
     offer: any;
+    previewText: string | null;
+    loadingPreview: boolean;
   } | null>(null);
 
-  // Gera preview aproximado do post no X (client-side)
-  const generateXPreview = (offer: any, offerId: string): string => {
-    const pm = cardPayment[offerId] || 'avista';
-    const inst = cardInstallments[offerId] ?? 12;
-    const instValRaw = cardInstallmentValue[offerId];
-    const finalPrice = Number(offer.finalPrice);
-    const origPrice = Number(offer.originalPrice);
-    const discount = offer.discount || offer.discountPct || 0;
+  // Carrega o preview real do servidor
+  const loadPreview = async (offerId: string, offer: any) => {
+    setPreviewModal({ offerId, offer, previewText: null, loadingPreview: true });
+    try {
+      const pm = cardPayment[offerId] || 'avista';
+      const inst = cardInstallments[offerId] ?? 12;
+      const instValRaw = cardInstallmentValue[offerId];
+      const instVal = instValRaw ? parseFloat(instValRaw.replace(',', '.')) : undefined;
+      const phraseMode = cardPhraseMode[offerId] ?? 'generic';
 
-    const fmt = (v: number) =>
-      `R$ ${v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+      const params = new URLSearchParams({
+        paymentMethod: pm,
+        installments: String(inst),
+        phraseMode,
+        ...(instVal ? { installmentValue: String(instVal) } : {}),
+      });
 
-    let lines: string[] = [];
-    lines.push('[FRASE GERADA AUTOMATICAMENTE]');
-    lines.push('');
-    lines.push(`📌 ${offer.title}`);
-    lines.push('');
-    lines.push('💰 Preço:');
-    if (origPrice > 0 && origPrice > finalPrice) lines.push(`De ${fmt(origPrice)}`);
-    lines.push(`por ${fmt(finalPrice)}`);
-    if (pm === 'pix') lines.push(`${fmt(finalPrice)} no PIX`);
-    if (pm === 'parcelado') {
-      const instVal = instValRaw
-        ? parseFloat(instValRaw.replace(',', '.'))
-        : finalPrice / inst;
-      lines.push(`À vista ou ${inst}x de ${fmt(instVal)}`);
+      const res = await fetchWithAuth(`/api/twitter/preview/${offerId}?${params}`);
+      const data = await res.json();
+      setPreviewModal(prev => prev ? { ...prev, previewText: data.preview || 'Erro ao gerar preview', loadingPreview: false } : null);
+    } catch {
+      setPreviewModal(prev => prev ? { ...prev, previewText: 'Erro ao carregar preview', loadingPreview: false } : null);
     }
-    if (discount > 0) lines.push(`💥 -${discount}% DE DESCONTO`);
-    lines.push('');
-    lines.push(`👉 ${offer.affiliateUrl || '[link afiliado]'}`);
-    return lines.join('\n');
   };
 
   // ── FEATURE 4: Indicador de qualidade ───────────────────────────────────
@@ -647,7 +641,7 @@ export default function OfertasPage() {
 
   // Postar diretamente no X (Twitter) — abre preview primeiro
   const handlePostToX = (offerId: string, offer: any) => {
-    setPreviewModal({ offerId, offer });
+    loadPreview(offerId, offer);
   };
 
   // Confirmar postagem no X após preview
@@ -863,13 +857,21 @@ export default function OfertasPage() {
               <button onClick={() => setPreviewModal(null)} className="text-text-muted hover:text-text-primary text-xl">✕</button>
             </div>
             <div className="p-5">
-              {/* Mockup visual do tweet */}
-              <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
-                {generateXPreview(previewModal.offer, previewModal.offerId)}
-              </div>
-              <p className="text-xs text-text-muted mt-3">
-                ⚠️ A frase de abertura é gerada automaticamente pelo sistema — a estrutura de preços e link acima é o que vai no post.
-              </p>
+              {/* Preview real gerado pelo servidor */}
+              {previewModal.loadingPreview ? (
+                <div className="flex items-center justify-center py-8 text-text-muted">
+                  <span className="text-sm">⏳ Gerando preview real...</span>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+                    {previewModal.previewText}
+                  </div>
+                  <p className="text-xs text-text-muted mt-3">
+                    ✅ Este é o texto exato que será postado no X.
+                  </p>
+                </>
+              )}
             </div>
             <div className="p-5 border-t border-border flex gap-3">
               <button
