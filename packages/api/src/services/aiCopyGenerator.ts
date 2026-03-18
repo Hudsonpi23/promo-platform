@@ -667,6 +667,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['joy-con', 'joycon', 'controle switch', 'controle pro nintendo', 'nintendo pro controller'], phraseKey: 'controle nintendo' },
   { kw: ['controle sem fio', 'controle wireless', 'controle bluetooth', 'gamepad wireless'], phraseKey: 'controle gamer' },
   { kw: ['controle de videogame', 'controle para videogame', 'joystick', 'gamepad', 'controle gamer'], phraseKey: 'controle gamer' },
+  { kw: ['cubo mágico', 'cubo magico', 'cubo rubik', 'rubik', 'speed cube', 'cubo profissional', 'cubo 3x3', 'cubo 4x4'], phraseKey: 'cubo mágico' },
   { kw: ['console', 'videogame', 'video game'],                                       phraseKey: 'videogame' },
   { kw: ['jogo ps5', 'jogo ps4', 'jogo xbox', 'jogo nintendo'],                       phraseKey: 'videogame' },
   // ─── Cadeiras e Poltronas Gamer (mais específico primeiro) ──────────────────
@@ -1782,6 +1783,7 @@ const PRODUCT_TYPE_POOL_MAP: Record<string, string> = {
   'bala':       'bala',
 
   // Jogos de tabuleiro
+  'cubo mágico':      'cubo mágico',
   'war':              'war',
   'jogo estratégico': 'jogo estratégico',
   'jogo família':     'jogo família',
