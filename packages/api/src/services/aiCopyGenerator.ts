@@ -2438,21 +2438,14 @@ function generateXCopy(input: CopyInputData, seed: number): string {
 
   if (input.isFlash) {
     const FLASH_HOOKS = [
-      '⚡ OFERTA RELÂMPAGO',
-      '⚡ ACABANDO AGORA',
-      '⚡ ÚLTIMAS HORAS',
-      '⚡ CORRE QUE TÁ ACABANDO',
-      '⚡ TEMPO LIMITADO',
-    ];
-    const FLASH_SUBTITLES = [
-      'Essa oferta tem prazo pra acabar!',
-      'Não vai durar mais que algumas horas.',
-      'Quando acabar, acabou.',
-      'Oferta com countdown ativo.',
-      'Aproveita agora ou perde.',
+      '⚡⚡⚡ OFERTA RELÂMPAGO ⚡⚡⚡',
+      '⚡⚡⚡ ACABANDO AGORA ⚡⚡⚡',
+      '⚡⚡⚡ ÚLTIMAS HORAS ⚡⚡⚡',
+      '⚡⚡⚡ CORRE QUE TÁ ACABANDO ⚡⚡⚡',
+      '⚡⚡⚡ TEMPO LIMITADO ⚡⚡⚡',
     ];
     hook     = pickUnusedPhrase(FLASH_HOOKS, `x-flash:hook`);
-    subtitle = pickUnusedPhrase(FLASH_SUBTITLES, `x-flash:subtitle`);
+    subtitle = '⏰ CORRE TEMPO LIMITADO!';
   } else {
     // Tentar usar frase específica de marca/produto como hook.
     // Prioridade: reutilizar a mesma frase já sorteada para o Telegram neste post
@@ -2532,14 +2525,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   const TWITTER_URL_LEN = 23;
   const urlPlaceholder = 'x'.repeat(TWITTER_URL_LEN);
 
-  const flashTimeLine = (() => {
-    if (input.isFlash && input.flashMinutes) {
-      const h = Math.floor(input.flashMinutes / 60);
-      const m = input.flashMinutes % 60;
-      return `⏰ Oferta encerra em ~${h > 0 ? `${h}h${m > 0 ? `${m}min` : ''}` : `${m}min`}`;
-    }
-    return null;
-  })();
+  const flashTimeLine = input.isFlash ? '⏰ CORRE TEMPO LIMITADO!' : null;
 
   // No X: extrair apenas o código do cupom (até 20 chars) para economizar caracteres pro título
   const rawCoupon = input.couponCode ?? null;
@@ -2548,9 +2534,10 @@ function generateXCopy(input: CopyInputData, seed: number): string {
     : null;
   const couponLine = xCouponCode ? `🏷️ Cupom: ${xCouponCode}` : null;
 
-  // Subtitle omitido no X — libera espaço para o título completo do produto
+  // Subtitle: incluído apenas para flash (⏰ CORRE TEMPO LIMITADO!) logo após o hook
   const fixedLines = [
     hook,
+    ...(input.isFlash && subtitle ? [subtitle] : []),
     '',
     // título vai aqui — não incluído no cálculo
     '',
@@ -2588,6 +2575,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   // ── Montar post linha a linha ──
   const lines: string[] = [
     hook,
+    ...(input.isFlash && subtitle ? [subtitle] : []),
     '',
     xTitle,
     '',
