@@ -2525,7 +2525,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   const TWITTER_URL_LEN = 23;
   const urlPlaceholder = 'x'.repeat(TWITTER_URL_LEN);
 
-  const flashTimeLine = input.isFlash ? '⏰ CORRE TEMPO LIMITADO!' : null;
+  const flashTimeLine = null; // urgência apenas no topo — não repetir antes do link
 
   // No X: extrair apenas o código do cupom (até 20 chars) para economizar caracteres pro título
   const rawCoupon = input.couponCode ?? null;
@@ -2572,11 +2572,17 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   }
   xTitle = emojiPrefix + xTitle;
 
+  // Frase do produto para modo relâmpago
+  const flashProductPhrase = input.isFlash
+    ? (getProductSpecificPhrase(input.title, input.phraseMode) ?? null)
+    : null;
+
   // ── Montar post linha a linha ──
   const lines: string[] = [
     hook,
     ...(input.isFlash && subtitle ? [subtitle] : []),
     '',
+    ...(flashProductPhrase ? [flashProductPhrase, ''] : []),
     xTitle,
     '',
     ...priceBlock,
