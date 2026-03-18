@@ -2437,14 +2437,7 @@ function generateXCopy(input: CopyInputData, seed: number): string {
   let subtitle: string;
 
   if (input.isFlash) {
-    const FLASH_HOOKS = [
-      '⚡⚡⚡ OFERTA RELÂMPAGO ⚡⚡⚡',
-      '⚡⚡⚡ ACABANDO AGORA ⚡⚡⚡',
-      '⚡⚡⚡ ÚLTIMAS HORAS ⚡⚡⚡',
-      '⚡⚡⚡ CORRE QUE TÁ ACABANDO ⚡⚡⚡',
-      '⚡⚡⚡ TEMPO LIMITADO ⚡⚡⚡',
-    ];
-    hook     = pickUnusedPhrase(FLASH_HOOKS, `x-flash:hook`);
+    hook     = '⚡⚡⚡ OFERTA RELÂMPAGO ⚡⚡⚡';
     subtitle = '⏰ CORRE TEMPO LIMITADO!';
   } else {
     // Tentar usar frase específica de marca/produto como hook.
