@@ -157,6 +157,30 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="font-semibold">Métricas</span>
             </a>
 
+            <a
+              href="/performance"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/performance'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">📈</span>
+              <span className="font-semibold">Performance</span>
+            </a>
+
+            <a
+              href="/avisos"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/avisos'
+                  ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">📣</span>
+              <span className="font-semibold">Avisos</span>
+            </a>
+
             {/* GESTÃO */}
             <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Gestão</p>
             

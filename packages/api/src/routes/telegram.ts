@@ -256,4 +256,22 @@ export async function telegramRoutes(app: FastifyInstance) {
       },
     };
   });
+
+  /**
+   * POST /api/telegram/message
+   * Envia mensagem de texto livre para o canal Telegram
+   */
+  app.post('/message', { preHandler: [authGuard] }, async (request, reply) => {
+    if (!isTelegramConfigured()) {
+      return reply.status(400).send({ success: false, error: 'Telegram não configurado' });
+    }
+
+    const { text } = (request.body as { text?: string }) || {};
+    if (!text || text.trim().length < 3) {
+      return reply.status(400).send({ success: false, error: 'Texto obrigatório' });
+    }
+
+    const result = await sendTelegramMessage({ text: text.trim() });
+    return { success: result.success, messageId: result.messageId, error: result.error };
+  });
 }
