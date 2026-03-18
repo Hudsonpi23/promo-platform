@@ -46,6 +46,62 @@ export default function OfertasPage() {
   // Modo de frase: 'brand' usa frases da marca detectada | 'generic' usa frases genéricas do tipo
   const [cardPhraseMode, setCardPhraseMode] = useState<Record<string, 'brand' | 'generic'>>({});
 
+  // ── FEATURE 1: Filtro por nicho ──────────────────────────────────────────
+  const [filterNiche, setFilterNiche] = useState<string | null>(null);
+
+  // ── FEATURE 2: Preview do post ───────────────────────────────────────────
+  const [previewModal, setPreviewModal] = useState<{
+    offerId: string;
+    offer: any;
+  } | null>(null);
+
+  // Gera preview aproximado do post no X (client-side)
+  const generateXPreview = (offer: any, offerId: string): string => {
+    const pm = cardPayment[offerId] || 'avista';
+    const inst = cardInstallments[offerId] ?? 12;
+    const instValRaw = cardInstallmentValue[offerId];
+    const finalPrice = Number(offer.finalPrice);
+    const origPrice = Number(offer.originalPrice);
+    const discount = offer.discount || offer.discountPct || 0;
+
+    const fmt = (v: number) =>
+      `R$ ${v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+
+    let lines: string[] = [];
+    lines.push('[FRASE GERADA AUTOMATICAMENTE]');
+    lines.push('');
+    lines.push(`📌 ${offer.title}`);
+    lines.push('');
+    lines.push('💰 Preço:');
+    if (origPrice > 0 && origPrice > finalPrice) lines.push(`De ${fmt(origPrice)}`);
+    lines.push(`por ${fmt(finalPrice)}`);
+    if (pm === 'pix') lines.push(`${fmt(finalPrice)} no PIX`);
+    if (pm === 'parcelado') {
+      const instVal = instValRaw
+        ? parseFloat(instValRaw.replace(',', '.'))
+        : finalPrice / inst;
+      lines.push(`À vista ou ${inst}x de ${fmt(instVal)}`);
+    }
+    if (discount > 0) lines.push(`💥 -${discount}% DE DESCONTO`);
+    lines.push('');
+    lines.push(`👉 ${offer.affiliateUrl || '[link afiliado]'}`);
+    return lines.join('\n');
+  };
+
+  // ── FEATURE 4: Indicador de qualidade ───────────────────────────────────
+  const getQualityIndicator = (offer: any) => {
+    let score = 0;
+    const discount = Number(offer.discount || offer.discountPct || 0);
+    if (discount >= 40) score += 3;
+    else if (discount >= 25) score += 2;
+    else if (discount >= 10) score += 1;
+    if (offer.mainImage || offer.imageUrl) score += 1;
+    if (offer.aiPriorityScore && Number(offer.aiPriorityScore) >= 7) score += 1;
+    if (score >= 4) return { label: '🔥 Quente', cls: 'bg-orange-500/20 text-orange-400' };
+    if (score >= 2) return { label: '✅ Boa', cls: 'bg-green-500/20 text-green-400' };
+    return { label: '⚠️ Fraca', cls: 'bg-yellow-500/20 text-yellow-400' };
+  };
+
   // Estado para criar post manual
   const [createManualPost, setCreateManualPost] = useState(false);
   const [manualCopyText, setManualCopyText] = useState({
@@ -589,21 +645,27 @@ export default function OfertasPage() {
     }
   };
 
-  // Postar diretamente no X (Twitter)
-  const handlePostToX = async (offerId: string) => {
-    if (postingToX) return;
-    
+  // Postar diretamente no X (Twitter) — abre preview primeiro
+  const handlePostToX = (offerId: string, offer: any) => {
+    setPreviewModal({ offerId, offer });
+  };
+
+  // Confirmar postagem no X após preview
+  const handleConfirmPostToX = async () => {
+    if (!previewModal || postingToX) return;
+    const { offerId } = previewModal;
+    setPreviewModal(null);
     setPostingToX(offerId);
-    
+
     try {
       const statusResponse = await fetchWithAuth('/api/twitter/status');
       const statusData = await statusResponse.json();
-      
+
       if (!statusData.configured) {
         alert('⚠️ Twitter API não configurada.\n\nConfigure as variáveis de ambiente:\n- TWITTER_API_KEY\n- TWITTER_API_SECRET\n- TWITTER_ACCESS_TOKEN\n- TWITTER_ACCESS_TOKEN_SECRET');
         return;
       }
-      
+
       const pm = cardPayment[offerId] || 'avista';
       const inst = cardInstallments[offerId] ?? 12;
       const instValRaw = cardInstallmentValue[offerId];
@@ -617,9 +679,9 @@ export default function OfertasPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal, phraseMode }),
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         alert(`✅ Postado no X com sucesso!\n\n🔗 ${data.tweetUrl || 'Tweet criado!'}`);
         mutate();
@@ -785,8 +847,48 @@ export default function OfertasPage() {
     }
   };
 
+  const offersData: any[] = (Array.isArray(offers) ? offers : (offers as any)?.data || []);
+  const filteredOffers = offersData.filter((offer: any) =>
+    !filterNiche || offer.niche?.id === filterNiche
+  );
+
   return (
     <div className="p-6 space-y-6">
+      {/* ── FEATURE 2: Modal de Preview ─────────────────────────────────── */}
+      {previewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="p-5 border-b border-border flex items-center justify-between">
+              <h2 className="text-lg font-bold text-text-primary">🐦 Preview do Post no X</h2>
+              <button onClick={() => setPreviewModal(null)} className="text-text-muted hover:text-text-primary text-xl">✕</button>
+            </div>
+            <div className="p-5">
+              {/* Mockup visual do tweet */}
+              <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+                {generateXPreview(previewModal.offer, previewModal.offerId)}
+              </div>
+              <p className="text-xs text-text-muted mt-3">
+                ⚠️ A frase de abertura é gerada automaticamente pelo sistema — a estrutura de preços e link acima é o que vai no post.
+              </p>
+            </div>
+            <div className="p-5 border-t border-border flex gap-3">
+              <button
+                onClick={() => setPreviewModal(null)}
+                className="flex-1 py-2 rounded-lg border border-border text-text-muted hover:text-text-primary transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmPostToX}
+                className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all"
+              >
+                ✅ Confirmar e Postar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1268,9 +1370,45 @@ export default function OfertasPage() {
         </div>
       )}
 
+      {/* ── FEATURE 1: Filtro por nicho ─────────────────────────────────── */}
+      {niches && niches.length > 0 && (
+        <div className="flex flex-wrap gap-2 items-center">
+          <span className="text-xs text-text-muted font-medium">🔍 Filtrar:</span>
+          <button
+            onClick={() => setFilterNiche(null)}
+            className={cn(
+              'px-3 py-1 rounded-full text-xs font-medium transition-all border',
+              !filterNiche
+                ? 'bg-primary text-white border-primary'
+                : 'border-border text-text-muted hover:border-primary/50'
+            )}
+          >
+            Todos ({offersData.length})
+          </button>
+          {niches.map((niche: any) => {
+            const count = offersData.filter((o: any) => o.niche?.id === niche.id).length;
+            if (count === 0) return null;
+            return (
+              <button
+                key={niche.id}
+                onClick={() => setFilterNiche(filterNiche === niche.id ? null : niche.id)}
+                className={cn(
+                  'px-3 py-1 rounded-full text-xs font-medium transition-all border',
+                  filterNiche === niche.id
+                    ? 'bg-primary text-white border-primary'
+                    : 'border-border text-text-muted hover:border-primary/50'
+                )}
+              >
+                {niche.icon && `${niche.icon} `}{niche.name} ({count})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Lista de Ofertas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {(Array.isArray(offers) ? offers : (offers as any)?.data || []).map((offer: any) => (
+        {filteredOffers.map((offer: any) => (
           <div
             key={offer.id}
             className="bg-surface rounded-xl border border-border overflow-hidden hover:border-primary/50 transition-all"
@@ -1306,11 +1444,21 @@ export default function OfertasPage() {
             <div className="p-4">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
-                <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
-                  {offer.niche?.name || 'Sem nicho'}
-                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="px-2 py-1 rounded-md bg-primary/20 text-primary text-xs font-medium">
+                    {offer.niche?.name || 'Sem nicho'}
+                  </span>
+                  {/* ── FEATURE 4: Indicador de qualidade ── */}
+                  {(() => {
+                    const q = getQualityIndicator(offer);
+                    return (
+                      <span className={cn('px-2 py-1 rounded-md text-xs font-medium', q.cls)}>
+                        {q.label}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <div className="flex items-center gap-2">
-                  {/* 🤖 Score da IA */}
                   {offer.aiPriorityScore && (
                     <span className="px-2 py-1 rounded-md bg-yellow-500/20 text-yellow-400 text-xs font-medium">
                       ⭐ {offer.aiPriorityScore}
@@ -1475,10 +1623,10 @@ export default function OfertasPage() {
                     {publishingToSite === offer.id ? '⏳' : '🌐'} Site
                   </button>
                   <button
-                    onClick={() => handlePostToX(offer.id)}
+                    onClick={() => handlePostToX(offer.id, offer)}
                     disabled={postingToX === offer.id}
                     className="py-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Postar diretamente no X (Twitter)"
+                    title="Pré-visualizar e postar no X (Twitter)"
                   >
                     {postingToX === offer.id ? '⏳' : '🐦'} X
                   </button>
@@ -1514,10 +1662,20 @@ export default function OfertasPage() {
                   {deletingOffer === offer.id ? '⏳ Deletando...' : '🗑️ Deletar'}
                 </button>
                 
-                <span className="text-xs text-text-muted text-center">
-                  {offer._count?.offerPublications || 0} post{(offer._count?.offerPublications || 0) !== 1 ? 's' : ''} publicado{(offer._count?.offerPublications || 0) !== 1 ? 's' : ''}
-                  {offer.aiPriorityScore && ` • Score IA: ${offer.aiPriorityScore}`}
-                </span>
+                {/* ── FEATURE 3: Histórico de posts ── */}
+                <div className="flex items-center justify-between text-xs text-text-muted">
+                  <span>
+                    📊 {offer._count?.offerPublications || 0} publicaç{(offer._count?.offerPublications || 0) !== 1 ? 'ões' : 'ão'}
+                  </span>
+                  {(offer._count?.offerPublications || 0) > 0 && (
+                    <a
+                      href={`/historico?offerId=${offer.id}`}
+                      className="text-primary hover:underline text-xs"
+                    >
+                      ver histórico →
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1525,11 +1683,18 @@ export default function OfertasPage() {
       </div>
 
       {/* Empty State */}
-      {((Array.isArray(offers) ? offers : (offers as any)?.data || []).length === 0) && (
+      {filteredOffers.length === 0 && (
         <div className="text-center py-20 text-text-muted">
-          <span className="text-6xl mb-4 block">📭</span>
-          <p className="text-lg">Nenhuma oferta cadastrada</p>
-          <p className="text-sm">Clique em "+ Nova Oferta" para começar</p>
+          <span className="text-6xl mb-4 block">{filterNiche ? '🔍' : '📭'}</span>
+          <p className="text-lg">
+            {filterNiche ? 'Nenhuma oferta neste nicho' : 'Nenhuma oferta cadastrada'}
+          </p>
+          <p className="text-sm">
+            {filterNiche
+              ? <button onClick={() => setFilterNiche(null)} className="text-primary hover:underline">Limpar filtro</button>
+              : 'Clique em "+ Nova Oferta" para começar'
+            }
+          </p>
         </div>
       )}
     </div>
