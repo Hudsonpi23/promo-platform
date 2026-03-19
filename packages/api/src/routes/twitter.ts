@@ -82,12 +82,15 @@ export async function twitterRoutes(app: FastifyInstance) {
   app.post('/post', { preHandler: [authGuard] }, async (request, reply) => {
     const schema = z.object({
       text: z.string().min(1).max(280),
+      imageUrl: z.string().url().optional(),
     });
 
     try {
-      const { text } = schema.parse(request.body);
+      const { text, imageUrl } = schema.parse(request.body);
       
-      const result = await postTweet(text);
+      const result = imageUrl
+        ? await postTweetWithImage(text, imageUrl)
+        : await postTweet(text);
       
       if (!result.success) {
         return reply.status(400).send({

@@ -266,12 +266,12 @@ export async function telegramRoutes(app: FastifyInstance) {
       return reply.status(400).send({ success: false, error: 'Telegram não configurado' });
     }
 
-    const { text } = (request.body as { text?: string }) || {};
+    const { text, imageUrl } = (request.body as { text?: string; imageUrl?: string }) || {};
     if (!text || text.trim().length < 3) {
       return reply.status(400).send({ success: false, error: 'Texto obrigatório' });
     }
 
-    const result = await sendTelegramMessage({ text: text.trim() });
+    const result = await sendTelegramMessage({ text: text.trim(), imageUrl: imageUrl?.trim() || undefined });
     return { success: result.success, messageId: result.messageId, error: result.error };
   });
 }

@@ -181,6 +181,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="font-semibold">Avisos</span>
             </a>
 
+            <a
+              href="/criar-post"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/criar-post'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">✏️</span>
+              <span className="font-semibold">Criar Post</span>
+            </a>
+
             {/* GESTÃO */}
             <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Gestão</p>
             
