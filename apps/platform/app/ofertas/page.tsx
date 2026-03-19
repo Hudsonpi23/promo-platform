@@ -646,9 +646,8 @@ export default function OfertasPage() {
 
   // Confirmar postagem no X após preview
   const handleConfirmPostToX = async () => {
-    if (!previewModal || postingToX) return;
-    const { offerId } = previewModal;
-    setPreviewModal(null);
+    if (!previewModal || postingToX || !previewModal.previewText) return;
+    const { offerId, previewText } = previewModal;
     setPostingToX(offerId);
 
     try {
@@ -668,15 +667,18 @@ export default function OfertasPage() {
         : undefined;
 
       const phraseMode = cardPhraseMode[offerId] ?? 'generic';
+
+      // Passa o texto exato do preview — garante que o post sai igual ao preview
       const response = await fetchWithAuth(`/api/twitter/post-offer/${offerId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal, phraseMode }),
+        body: JSON.stringify({ paymentMethod: pm, installments: inst, installmentValue: instVal, phraseMode, customText: previewText }),
       });
 
       const data = await response.json();
 
       if (data.success) {
+        setPreviewModal(null);
         alert(`✅ Postado no X com sucesso!\n\n🔗 ${data.tweetUrl || 'Tweet criado!'}`);
         mutate();
       } else {
@@ -860,16 +862,22 @@ export default function OfertasPage() {
               {/* Preview real gerado pelo servidor */}
               {previewModal.loadingPreview ? (
                 <div className="flex items-center justify-center py-8 text-text-muted">
-                  <span className="text-sm">⏳ Gerando preview real...</span>
+                  <span className="text-sm">⏳ Gerando nova frase...</span>
                 </div>
               ) : (
                 <>
                   <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
                     {previewModal.previewText}
                   </div>
-                  <p className="text-xs text-text-muted mt-3">
-                    ✅ Este é o texto exato que será postado no X.
-                  </p>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-xs text-green-400">✅ Este texto será postado exatamente assim.</p>
+                    <button
+                      onClick={() => loadPreview(previewModal.offerId, previewModal.offer)}
+                      className="text-xs text-primary hover:text-primary/80 font-medium transition-all flex items-center gap-1"
+                    >
+                      🔄 Nova Frase
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -882,9 +890,10 @@ export default function OfertasPage() {
               </button>
               <button
                 onClick={handleConfirmPostToX}
-                className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all"
+                disabled={!previewModal.previewText || previewModal.loadingPreview || !!postingToX}
+                className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                ✅ Confirmar e Postar
+                {postingToX ? '⏳ Postando...' : '✅ Confirmar e Postar'}
               </button>
             </div>
           </div>

@@ -122,13 +122,12 @@ export async function twitterRoutes(app: FastifyInstance) {
    */
   app.post('/post-offer/:offerId', { preHandler: [authGuard] }, async (request, reply) => {
     const { offerId } = request.params as { offerId: string };
-    const body = (request.body as { paymentMethod?: string; installments?: number; installmentValue?: number; phraseMode?: string }) || {};
+    const body = (request.body as { paymentMethod?: string; installments?: number; installmentValue?: number; phraseMode?: string; customText?: string }) || {};
     const paymentMethod    = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
     const installments     = body.installments ?? 12;
     const installmentValue = body.installmentValue ?? undefined;
     const phraseMode       = (body.phraseMode === 'generic' || body.phraseMode === 'brand') ? body.phraseMode : undefined;
-    // couponCode vem do campo salvo na oferta (não do body da requisição)
-    
+    const customText       = typeof body.customText === 'string' && body.customText.trim().length > 5 ? body.customText.trim() : undefined;
 
     // Buscar oferta
     const offer = await prisma.offer.findUnique({
@@ -150,23 +149,31 @@ export async function twitterRoutes(app: FastifyInstance) {
     const images = (offer as any).images || [];
     const mainImage = offer.imageUrl;
     
-    console.log(`[Twitter] Preparando post: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}, pagamento=${paymentMethod}`);
-    
-    const result = await postOfferToTwitter({
-      title: offer.title,
-      originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
-      finalPrice: Number(offer.finalPrice),
-      discount: offer.discountPct || undefined,
-      affiliateUrl: offer.affiliateUrl || undefined,
-      storeName: offer.store?.name,
-      imageUrl: mainImage || undefined,
-      images: images.length > 0 ? images : undefined,
-      paymentMethod,
-      installments,
-      installmentValue,
-      phraseMode,
-      couponCode: (offer as any).couponCode || undefined,
-    });
+    console.log(`[Twitter] Preparando post: galeria=${images.length}, principal=${mainImage ? 'sim' : 'não'}, pagamento=${paymentMethod}, customText=${!!customText}`);
+
+    let result;
+    if (customText) {
+      // Usa exatamente o texto do preview — não regera frase
+      result = mainImage
+        ? await postTweetWithImage(customText, mainImage)
+        : await postTweet(customText);
+    } else {
+      result = await postOfferToTwitter({
+        title: offer.title,
+        originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
+        finalPrice: Number(offer.finalPrice),
+        discount: offer.discountPct || undefined,
+        affiliateUrl: offer.affiliateUrl || undefined,
+        storeName: offer.store?.name,
+        imageUrl: mainImage || undefined,
+        images: images.length > 0 ? images : undefined,
+        paymentMethod,
+        installments,
+        installmentValue,
+        phraseMode,
+        couponCode: (offer as any).couponCode || undefined,
+      });
+    }
 
     if (!result.success) {
       return reply.status(400).send({
