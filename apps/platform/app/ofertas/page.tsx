@@ -879,12 +879,12 @@ export default function OfertasPage() {
                     value={previewEditText}
                     onChange={e => setPreviewEditText(e.target.value)}
                     rows={10}
-                    maxLength={280}
+                    autoFocus
                     className="w-full px-4 py-3 rounded-xl bg-background border border-yellow-500/40 text-text-primary font-mono text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none leading-relaxed"
                   />
                   <div className="flex items-center justify-between">
-                    <span className={cn('text-xs', previewEditText.length > 280 ? 'text-red-400 font-bold' : 'text-text-muted')}>
-                      {previewEditText.length}/280 chars
+                    <span className={cn('text-xs font-medium', previewEditText.length > 280 ? 'text-red-400' : previewEditText.length > 240 ? 'text-yellow-400' : 'text-green-400')}>
+                      {previewEditText.length}/280 chars {previewEditText.length > 280 ? `(${previewEditText.length - 280} a mais — o X vai rejeitar)` : '✅'}
                     </span>
                     <button
                       onClick={() => setPreviewEditing(false)}
@@ -941,7 +941,7 @@ export default function OfertasPage() {
                 disabled={
                   previewModal.loadingPreview ||
                   !!postingToX ||
-                  (previewEditing ? previewEditText.trim().length < 5 || previewEditText.length > 280 : !previewModal.previewText)
+                  (previewEditing ? previewEditText.trim().length < 5 : !previewModal.previewText)
                 }
                 className={cn(
                   'flex-1 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed',
