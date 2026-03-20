@@ -56,6 +56,8 @@ export default function OfertasPage() {
     previewText: string | null;
     loadingPreview: boolean;
   } | null>(null);
+  const [previewEditing, setPreviewEditing] = useState(false);
+  const [previewEditText, setPreviewEditText] = useState('');
 
   // Carrega o preview real do servidor
   const loadPreview = async (offerId: string, offer: any) => {
@@ -854,46 +856,101 @@ export default function OfertasPage() {
       {previewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
           <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl">
+            {/* Header */}
             <div className="p-5 border-b border-border flex items-center justify-between">
-              <h2 className="text-lg font-bold text-text-primary">🐦 Preview do Post no X</h2>
-              <button onClick={() => setPreviewModal(null)} className="text-text-muted hover:text-text-primary text-xl">✕</button>
+              <h2 className="text-lg font-bold text-text-primary">
+                🐦 Preview do Post no X
+                {previewEditing && <span className="ml-2 text-xs text-yellow-400 font-normal">✏️ Modo Edição</span>}
+              </h2>
+              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
             </div>
-            <div className="p-5">
-              {/* Preview real gerado pelo servidor */}
+
+            {/* Corpo */}
+            <div className="p-5 space-y-3">
               {previewModal.loadingPreview ? (
                 <div className="flex items-center justify-center py-8 text-text-muted">
                   <span className="text-sm">⏳ Gerando nova frase...</span>
                 </div>
+              ) : previewEditing ? (
+                /* ── MODO EDIÇÃO ── */
+                <>
+                  <p className="text-xs text-yellow-400">✏️ Edite o texto abaixo. O post sairá exatamente como você escrever.</p>
+                  <textarea
+                    value={previewEditText}
+                    onChange={e => setPreviewEditText(e.target.value)}
+                    rows={10}
+                    maxLength={280}
+                    className="w-full px-4 py-3 rounded-xl bg-background border border-yellow-500/40 text-text-primary font-mono text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none leading-relaxed"
+                  />
+                  <div className="flex items-center justify-between">
+                    <span className={cn('text-xs', previewEditText.length > 280 ? 'text-red-400 font-bold' : 'text-text-muted')}>
+                      {previewEditText.length}/280 chars
+                    </span>
+                    <button
+                      onClick={() => setPreviewEditing(false)}
+                      className="text-xs text-text-muted hover:text-text-primary transition-all"
+                    >
+                      ← Voltar ao preview
+                    </button>
+                  </div>
+                </>
               ) : (
+                /* ── MODO PREVIEW ── */
                 <>
                   <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
                     {previewModal.previewText}
                   </div>
-                  <div className="flex items-center justify-between mt-3">
+                  <div className="flex items-center justify-between">
                     <p className="text-xs text-green-400">✅ Este texto será postado exatamente assim.</p>
-                    <button
-                      onClick={() => loadPreview(previewModal.offerId, previewModal.offer)}
-                      className="text-xs text-primary hover:text-primary/80 font-medium transition-all flex items-center gap-1"
-                    >
-                      🔄 Nova Frase
-                    </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => loadPreview(previewModal.offerId, previewModal.offer)}
+                        className="text-xs text-primary hover:text-primary/80 font-medium transition-all"
+                      >
+                        🔄 Nova Frase
+                      </button>
+                      <button
+                        onClick={() => { setPreviewEditText(previewModal.previewText || ''); setPreviewEditing(true); }}
+                        className="text-xs text-yellow-400 hover:text-yellow-300 font-medium transition-all"
+                      >
+                        ✏️ Editar
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
             </div>
+
+            {/* Botões */}
             <div className="p-5 border-t border-border flex gap-3">
               <button
-                onClick={() => setPreviewModal(null)}
+                onClick={() => { setPreviewModal(null); setPreviewEditing(false); }}
                 className="flex-1 py-2 rounded-lg border border-border text-text-muted hover:text-text-primary transition-all"
               >
                 Cancelar
               </button>
               <button
-                onClick={handleConfirmPostToX}
-                disabled={!previewModal.previewText || previewModal.loadingPreview || !!postingToX}
-                className="flex-1 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => {
+                  if (previewEditing && previewEditText.trim()) {
+                    setPreviewModal(prev => prev ? { ...prev, previewText: previewEditText.trim() } : null);
+                    setPreviewEditing(false);
+                  } else {
+                    handleConfirmPostToX();
+                  }
+                }}
+                disabled={
+                  previewModal.loadingPreview ||
+                  !!postingToX ||
+                  (previewEditing ? previewEditText.trim().length < 5 || previewEditText.length > 280 : !previewModal.previewText)
+                }
+                className={cn(
+                  'flex-1 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed',
+                  previewEditing
+                    ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                    : 'bg-blue-500 hover:bg-blue-600 text-white'
+                )}
               >
-                {postingToX ? '⏳ Postando...' : '✅ Confirmar e Postar'}
+                {postingToX ? '⏳ Postando...' : previewEditing ? '✅ Aplicar Edição' : '✅ Confirmar e Postar'}
               </button>
             </div>
           </div>

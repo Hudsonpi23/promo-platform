@@ -306,7 +306,7 @@ const PRODUCT_TYPE_DETECTORS: Array<{
   { kw: ['cropped', 'top feminino', 'top esportivo'],                                 phraseKey: 'roupa' },
   { kw: ['maiô', 'biquíni', 'maio', 'biquini'],                                       phraseKey: 'roupa' },
   { kw: ['lingerie', 'sutiã', 'sutia', 'calcinha'],                                   phraseKey: 'roupa' },
-  { kw: ['pijama feminino', 'pijama masculino', 'pijama'],                             phraseKey: 'roupa' },
+  { kw: ['pijama feminino', 'pijama masculino', 'kit pijama', 'conjunto pijama', 'pijama adulto', 'pijama infantil', 'pijama longo', 'pijama curto', 'pijama manga'],   phraseKey: 'roupa' },
 
   // ─── Acessórios de vestuário ───────────────────────────────────────────────
   { kw: ['boné', 'bone', 'cap', 'viseira', 'chapéu', 'chapeu'],                      phraseKey: 'boné',             brandCat: 'roupas' },
@@ -934,13 +934,16 @@ const PRODUCT_TYPE_DETECTORS: Array<{
       'livro', 'literatura', 'leitura', 'obra literária',
       // Indicadores físicos de livro (aparecem em títulos sem a palavra "livro")
       'capa mole', 'capa dura', 'brochura',
-      // Editoras brasileiras conhecidas (livros)
+      'tapa mole', 'tapa dura',           // variantes em espanhol (edições importadas)
+      // Editoras (brasileiras e estrangeiras conhecidas)
       'editora rocco', 'editora intrínseca', 'editora sextante',
       'editora planeta', 'companhia das letras', 'editora record',
       'editora objetiva', 'editora globo livros', 'editora suma',
       'editora arqueiro', 'editora verus', 'editora novo conceito',
-      // Indicadores comuns de publicação em português
-      'em português', 'edição brasileira', 'tradução para o português',
+      'editorial', 'editora seguinte', 'salamandra', 'alfaguara',
+      // Indicadores comuns de publicação
+      'em português', 'en português', 'edição brasileira', 'tradução para o português',
+      'john boyne', 'anne frank', 'antoine de saint', 'machado de assis',
     ],                                                                                 phraseKey: 'livro' },
 ];
 
