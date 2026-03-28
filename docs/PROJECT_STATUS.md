@@ -213,23 +213,66 @@ NEXT_PUBLIC_SITE_URL=https://manu-promocoes.vercel.app
 ## ⏳ PENDÊNCIAS (a implementar)
 
 1. **Links curtos do ML** — `meli.la` redireciona para página social do ML, plataforma não lê produto
-   - Solução: resolver o redirect chain até a URL real do produto
 2. **Integração multi-plataforma** — Shopee e outras além de ML e Amazon
-3. **Página de vídeos local** — Remotion + Whisper rodando localmente
+
+### Agentes IA (OpenClaw na VPS)
+3. **Criar agente Manu X** — postar, responder, threads, trending no Twitter/X
+4. **Criar agente Manu Telegram** — postar promoções, responder no grupo, alertas (precisa do bot token)
+5. **Criar agente Manu Instagram** — carrosséis, reels, stories, hashtags
+6. **Criar agente Manu WhatsApp** — comunicação direta, atendimento
+7. **Conectar agentes com as APIs** — X API, Telegram Bot, Instagram API, WhatsApp Business API
+8. **Adicionar skills/habilidades** a cada agente conforme regras de cada rede social
+
+### Página de vídeos/carrosséis
+9. **Instalar Remotion** na plataforma (local) para gerar vídeos e carrosséis
    - Fase 1: carrosséis estáticos para Instagram
-   - Fase 2: vídeos curtos automatizados
-   - Fase 3: agente IA completo com Whisper
+   - Fase 2: vídeos curtos automatizados com Remotion
+   - Fase 3: legendas automáticas com Whisper
+
+---
+
+## 🤖 SISTEMA DE AGENTES (VPS Hostinger)
+
+### Infraestrutura
+- **VPS**: Hostinger KVM 4, Ubuntu 24.04 LTS, 8GB RAM, 4 vCPU, 200GB disco
+- **IP**: 187.127.1.208
+- **OpenClaw**: Docker container rodando na porta 56487
+- **HTTPS**: Nginx reverse proxy com certificado auto-assinado (porta 443)
+- **Acesso**: https://187.127.1.208
+
+### Agentes configurados
+| Agente | Função | Status |
+|--------|--------|--------|
+| Manu Orquestradora | Coordenação, métricas, relatórios semanais | ✅ Operacional |
+| Manu X | Postar e interagir no Twitter/X | ⏳ A criar |
+| Manu Telegram | Postar e interagir no Telegram | ⏳ A criar |
+| Manu Instagram | Carrosséis, reels, stories | ⏳ A criar |
+| Manu WhatsApp | Comunicação direta | ⏳ A criar |
+
+### Automações ativas
+- Relatório semanal automático: sexta às 18h (America/Sao_Paulo)
+- Envio via Telegram para chat ID: 7114228848
+- Sistema de score semanal (0-100) por canal
+- Memória persistente com baseline e histórico
+
+### Modelo de IA
+- GPT-5.4 (flagship) para todos os agentes
 
 ---
 
 ## 🎯 ESTRATÉGIA DO CANAL
 
 - **Nome do canal**: Manu das Promoções
-- **Plataformas**: X (principal), Telegram, Instagram (futuro)
-- **Meta de seguidores**: 200.000
+- **Site**: www.manu-promocoes.com.br
+- **Plataformas**: X (principal), Telegram, Instagram (futuro), WhatsApp (futuro)
+- **X handle**: @manupromocao
+- **Baseline (março/2026)**: X ~100 seguidores, Telegram ~130 inscritos, Instagram 0
 - **Posts diários atuais**: ~70
-- **Posts meta**: 250/dia (promoções + interação + métricas)
+- **Receita mensal atual**: ~R$500
 - **Afiliados ativos**: Mercado Livre, Amazon, Shopee
+- **Meta 30 dias**: X 300-600 seguidores, Telegram 250-500 inscritos
+- **Meta anual**: X 100.000, Telegram 20.000, Instagram 20.000
+- **Meta receita**: R$10.000+/mês
 - **Filosofia**: sempre o menor preço real, independente da % de comissão
 
 ---
