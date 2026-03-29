@@ -6,22 +6,49 @@ import { loginSchema, refreshSchema } from '../lib/schemas.js';
 import { AppError, sendError, Errors } from '../lib/errors.js';
 
 export async function authRoutes(app: FastifyInstance) {
+  // TEMPORARY DEBUG - remover depois
+  app.post('/debug-login', async (request, reply) => {
+    try {
+      const body = loginSchema.parse(request.body);
+      const user = await prisma.user.findUnique({ where: { email: body.email } });
+      if (!user) {
+        return { debug: 'USER_NOT_FOUND', email: body.email };
+      }
+      const match = await verifyPassword(body.password, user.passwordHash);
+      return {
+        debug: 'CHECK_COMPLETE',
+        email: user.email,
+        active: user.isActive,
+        role: user.role,
+        hashPrefix: user.passwordHash.substring(0, 20),
+        passwordMatch: match,
+        passLen: body.password.length,
+      };
+    } catch (e: any) {
+      return { debug: 'ERROR', message: e.message };
+    }
+  });
+
   // POST /auth/login
   app.post('/login', async (request, reply) => {
     try {
       const body = loginSchema.parse(request.body);
+      console.log('[Auth Debug] Login attempt for:', body.email);
       
       // Buscar usuário
       const user = await prisma.user.findUnique({
         where: { email: body.email },
       });
 
+      console.log('[Auth Debug] User lookup result:', user ? `found (${user.email}, active=${user.isActive})` : 'NOT FOUND');
       if (!user || !user.isActive) {
         return sendError(reply, Errors.INVALID_CREDENTIALS);
       }
 
       // Verificar senha
+      console.log('[Auth Debug] User found:', user.email, '| hashStart:', user.passwordHash.substring(0, 20), '| passLength:', body.password.length);
       const validPassword = await verifyPassword(body.password, user.passwordHash);
+      console.log('[Auth Debug] Password match result:', validPassword);
       if (!validPassword) {
         return sendError(reply, Errors.INVALID_CREDENTIALS);
       }
