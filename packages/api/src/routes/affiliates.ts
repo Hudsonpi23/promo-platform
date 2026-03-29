@@ -9,9 +9,12 @@
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
+import axios from 'axios';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
+import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl } from '../services/mlAffiliate.js';
+import { getMLToken } from './mlAuth.js';
 
 // ==================== SCHEMAS ====================
 
@@ -512,6 +515,133 @@ export async function affiliatesRoutes(app: FastifyInstance) {
     }
   });
 
+  // ==================== GERADOR DE LINK DE AFILIADO ====================
+
+  /**
+   * POST /api/affiliates/generate
+   * 
+   * Cola qualquer URL de produto do Mercado Livre e recebe:
+   * - Link de afiliado pronto
+   * - Informações do produto (título, preço, desconto, imagem)
+   * 
+   * Aceita formatos:
+   * - https://www.mercadolivre.com.br/...
+   * - https://produto.mercadolivre.com.br/MLB-XXXXX
+   * - https://www.mercadolivre.com.br/p/MLBXXXXX
+   */
+  app.post('/generate', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = z.object({
+        url: z.string().url('URL inválida'),
+      }).parse(request.body);
+
+      const productUrl = body.url.trim();
+
+      if (!productUrl.includes('mercadolivre.com.br') && !productUrl.includes('mercadolibre.com')) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'INVALID_DOMAIN', message: 'URL deve ser do Mercado Livre (mercadolivre.com.br)' },
+        });
+      }
+
+      const affiliateUrl = generateAffiliateUrl(productUrl);
+
+      const itemId = extractMLItemId(productUrl);
+      const productCatalogId = extractMLProductId(productUrl);
+
+      let productInfo: any = null;
+
+      const headers: Record<string, string> = { 'Accept': 'application/json' };
+      const mlToken = getMLToken();
+      if (mlToken?.access_token) {
+        headers['Authorization'] = `Bearer ${mlToken.access_token}`;
+      }
+
+      if (productCatalogId) {
+        try {
+          const [prodResp, itemsResp] = await Promise.all([
+            axios.get(`https://api.mercadolibre.com/products/${productCatalogId}`, { timeout: 8000, headers }),
+            axios.get(`https://api.mercadolibre.com/products/${productCatalogId}/items?limit=1`, { timeout: 8000, headers }),
+          ]);
+
+          const prod = prodResp.data;
+          const listing = itemsResp.data.results?.[0];
+
+          const price = listing?.price || null;
+          const originalPrice = listing?.original_price || null;
+          const discount = originalPrice && originalPrice > price
+            ? Math.round(((originalPrice - price) / originalPrice) * 100)
+            : 0;
+
+          const mainPicture = prod.pictures?.[0]?.url || '';
+
+          productInfo = {
+            id: productCatalogId,
+            item_id: listing?.item_id || null,
+            title: prod.name,
+            price,
+            original_price: originalPrice,
+            discount_percentage: discount,
+            thumbnail: mainPicture.replace('http://', 'https://'),
+            free_shipping: listing?.shipping?.free_shipping || false,
+            condition: listing?.condition || 'new',
+            category_id: listing?.category_id || null,
+          };
+        } catch (err: any) {
+          console.warn('[Affiliate Generate] Erro ao buscar produto do catálogo:', err.message);
+        }
+      }
+
+      if (!productInfo && itemId) {
+        try {
+          const resp = await axios.get(`https://api.mercadolibre.com/items/${itemId}`, { timeout: 8000, headers });
+          const item = resp.data;
+
+          const price = item.price;
+          const originalPrice = item.original_price;
+          const discount = originalPrice && originalPrice > price
+            ? Math.round(((originalPrice - price) / originalPrice) * 100)
+            : 0;
+
+          productInfo = {
+            id: itemId,
+            item_id: itemId,
+            title: item.title,
+            price,
+            original_price: originalPrice,
+            discount_percentage: discount,
+            thumbnail: (item.thumbnail || '').replace('http://', 'https://'),
+            free_shipping: item.shipping?.free_shipping || false,
+            condition: item.condition,
+            category_id: item.category_id,
+          };
+        } catch (err: any) {
+          console.warn('[Affiliate Generate] Erro ao buscar item:', err.message);
+        }
+      }
+
+      const tweetSuggestion = productInfo ? buildTweetSuggestion(productInfo, affiliateUrl) : null;
+
+      return reply.send({
+        success: true,
+        data: {
+          original_url: productUrl,
+          affiliate_url: affiliateUrl,
+          affiliate_tag: AFFILIATE_TAG,
+          affiliate_tool: AFFILIATE_TOOL,
+          product: productInfo,
+          tweet_suggestion: tweetSuggestion,
+        },
+      });
+    } catch (error: any) {
+      console.error('[Affiliate Generate] Erro:', error);
+      if (error.name === 'ZodError') {
+        return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
+      }
+      return sendError(reply, error);
+    }
+  });
+
   // ==================== SEED DE PROGRAMAS POPULARES ====================
 
   /**
@@ -615,4 +745,71 @@ export async function affiliatesRoutes(app: FastifyInstance) {
       return sendError(reply, error);
     }
   });
+}
+
+// ==================== HELPERS ====================
+
+/**
+ * Extrai o item ID (ex: MLB1234567890) de URLs do tipo:
+ * - https://produto.mercadolivre.com.br/MLB-1234567890-titulo-...
+ * - https://www.mercadolivre.com.br/MLB-1234567890
+ */
+function extractMLItemId(url: string): string | null {
+  const match = url.match(/MLB[- ]?\d{8,14}/i);
+  if (match) {
+    return match[0].replace(/-/g, '').replace(/ /g, '');
+  }
+  return null;
+}
+
+/**
+ * Extrai o product catalog ID de URLs do tipo:
+ * - https://www.mercadolivre.com.br/p/MLB12345678
+ */
+function extractMLProductId(url: string): string | null {
+  const match = url.match(/\/p\/(MLB\d+)/i);
+  return match ? match[1] : null;
+}
+
+/**
+ * Gera uma sugestão de tweet com base nas info do produto
+ */
+function buildTweetSuggestion(product: any, affiliateUrl: string): string | null {
+  if (!product?.title || !product?.price) return null;
+
+  const title = product.title.length > 60
+    ? product.title.substring(0, 57) + '...'
+    : product.title;
+
+  let tweet = '';
+
+  if (product.discount_percentage >= 30) {
+    tweet += `🔥 OFERTAÇO COM ${product.discount_percentage}% OFF!\n`;
+  } else if (product.discount_percentage > 0) {
+    tweet += `💰 ${product.discount_percentage}% DE DESCONTO!\n`;
+  } else {
+    tweet += `⚡ PREÇO IMPERDÍVEL!\n`;
+  }
+
+  tweet += `${title}\n`;
+
+  if (product.original_price && product.discount_percentage > 0) {
+    tweet += `De R$${product.original_price.toFixed(2)} por R$${product.price.toFixed(2)}\n`;
+  } else {
+    tweet += `Por apenas R$${product.price.toFixed(2)}\n`;
+  }
+
+  if (product.free_shipping) {
+    tweet += `✅ Frete Grátis\n`;
+  }
+
+  tweet += `\n${affiliateUrl}`;
+
+  if (tweet.length > 280) {
+    const excess = tweet.length - 280;
+    const shorterTitle = product.title.substring(0, Math.max(20, 57 - excess)) + '...';
+    tweet = tweet.replace(title, shorterTitle);
+  }
+
+  return tweet;
 }
