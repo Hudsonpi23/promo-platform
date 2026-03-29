@@ -199,6 +199,17 @@ function parseProduct(item: any): AmazonProduct | null {
   }
 }
 
+function extractErrorDetail(err: any): string {
+  if (err?.message) return err.message;
+  if (err?.status) {
+    const bodyMsg = typeof err.body === 'string'
+      ? err.body
+      : (err.body?.__type || err.body?.message || err.body?.Message || JSON.stringify(err.body));
+    return `HTTP ${err.status} ${err.statusText || ''}: ${bodyMsg}`;
+  }
+  try { return JSON.stringify(err); } catch { return String(err); }
+}
+
 // ==================== RESOURCES ====================
 
 const ITEM_RESOURCES = [
@@ -262,8 +273,9 @@ export async function getAmazonItems(asins: string[]): Promise<AmazonProduct[]> 
     console.log(`[Amazon API] GetItems retornou ${products.length} produto(s)`);
     return products;
   } catch (err: any) {
-    console.error('[Amazon API] Erro GetItems:', err.message || JSON.stringify(err));
-    throw new Error(`Amazon API GetItems falhou: ${err.message || 'erro desconhecido'}`);
+    const detail = extractErrorDetail(err);
+    console.error('[Amazon API] Erro GetItems:', detail);
+    throw new Error(`Amazon API GetItems falhou: ${detail}`);
   }
 }
 
@@ -310,8 +322,9 @@ export async function searchAmazonProducts(
     console.log(`[Amazon API] SearchItems retornou ${products.length} de ${totalResults} produto(s)`);
     return { products, totalResults, searchUrl };
   } catch (err: any) {
-    console.error('[Amazon API] Erro SearchItems:', err.message || JSON.stringify(err));
-    throw new Error(`Amazon API SearchItems falhou: ${err.message || 'erro desconhecido'}`);
+    const detail = extractErrorDetail(err);
+    console.error('[Amazon API] Erro SearchItems:', detail);
+    throw new Error(`Amazon API SearchItems falhou: ${detail}`);
   }
 }
 

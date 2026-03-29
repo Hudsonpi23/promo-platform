@@ -13,7 +13,7 @@ import axios from 'axios';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
-import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl } from '../services/mlAffiliate.js';
+import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, searchProducts, searchDeals, getHighQualityImageUrl } from '../services/mlAffiliate.js';
 import { getMLToken } from './mlAuth.js';
 
 // ==================== SCHEMAS ====================
@@ -639,6 +639,87 @@ export async function affiliatesRoutes(app: FastifyInstance) {
         return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
       }
       return sendError(reply, error);
+    }
+  });
+
+  // ==================== BUSCA MERCADO LIVRE ====================
+
+  /**
+   * POST /api/affiliates/search-ml
+   * Busca produtos no Mercado Livre com links de afiliado
+   */
+  app.post('/search-ml', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = request.body as {
+        keywords?: string;
+        category?: string;
+        minDiscount?: number;
+        maxPrice?: number;
+        minPrice?: number;
+        limit?: number;
+        sort?: 'price_asc' | 'price_desc' | 'relevance';
+        dealsOnly?: boolean;
+      };
+
+      if (!body.keywords && !body.category) {
+        return reply.status(400).send({ error: 'Informe keywords ou category' });
+      }
+
+      const searchFn = body.dealsOnly ? searchDeals : searchProducts;
+      const result = await searchFn({
+        query: body.keywords,
+        category: body.category,
+        minDiscount: body.minDiscount,
+        maxPrice: body.maxPrice,
+        minPrice: body.minPrice,
+        limit: body.limit || 10,
+        sort: body.sort || 'relevance',
+      });
+
+      if (!result.success) {
+        return reply.status(502).send({
+          error: result.error || 'Falha na busca ML',
+          products: [],
+        });
+      }
+
+      const enhanced = result.products.map(p => ({
+        ...p,
+        highQualityImage: p.thumbnail ? getHighQualityImageUrl(p.thumbnail) : null,
+      }));
+
+      return {
+        success: true,
+        products: enhanced,
+        total: result.total,
+      };
+    } catch (err: any) {
+      console.error('[Affiliates] Erro search-ml:', err.message);
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/affiliates/search-ml/test
+   * Testa se a busca ML está funcionando
+   */
+  app.get('/search-ml/test', { preHandler: [authGuard] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const mlToken = getMLToken();
+      const result = await searchProducts({ query: 'fone bluetooth', limit: 3 });
+      return {
+        success: result.success,
+        mlTokenPresent: !!mlToken?.access_token,
+        totalFound: result.total,
+        sampleProducts: result.products.slice(0, 2).map(p => ({
+          title: p.title,
+          price: p.price,
+          discount: p.discount_percentage,
+        })),
+        error: result.error || null,
+      };
+    } catch (err: any) {
+      return reply.status(500).send({ error: err.message });
     }
   });
 

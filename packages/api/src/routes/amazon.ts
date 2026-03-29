@@ -30,6 +30,43 @@ export async function amazonRoutes(app: FastifyInstance) {
   });
 
   /**
+   * GET /api/amazon/test
+   * Testa credenciais e busca com keyword simples para diagnóstico
+   */
+  app.get('/test', { preHandler: [authGuard] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!isAmazonApiConfigured()) {
+      return reply.status(503).send({ error: 'Amazon API não configurada', configured: false });
+    }
+    try {
+      const result = await searchAmazonProducts('fone bluetooth', { itemCount: 1 });
+      return {
+        success: true,
+        configured: true,
+        credentialVersion: process.env.AMAZON_CREDENTIAL_VERSION || '3.1',
+        marketplace: process.env.AMAZON_MARKETPLACE || 'www.amazon.com.br',
+        partnerTag: process.env.AMAZON_PARTNER_TAG || null,
+        testSearchResults: result.products.length,
+        firstProduct: result.products[0] ? {
+          title: result.products[0].title,
+          price: result.products[0].finalPrice,
+          asin: result.products[0].asin,
+        } : null,
+      };
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        error: err.message,
+        credentialVersion: process.env.AMAZON_CREDENTIAL_VERSION || '3.1',
+        marketplace: process.env.AMAZON_MARKETPLACE || 'www.amazon.com.br',
+        hint: err.message.includes('401') ? 'Credenciais inválidas ou expiradas'
+          : err.message.includes('403') ? 'Acesso negado — verifique permissões do Creators API'
+          : err.message.includes('429') ? 'Rate limit — aguarde e tente novamente'
+          : 'Verifique as variáveis AMAZON_CREDENTIAL_ID, AMAZON_CREDENTIAL_SECRET e AMAZON_CREDENTIAL_VERSION',
+      });
+    }
+  });
+
+  /**
    * POST /api/amazon/search
    * Busca produtos por keyword
    */
