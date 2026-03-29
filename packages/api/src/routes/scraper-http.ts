@@ -174,6 +174,18 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
     }
   }
 
+  // ── Validação de sanidade do preço original ──────────────────────────────
+  // Amazon frequentemente mostra "list price" inflado em produtos baratos genéricos.
+  // Se o original > 5x o final, ou desconto > 75%, é quase certamente falso.
+  if (originalPrice && finalPrice > 0) {
+    const ratio = originalPrice / finalPrice;
+    const rawDiscount = Math.round(((originalPrice - finalPrice) / originalPrice) * 100);
+    if (ratio > 5 || rawDiscount > 75) {
+      console.log(`[Scraper Amazon] Preço original suspeito descartado: R$${originalPrice} → R$${finalPrice} (${rawDiscount}% OFF, ratio ${ratio.toFixed(1)}x)`);
+      originalPrice = null;
+    }
+  }
+
   // ── Desconto ──────────────────────────────────────────────────────────────
   let discount = 0;
   if (originalPrice && originalPrice > finalPrice && finalPrice > 0) {
@@ -182,7 +194,10 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
     // Tenta extrair badge de desconto: "-20%"
     const badgeText = $('.a-badge-text, .savingPriceOverride, #saleprice_savings').first().text().trim();
     const pctMatch = badgeText.match(/(\d+)%/);
-    if (pctMatch) discount = parseInt(pctMatch[1]);
+    if (pctMatch) {
+      const badgeDiscount = parseInt(pctMatch[1]);
+      if (badgeDiscount <= 75) discount = badgeDiscount;
+    }
   }
 
   // ── Imagem principal ──────────────────────────────────────────────────────

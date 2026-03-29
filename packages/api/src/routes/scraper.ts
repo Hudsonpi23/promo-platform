@@ -277,6 +277,17 @@ export async function scraperRoutes(app: FastifyInstance) {
           throw new Error('Não foi possível extrair o preço do produto.');
         }
 
+        // Descartar preço original se desconto parecer inflado (>75% ou ratio >5x)
+        if (productData.originalPrice && productData.finalPrice > 0) {
+          const ratio = productData.originalPrice / productData.finalPrice;
+          const rawDiscount = Math.round(((productData.originalPrice - productData.finalPrice) / productData.originalPrice) * 100);
+          if (ratio > 5 || rawDiscount > 75) {
+            console.log(`[Scraper] Desconto suspeito descartado: R$${productData.originalPrice} → R$${productData.finalPrice} (${rawDiscount}% OFF)`);
+            productData.originalPrice = null;
+            productData.discount = 0;
+          }
+        }
+
         // URL afiliada: para URLs sociais usar resolvedUrl (link do produto com matt_word/matt_tool)
         // Para URLs diretas usar a URL original
         productData.affiliateUrl = productData.affiliateUrl || resolvedUrl || url;

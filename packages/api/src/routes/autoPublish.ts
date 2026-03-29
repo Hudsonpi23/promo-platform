@@ -193,9 +193,21 @@ export async function autoPublishRoutes(app: FastifyInstance) {
 
         result.title = productData.title;
         result.finalPrice = productData.finalPrice;
+
+        // ── 3. VALIDAR E CALCULAR DESCONTO ───────────────────────────────
+        // Descartar preço original se o desconto parecer inflado (>75% ou ratio >5x)
+        if (productData.originalPrice && productData.finalPrice > 0) {
+          const ratio = productData.originalPrice / productData.finalPrice;
+          const rawDiscount = Math.round(((productData.originalPrice - productData.finalPrice) / productData.originalPrice) * 100);
+          if (ratio > 5 || rawDiscount > 75) {
+            console.log(`[AutoPublish] Desconto suspeito descartado: R$${productData.originalPrice} → R$${productData.finalPrice} (${rawDiscount}% OFF)`);
+            productData.originalPrice = null;
+            productData.discount = 0;
+          }
+        }
+
         result.originalPrice = productData.originalPrice || null;
 
-        // ── 3. CALCULAR DESCONTO ───────────────────────────────────────────
         const discountPct = productData.discount ||
           (productData.originalPrice && productData.originalPrice > productData.finalPrice
             ? Math.round(((productData.originalPrice - productData.finalPrice) / productData.originalPrice) * 100)
@@ -249,7 +261,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
             finalPrice: productData.finalPrice,
             originalPrice: productData.originalPrice || null,
             discountPct,
-            affiliateUrl: url,
+            affiliateUrl: finalUrl,
             imageUrl: mainImage,
             mainImage,
             images: productData.images || [],
@@ -301,7 +313,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               price: offer.finalPrice,
               originalPrice: offer.originalPrice,
               discountPct: offer.discountPct,
-              affiliateUrl: url,
+              affiliateUrl: finalUrl,
               imageUrl: mainImage,
               urgency: isFlash ? 'HOJE' : 'NORMAL',
               nicheId,
@@ -341,7 +353,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           oldPrice: offer.originalPrice ? Number(offer.originalPrice) : null,
           discountPct: offer.discountPct ? Number(offer.discountPct) : 0,
           storeName: offer.store?.name,
-          trackingUrl: url,
+          trackingUrl: finalUrl,
           siteUrl: siteLink,
           isFlash,
           flashMinutes,
@@ -388,7 +400,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
               originalPrice: offer.originalPrice ? Number(offer.originalPrice) : undefined,
               finalPrice: Number(offer.finalPrice),
               discount: offer.discountPct || undefined,
-              affiliateUrl: url,
+              affiliateUrl: finalUrl,
               storeName: offer.store?.name,
               imageUrl: mainImage || undefined,
               siteUrl: siteLink,
@@ -510,6 +522,16 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       }
       if (!productData.finalPrice || productData.finalPrice <= 0) {
         return reply.status(422).send({ error: 'Não foi possível extrair o preço do produto.' });
+      }
+
+      // Validar desconto suspeito (>75% ou ratio >5x = provavelmente inflado)
+      if (productData.originalPrice && productData.finalPrice > 0) {
+        const ratio = productData.originalPrice / productData.finalPrice;
+        const rawDiscount = Math.round(((productData.originalPrice - productData.finalPrice) / productData.originalPrice) * 100);
+        if (ratio > 5 || rawDiscount > 75) {
+          productData.originalPrice = null;
+          productData.discount = 0;
+        }
       }
 
       const discountPct = productData.discount ||
