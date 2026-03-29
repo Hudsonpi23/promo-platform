@@ -6,60 +6,22 @@ import { loginSchema, refreshSchema } from '../lib/schemas.js';
 import { AppError, sendError, Errors } from '../lib/errors.js';
 
 export async function authRoutes(app: FastifyInstance) {
-  // TEMPORARY - setup Manu user + debug (remover depois do setup)
-  app.post('/setup-manu', async (request, reply) => {
-    try {
-      const email = 'manu.orquestradora@manu-promocoes.com.br';
-      const password = 'ManuOrq2026Promo';
-      const hash = await hashPassword(password);
-      
-      const user = await prisma.user.upsert({
-        where: { email },
-        update: { passwordHash: hash },
-        create: {
-          name: 'Manu Orquestradora',
-          email,
-          passwordHash: hash,
-          role: 'ADMIN',
-          isActive: true,
-        },
-      });
-      
-      const match = await verifyPassword(password, user.passwordHash);
-      
-      return {
-        status: 'OK',
-        userId: user.id,
-        email: user.email,
-        role: user.role,
-        active: user.isActive,
-        passwordVerified: match,
-      };
-    } catch (e: any) {
-      return { status: 'ERROR', message: e.message };
-    }
-  });
-
   // POST /auth/login
   app.post('/login', async (request, reply) => {
     try {
       const body = loginSchema.parse(request.body);
-      console.log('[Auth Debug] Login attempt for:', body.email);
       
       // Buscar usuário
       const user = await prisma.user.findUnique({
         where: { email: body.email },
       });
 
-      console.log('[Auth Debug] User lookup result:', user ? `found (${user.email}, active=${user.isActive})` : 'NOT FOUND');
       if (!user || !user.isActive) {
         return sendError(reply, Errors.INVALID_CREDENTIALS);
       }
 
       // Verificar senha
-      console.log('[Auth Debug] User found:', user.email, '| hashStart:', user.passwordHash.substring(0, 20), '| passLength:', body.password.length);
       const validPassword = await verifyPassword(body.password, user.passwordHash);
-      console.log('[Auth Debug] Password match result:', validPassword);
       if (!validPassword) {
         return sendError(reply, Errors.INVALID_CREDENTIALS);
       }
