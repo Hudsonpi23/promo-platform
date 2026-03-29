@@ -19,6 +19,68 @@ let mlToken: any = null;
 let codeVerifier: string | null = null;
 
 /**
+ * Carrega token das variáveis de ambiente (se disponível).
+ * Chamado na inicialização e antes de qualquer rota que precise do token.
+ */
+function ensureTokenLoaded(): boolean {
+  if (!mlToken && process.env.ML_ACCESS_TOKEN) {
+    mlToken = {
+      access_token: process.env.ML_ACCESS_TOKEN,
+      refresh_token: process.env.ML_REFRESH_TOKEN,
+      user_id: parseInt(process.env.ML_USER_ID || '0'),
+      expires_at: process.env.ML_TOKEN_EXPIRES_AT || new Date().toISOString(),
+    };
+    console.log('[ML Auth] Token carregado das variáveis de ambiente');
+  }
+  return !!mlToken;
+}
+
+/**
+ * Se o token está expirado e tem refresh_token, renova automaticamente.
+ */
+async function refreshTokenIfNeeded(): Promise<boolean> {
+  if (!mlToken) return false;
+
+  const expiresAt = new Date(mlToken.expires_at);
+  const isExpired = expiresAt < new Date();
+
+  if (isExpired && mlToken.refresh_token) {
+    console.log('[ML Auth] Token expirado, renovando automaticamente...');
+    try {
+      const response = await axios.post('https://api.mercadolibre.com/oauth/token',
+        new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: ML_CLIENT_ID,
+          client_secret: ML_CLIENT_SECRET,
+          refresh_token: mlToken.refresh_token,
+        }).toString(),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          }
+        }
+      );
+
+      mlToken = {
+        ...response.data,
+        obtained_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + response.data.expires_in * 1000).toISOString(),
+      };
+      console.log('[ML Auth] Token renovado com sucesso!');
+      return true;
+    } catch (err: any) {
+      console.error('[ML Auth] Erro ao renovar token:', err.response?.data || err.message);
+      return false;
+    }
+  }
+  return !isExpired;
+}
+
+// Carrega token das env vars na inicialização do módulo
+ensureTokenLoaded();
+
+/**
  * Gera code_verifier e code_challenge para PKCE
  */
 function generatePKCE() {
@@ -176,16 +238,7 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
    * GET /api/auth/mercadolivre/token
    */
   fastify.get('/api/auth/mercadolivre/token', async (request: FastifyRequest, reply: FastifyReply) => {
-    // Tenta carregar do env se não tiver em memória
-    if (!mlToken && process.env.ML_ACCESS_TOKEN) {
-      mlToken = {
-        access_token: process.env.ML_ACCESS_TOKEN,
-        refresh_token: process.env.ML_REFRESH_TOKEN,
-        user_id: parseInt(process.env.ML_USER_ID || '0'),
-        expires_at: process.env.ML_TOKEN_EXPIRES_AT || new Date().toISOString(),
-      };
-      console.log('[ML Auth] Token carregado das variáveis de ambiente');
-    }
+    ensureTokenLoaded();
 
     if (!mlToken) {
       return reply.status(404).send({
@@ -196,39 +249,10 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
       });
     }
 
-    // Verifica se expirou
+    await refreshTokenIfNeeded();
+
     const expiresAt = new Date(mlToken.expires_at);
     const isExpired = expiresAt < new Date();
-
-    // Se expirou e tem refresh_token, tenta renovar automaticamente
-    if (isExpired && mlToken.refresh_token) {
-      console.log('[ML Auth] Token expirado, renovando automaticamente...');
-      try {
-        const response = await axios.post('https://api.mercadolibre.com/oauth/token',
-          new URLSearchParams({
-            grant_type: 'refresh_token',
-            client_id: ML_CLIENT_ID,
-            client_secret: ML_CLIENT_SECRET,
-            refresh_token: mlToken.refresh_token,
-          }).toString(),
-          {
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              'Accept': 'application/json',
-            }
-          }
-        );
-
-        mlToken = {
-          ...response.data,
-          obtained_at: new Date().toISOString(),
-          expires_at: new Date(Date.now() + response.data.expires_in * 1000).toISOString(),
-        };
-        console.log('[ML Auth] Token renovado com sucesso!');
-      } catch (err: any) {
-        console.error('[ML Auth] Erro ao renovar token:', err.response?.data || err.message);
-      }
-    }
 
     return reply.send({
       success: true,
@@ -247,6 +271,8 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
    * GET /api/auth/mercadolivre/token/full
    */
   fastify.get('/api/auth/mercadolivre/token/full', async (request: FastifyRequest, reply: FastifyReply) => {
+    ensureTokenLoaded();
+
     if (!mlToken) {
       return reply.status(404).send({
         success: false,
@@ -271,6 +297,8 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
    * POST /api/auth/mercadolivre/refresh
    */
   fastify.post('/api/auth/mercadolivre/refresh', async (request: FastifyRequest, reply: FastifyReply) => {
+    ensureTokenLoaded();
+
     if (!mlToken || !mlToken.refresh_token) {
       return reply.status(400).send({
         success: false,
@@ -279,41 +307,21 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
       });
     }
 
-    try {
-      const response = await axios.post('https://api.mercadolibre.com/oauth/token',
-        new URLSearchParams({
-          grant_type: 'refresh_token',
-          client_id: ML_CLIENT_ID,
-          client_secret: ML_CLIENT_SECRET,
-          refresh_token: mlToken.refresh_token,
-        }).toString(),
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          }
-        }
-      );
+    const refreshed = await refreshTokenIfNeeded();
 
-      mlToken = {
-        ...response.data,
-        obtained_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + response.data.expires_in * 1000).toISOString(),
-      };
-
+    if (refreshed) {
       return reply.send({
         success: true,
         message: 'Token renovado com sucesso!',
         expires_at: mlToken.expires_at,
       });
-
-    } catch (err: any) {
-      return reply.status(500).send({
-        success: false,
-        error: 'refresh_failed',
-        details: err.response?.data || err.message,
-      });
     }
+
+    return reply.status(500).send({
+      success: false,
+      error: 'refresh_failed',
+      message: 'Não foi possível renovar o token.',
+    });
   });
 
   /**
@@ -321,13 +329,18 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
    * GET /api/auth/mercadolivre/test
    */
   fastify.get('/api/auth/mercadolivre/test', async (request: FastifyRequest, reply: FastifyReply) => {
+    ensureTokenLoaded();
+
     if (!mlToken) {
       return reply.status(400).send({
         success: false,
         error: 'no_token',
-        message: 'Nenhum token disponível.',
+        message: 'Nenhum token disponível. Faça a autorização primeiro.',
+        auth_url: `/api/auth/mercadolivre`,
       });
     }
+
+    await refreshTokenIfNeeded();
 
     try {
       const response = await axios.get('https://api.mercadolibre.com/users/me', {
