@@ -11,6 +11,7 @@
 
 import axios from 'axios';
 import { chromium, Browser, Page } from 'playwright';
+import { getMLToken } from '../routes/mlAuth.js';
 
 // ==================== CONFIGURAÇÕES ====================
 
@@ -107,11 +108,18 @@ export async function searchProducts(options: SearchOptions = {}): Promise<Searc
 
     console.log(`[ML API] Buscando: ${url}`);
 
+    const headers: Record<string, string> = { 'Accept': 'application/json' };
+    const mlToken = getMLToken();
+    if (mlToken?.access_token) {
+      headers['Authorization'] = `Bearer ${mlToken.access_token}`;
+      console.log(`[ML API] Usando access token: ${mlToken.access_token.substring(0, 12)}...`);
+    } else {
+      console.warn('[ML API] Sem access token do ML — busca pode falhar com 403');
+    }
+
     const response = await axios.get(url, {
       timeout: 15000,
-      headers: {
-        'Accept': 'application/json',
-      },
+      headers,
     });
 
     const { results, paging } = response.data;
