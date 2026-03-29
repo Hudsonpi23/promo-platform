@@ -31,7 +31,7 @@ import { affiliatesRoutes } from './routes/affiliates';
 import { manualRoutes } from './routes/manual';
 import { aiWorkflowRoutes } from './routes/aiWorkflow';
 import { autoPromoterRoutes } from './routes/autoPromoterFastify';
-import { mlAuthRoutes } from './routes/mlAuth';
+import { mlAuthRoutes, startMLTokenAutoRefresh } from './routes/mlAuth';
 import { scraperRoutes } from './routes/scraper';
 import { customPhrasesRoutes } from './routes/customPhrases';
 import { autoPublishRoutes } from './routes/autoPublish';
@@ -393,6 +393,9 @@ async function main() {
 
     // 🔁 Corrigir nichos errados em offers e posts já existentes
     reCategorizeExistingOffers(); // Roda em background, não bloqueia o startup
+
+    // 🔑 Auto-refresh do token do Mercado Livre (verifica a cada 5 min, renova antes de expirar)
+    startMLTokenAutoRefresh();
 
     // ⚡ Auto-delete de ofertas relâmpago expiradas (verificar a cada 5 min)
     setInterval(async () => {

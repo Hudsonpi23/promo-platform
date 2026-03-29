@@ -18,9 +18,43 @@ let mlToken: any = null;
 // Armazena o code_verifier para PKCE
 let codeVerifier: string | null = null;
 
+// Controle do auto-refresh
+let refreshIntervalId: NodeJS.Timeout | null = null;
+let refreshCount = 0;
+
+function formatTimeRemaining(ms: number): string {
+  if (ms <= 0) return 'EXPIRADO';
+  const hours = Math.floor(ms / 3600000);
+  const minutes = Math.floor((ms % 3600000) / 60000);
+  const seconds = Math.floor((ms % 60000) / 1000);
+  if (hours > 0) return `${hours}h ${minutes}min`;
+  if (minutes > 0) return `${minutes}min ${seconds}s`;
+  return `${seconds}s`;
+}
+
+function logTokenStatus(prefix: string): void {
+  if (!mlToken) {
+    console.log(`[ML Auth] ${prefix} — Nenhum token em memória`);
+    return;
+  }
+  const now = Date.now();
+  const expiresAt = new Date(mlToken.expires_at).getTime();
+  const remaining = expiresAt - now;
+  const isExpired = remaining <= 0;
+  const accessShort = mlToken.access_token ? mlToken.access_token.substring(0, 12) + '...' : 'N/A';
+  const refreshShort = mlToken.refresh_token ? mlToken.refresh_token.substring(0, 12) + '...' : 'N/A';
+
+  console.log(`[ML Auth] ${prefix}`);
+  console.log(`[ML Auth]   ├─ Access Token:  ${accessShort}`);
+  console.log(`[ML Auth]   ├─ Refresh Token: ${refreshShort}`);
+  console.log(`[ML Auth]   ├─ User ID:       ${mlToken.user_id || 'N/A'}`);
+  console.log(`[ML Auth]   ├─ Expira em:     ${mlToken.expires_at}`);
+  console.log(`[ML Auth]   ├─ Tempo restante: ${formatTimeRemaining(remaining)}`);
+  console.log(`[ML Auth]   └─ Status:        ${isExpired ? '🔴 EXPIRADO' : remaining < 1800000 ? '🟡 EXPIRANDO EM BREVE' : '🟢 VÁLIDO'}`);
+}
+
 /**
  * Carrega token das variáveis de ambiente (se disponível).
- * Chamado na inicialização e antes de qualquer rota que precise do token.
  */
 function ensureTokenLoaded(): boolean {
   if (!mlToken && process.env.ML_ACCESS_TOKEN) {
@@ -30,22 +64,26 @@ function ensureTokenLoaded(): boolean {
       user_id: parseInt(process.env.ML_USER_ID || '0'),
       expires_at: process.env.ML_TOKEN_EXPIRES_AT || new Date().toISOString(),
     };
-    console.log('[ML Auth] Token carregado das variáveis de ambiente');
+    logTokenStatus('🔑 Token carregado das variáveis de ambiente');
   }
   return !!mlToken;
 }
 
 /**
- * Se o token está expirado e tem refresh_token, renova automaticamente.
+ * Se o token está expirado (ou prestes a expirar), renova automaticamente.
+ * Margem de segurança: renova 10 minutos antes de expirar.
  */
 async function refreshTokenIfNeeded(): Promise<boolean> {
   if (!mlToken) return false;
 
-  const expiresAt = new Date(mlToken.expires_at);
-  const isExpired = expiresAt < new Date();
+  const expiresAt = new Date(mlToken.expires_at).getTime();
+  const now = Date.now();
+  const SAFETY_MARGIN = 10 * 60 * 1000; // 10 minutos
+  const needsRefresh = (expiresAt - now) < SAFETY_MARGIN;
 
-  if (isExpired && mlToken.refresh_token) {
-    console.log('[ML Auth] Token expirado, renovando automaticamente...');
+  if (needsRefresh && mlToken.refresh_token) {
+    const remaining = expiresAt - now;
+    console.log(`[ML Auth] 🔄 Refresh #${refreshCount + 1} — Token ${remaining <= 0 ? 'EXPIRADO' : `expira em ${formatTimeRemaining(remaining)}`}, renovando...`);
     try {
       const response = await axios.post('https://api.mercadolibre.com/oauth/token',
         new URLSearchParams({
@@ -62,19 +100,73 @@ async function refreshTokenIfNeeded(): Promise<boolean> {
         }
       );
 
+      const oldRefreshShort = mlToken.refresh_token?.substring(0, 12) || 'N/A';
+      const newRefreshShort = response.data.refresh_token?.substring(0, 12) || 'N/A';
+      const tokenChanged = oldRefreshShort !== newRefreshShort;
+
       mlToken = {
         ...response.data,
         obtained_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + response.data.expires_in * 1000).toISOString(),
       };
-      console.log('[ML Auth] Token renovado com sucesso!');
+      refreshCount++;
+
+      console.log(`[ML Auth] ✅ Token renovado com sucesso! (refresh #${refreshCount})`);
+      console.log(`[ML Auth]   ├─ Novo access:   ${mlToken.access_token?.substring(0, 12)}...`);
+      console.log(`[ML Auth]   ├─ Novo refresh:  ${newRefreshShort}... ${tokenChanged ? '(ROTACIONADO)' : '(mesmo)'}`);
+      console.log(`[ML Auth]   ├─ Válido por:    ${formatTimeRemaining(response.data.expires_in * 1000)}`);
+      console.log(`[ML Auth]   └─ Próximo refresh: ${new Date(Date.now() + (response.data.expires_in * 1000) - SAFETY_MARGIN).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
       return true;
     } catch (err: any) {
-      console.error('[ML Auth] Erro ao renovar token:', err.response?.data || err.message);
+      const errDetail = err.response?.data || err.message;
+      console.error(`[ML Auth] ❌ Erro ao renovar token (tentativa #${refreshCount + 1}):`);
+      console.error(`[ML Auth]   ├─ Erro: ${typeof errDetail === 'object' ? JSON.stringify(errDetail) : errDetail}`);
+      console.error(`[ML Auth]   └─ Ação: Token pode precisar de re-autorização manual via /api/auth/mercadolivre`);
       return false;
     }
   }
-  return !isExpired;
+  return !needsRefresh || !mlToken.refresh_token;
+}
+
+/**
+ * Inicia ciclo automático de refresh do token ML.
+ * Verifica a cada 5 minutos se o token precisa ser renovado.
+ */
+export function startMLTokenAutoRefresh(): void {
+  if (refreshIntervalId) {
+    clearInterval(refreshIntervalId);
+  }
+
+  if (!ensureTokenLoaded()) {
+    console.log('[ML Auth] ⚠️  Auto-refresh NÃO iniciado — nenhum token nas variáveis de ambiente');
+    return;
+  }
+
+  console.log('[ML Auth] ⏰ Auto-refresh ATIVO — verificando a cada 5 minutos');
+  logTokenStatus('📊 Status inicial do token');
+
+  const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
+
+  refreshIntervalId = setInterval(async () => {
+    try {
+      if (!mlToken) {
+        console.log('[ML Auth] ⚠️  Auto-refresh: token não disponível em memória');
+        return;
+      }
+      const expiresAt = new Date(mlToken.expires_at).getTime();
+      const remaining = expiresAt - Date.now();
+      const SAFETY_MARGIN = 10 * 60 * 1000;
+
+      if (remaining < SAFETY_MARGIN) {
+        await refreshTokenIfNeeded();
+      } else {
+        const nextCheck = Math.min(remaining - SAFETY_MARGIN, CHECK_INTERVAL);
+        console.log(`[ML Auth] ⏳ Token OK — expira em ${formatTimeRemaining(remaining)} (próxima verificação em ${formatTimeRemaining(nextCheck)})`);
+      }
+    } catch (err: any) {
+      console.error('[ML Auth] ❌ Erro no auto-refresh:', err.message);
+    }
+  }, CHECK_INTERVAL);
 }
 
 // Carrega token das env vars na inicialização do módulo
