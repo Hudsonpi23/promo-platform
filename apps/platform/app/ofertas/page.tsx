@@ -58,9 +58,74 @@ export default function OfertasPage() {
   } | null>(null);
   const [previewEditing, setPreviewEditing] = useState(false);
   const [previewEditText, setPreviewEditText] = useState('');
+  const [creativePhrase, setCreativePhrase] = useState('');
+  const [generatingAiPhrase, setGeneratingAiPhrase] = useState(false);
+
+  const generateAiPhrase = async (offer: any) => {
+    setGeneratingAiPhrase(true);
+    try {
+      const title = offer.title || '';
+      const price = offer.finalPrice || offer.price || 0;
+      const oldPrice = offer.originalPrice || offer.oldPrice || null;
+      const discount = offer.discount || offer.discountPct || 0;
+      const store = offer.store?.name || '';
+      const niche = offer.niche?.name || '';
+
+      const prompt = `Você é a Manu, do canal "manu das promoções". Crie UMA frase de abertura para um post de promoção no X (Twitter).
+
+PRODUTO: ${title}
+PREÇO: R$ ${Number(price).toFixed(2)}${oldPrice ? ` (de R$ ${Number(oldPrice).toFixed(2)})` : ''}${discount > 0 ? ` — ${Math.round(discount)}% OFF` : ''}${store ? `\nLOJA: ${store}` : ''}${niche ? `\nNICHO: ${niche}` : ''}
+
+PERSONALIDADE DA FRASE:
+- Criativa, divertida, com humor leve (levemente ácido mas nunca ofensivo)
+- INTERATIVA: fale direto com o seguidor, como se tivesse conversando
+- CONEXÃO COM O PRODUTO: a frase PRECISA ter relação direta ou indireta com o produto/nicho. O leitor deve entender que a frase se refere àquele produto
+- Pode ser sutil/subentendida, mas precisa ter nexo
+- Nunca use frases genéricas que servem pra qualquer produto
+- 1-2 emojis no máximo
+- Máximo 70 caracteres
+- NÃO repita o nome do produto na frase
+- NÃO use hashtags
+- Gere APENAS a frase, sem explicação
+
+EXEMPLOS DE ESTILO (para diferentes nichos):
+- Notebook gamer: "🎮 Seu PC chorando de vergonha em 3, 2, 1..."
+- Fone bluetooth: "👂 Seus ouvidos vão te agradecer (ou não)"
+- Smartphone: "📱 Teu celular atual tá pedindo aposentadoria"
+- Panela elétrica: "🍳 Cozinhar igual chef sem saber fritar ovo?"
+- Tênis: "👟 Correr da promoção é pior que correr na esteira"
+- TV: "📺 Seu sofá merece essa atualização"
+- Aspirador: "🤖 Pra quem odeia varrer (ou seja, todo mundo)"
+- Desconto grande: "💸 A loja tá bem? Esse preço tá ok?"
+
+Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.substring(0, 50)}":`;
+
+      const res = await fetchWithAuth('/api/ai/generate-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, maxTokens: 100 }),
+      });
+      const data = await res.json();
+      if (data.text) {
+        const phrase = data.text.trim().replace(/^["']|["']$/g, '').replace(/\n.*/g, '').substring(0, 80);
+        setCreativePhrase(phrase);
+      }
+    } catch (err) {
+      console.error('Erro ao gerar frase IA:', err);
+    } finally {
+      setGeneratingAiPhrase(false);
+    }
+  };
+
+  const getFullPreviewText = (baseText: string | null) => {
+    if (!baseText) return '';
+    if (!creativePhrase.trim()) return baseText;
+    return `${creativePhrase.trim()}\n\n${baseText}`;
+  };
 
   // Carrega o preview real do servidor
   const loadPreview = async (offerId: string, offer: any) => {
+    setCreativePhrase('');
     setPreviewModal({ offerId, offer, previewText: null, loadingPreview: true });
     try {
       const pm = cardPayment[offerId] || 'avista';
@@ -649,7 +714,8 @@ export default function OfertasPage() {
   // Confirmar postagem no X após preview
   const handleConfirmPostToX = async () => {
     if (!previewModal || postingToX || !previewModal.previewText) return;
-    const { offerId, previewText } = previewModal;
+    const { offerId } = previewModal;
+    const previewText = getFullPreviewText(previewModal.previewText);
     setPostingToX(offerId);
 
     try {
@@ -855,26 +921,26 @@ export default function OfertasPage() {
       {/* ── FEATURE 2: Modal de Preview ─────────────────────────────────── */}
       {previewModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-surface border border-border rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="p-5 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-bold text-text-primary">
                 🐦 Preview do Post no X
                 {previewEditing && <span className="ml-2 text-xs text-yellow-400 font-normal">✏️ Modo Edição</span>}
               </h2>
-              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
+              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
             </div>
 
             {/* Corpo */}
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-4">
               {previewModal.loadingPreview ? (
                 <div className="flex items-center justify-center py-8 text-text-muted">
-                  <span className="text-sm">⏳ Gerando nova frase...</span>
+                  <span className="text-sm">⏳ Gerando preview...</span>
                 </div>
               ) : previewEditing ? (
-                /* ── MODO EDIÇÃO ── */
+                /* ── MODO EDIÇÃO LIVRE ── */
                 <>
-                  <p className="text-xs text-yellow-400">✏️ Edite o texto abaixo. O post sairá exatamente como você escrever.</p>
+                  <p className="text-xs text-yellow-400">✏️ Edite o texto completo. O post sairá exatamente como você escrever.</p>
                   <textarea
                     value={previewEditText}
                     onChange={e => setPreviewEditText(e.target.value)}
@@ -895,27 +961,82 @@ export default function OfertasPage() {
                   </div>
                 </>
               ) : (
-                /* ── MODO PREVIEW ── */
+                /* ── MODO PREVIEW COM FRASE CRIATIVA ── */
                 <>
-                  <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
-                    {previewModal.previewText}
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-green-400">✅ Este texto será postado exatamente assim.</p>
-                    <div className="flex gap-3">
+                  {/* Frase Criativa */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-text-primary">✨ Frase Criativa (abertura do post)</label>
                       <button
-                        onClick={() => loadPreview(previewModal.offerId, previewModal.offer)}
-                        className="text-xs text-primary hover:text-primary/80 font-medium transition-all"
+                        onClick={() => generateAiPhrase(previewModal.offer)}
+                        disabled={generatingAiPhrase}
+                        className="text-xs px-3 py-1 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 hover:text-purple-300 font-medium transition-all disabled:opacity-50"
                       >
-                        🔄 Nova Frase
-                      </button>
-                      <button
-                        onClick={() => { setPreviewEditText(previewModal.previewText || ''); setPreviewEditing(true); }}
-                        className="text-xs text-yellow-400 hover:text-yellow-300 font-medium transition-all"
-                      >
-                        ✏️ Editar
+                        {generatingAiPhrase ? '⏳ Gerando...' : '🤖 Gerar com IA'}
                       </button>
                     </div>
+                    <input
+                      type="text"
+                      value={creativePhrase}
+                      onChange={e => setCreativePhrase(e.target.value)}
+                      placeholder="Digite uma frase ou clique em Gerar com IA..."
+                      maxLength={80}
+                      className="w-full px-3 py-2 rounded-lg bg-background border border-purple-500/30 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 placeholder:text-text-muted/50"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-muted">{creativePhrase.length}/80 chars</span>
+                      {creativePhrase && (
+                        <button
+                          onClick={() => setCreativePhrase('')}
+                          className="text-xs text-red-400/70 hover:text-red-400 transition-all"
+                        >
+                          ✕ Limpar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Separador */}
+                  <div className="border-t border-border/50" />
+
+                  {/* Preview combinado */}
+                  <div>
+                    <p className="text-xs text-text-muted mb-2">Preview final:</p>
+                    <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+                      {creativePhrase.trim() ? (
+                        <>
+                          <span className="text-purple-400">{creativePhrase.trim()}</span>
+                          {'\n\n'}
+                          {previewModal.previewText}
+                        </>
+                      ) : (
+                        previewModal.previewText
+                      )}
+                    </div>
+                    {(() => {
+                      const fullLen = getFullPreviewText(previewModal.previewText).length;
+                      return (
+                        <div className="flex items-center justify-between mt-2">
+                          <span className={cn('text-xs font-medium', fullLen > 280 ? 'text-red-400' : fullLen > 240 ? 'text-yellow-400' : 'text-green-400')}>
+                            {fullLen}/280 chars {fullLen > 280 ? `(${fullLen - 280} a mais)` : '✅'}
+                          </span>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => loadPreview(previewModal.offerId, previewModal.offer)}
+                              className="text-xs text-primary hover:text-primary/80 font-medium transition-all"
+                            >
+                              🔄 Nova Base
+                            </button>
+                            <button
+                              onClick={() => { setPreviewEditText(getFullPreviewText(previewModal.previewText)); setPreviewEditing(true); }}
+                              className="text-xs text-yellow-400 hover:text-yellow-300 font-medium transition-all"
+                            >
+                              ✏️ Editar Tudo
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
@@ -924,7 +1045,7 @@ export default function OfertasPage() {
             {/* Botões */}
             <div className="p-5 border-t border-border flex gap-3">
               <button
-                onClick={() => { setPreviewModal(null); setPreviewEditing(false); }}
+                onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); }}
                 className="flex-1 py-2 rounded-lg border border-border text-text-muted hover:text-text-primary transition-all"
               >
                 Cancelar
@@ -932,7 +1053,9 @@ export default function OfertasPage() {
               <button
                 onClick={() => {
                   if (previewEditing && previewEditText.trim()) {
-                    setPreviewModal(prev => prev ? { ...prev, previewText: previewEditText.trim() } : null);
+                    const editedText = previewEditText.trim();
+                    setPreviewModal(prev => prev ? { ...prev, previewText: editedText } : null);
+                    setCreativePhrase('');
                     setPreviewEditing(false);
                   } else {
                     handleConfirmPostToX();
@@ -941,7 +1064,9 @@ export default function OfertasPage() {
                 disabled={
                   previewModal.loadingPreview ||
                   !!postingToX ||
-                  (previewEditing ? previewEditText.trim().length < 5 : !previewModal.previewText)
+                  generatingAiPhrase ||
+                  (previewEditing ? previewEditText.trim().length < 5 : !previewModal.previewText) ||
+                  (!previewEditing && getFullPreviewText(previewModal.previewText).length > 280)
                 }
                 className={cn(
                   'flex-1 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed',
