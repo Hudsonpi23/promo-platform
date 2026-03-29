@@ -394,7 +394,7 @@ async function main() {
     // 🔁 Corrigir nichos errados em offers e posts já existentes
     reCategorizeExistingOffers(); // Roda em background, não bloqueia o startup
 
-    // 🔑 Auto-refresh do token do Mercado Livre (verifica a cada 5 min, renova antes de expirar)
+    // 🔑 Auto-refresh do token do Mercado Livre (carrega do banco, renova a cada ~6h, persiste no banco)
     startMLTokenAutoRefresh();
 
     // ⚡ Auto-delete de ofertas relâmpago expiradas (verificar a cada 5 min)

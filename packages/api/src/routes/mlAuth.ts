@@ -1,26 +1,32 @@
 /**
  * Rotas de autenticação OAuth2 do Mercado Livre
  * Com suporte a PKCE (Proof Key for Code Exchange)
+ * 
+ * Ciclo de vida do token:
+ *   1. Startup: carrega do BANCO primeiro, env vars como fallback
+ *   2. Auto-refresh: verifica a cada 5 min, renova 10 min antes de expirar
+ *   3. Após cada refresh: salva no BANCO (sobrevive a restarts do Render)
  */
 
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import axios from 'axios';
 import crypto from 'crypto';
+import { prisma } from '../lib/prisma.js';
 
-// Credenciais do app
 const ML_CLIENT_ID = process.env.ML_CLIENT_ID || '6822621568324751';
 const ML_CLIENT_SECRET = process.env.ML_CLIENT_SECRET || 'U7py3Dau0cd9arlnDaIKEbrFu1C7kmKd';
 const REDIRECT_URI = process.env.ML_REDIRECT_URI || 'https://promo-platform-api.onrender.com/api/auth/mercadolivre/callback';
 
-// Armazena o token em memória (em produção, use banco de dados)
+const SAFETY_MARGIN = 10 * 60 * 1000; // 10 minutos antes de expirar
+const CHECK_INTERVAL = 5 * 60 * 1000; // verificar a cada 5 minutos
+const DB_ML_USER_ID = 'system-auto-refresh'; // ID fixo para o registro no banco
+
 let mlToken: any = null;
-
-// Armazena o code_verifier para PKCE
 let codeVerifier: string | null = null;
-
-// Controle do auto-refresh
 let refreshIntervalId: NodeJS.Timeout | null = null;
 let refreshCount = 0;
+
+// ==================== HELPERS DE LOG ====================
 
 function formatTimeRemaining(ms: number): string {
   if (ms <= 0) return 'EXPIRADO';
@@ -53,32 +59,102 @@ function logTokenStatus(prefix: string): void {
   console.log(`[ML Auth]   └─ Status:        ${isExpired ? '🔴 EXPIRADO' : remaining < 1800000 ? '🟡 EXPIRANDO EM BREVE' : '🟢 VÁLIDO'}`);
 }
 
-/**
- * Carrega token das variáveis de ambiente (se disponível).
- */
-function ensureTokenLoaded(): boolean {
-  if (!mlToken && process.env.ML_ACCESS_TOKEN) {
+// ==================== PERSISTÊNCIA NO BANCO ====================
+
+async function saveTokenToDB(): Promise<void> {
+  if (!mlToken) return;
+  try {
+    const userId = mlToken.user_id?.toString() || '0';
+    await prisma.mercadoLivreAccount.upsert({
+      where: { mlUserId: DB_ML_USER_ID },
+      update: {
+        accessToken: mlToken.access_token,
+        refreshToken: mlToken.refresh_token,
+        expiresAt: new Date(mlToken.expires_at),
+        lastRefreshAt: new Date(),
+        mlNickname: userId,
+      },
+      create: {
+        mlUserId: DB_ML_USER_ID,
+        accessToken: mlToken.access_token,
+        refreshToken: mlToken.refresh_token,
+        expiresAt: new Date(mlToken.expires_at),
+        lastRefreshAt: new Date(),
+        mlNickname: userId,
+        isActive: true,
+      },
+    });
+    console.log(`[ML Auth] 💾 Token salvo no banco (PostgreSQL) — sobrevive a restarts`);
+  } catch (err: any) {
+    console.error(`[ML Auth] ⚠️  Erro ao salvar token no banco: ${err.message}`);
+  }
+}
+
+async function loadTokenFromDB(): Promise<boolean> {
+  try {
+    const record = await prisma.mercadoLivreAccount.findUnique({
+      where: { mlUserId: DB_ML_USER_ID },
+    });
+    if (record && record.accessToken && record.refreshToken) {
+      mlToken = {
+        access_token: record.accessToken,
+        refresh_token: record.refreshToken,
+        user_id: parseInt(record.mlNickname || '0'),
+        expires_at: record.expiresAt.toISOString(),
+      };
+      logTokenStatus('🗄️  Token carregado do BANCO DE DADOS');
+      return true;
+    }
+  } catch (err: any) {
+    console.warn(`[ML Auth] ⚠️  Erro ao carregar token do banco: ${err.message}`);
+  }
+  return false;
+}
+
+// ==================== CARREGAMENTO DO TOKEN ====================
+
+function loadTokenFromEnv(): boolean {
+  if (process.env.ML_ACCESS_TOKEN) {
     mlToken = {
       access_token: process.env.ML_ACCESS_TOKEN,
       refresh_token: process.env.ML_REFRESH_TOKEN,
       user_id: parseInt(process.env.ML_USER_ID || '0'),
       expires_at: process.env.ML_TOKEN_EXPIRES_AT || new Date().toISOString(),
     };
-    logTokenStatus('🔑 Token carregado das variáveis de ambiente');
+    logTokenStatus('🔑 Token carregado das VARIÁVEIS DE AMBIENTE (fallback)');
+    return true;
   }
-  return !!mlToken;
+  return false;
 }
 
 /**
- * Se o token está expirado (ou prestes a expirar), renova automaticamente.
- * Margem de segurança: renova 10 minutos antes de expirar.
+ * Carrega token com prioridade:
+ *   1. Banco de dados (token mais recente, sobrevive a restarts)
+ *   2. Variáveis de ambiente (fallback, pode estar desatualizado)
  */
+async function ensureTokenLoadedAsync(): Promise<boolean> {
+  if (mlToken) return true;
+
+  // Prioridade 1: banco de dados
+  const fromDB = await loadTokenFromDB();
+  if (fromDB) return true;
+
+  // Prioridade 2: variáveis de ambiente
+  return loadTokenFromEnv();
+}
+
+function ensureTokenLoaded(): boolean {
+  if (mlToken) return true;
+  return loadTokenFromEnv();
+}
+
+// ==================== REFRESH DO TOKEN ====================
+
 async function refreshTokenIfNeeded(): Promise<boolean> {
   if (!mlToken) return false;
 
   const expiresAt = new Date(mlToken.expires_at).getTime();
   const now = Date.now();
-  const SAFETY_MARGIN = 10 * 60 * 1000; // 10 minutos
   const needsRefresh = (expiresAt - now) < SAFETY_MARGIN;
 
   if (needsRefresh && mlToken.refresh_token) {
@@ -116,6 +192,8 @@ async function refreshTokenIfNeeded(): Promise<boolean> {
       console.log(`[ML Auth]   ├─ Novo refresh:  ${newRefreshShort}... ${tokenChanged ? '(ROTACIONADO)' : '(mesmo)'}`);
       console.log(`[ML Auth]   ├─ Válido por:    ${formatTimeRemaining(response.data.expires_in * 1000)}`);
       console.log(`[ML Auth]   └─ Próximo refresh: ${new Date(Date.now() + (response.data.expires_in * 1000) - SAFETY_MARGIN).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}`);
+
+      await saveTokenToDB();
       return true;
     } catch (err: any) {
       const errDetail = err.response?.data || err.message;
@@ -128,24 +206,28 @@ async function refreshTokenIfNeeded(): Promise<boolean> {
   return !needsRefresh || !mlToken.refresh_token;
 }
 
-/**
- * Inicia ciclo automático de refresh do token ML.
- * Verifica a cada 5 minutos se o token precisa ser renovado.
- */
-export function startMLTokenAutoRefresh(): void {
+// ==================== AUTO-REFRESH ====================
+
+export async function startMLTokenAutoRefresh(): Promise<void> {
   if (refreshIntervalId) {
     clearInterval(refreshIntervalId);
   }
 
-  if (!ensureTokenLoaded()) {
-    console.log('[ML Auth] ⚠️  Auto-refresh NÃO iniciado — nenhum token nas variáveis de ambiente');
+  const loaded = await ensureTokenLoadedAsync();
+  if (!loaded) {
+    console.log('[ML Auth] ⚠️  Auto-refresh NÃO iniciado — nenhum token no banco nem nas env vars');
     return;
   }
 
-  console.log('[ML Auth] ⏰ Auto-refresh ATIVO — verificando a cada 5 minutos');
-  logTokenStatus('📊 Status inicial do token');
+  // Se carregou do banco ou env vars e o token está expirado, tenta refresh imediato
+  const expiresAt = new Date(mlToken.expires_at).getTime();
+  if ((expiresAt - Date.now()) < SAFETY_MARGIN) {
+    console.log('[ML Auth] ⚡ Token expirado/expirando no startup — refresh imediato...');
+    await refreshTokenIfNeeded();
+  }
 
-  const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutos
+  console.log('[ML Auth] ⏰ Auto-refresh ATIVO — verificando a cada 5 minutos');
+  logTokenStatus('📊 Status do token após inicialização');
 
   refreshIntervalId = setInterval(async () => {
     try {
@@ -155,7 +237,6 @@ export function startMLTokenAutoRefresh(): void {
       }
       const expiresAt = new Date(mlToken.expires_at).getTime();
       const remaining = expiresAt - Date.now();
-      const SAFETY_MARGIN = 10 * 60 * 1000;
 
       if (remaining < SAFETY_MARGIN) {
         await refreshTokenIfNeeded();
@@ -169,7 +250,7 @@ export function startMLTokenAutoRefresh(): void {
   }, CHECK_INTERVAL);
 }
 
-// Carrega token das env vars na inicialização do módulo
+// Carrega token síncrono das env vars na inicialização do módulo (fallback rápido)
 ensureTokenLoaded();
 
 /**
@@ -277,6 +358,8 @@ export async function mlAuthRoutes(fastify: FastifyInstance) {
 
       console.log('[ML Auth] ✅ Token obtido com sucesso!');
       console.log('[ML Auth] User ID:', tokenData.user_id);
+
+      await saveTokenToDB();
 
       // Retorna página de sucesso
       return reply.type('text/html').send(`
