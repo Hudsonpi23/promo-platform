@@ -12,6 +12,7 @@ import {
   processApprovedOffer, 
   processPendingOffers,
   isOpenAIConfigured,
+  createCompletion,
 } from '../services/ai/index.js';
 
 // ==================== SCHEMAS ====================
@@ -92,6 +93,40 @@ export async function aiWorkflowRoutes(server: FastifyInstance) {
           message: error instanceof Error ? error.message : 'Erro no processamento',
         },
       });
+    }
+  });
+
+  // ─────────────────────────────────────────────────────
+  // POST /generate-text - Gera texto livre usando IA
+  // ─────────────────────────────────────────────────────
+  server.post('/generate-text', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { prompt, maxTokens } = (request.body as { prompt?: string; maxTokens?: number }) || {};
+
+    if (!prompt || prompt.trim().length < 5) {
+      return reply.status(400).send({ error: 'Prompt obrigatório (mínimo 5 caracteres)' });
+    }
+
+    if (!isOpenAIConfigured()) {
+      return reply.status(503).send({ error: 'OpenAI não configurada' });
+    }
+
+    try {
+      const result = await createCompletion(
+        [
+          { role: 'system', content: 'Você é a Manu, assistente de um canal de promoções brasileiro. Crie posts criativos, com emojis, tom informal e envolvente. Responda APENAS com o texto do post, sem explicações extras.' },
+          { role: 'user', content: prompt.trim() },
+        ],
+        {
+          temperature: 0.85,
+          maxTokens: maxTokens || 500,
+          agent: 'TELEGRAM',
+        }
+      );
+
+      return { text: result.content, tokens: result.usage.totalTokens };
+    } catch (err: any) {
+      console.error('[AI Generate] Erro:', err.message);
+      return reply.status(500).send({ error: err.message });
     }
   });
 

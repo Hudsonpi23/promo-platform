@@ -193,6 +193,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="font-semibold">Criar Post</span>
             </a>
 
+            <a
+              href="/telegram-interativo"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/telegram-interativo'
+                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">🎯</span>
+              <span className="font-semibold">Posts Interativos</span>
+            </a>
+
             {/* GESTÃO */}
             <p className="text-xs text-text-muted uppercase tracking-wider px-3 pt-4 pb-1">Gestão</p>
             

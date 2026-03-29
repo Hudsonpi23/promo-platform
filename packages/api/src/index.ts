@@ -38,6 +38,8 @@ import { autoPublishRoutes } from './routes/autoPublish';
 import { videoPublishRoutes } from './routes/videoPublish';
 import { metricsRoutes } from './routes/metrics';
 import { imageSearchRoutes } from './routes/imageSearch';
+import { amazonRoutes } from './routes/amazon';
+import { twitterMetricsRoutes } from './routes/twitterMetrics';
 
 const DEFAULT_NICHES = [
   { name: 'Eletrônicos',    slug: 'eletronicos',  icon: '📱', color: '#3B82F6' },
@@ -370,6 +372,11 @@ async function main() {
   server.register(metricsRoutes,      { prefix: '/api/metrics' });
   server.register(imageSearchRoutes,  { prefix: '/api' });
 
+  // 🛒 Amazon Creators API (busca de produtos, preços, imagens)
+  server.register(amazonRoutes,         { prefix: '/api/amazon' });
+
+  // 📊 X/Twitter Metrics (leitura de métricas, timeline, menções)
+  server.register(twitterMetricsRoutes, { prefix: '/api/twitter-metrics' });
 
   // ==================== ROTAS PÚBLICAS ====================
 

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
 import { scrapeMercadoLivreHTTP, scrapeMagaluHTTP, scrapeAmazonHTTP, scrapeGenericHTTP } from './scraper-http.js';
+import { isAmazonApiConfigured, getAmazonProductByUrl } from '../services/amazonApi.js';
 
 export async function scraperRoutes(app: FastifyInstance) {
   // POST /scraper/product - Extrair dados de uma URL de produto
@@ -69,6 +70,43 @@ export async function scraperRoutes(app: FastifyInstance) {
       let resolvedUrl = url;
 
       let productData: any = {};
+
+      // Amazon: usar API oficial primeiro (sem CAPTCHA!)
+      if (store === 'amazon' && isAmazonApiConfigured()) {
+        try {
+          console.log('[Scraper] Amazon detectada — usando Creators API...');
+          const product = await getAmazonProductByUrl(resolvedUrl);
+          if (product && product.title) {
+            productData = {
+              title: product.title,
+              finalPrice: product.finalPrice,
+              originalPrice: product.originalPrice,
+              discount: product.discountPct,
+              imageUrl: product.images.primary || '',
+              images: [product.images.primary, ...product.images.variants].filter(Boolean),
+              affiliateUrl: product.affiliateUrl,
+              availability: product.availability,
+              features: product.features,
+              rating: product.rating,
+              totalReviews: product.totalReviews,
+              category: product.category,
+              merchantName: product.merchantName,
+              source: 'amazon-creators-api',
+            };
+
+            console.log(`[Scraper] Amazon API OK: "${product.title}" — R$ ${product.finalPrice}`);
+
+            return {
+              success: true,
+              store,
+              ...productData,
+            };
+          }
+          console.log('[Scraper] Amazon API não retornou dados, fallback para scraping...');
+        } catch (err: any) {
+          console.error('[Scraper] Amazon API falhou, fallback para scraping:', err.message);
+        }
+      }
 
       // Tentar usar Playwright primeiro, se falhar usar Cheerio (HTTP)
       let usePlaywright = true;

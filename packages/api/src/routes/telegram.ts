@@ -274,4 +274,57 @@ export async function telegramRoutes(app: FastifyInstance) {
     const result = await sendTelegramMessage({ text: text.trim(), imageUrl: imageUrl?.trim() || undefined });
     return { success: result.success, messageId: result.messageId, error: result.error };
   });
+
+  /**
+   * POST /api/telegram/poll
+   * Envia enquete nativa do Telegram (botões clicáveis, não texto)
+   */
+  app.post('/poll', { preHandler: [authGuard] }, async (request, reply) => {
+    if (!isTelegramConfigured()) {
+      return reply.status(400).send({ success: false, error: 'Telegram não configurado' });
+    }
+
+    const { question, options, isAnonymous, allowsMultipleAnswers } = request.body as {
+      question?: string;
+      options?: string[];
+      isAnonymous?: boolean;
+      allowsMultipleAnswers?: boolean;
+    };
+
+    if (!question || question.trim().length < 3) {
+      return reply.status(400).send({ success: false, error: 'Pergunta obrigatória (mínimo 3 caracteres)' });
+    }
+
+    const validOptions = (options || []).filter(o => o.trim().length > 0);
+    if (validOptions.length < 2 || validOptions.length > 10) {
+      return reply.status(400).send({ success: false, error: 'Mínimo 2, máximo 10 opções' });
+    }
+
+    try {
+      const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+      const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+      const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPoll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: TELEGRAM_CHAT_ID,
+          question: question.trim(),
+          options: validOptions.map(o => o.trim()),
+          is_anonymous: isAnonymous ?? true,
+          allows_multiple_answers: allowsMultipleAnswers ?? false,
+        }),
+      });
+
+      const data = await res.json() as any;
+
+      if (data.ok) {
+        return { success: true, messageId: data.result?.message_id, pollId: data.result?.poll?.id };
+      } else {
+        return reply.status(400).send({ success: false, error: data.description || 'Erro ao enviar enquete' });
+      }
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, error: err.message });
+    }
+  });
 }
