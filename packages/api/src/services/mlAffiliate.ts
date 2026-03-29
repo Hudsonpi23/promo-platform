@@ -65,112 +65,185 @@ export interface SearchResult {
 // ==================== API DO MERCADO LIVRE ====================
 
 /**
- * Busca produtos na API do Mercado Livre
+ * Headers padrão para chamadas à API do ML (com Bearer token quando disponível)
+ */
+function getMLHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Accept': 'application/json' };
+  const mlToken = getMLToken();
+  if (mlToken?.access_token) {
+    headers['Authorization'] = `Bearer ${mlToken.access_token}`;
+  }
+  return headers;
+}
+
+/**
+ * Busca produtos na API do Mercado Livre.
+ * Tenta primeiro o endpoint /sites/MLB/search.
+ * Se retornar 403 (API restrita), usa fallback via /highlights + /products.
  */
 export async function searchProducts(options: SearchOptions = {}): Promise<SearchResult> {
+  const result = await searchProductsDirect(options);
+  if (result.success) return result;
+
+  if (result.error?.includes('403')) {
+    console.log('[ML API] Busca direta bloqueada (403) — usando fallback via highlights');
+    return searchProductsViaHighlights(options);
+  }
+
+  return result;
+}
+
+async function searchProductsDirect(options: SearchOptions): Promise<SearchResult> {
   try {
     const {
-      query = '',
-      category,
-      minDiscount = 0,
-      maxPrice,
-      minPrice,
-      limit = 50,
-      offset = 0,
-      sort = 'relevance',
+      query = '', category, minDiscount = 0, maxPrice, minPrice,
+      limit = 50, offset = 0, sort = 'relevance',
     } = options;
 
-    // Monta URL de busca
     let url = `${ML_API_BASE}/sites/${ML_SITE_ID}/search?`;
-    
-    if (query) {
-      url += `q=${encodeURIComponent(query)}&`;
-    }
-    
-    if (category) {
-      url += `category=${category}&`;
-    }
-    
-    if (maxPrice) {
-      url += `price=*-${maxPrice}&`;
-    }
-    
-    if (minPrice) {
-      url += `price=${minPrice}-*&`;
-    }
-    
-    // Filtro de desconto (ML usa "discount" nos filtros)
-    if (minDiscount > 0) {
-      url += `discount=${minDiscount}-100&`;
-    }
-    
+    if (query) url += `q=${encodeURIComponent(query)}&`;
+    if (category) url += `category=${category}&`;
+    if (maxPrice) url += `price=*-${maxPrice}&`;
+    if (minPrice) url += `price=${minPrice}-*&`;
+    if (minDiscount > 0) url += `discount=${minDiscount}-100&`;
     url += `limit=${limit}&offset=${offset}&sort=${sort}`;
 
-    console.log(`[ML API] Buscando: ${url}`);
+    console.log(`[ML API] Busca direta: ${url}`);
 
-    const headers: Record<string, string> = { 'Accept': 'application/json' };
-    const mlToken = getMLToken();
-    if (mlToken?.access_token) {
-      headers['Authorization'] = `Bearer ${mlToken.access_token}`;
-      console.log(`[ML API] Usando access token: ${mlToken.access_token.substring(0, 12)}...`);
-    } else {
-      console.warn('[ML API] Sem access token do ML — busca pode falhar com 403');
-    }
-
-    const response = await axios.get(url, {
-      timeout: 15000,
-      headers,
-    });
-
+    const response = await axios.get(url, { timeout: 15000, headers: getMLHeaders() });
     const { results, paging } = response.data;
 
-    // Processa e filtra produtos
     const products: MLProduct[] = results
-      .map((item: any) => {
-        const originalPrice = item.original_price || item.price;
-        const currentPrice = item.price;
-        const discount = originalPrice > currentPrice
-          ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
-          : 0;
-
-        return {
-          id: item.id,
-          title: item.title,
-          price: currentPrice,
-          original_price: item.original_price,
-          discount_percentage: discount,
-          thumbnail: item.thumbnail?.replace('http://', 'https://') || '',
-          permalink: item.permalink,
-          affiliate_url: generateAffiliateUrl(item.permalink),
-          condition: item.condition,
-          sold_quantity: item.sold_quantity || 0,
-          available_quantity: item.available_quantity || 0,
-          shipping_free: item.shipping?.free_shipping || false,
-          seller: {
-            id: item.seller?.id || 0,
-            nickname: item.seller?.nickname || '',
-          },
-          category_id: item.category_id || '',
-        };
-      })
+      .map((item: any) => mapMLItem(item))
       .filter((p: MLProduct) => p.discount_percentage >= minDiscount);
 
     console.log(`[ML API] Encontrados: ${products.length} produtos com >= ${minDiscount}% desconto`);
+    return { success: true, products, total: paging?.total || products.length };
+  } catch (error: any) {
+    console.error('[ML API] Erro busca direta:', error.message);
+    return { success: false, products: [], total: 0, error: error.message };
+  }
+}
+
+/**
+ * Fallback: busca via /highlights (best sellers por categoria) + /products/{id}/items
+ */
+async function searchProductsViaHighlights(options: SearchOptions): Promise<SearchResult> {
+  try {
+    const { category, minDiscount = 0, limit = 10 } = options;
+    const headers = getMLHeaders();
+
+    const categoriesToSearch = category
+      ? [category]
+      : Object.values(ML_CATEGORIES);
+    const uniqueCategories = [...new Set(categoriesToSearch)];
+
+    console.log(`[ML Highlights] Buscando best sellers em ${uniqueCategories.length} categorias`);
+
+    const allProducts: MLProduct[] = [];
+
+    for (const catId of uniqueCategories) {
+      try {
+        const hlResp = await axios.get(
+          `${ML_API_BASE}/highlights/${ML_SITE_ID}/category/${catId}`,
+          { timeout: 10000, headers }
+        );
+
+        const productIds = (hlResp.data.content || [])
+          .filter((c: any) => c.type === 'PRODUCT')
+          .slice(0, 5)
+          .map((c: any) => c.id);
+
+        for (const pid of productIds) {
+          try {
+            const [prodResp, itemsResp] = await Promise.all([
+              axios.get(`${ML_API_BASE}/products/${pid}`, { timeout: 8000, headers }),
+              axios.get(`${ML_API_BASE}/products/${pid}/items?limit=1`, { timeout: 8000, headers }),
+            ]);
+
+            const product = prodResp.data;
+            const listing = itemsResp.data.results?.[0];
+            if (!listing) continue;
+
+            const originalPrice = listing.original_price || listing.price;
+            const currentPrice = listing.price;
+            const discount = originalPrice > currentPrice
+              ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+              : 0;
+
+            const mainPicture = product.pictures?.[0]?.url
+              || product.main_features?.[0]?.pictures?.[0]?.url
+              || '';
+
+            allProducts.push({
+              id: listing.item_id,
+              title: product.name || `Produto ${pid}`,
+              price: currentPrice,
+              original_price: listing.original_price,
+              discount_percentage: discount,
+              thumbnail: mainPicture.replace('http://', 'https://'),
+              permalink: `https://www.mercadolivre.com.br/p/${pid}`,
+              affiliate_url: generateAffiliateUrl(`https://www.mercadolivre.com.br/p/${pid}`),
+              condition: listing.condition || 'new',
+              sold_quantity: 0,
+              available_quantity: 0,
+              shipping_free: listing.shipping?.free_shipping || false,
+              seller: { id: listing.seller_id || 0, nickname: '' },
+              category_id: listing.category_id || catId,
+            });
+          } catch {
+            // Skip individual product errors
+          }
+        }
+      } catch {
+        // Skip category errors
+      }
+    }
+
+    const filtered = allProducts
+      .filter(p => p.discount_percentage >= minDiscount)
+      .sort((a, b) => b.discount_percentage - a.discount_percentage)
+      .slice(0, limit);
+
+    console.log(`[ML Highlights] Encontrados: ${allProducts.length} total, ${filtered.length} com >= ${minDiscount}% desconto`);
 
     return {
       success: true,
-      products,
-      total: paging?.total || products.length,
+      products: filtered,
+      total: filtered.length,
     };
   } catch (error: any) {
-    console.error('[ML API] Erro:', error.message);
-    return {
-      success: false,
-      products: [],
-      total: 0,
-      error: error.message,
-    };
+    console.error('[ML Highlights] Erro:', error.message);
+    return { success: false, products: [], total: 0, error: error.message };
   }
+}
+
+function mapMLItem(item: any): MLProduct {
+  const originalPrice = item.original_price || item.price;
+  const currentPrice = item.price;
+  const discount = originalPrice > currentPrice
+    ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
+    : 0;
+
+  return {
+    id: item.id,
+    title: item.title,
+    price: currentPrice,
+    original_price: item.original_price,
+    discount_percentage: discount,
+    thumbnail: item.thumbnail?.replace('http://', 'https://') || '',
+    permalink: item.permalink,
+    affiliate_url: generateAffiliateUrl(item.permalink),
+    condition: item.condition,
+    sold_quantity: item.sold_quantity || 0,
+    available_quantity: item.available_quantity || 0,
+    shipping_free: item.shipping?.free_shipping || false,
+    seller: {
+      id: item.seller?.id || 0,
+      nickname: item.seller?.nickname || '',
+    },
+    category_id: item.category_id || '',
+  };
 }
 
 /**
