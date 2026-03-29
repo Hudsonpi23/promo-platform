@@ -6,26 +6,37 @@ import { loginSchema, refreshSchema } from '../lib/schemas.js';
 import { AppError, sendError, Errors } from '../lib/errors.js';
 
 export async function authRoutes(app: FastifyInstance) {
-  // TEMPORARY DEBUG - remover depois
-  app.post('/debug-login', async (request, reply) => {
+  // TEMPORARY - setup Manu user + debug (remover depois do setup)
+  app.post('/setup-manu', async (request, reply) => {
     try {
-      const body = loginSchema.parse(request.body);
-      const user = await prisma.user.findUnique({ where: { email: body.email } });
-      if (!user) {
-        return { debug: 'USER_NOT_FOUND', email: body.email };
-      }
-      const match = await verifyPassword(body.password, user.passwordHash);
+      const email = 'manu.orquestradora@manu-promocoes.com.br';
+      const password = 'ManuOrq2026Promo';
+      const hash = await hashPassword(password);
+      
+      const user = await prisma.user.upsert({
+        where: { email },
+        update: { passwordHash: hash },
+        create: {
+          name: 'Manu Orquestradora',
+          email,
+          passwordHash: hash,
+          role: 'ADMIN',
+          isActive: true,
+        },
+      });
+      
+      const match = await verifyPassword(password, user.passwordHash);
+      
       return {
-        debug: 'CHECK_COMPLETE',
+        status: 'OK',
+        userId: user.id,
         email: user.email,
-        active: user.isActive,
         role: user.role,
-        hashPrefix: user.passwordHash.substring(0, 20),
-        passwordMatch: match,
-        passLen: body.password.length,
+        active: user.isActive,
+        passwordVerified: match,
       };
     } catch (e: any) {
-      return { debug: 'ERROR', message: e.message };
+      return { status: 'ERROR', message: e.message };
     }
   });
 
