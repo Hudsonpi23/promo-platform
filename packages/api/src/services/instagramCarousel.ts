@@ -248,6 +248,30 @@ const MANU_NOTEBOOK_URL  = 'https://res.cloudinary.com/dmdiipxhb/image/upload/v1
 
 export function isCanvasAvailable(): boolean { return !!createCanvas; }
 
+// Carrega imagem com fallback de headers de browser (resolve bloqueios de CORS/hotlink)
+async function loadImageSafe(url: string): Promise<any | null> {
+  // Tentativa 1: carregamento direto
+  try {
+    return await loadImage(url);
+  } catch { /* falhou sem headers */ }
+
+  // Tentativa 2: baixa como buffer com headers de browser
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+        'Referer': 'https://www.google.com/',
+      },
+    });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    return await loadImage(buf);
+  } catch {
+    return null;
+  }
+}
+
 function formatBRL(value: number): string {
   return value.toLocaleString('pt-BR', {
     style: 'currency', currency: 'BRL',
@@ -324,14 +348,12 @@ function drawManuBrand(ctx: any, y: number, c: ThemeColors) {
   ctx.fillText('manu-promocoes.com.br', W / 2, y + 40);
 }
 
-// Cobre o slide inteiro com a imagem da Manu (marca d'água full-slide)
-async function drawManuWatermark(ctx: any, alpha = 0.15) {
+// Marca d'água full background — cobre 100% do card, imagem centralizada, baixa opacidade uniforme
+async function drawManuWatermark(ctx: any, alpha = 0.25) {
   try {
     const img = await loadImage(MANU_WATERMARK_URL);
-    // Cobre o canvas inteiro mantendo proporção (cover)
-    const scaleW = W / img.width;
-    const scaleH = H / img.height;
-    const scale = Math.max(scaleW, scaleH);
+    // Cover: escala a imagem para cobrir o canvas inteiro, centralizada
+    const scale = Math.max(W / img.width, H / img.height);
     const dw = img.width * scale;
     const dh = img.height * scale;
     const dx = (W - dw) / 2;
@@ -364,7 +386,7 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
-  await drawManuWatermark(ctx, 0.13); // marca d'água full-slide, sutil
+  await drawManuWatermark(ctx, 0.25);
 
   const hook = getViralHook(input.title, input.discountPct, input.finalPrice);
   const priceShock = getPriceShock(input.finalPrice, input.originalPrice, input.discountPct);
@@ -374,29 +396,20 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   const imgX = (W - imgSize) / 2;
   const imgY = 200;
 
-  if (input.imageUrl) {
-    try {
-      const img = await loadImage(input.imageUrl);
-      ctx.fillStyle = '#ffffff';
-      roundRect(ctx, imgX, imgY, imgSize, imgSize, 28);
-      ctx.fill();
-      ctx.save();
-      roundRect(ctx, imgX, imgY, imgSize, imgSize, 28);
-      ctx.clip();
-      const ratio = Math.min(imgSize / img.width, imgSize / img.height);
-      const dw = img.width * ratio;
-      const dh = img.height * ratio;
-      ctx.drawImage(img, imgX + (imgSize - dw) / 2, imgY + (imgSize - dh) / 2, dw, dh);
-      ctx.restore();
-    } catch {
-      ctx.fillStyle = c.cardBg;
-      roundRect(ctx, imgX, imgY, imgSize, imgSize, 28);
-      ctx.fill();
-      ctx.font = '80px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('🛍️', W / 2, imgY + imgSize / 2);
-    }
+  const productImg = input.imageUrl ? await loadImageSafe(input.imageUrl) : null;
+
+  if (productImg) {
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, imgX, imgY, imgSize, imgSize, 28);
+    ctx.fill();
+    ctx.save();
+    roundRect(ctx, imgX, imgY, imgSize, imgSize, 28);
+    ctx.clip();
+    const ratio = Math.min(imgSize / productImg.width, imgSize / productImg.height);
+    const dw = productImg.width * ratio;
+    const dh = productImg.height * ratio;
+    ctx.drawImage(productImg, imgX + (imgSize - dw) / 2, imgY + (imgSize - dh) / 2, dw, dh);
+    ctx.restore();
   } else {
     ctx.fillStyle = c.cardBg;
     roundRect(ctx, imgX, imgY, imgSize, imgSize, 28);
@@ -477,7 +490,7 @@ async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buf
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
 
-  await drawManuWatermark(ctx, 0.13);
+  await drawManuWatermark(ctx, 0.25);
 
   const hasDiscount = input.originalPrice && input.originalPrice > input.finalPrice;
 
@@ -634,7 +647,7 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
-  await drawManuWatermark(ctx, 0.13);
+  await drawManuWatermark(ctx, 0.25);
 
   const saving = (input.originalPrice && input.originalPrice > input.finalPrice)
     ? input.originalPrice - input.finalPrice
@@ -725,119 +738,114 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 4: Branding — fundo azul Manu + personagem com notebook ─────────────
+// ── SLIDE 4: Card de fechamento institucional — Manu protagonista ──────────────
 
 async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
 
-  // ── 1. Fundo: imagem azul da Manu cobrindo o slide inteiro ────────────────
-  try {
-    const bgImg = await loadImage(MANU_WATERMARK_URL);
-    const scaleW = W / bgImg.width;
-    const scaleH = H / bgImg.height;
-    const scale = Math.max(scaleW, scaleH);
-    const dw = bgImg.width * scale;
-    const dh = bgImg.height * scale;
-    ctx.drawImage(bgImg, (W - dw) / 2, (H - dh) / 2, dw, dh);
-  } catch {
-    // Fallback: gradiente
-    drawBg(ctx, c);
-  }
+  // ── 1. Fundo: gradiente sólido do tema ────────────────────────────────────
+  drawBg(ctx, c);
 
-  // Overlay escuro leve para dar contraste ao texto
-  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  // Vinheta radial sutil nas bordas
+  const vignette = ctx.createRadialGradient(W / 2, H / 2, 200, W / 2, H / 2, 760);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.50)');
+  ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, W, H);
 
-  // ── 2. Manu com notebook — lado esquerdo, posição natural ─────────────────
+  // ── 2. Manu com notebook — protagonista, escala pela altura, lado esquerdo ─
   try {
     const nbImg = await loadImage(MANU_NOTEBOOK_URL);
-    // Ocupa ~55% da largura, centralizada verticalmente
-    const nbW = W * 0.54;
-    const nbH = nbW * (nbImg.height / nbImg.width);
-    const nbX = -nbW * 0.05; // levemente cortada na borda
-    const nbY = (H - nbH) / 2 + 40;
-    ctx.drawImage(nbImg, nbX, nbY, nbW, nbH);
-  } catch { /* sem notebook, só o fundo */ }
+    // Escala pela altura do canvas: personagem ocupa 100% da altura
+    const scale = H / nbImg.height;
+    const dw = nbImg.width * scale;
+    // Centraliza levemente à esquerda, mostrando personagem completa
+    const dx = -dw * 0.06;
+    ctx.drawImage(nbImg, dx, 0, dw, H);
+  } catch { /* fallback silencioso */ }
 
-  // Gradiente da esquerda para a direita para separar personagem do texto
-  const sepGrad = ctx.createLinearGradient(W * 0.38, 0, W * 0.62, 0);
-  sepGrad.addColorStop(0, 'rgba(0,0,0,0)');
-  sepGrad.addColorStop(1, 'rgba(0,0,0,0.55)');
-  ctx.fillStyle = sepGrad;
+  // Gradiente da esquerda→direita: separa personagem da área de texto
+  const fadeGrad = ctx.createLinearGradient(W * 0.40, 0, W * 0.68, 0);
+  fadeGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  fadeGrad.addColorStop(1, c.bgTo + 'f2');
+  ctx.fillStyle = fadeGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // ── 3. Conteúdo — lado direito ─────────────────────────────────────────────
-  const textX = W * 0.62; // início da área de texto
-  const textW = W - textX - 40;
+  // Overlay escuro no rodapé para o CTA
+  const botFade = ctx.createLinearGradient(0, H - 250, 0, H);
+  botFade.addColorStop(0, 'rgba(0,0,0,0)');
+  botFade.addColorStop(1, 'rgba(0,0,0,0.75)');
+  ctx.fillStyle = botFade;
+  ctx.fillRect(0, H - 250, W, 250);
 
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 14;
+  // ── 3. Texto institucional — lado direito ─────────────────────────────────
+  const tx = W * 0.56;
 
-  // Nome
+  ctx.shadowColor = 'rgba(0,0,0,0.95)';
+  ctx.shadowBlur = 18;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 52px sans-serif';
+
+  // Nome grande
+  ctx.font = 'bold 64px sans-serif';
   ctx.fillStyle = '#ffffff';
-  ctx.fillText('Manu das', textX, 200);
-  ctx.fillText('Promoções', textX, 262);
+  ctx.fillText('Manu das', tx, 220);
+  ctx.fillText('Promoções', tx, 294);
 
-  ctx.font = 'bold 28px sans-serif';
+  // Slogan em destaque
+  ctx.font = 'bold 30px sans-serif';
   ctx.fillStyle = c.accent;
-  ctx.fillText('As melhores ofertas', textX, 324);
-  ctx.fillText('do Brasil 🛍️', textX, 360);
+  ctx.fillText('As melhores ofertas', tx, 358);
+  ctx.fillText('do Brasil 🛍️', tx, 396);
 
-  // Linha divisória
+  // Divisória
   ctx.shadowBlur = 0;
   ctx.strokeStyle = c.accent;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(textX, 395);
-  ctx.lineTo(W - 30, 395);
+  ctx.moveTo(tx, 426);
+  ctx.lineTo(W - 24, 426);
   ctx.stroke();
 
   // Redes sociais
+  ctx.shadowColor = 'rgba(0,0,0,0.9)';
+  ctx.shadowBlur = 10;
   const socials = [
     { icon: '📸', label: '@manupromocao' },
     { icon: '✈️', label: 't.me/manupromocao' },
     { icon: '🌐', label: 'manu-promocoes.com.br' },
   ];
-
-  ctx.shadowColor = 'rgba(0,0,0,0.8)';
-  ctx.shadowBlur = 8;
   socials.forEach((s, i) => {
-    const y = 460 + i * 72;
-    ctx.font = 'bold 28px sans-serif';
+    ctx.font = 'bold 30px sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${s.icon}  ${s.label}`, textX, y);
+    ctx.fillText(`${s.icon}  ${s.label}`, tx, 490 + i * 74);
   });
   ctx.shadowBlur = 0;
 
-  // ── 4. CTA — rodapé, largura total ────────────────────────────────────────
-  const ctaW2 = 860;
-  const ctaH2 = 88;
-  const ctaX2 = (W - ctaW2) / 2;
-  const ctaY2 = 870;
-  const ctaGrad = ctx.createLinearGradient(ctaX2, ctaY2, ctaX2 + ctaW2, ctaY2);
+  // ── 4. CTA — botão dourado no rodapé ─────────────────────────────────────
+  const ctaW = 900;
+  const ctaH = 92;
+  const ctaX = (W - ctaW) / 2;
+  const ctaY = 868;
+  const ctaGrad = ctx.createLinearGradient(ctaX, ctaY, ctaX + ctaW, ctaY);
   ctaGrad.addColorStop(0, c.ctaBg1);
   ctaGrad.addColorStop(1, c.ctaBg2);
   ctx.fillStyle = ctaGrad;
-  roundRect(ctx, ctaX2, ctaY2, ctaW2, ctaH2, 22);
+  roundRect(ctx, ctaX, ctaY, ctaW, ctaH, 24);
   ctx.fill();
 
-  ctx.font = 'bold 36px sans-serif';
+  ctx.font = 'bold 38px sans-serif';
   ctx.fillStyle = c.ctaText;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🔗 LINK NA BIO PARA PEGAR A OFERTA', W / 2, ctaY2 + ctaH2 / 2);
+  ctx.fillText('🔗 LINK NA BIO PARA PEGAR A OFERTA', W / 2, ctaY + ctaH / 2);
 
-  ctx.font = 'bold 26px sans-serif';
+  ctx.font = 'bold 27px sans-serif';
   ctx.fillStyle = c.strikeFg;
-  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowColor = 'rgba(0,0,0,0.9)';
   ctx.shadowBlur = 8;
-  ctx.fillText('⏰ SE SUMIR, NÃO VOLTA', W / 2, 995);
+  ctx.fillText('⏰ SE SUMIR, NÃO VOLTA', W / 2, 998);
   ctx.shadowBlur = 0;
 
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
