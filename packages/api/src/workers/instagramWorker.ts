@@ -130,6 +130,7 @@ async function processNextJob() {
         discountPct: offer.discountPct,
         imageUrl: offer.mainImage || offer.imageUrl || null,
         offerId: offer.id,
+        theme: (job.carouselTheme as any) || 'dark',
       });
 
       if (!carouselResult.success || !carouselResult.slideUrls) {
@@ -146,6 +147,7 @@ async function processNextJob() {
         discountPct: offer.discountPct,
         imageUrl: offer.mainImage || offer.imageUrl || null,
         offerId: offer.id,
+        theme: (job.carouselTheme as any) || 'dark',
       });
 
       if (!carouselResult.success || !carouselResult.slideUrls) {

@@ -21,6 +21,7 @@ export interface EnqueueOptions {
   accountId?: string;
   format?: InstagramFormat;
   maxAttempts?: number;
+  carouselTheme?: 'dark' | 'medium' | 'light';
 }
 
 export async function enqueueInstagramJob(opts: EnqueueOptions): Promise<string> {
@@ -32,6 +33,7 @@ export async function enqueueInstagramJob(opts: EnqueueOptions): Promise<string>
       format: opts.format || 'CAROUSEL',
       maxAttempts: opts.maxAttempts || 3,
       status: 'PENDING',
+      carouselTheme: opts.carouselTheme || 'dark',
     },
   });
 

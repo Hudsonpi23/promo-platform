@@ -107,6 +107,7 @@ export default function InstagramPage() {
   const [url, setUrl] = useState('');
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [product, setProduct] = useState<ProductPreview | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'medium' | 'light'>('dark');
   const [generatingSlides, setGeneratingSlides] = useState(false);
   const [slides, setSlides] = useState<SlidesPreview | null>(null);
   const [caption, setCaption] = useState('');
@@ -217,7 +218,7 @@ export default function InstagramPage() {
     try {
       const res = await fetchWithAuth('/api/instagram/preview-slides', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), theme }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao gerar slides.'); return; }
@@ -242,8 +243,8 @@ export default function InstagramPage() {
         body: JSON.stringify({
           url: url.trim(),
           caption: caption.trim() || undefined,
-          // Passa os slides já gerados para evitar regenerar
           slideUrls: slides?.slideUrls?.length ? slides.slideUrls : undefined,
+          theme,
         }),
       });
       const data = await res.json();
@@ -266,7 +267,7 @@ export default function InstagramPage() {
     try {
       const res = await fetchWithAuth('/api/instagram/from-url', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: url.trim(), theme }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao enfileirar.'); return; }
@@ -406,6 +407,35 @@ export default function InstagramPage() {
                     {product.source === 'amazon' ? '📦 Amazon' : '🛒 Mercado Livre'}
                   </span>
                 </div>
+              </div>
+            </div>
+
+            {/* Seletor de tema */}
+            <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+              <h3 className="font-bold text-white mb-1">🎨 Escolha o tema do carrossel</h3>
+              <p className="text-gray-400 text-xs mb-3">Selecione antes de gerar o preview</p>
+              <div className="grid grid-cols-3 gap-2">
+                {([
+                  { id: 'dark',   label: 'Azul Escuro',  desc: 'Original', preview: 'from-blue-900 to-slate-900', accent: 'bg-amber-400' },
+                  { id: 'medium', label: 'Azul Médio',   desc: 'Mais claro', preview: 'from-blue-600 to-blue-800', accent: 'bg-yellow-300' },
+                  { id: 'light',  label: 'Branco & Azul', desc: 'Clarinho', preview: 'from-sky-100 to-white', accent: 'bg-blue-700' },
+                ] as const).map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => { setTheme(t.id); setSlides(null); }}
+                    className={`rounded-xl border-2 p-3 transition-all text-left ${
+                      theme === t.id ? 'border-purple-500 ring-2 ring-purple-400/40' : 'border-gray-700 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className={`w-full h-10 rounded-lg bg-gradient-to-br ${t.preview} mb-2 flex items-center justify-center gap-1`}>
+                      <div className={`w-3 h-3 rounded-full ${t.accent}`} />
+                      <div className="w-8 h-1.5 rounded bg-white/60" />
+                    </div>
+                    <p className="text-white text-xs font-bold">{t.label}</p>
+                    <p className="text-gray-500 text-xs">{t.desc}</p>
+                    {theme === t.id && <p className="text-purple-400 text-xs font-bold mt-0.5">✓ Selecionado</p>}
+                  </button>
+                ))}
               </div>
             </div>
 

@@ -959,8 +959,9 @@ model InstagramJob {
   nextRetryAt  DateTime? // Quando tentar de novo
 
   // Controle
-  triggeredBy   String @default("manual") // "manual" | "auto" | "manu-agent"
-  accountId     String? // Postfor.me social_account_id
+  triggeredBy     String @default("manual") // "manual" | "auto" | "manu-agent"
+  accountId       String? // Postfor.me social_account_id
+  carouselTheme   String @default("dark") // "dark" | "medium" | "light"
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -165,8 +165,8 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/from-url',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; accountId?: string } }>, reply) => {
-      const { url, accountId } = req.body || {};
+    async (req: FastifyRequest<{ Body: { url: string; accountId?: string; theme?: string } }>, reply) => {
+      const { url, accountId, theme } = req.body || {};
       if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
       const accountIdToUse = accountId || ACCOUNT_ID();
@@ -224,7 +224,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
       const offer = await findOrCreateOffer(productData, store.id, niche.id);
 
       // Enfileira job
-      const jobId = await enqueueInstagramJob({ offerId: offer.id, accountId: accountIdToUse, triggeredBy: 'manual' });
+      const jobId = await enqueueInstagramJob({ offerId: offer.id, accountId: accountIdToUse, triggeredBy: 'manual', carouselTheme: (theme as any) || 'dark' });
 
       return reply.send({
         success: true,
@@ -247,9 +247,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/publish-now',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string } }>, reply) => {
+    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string } }>, reply) => {
       try {
-        const { url, caption: customCaption, slideUrls: preGenerated, accountId } = req.body || {};
+        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme } = req.body || {};
         if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
         const accountIdToUse = accountId || ACCOUNT_ID();
@@ -295,6 +295,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
             discountPct: productData.discountPct ?? 0,
             imageUrl: productData.imageUrl,
             affiliateUrl: productData.affiliateUrl,
+            theme: (theme as any) || 'dark',
           });
           if (!carouselResult.success || !carouselResult.slideUrls?.length) {
             return reply.status(500).send({ error: `Falha ao gerar slides: ${carouselResult.error || 'erro desconhecido'}` });
@@ -364,8 +365,8 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/preview-slides',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string } }>, reply) => {
-      const { url } = req.body || {};
+    async (req: FastifyRequest<{ Body: { url: string; theme?: string } }>, reply) => {
+      const { url, theme } = req.body || {};
       if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
       const isAmazon = url.includes('amazon.com') || url.includes('amzn');
@@ -406,6 +407,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         discountPct: productData.discountPct ?? 0,
         imageUrl: productData.imageUrl,
         affiliateUrl: productData.affiliateUrl,
+        theme: (theme as any) || 'dark',
       });
 
       if (!carouselResult.success || !carouselResult.slideUrls?.length) {
