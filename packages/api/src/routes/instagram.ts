@@ -247,9 +247,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/publish-now',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string } }>, reply) => {
+    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string; imageUrl?: string } }>, reply) => {
       try {
-        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme } = req.body || {};
+        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme, imageUrl: customImageUrl } = req.body || {};
         if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
         const accountIdToUse = accountId || ACCOUNT_ID();
@@ -293,7 +293,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
             finalPrice: Number(productData.finalPrice),
             originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
             discountPct: productData.discountPct ?? 0,
-            imageUrl: productData.imageUrl,
+            imageUrl: customImageUrl || productData.imageUrl,
             affiliateUrl: productData.affiliateUrl,
             theme: (theme as any) || 'dark',
           });
@@ -375,8 +375,8 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/preview-slides',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; theme?: string } }>, reply) => {
-      const { url, theme } = req.body || {};
+    async (req: FastifyRequest<{ Body: { url: string; theme?: string; imageUrl?: string } }>, reply) => {
+      const { url, theme, imageUrl: customImageUrl } = req.body || {};
       if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
       const isAmazon = url.includes('amazon.com') || url.includes('amzn');
@@ -415,7 +415,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         finalPrice: Number(productData.finalPrice),
         originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
         discountPct: productData.discountPct ?? 0,
-        imageUrl: productData.imageUrl,
+        imageUrl: customImageUrl || productData.imageUrl,
         affiliateUrl: productData.affiliateUrl,
         theme: (theme as any) || 'dark',
       });
@@ -441,7 +441,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           finalPrice: productData.finalPrice,
           originalPrice: productData.originalPrice,
           discountPct: productData.discountPct,
-          imageUrl: productData.imageUrl,
+          imageUrl: customImageUrl || productData.imageUrl,
         },
       });
     },

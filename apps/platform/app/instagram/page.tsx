@@ -108,6 +108,8 @@ export default function InstagramPage() {
   const [fetchingProduct, setFetchingProduct] = useState(false);
   const [product, setProduct] = useState<ProductPreview | null>(null);
   const [theme, setTheme] = useState<'dark' | 'medium' | 'light'>('dark');
+  const [customImageUrl, setCustomImageUrl] = useState('');
+  const [imagePreviewOk, setImagePreviewOk] = useState<boolean | null>(null);
   const [generatingSlides, setGeneratingSlides] = useState(false);
   const [slides, setSlides] = useState<SlidesPreview | null>(null);
   const [caption, setCaption] = useState('');
@@ -218,7 +220,7 @@ export default function InstagramPage() {
     try {
       const res = await fetchWithAuth('/api/instagram/preview-slides', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim(), theme }),
+        body: JSON.stringify({ url: url.trim(), theme, imageUrl: customImageUrl.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao gerar slides.'); return; }
@@ -245,6 +247,7 @@ export default function InstagramPage() {
           caption: caption.trim() || undefined,
           slideUrls: slides?.slideUrls?.length ? slides.slideUrls : undefined,
           theme,
+          imageUrl: customImageUrl.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -267,7 +270,7 @@ export default function InstagramPage() {
     try {
       const res = await fetchWithAuth('/api/instagram/from-url', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim(), theme }),
+        body: JSON.stringify({ url: url.trim(), theme, imageUrl: customImageUrl.trim() || undefined }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao enfileirar.'); return; }
@@ -287,6 +290,8 @@ export default function InstagramPage() {
     setStep('url');
     setUrl('');
     setProduct(null);
+    setCustomImageUrl('');
+    setImagePreviewOk(null);
     setSlides(null);
     setCaption('');
     setPublishResult(null);
@@ -439,13 +444,67 @@ export default function InstagramPage() {
               </div>
             </div>
 
+            {/* Imagem personalizada */}
+            <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+              <h3 className="font-bold text-white mb-1">🖼️ Imagem do produto</h3>
+              <p className="text-gray-400 text-xs mb-3">
+                Não gostou da imagem do {product?.source === 'amazon' ? 'Amazon' : 'Mercado Livre'}? Cole aqui a URL de uma imagem melhor (do Google, Instagram, etc).
+              </p>
+
+              {/* Preview da imagem atual do produto */}
+              {product?.imageUrl && !customImageUrl && (
+                <div className="flex items-center gap-3 mb-3 p-2 bg-gray-800 rounded-xl">
+                  <img src={product.imageUrl} alt="Imagem atual" className="w-14 h-14 object-contain rounded-lg bg-white p-1 flex-shrink-0" />
+                  <div>
+                    <p className="text-gray-300 text-xs font-semibold">Imagem atual (automática)</p>
+                    <p className="text-gray-500 text-xs">Cole uma URL abaixo para substituir</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Campo URL */}
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={customImageUrl}
+                  onChange={e => { setCustomImageUrl(e.target.value); setImagePreviewOk(null); setSlides(null); }}
+                  placeholder="https://... (URL da imagem personalizada)"
+                  className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                />
+                {customImageUrl && (
+                  <button
+                    onClick={() => { setCustomImageUrl(''); setImagePreviewOk(null); setSlides(null); }}
+                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 rounded-xl text-gray-400 text-xs transition-all"
+                  >✕</button>
+                )}
+              </div>
+
+              {/* Preview da imagem customizada */}
+              {customImageUrl && (
+                <div className="mt-3">
+                  <p className="text-gray-400 text-xs mb-2">Preview:</p>
+                  <img
+                    src={customImageUrl}
+                    alt="Preview customizado"
+                    onLoad={() => setImagePreviewOk(true)}
+                    onError={() => setImagePreviewOk(false)}
+                    className={`w-24 h-24 object-contain rounded-xl border-2 bg-white p-1 ${
+                      imagePreviewOk === false ? 'border-red-500' : imagePreviewOk === true ? 'border-green-500' : 'border-gray-600'
+                    }`}
+                  />
+                  {imagePreviewOk === false && <p className="text-red-400 text-xs mt-1">❌ URL inválida ou imagem não carregou</p>}
+                  {imagePreviewOk === true && <p className="text-green-400 text-xs mt-1">✅ Imagem ok — será usada no carrossel</p>}
+                </div>
+              )}
+            </div>
+
             {/* Ação: gerar preview dos slides */}
             <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
               <h3 className="font-bold text-white mb-1">Quer ver o carrossel antes de publicar?</h3>
               <p className="text-gray-400 text-sm mb-4">Gera os 4 slides do Instagram para você conferir. Leva ~15 segundos.</p>
               <button
                 onClick={handleGenerateSlides}
-                disabled={generatingSlides}
+                disabled={generatingSlides || imagePreviewOk === false}
                 className="w-full py-3 rounded-xl font-bold text-sm bg-gray-700 hover:bg-gray-600 disabled:opacity-60 text-white transition-all"
               >
                 {generatingSlides ? <Spinner text="Gerando slides... (~15s)" /> : '🖼️ Gerar Preview dos Slides'}
