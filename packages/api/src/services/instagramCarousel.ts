@@ -320,7 +320,7 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   ctx.textBaseline = 'bottom';
   ctx.fillText('Deslize para ver mais  →', W / 2, H - 30);
 
-  return canvas.toBuffer('image/jpeg', { quality: 0.92 });
+  return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
 // ── SLIDE 2: Preços e Economia ─────────────────────────────────────────────────
@@ -399,7 +399,7 @@ async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buf
   ctx.textBaseline = 'bottom';
   ctx.fillText('Deslize para ver mais  →', W / 2, H - 30);
 
-  return canvas.toBuffer('image/jpeg', { quality: 0.92 });
+  return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
 // ── SLIDE 3: CTA + Urgência ────────────────────────────────────────────────────
@@ -468,7 +468,7 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
 
   drawManuBrand(ctx, 960, c);
 
-  return canvas.toBuffer('image/jpeg', { quality: 0.92 });
+  return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
 // ── SLIDE 4: Branding Manu ─────────────────────────────────────────────────────
@@ -545,7 +545,7 @@ async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buf
 
   drawBadge(ctx, '🔥 Siga para não perder nenhuma oferta!', W / 2, 930, c.badgeBg, c.badgeText, 28, 24, 14, 18);
 
-  return canvas.toBuffer('image/jpeg', { quality: 0.92 });
+  return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
 // ── EXPORTAÇÃO PRINCIPAL ───────────────────────────────────────────────────────
@@ -571,11 +571,18 @@ export async function generateCarousel(input: CarouselInput): Promise<CarouselRe
     const ts = Date.now();
     const id = input.offerId || ts;
 
+    // Sem transformation: preserva 1080×1080 e qualidade máxima
+    const uploadOpts = (slide: number) => ({
+      folder,
+      publicId: `${id}_${theme}_slide${slide}`,
+      tags: ['carousel', 'instagram', theme],
+    });
+
     const uploads = await Promise.all([
-      uploadFromBuffer(buf1, { folder, publicId: `${id}_${theme}_slide1`, tags: ['carousel', 'instagram', theme] }),
-      uploadFromBuffer(buf2, { folder, publicId: `${id}_${theme}_slide2`, tags: ['carousel', 'instagram', theme] }),
-      uploadFromBuffer(buf3, { folder, publicId: `${id}_${theme}_slide3`, tags: ['carousel', 'instagram', theme] }),
-      uploadFromBuffer(buf4, { folder, publicId: `${id}_${theme}_slide4`, tags: ['carousel', 'instagram', theme] }),
+      uploadFromBuffer(buf1, uploadOpts(1)),
+      uploadFromBuffer(buf2, uploadOpts(2)),
+      uploadFromBuffer(buf3, uploadOpts(3)),
+      uploadFromBuffer(buf4, uploadOpts(4)),
     ]);
 
     const failed = uploads.find(u => !u.success);

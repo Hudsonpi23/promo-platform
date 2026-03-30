@@ -157,15 +157,17 @@ export async function uploadFromBuffer(
     if (options.preserveAnimation) {
       uploadOptions.format = 'gif';
       uploadOptions.transformation = undefined;
-    } else {
-      // Transformações padrão
+    } else if (options.transformation) {
+      // Apenas aplica transformação se foi explicitamente solicitada
       uploadOptions.transformation = {
-        width: options.transformation?.width || 800,
-        crop: options.transformation?.crop || 'limit',
-        quality: options.transformation?.quality || 'auto',
-        fetch_format: options.transformation?.format || 'auto',
+        width: options.transformation.width,
+        height: options.transformation.height,
+        crop: options.transformation.crop || 'limit',
+        quality: options.transformation.quality ?? 'auto',
+        fetch_format: options.transformation.format || 'auto',
       };
     }
+    // Sem transformation padrão: preserva dimensões e qualidade originais do buffer
 
     if (options.tags) {
       uploadOptions.tags = options.tags;
