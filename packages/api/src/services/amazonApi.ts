@@ -122,15 +122,17 @@ function parseProduct(item: any): AmazonProduct | null {
     let primaryImage: string | null = null;
     const variantImages: string[] = [];
 
-    if (item.images?.primary?.large?.url) {
-      primaryImage = item.images.primary.large.url;
+    if (item.images?.primary?.highRes?.url) {
+      primaryImage = item.images.primary.highRes.url;
     } else if (item.images?.primary?.medium?.url) {
       primaryImage = item.images.primary.medium.url;
+    } else if (item.images?.primary?.small?.url) {
+      primaryImage = item.images.primary.small.url;
     }
 
     if (item.images?.variants) {
       for (const v of item.images.variants) {
-        const url = v.large?.url || v.medium?.url;
+        const url = v.highRes?.url || v.medium?.url;
         if (url) variantImages.push(url);
       }
     }
@@ -212,10 +214,12 @@ function extractErrorDetail(err: any): string {
 
 // ==================== RESOURCES ====================
 
+// Enum válido da Amazon Creators API v3 — campos "large" não existem, usar "highRes"
 const ITEM_RESOURCES = [
-  'images.primary.large',
+  'images.primary.highRes',
   'images.primary.medium',
-  'images.variants.large',
+  'images.primary.small',
+  'images.variants.highRes',
   'images.variants.medium',
   'itemInfo.title',
   'itemInfo.features',
@@ -227,13 +231,13 @@ const ITEM_RESOURCES = [
   'offersV2.listings.merchantInfo',
   'customerReviews.starRating',
   'customerReviews.count',
-  'browseNodeInfo.browseNodes.displayName',
+  'browseNodeInfo.browseNodes',
 ];
 
 const SEARCH_RESOURCES = [
-  'images.primary.large',
+  'images.primary.highRes',
   'images.primary.medium',
-  'images.variants.large',
+  'images.variants.highRes',
   'itemInfo.title',
   'itemInfo.features',
   'offersV2.listings.price',
@@ -242,7 +246,7 @@ const SEARCH_RESOURCES = [
   'offersV2.listings.merchantInfo',
   'customerReviews.starRating',
   'customerReviews.count',
-  'browseNodeInfo.browseNodes.displayName',
+  'browseNodeInfo.browseNodes',
 ];
 
 // ==================== PUBLIC API ====================
