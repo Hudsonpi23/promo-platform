@@ -11,6 +11,7 @@
  */
 
 import * as cheerio from 'cheerio';
+import { scrapeAmazonHTTP } from '../routes/scraper-http.js';
 import {
   ApiClient,
   GetItemsRequestContent,
@@ -393,64 +394,29 @@ async function scrapeAmazonProduct(asin: string, affiliateUrl: string): Promise<
     const html = await res.text();
     const $ = cheerio.load(html);
 
-    // Título
-    const title =
-      $('#productTitle').text().trim() ||
-      $('h1.a-size-large').text().trim() ||
-      $('span#title').text().trim();
+    // Usa os mesmos seletores robustos do scraper da página de ofertas
+    const scraped = await scrapeAmazonHTTP($);
 
-    if (!title) {
-      console.warn('[Amazon Scraper] Título não encontrado — Amazon pode estar bloqueando scraping');
+    if (!scraped.title) {
+      console.warn('[Amazon Scraper] Título não encontrado — Amazon pode estar bloqueando o scraping');
       return null;
     }
 
-    // Preço atual
-    const priceText =
-      $('.a-price .a-offscreen').first().text().trim() ||
-      $('#priceblock_ourprice').text().trim() ||
-      $('#priceblock_dealprice').text().trim() ||
-      $('span.a-price-whole').first().text().trim();
-
-    const finalPrice = parseFloat(
-      priceText.replace(/[^0-9,]/g, '').replace(',', '.'),
-    ) || 0;
-
-    // Preço original (riscado)
-    const origText =
-      $('span.a-price.a-text-price .a-offscreen').first().text().trim() ||
-      $('.basisPrice .a-offscreen').first().text().trim();
-    const originalPrice = origText
-      ? parseFloat(origText.replace(/[^0-9,]/g, '').replace(',', '.')) || null
-      : null;
-
-    const discountPct =
-      originalPrice && originalPrice > finalPrice
-        ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
-        : 0;
-
-    // Imagem principal
-    const imageUrl =
-      $('#imgTagWrapperId img').attr('src') ||
-      $('#landingImage').attr('src') ||
-      $('#main-image').attr('src') ||
-      $('img#imgBlkFront').attr('src') ||
-      null;
-
-    console.log(`[Amazon Scraper] ASIN ${asin} — título: ${title.slice(0, 60)} — preço: R$${finalPrice}`);
+    console.log(`[Amazon Scraper] ASIN ${asin} — título: ${scraped.title.slice(0, 60)} — preço: R$${scraped.finalPrice}`);
 
     return {
       asin,
-      title,
+      title: scraped.title,
       url: pageUrl,
       affiliateUrl,
-      finalPrice,
-      originalPrice,
-      discountPct,
+      finalPrice: scraped.finalPrice,
+      originalPrice: scraped.originalPrice,
+      discountPct: scraped.discount,
       currency: 'BRL',
       availability: 'Available',
       condition: 'New',
       merchantName: 'Amazon',
-      images: { primary: imageUrl, variants: [] },
+      images: { primary: scraped.mainImage || null, variants: scraped.images || [] },
       features: [],
       rating: null,
       totalReviews: null,
