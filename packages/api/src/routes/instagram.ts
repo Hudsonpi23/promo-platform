@@ -230,6 +230,214 @@ export async function instagramRoutes(fastify: FastifyInstance) {
     },
   );
 
+  // ── POST /api/instagram/publish-now ──────────────────────────────────────────
+  // Publicação MANUAL direta: URL → produto → slides → Postfor.me. Sem IA, sem fila.
+  fastify.post(
+    '/publish-now',
+    { preHandler: authGuard },
+    async (req: FastifyRequest<{ Body: { url: string; caption?: string; accountId?: string } }>, reply) => {
+      const { url, caption: customCaption, accountId } = req.body || {};
+      if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
+
+      const accountIdToUse = accountId || ACCOUNT_ID();
+      if (!accountIdToUse) {
+        return reply.status(400).send({ error: 'Conta Instagram não configurada. Configure POSTFORME_INSTAGRAM_ACCOUNT_ID.' });
+      }
+
+      const isAmazon = url.includes('amazon.com') || url.includes('amzn');
+      const isML = url.includes('mercadolivre.com') || url.includes('mercadolibre.com');
+      if (!isAmazon && !isML) {
+        return reply.status(400).send({ error: 'Use uma URL da Amazon ou do Mercado Livre' });
+      }
+
+      // 1. Buscar dados do produto
+      let productData: any = null;
+      try {
+        if (isAmazon) {
+          const prod = await getAmazonProductByUrl(url);
+          if (prod) {
+            productData = {
+              title: prod.title,
+              finalPrice: prod.finalPrice ?? (prod as any).price,
+              originalPrice: (prod as any).originalPrice ?? null,
+              discountPct: (prod as any).discountPct ?? 0,
+              imageUrl: prod.images?.primary ?? null,
+              affiliateUrl: prod.affiliateUrl ?? url,
+            };
+          }
+        } else {
+          productData = await fetchMLProduct(url);
+        }
+      } catch (err: any) {
+        return reply.status(500).send({ error: `Erro ao buscar produto: ${err.message}` });
+      }
+
+      if (!productData?.title) {
+        return reply.status(404).send({ error: 'Produto não encontrado. Verifique a URL.' });
+      }
+      if (!productData.finalPrice || productData.finalPrice <= 0) {
+        return reply.status(400).send({ error: 'Preço não encontrado no produto.' });
+      }
+
+      // 2. Gerar slides do carrossel
+      const carouselResult = await generateCarousel({
+        title: productData.title,
+        finalPrice: Number(productData.finalPrice),
+        originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
+        discountPct: productData.discountPct ?? 0,
+        imageUrl: productData.imageUrl,
+        affiliateUrl: productData.affiliateUrl,
+      });
+
+      if (!carouselResult.success || !carouselResult.slideUrls?.length) {
+        return reply.status(500).send({ error: carouselResult.error || 'Falha ao gerar os slides' });
+      }
+
+      // 3. Caption: usa a customizada ou gera uma padrão
+      const caption = customCaption?.trim() || generateInstagramCaption({
+        title: productData.title,
+        finalPrice: Number(productData.finalPrice),
+        originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
+        discountPct: productData.discountPct ?? 0,
+        affiliateUrl: productData.affiliateUrl,
+      });
+
+      // 4. Publicar no Instagram via Postfor.me
+      const { publishCarousel } = await import('../services/postforme.js');
+      const publishResult = await publishCarousel({
+        caption,
+        slideUrls: carouselResult.slideUrls,
+        instagramAccountId: accountIdToUse,
+      });
+
+      if (!publishResult.success) {
+        return reply.status(500).send({ error: publishResult.error || 'Falha ao publicar no Postfor.me' });
+      }
+
+      // 5. Salvar registro no banco
+      const [store, niche] = await Promise.all([
+        upsertStore(isAmazon ? 'Amazon' : 'Mercado Livre', isAmazon ? 'amazon' : 'mercadolivre'),
+        upsertNiche('Geral', 'geral', '🛍️'),
+      ]);
+      const offer = await prisma.offer.upsert({
+        where: { canonicalUrl: productData.affiliateUrl } as any,
+        update: { title: productData.title, finalPrice: productData.finalPrice, status: 'ACTIVE' },
+        create: {
+          title: productData.title,
+          finalPrice: productData.finalPrice,
+          originalPrice: productData.originalPrice ?? undefined,
+          discountPct: productData.discountPct ?? 0,
+          affiliateUrl: productData.affiliateUrl,
+          canonicalUrl: productData.affiliateUrl,
+          imageUrl: productData.imageUrl,
+          mainImage: productData.imageUrl,
+          nicheId: niche.id,
+          storeId: store.id,
+          status: 'ACTIVE',
+        },
+      });
+      await prisma.instagramJob.create({
+        data: {
+          offerId: offer.id,
+          status: 'SUCCESS',
+          format: 'CAROUSEL',
+          slideUrls: carouselResult.slideUrls,
+          captionUsed: caption,
+          postformePostId: publishResult.postId,
+          postformeStatus: publishResult.status,
+          accountId: accountIdToUse,
+          triggeredBy: 'manual',
+          publishedAt: new Date(),
+          attempts: 1,
+        },
+      });
+
+      return reply.send({
+        success: true,
+        slideUrls: carouselResult.slideUrls,
+        postId: publishResult.postId,
+        caption,
+      });
+    },
+  );
+
+  // ── POST /api/instagram/preview-slides ───────────────────────────────────────
+  // Gera slides a partir de uma URL e retorna as imagens + caption padrão.
+  // Não publica — apenas para o operador ver antes de confirmar.
+  fastify.post(
+    '/preview-slides',
+    { preHandler: authGuard },
+    async (req: FastifyRequest<{ Body: { url: string } }>, reply) => {
+      const { url } = req.body || {};
+      if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
+
+      const isAmazon = url.includes('amazon.com') || url.includes('amzn');
+      const isML = url.includes('mercadolivre.com') || url.includes('mercadolibre.com');
+      if (!isAmazon && !isML) {
+        return reply.status(400).send({ error: 'Use uma URL da Amazon ou do Mercado Livre' });
+      }
+
+      let productData: any = null;
+      try {
+        if (isAmazon) {
+          const prod = await getAmazonProductByUrl(url);
+          if (prod) {
+            productData = {
+              title: prod.title,
+              finalPrice: prod.finalPrice ?? (prod as any).price,
+              originalPrice: (prod as any).originalPrice ?? null,
+              discountPct: (prod as any).discountPct ?? 0,
+              imageUrl: prod.images?.primary ?? null,
+              affiliateUrl: prod.affiliateUrl ?? url,
+            };
+          }
+        } else {
+          productData = await fetchMLProduct(url);
+        }
+      } catch (err: any) {
+        return reply.status(500).send({ error: `Erro ao buscar produto: ${err.message}` });
+      }
+
+      if (!productData?.title) {
+        return reply.status(404).send({ error: 'Produto não encontrado. Verifique a URL.' });
+      }
+
+      const carouselResult = await generateCarousel({
+        title: productData.title,
+        finalPrice: Number(productData.finalPrice),
+        originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
+        discountPct: productData.discountPct ?? 0,
+        imageUrl: productData.imageUrl,
+        affiliateUrl: productData.affiliateUrl,
+      });
+
+      if (!carouselResult.success || !carouselResult.slideUrls?.length) {
+        return reply.status(500).send({ error: carouselResult.error || 'Falha ao gerar slides' });
+      }
+
+      const caption = generateInstagramCaption({
+        title: productData.title,
+        finalPrice: Number(productData.finalPrice),
+        originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
+        discountPct: productData.discountPct ?? 0,
+        affiliateUrl: productData.affiliateUrl,
+      });
+
+      return reply.send({
+        success: true,
+        slideUrls: carouselResult.slideUrls,
+        caption,
+        product: {
+          title: productData.title,
+          finalPrice: productData.finalPrice,
+          originalPrice: productData.originalPrice,
+          discountPct: productData.discountPct,
+          imageUrl: productData.imageUrl,
+        },
+      });
+    },
+  );
+
   // ── GET /api/instagram/accounts ─────────────────────────────────────────────
   fastify.get('/accounts', { preHandler: authGuard }, async (_req, reply) => {
     try {
