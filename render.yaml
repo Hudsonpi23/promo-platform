@@ -47,3 +47,11 @@ services:
         sync: false
       - key: TELEGRAM_CHAT_ID
         sync: false
+      # Postfor.me (publicação no Instagram)
+      - key: POSTFORME_API_KEY
+        sync: false
+      - key: POSTFORME_INSTAGRAM_ACCOUNT_ID
+        sync: false
+      # OpenAI (IA Ana para copy e scoring)
+      - key: OPENAI_API_KEY
+        sync: false

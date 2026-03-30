@@ -68,7 +68,7 @@ type JobStatus =
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://api-manu.onrender.com';
+// fetchWithAuth already prepends NEXT_PUBLIC_API_URL — use relative paths only
 
 function fmtPrice(v?: number | null) {
   if (!v) return '—';
@@ -144,8 +144,8 @@ export default function InstagramPage() {
     async function load() {
       try {
         const [accRes, offRes] = await Promise.all([
-          fetchWithAuth(`${API}/api/instagram/accounts`),
-          fetchWithAuth(`${API}/api/offers?limit=100&status=ACTIVE`),
+          fetchWithAuth('/api/instagram/accounts'),
+          fetchWithAuth('/api/offers?limit=100&status=ACTIVE'),
         ]);
         const accData = await accRes.json();
         const offData = await offRes.json();
@@ -161,7 +161,7 @@ export default function InstagramPage() {
   const loadJobs = useCallback(async () => {
     setJobsLoading(true);
     try {
-      const url = `${API}/api/instagram/jobs${jobFilter ? `?status=${jobFilter}` : ''}`;
+      const url = `/api/instagram/jobs${jobFilter ? `?status=${jobFilter}` : ''}`;
       const res = await fetchWithAuth(url);
       const data = await res.json();
       setJobs(data.jobs || []);
@@ -181,7 +181,7 @@ export default function InstagramPage() {
   useEffect(() => {
     if (tab === 'metrics') {
       setMetricsLoading(true);
-      fetchWithAuth(`${API}/api/instagram/metrics`)
+      fetchWithAuth('/api/instagram/metrics')
         .then(r => r.json())
         .then(setMetrics)
         .catch(() => {})
@@ -196,7 +196,7 @@ export default function InstagramPage() {
     setPreviewing(true);
     setPreviewData(null);
     try {
-      const res = await fetchWithAuth(`${API}/api/instagram/carousel/preview/${selectedOffer.id}`);
+      const res = await fetchWithAuth(`/api/instagram/carousel/preview/${selectedOffer.id}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Erro ao gerar preview');
       setPreviewData(data);
@@ -214,7 +214,7 @@ export default function InstagramPage() {
     setEnqueueing(true);
     setEnqueueResult(null);
     try {
-      const res = await fetchWithAuth(`${API}/api/instagram/enqueue/${selectedOffer.id}`, {
+      const res = await fetchWithAuth(`/api/instagram/enqueue/${selectedOffer.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ triggeredBy: 'manual' }),
@@ -233,7 +233,7 @@ export default function InstagramPage() {
 
   async function handleCancelJob(jobId: string) {
     if (!confirm('Cancelar este job?')) return;
-    await fetchWithAuth(`${API}/api/instagram/jobs/${jobId}`, { method: 'DELETE' });
+    await fetchWithAuth(`/api/instagram/jobs/${jobId}`, { method: 'DELETE' });
     loadJobs();
   }
 
