@@ -65,6 +65,42 @@ async function upsertNiche(name: string, slug: string, icon = '🛍️') {
   });
 }
 
+/** Busca ou cria Offer pela affiliateUrl (canonicalUrl não é unique no schema) */
+async function findOrCreateOffer(productData: any, storeId: string, nicheId: string) {
+  const existing = await prisma.offer.findFirst({
+    where: { affiliateUrl: productData.affiliateUrl },
+  });
+  if (existing) {
+    return prisma.offer.update({
+      where: { id: existing.id },
+      data: {
+        title: productData.title,
+        finalPrice: productData.finalPrice,
+        originalPrice: productData.originalPrice ?? undefined,
+        discountPct: productData.discountPct ?? 0,
+        imageUrl: productData.imageUrl,
+        mainImage: productData.imageUrl,
+        status: 'ACTIVE',
+      },
+    });
+  }
+  return prisma.offer.create({
+    data: {
+      title: productData.title,
+      finalPrice: productData.finalPrice,
+      originalPrice: productData.originalPrice ?? undefined,
+      discountPct: productData.discountPct ?? 0,
+      affiliateUrl: productData.affiliateUrl,
+      canonicalUrl: productData.affiliateUrl,
+      imageUrl: productData.imageUrl,
+      mainImage: productData.imageUrl,
+      nicheId,
+      storeId,
+      status: 'ACTIVE',
+    },
+  });
+}
+
 /** Busca dados de produto via URL do Mercado Livre */
 async function fetchMLProduct(url: string) {
   const affiliateUrl = generateAffiliateUrl(url);
@@ -185,31 +221,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
       ]);
 
       // Cria ou atualiza Offer (deduplica por affiliateUrl)
-      const offer = await prisma.offer.upsert({
-        where: { canonicalUrl: productData.affiliateUrl } as any,
-        update: {
-          title: productData.title,
-          finalPrice: productData.finalPrice,
-          originalPrice: productData.originalPrice ?? undefined,
-          discountPct: productData.discountPct ?? 0,
-          imageUrl: productData.imageUrl,
-          mainImage: productData.imageUrl,
-          status: 'ACTIVE',
-        },
-        create: {
-          title: productData.title,
-          finalPrice: productData.finalPrice,
-          originalPrice: productData.originalPrice ?? undefined,
-          discountPct: productData.discountPct ?? 0,
-          affiliateUrl: productData.affiliateUrl,
-          canonicalUrl: productData.affiliateUrl,
-          imageUrl: productData.imageUrl,
-          mainImage: productData.imageUrl,
-          nicheId: niche.id,
-          storeId: store.id,
-          status: 'ACTIVE',
-        },
-      });
+      const offer = await findOrCreateOffer(productData, store.id, niche.id);
 
       // Enfileira job
       const jobId = await enqueueInstagramJob({ offerId: offer.id, accountId: accountIdToUse, triggeredBy: 'manual' });
@@ -316,23 +328,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           upsertStore(isAmazon ? 'Amazon' : 'Mercado Livre', isAmazon ? 'amazon' : 'mercadolivre'),
           upsertNiche('Geral', 'geral', '🛍️'),
         ]);
-        const offer = await prisma.offer.upsert({
-          where: { canonicalUrl: productData.affiliateUrl } as any,
-          update: { title: productData.title, finalPrice: productData.finalPrice, status: 'ACTIVE' },
-          create: {
-            title: productData.title,
-            finalPrice: productData.finalPrice,
-            originalPrice: productData.originalPrice ?? undefined,
-            discountPct: productData.discountPct ?? 0,
-            affiliateUrl: productData.affiliateUrl,
-            canonicalUrl: productData.affiliateUrl,
-            imageUrl: productData.imageUrl,
-            mainImage: productData.imageUrl,
-            nicheId: niche.id,
-            storeId: store.id,
-            status: 'ACTIVE',
-          },
-        });
+        const offer = await findOrCreateOffer(productData, store.id, niche.id);
         await prisma.instagramJob.create({
           data: {
             offerId: offer.id,
