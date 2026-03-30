@@ -178,12 +178,18 @@ function getViralHook(title: string, discountPct: number | null | undefined, fin
   if (pct >= 10) {
     return { headline: 'MENOR PREÇO QUE ENCONTREI 👀', sub: `Oferta por tempo limitado` };
   }
-  // Sem desconto — foca no preço absoluto
+  // Sem desconto — foca em urgência e descoberta
   const thousands = Math.floor(finalPrice / 1000);
   if (thousands >= 1) {
-    return { headline: `${category} POR MENOS DE ${thousands + 1} MIL 😳`, sub: 'Preço que não dura' };
+    return { headline: `${category} POR MENOS DE ${thousands + 1} MIL 😳`, sub: 'Não vai durar muito' };
   }
-  return { headline: 'GARREI ESSA OFERTA PRA VOCÊ 🛍️', sub: 'Preço baixo hoje' };
+  const noDiscountHooks = [
+    { headline: 'ACHEI ISSO E PRECISEI COMPARTILHAR 😱', sub: 'Preço que não espera' },
+    { headline: 'ESSE PREÇO TÁ ABSURDO 🤯', sub: 'Corre antes de sumir' },
+    { headline: 'OLHA SÓ O QUE EU ENCONTREI 👀', sub: 'Oferta por tempo limitado' },
+    { headline: 'NÃO ERA PRA ESTAR ESSE PREÇO... 😳', sub: 'Aproveita agora' },
+  ];
+  return noDiscountHooks[Math.floor(finalPrice * 10) % noDiscountHooks.length];
 }
 
 function getPriceShock(finalPrice: number, originalPrice: number | null | undefined, discountPct: number | null | undefined): string {
@@ -439,88 +445,151 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 2: Dor — "Você ia pagar X nisso?" ───────────────────────────────────
+// ── SLIDE 2: Dor — comparação de preço ou valor ───────────────────────────────
 
 async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
 
-  // Decoração de fundo sutil
-  ctx.fillStyle = c.decorCircle;
-  for (let i = 0; i < 5; i++) {
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2, 200 + i * 100, 0, Math.PI * 2);
-    ctx.fill();
-  }
+  const hasDiscount = input.originalPrice && input.originalPrice > input.finalPrice;
 
-  // Emoji de choque
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '88px sans-serif';
-  ctx.fillText('😳', W / 2, 105);
+  if (hasDiscount) {
+    // ── COM DESCONTO: Dor + preço antigo riscado em vermelho ────────────────
 
-  // Linha de dor
-  const painLine = getPainLine(input.originalPrice);
-  const painFont = 'bold 52px sans-serif';
-  const painLines = wrapText(ctx, painLine, W - 100, painFont);
-  ctx.font = painFont;
-  ctx.fillStyle = c.text;
-  painLines.slice(0, 2).forEach((line, i) => {
-    ctx.fillText(line, W / 2, 210 + i * 64);
-  });
+    // Decoração circular sutil
+    ctx.fillStyle = c.decorCircle;
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 200 + i * 100, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-  // Preço antigo riscado (grande)
-  drawDivider(ctx, 330, c);
+    // Emoji de choque
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '88px sans-serif';
+    ctx.fillText('😳', W / 2, 105);
 
-  ctx.font = 'bold 72px sans-serif';
-  ctx.fillStyle = c.subText;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  if (input.originalPrice && input.originalPrice > input.finalPrice) {
-    const oldText = formatBRL(input.originalPrice);
+    // Linha de dor
+    const painLine = getPainLine(input.originalPrice);
+    const painFont = 'bold 52px sans-serif';
+    const painLines = wrapText(ctx, painLine, W - 100, painFont);
+    ctx.font = painFont;
+    ctx.fillStyle = c.text;
+    painLines.slice(0, 2).forEach((line, i) => {
+      ctx.fillText(line, W / 2, 210 + i * 64);
+    });
+
+    drawDivider(ctx, 320, c);
+
+    // Preço antigo — grande, riscado em vermelho
+    ctx.font = 'bold 80px sans-serif';
+    ctx.fillStyle = c.subText;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const oldText = formatBRL(input.originalPrice!);
     ctx.fillText(oldText, W / 2, 415);
     const oldW = ctx.measureText(oldText).width;
     ctx.strokeStyle = c.strikeFg;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(W / 2 - oldW / 2, 415);
-    ctx.lineTo(W / 2 + oldW / 2, 415);
+    ctx.moveTo(W / 2 - oldW / 2 - 10, 415);
+    ctx.lineTo(W / 2 + oldW / 2 + 10, 415);
     ctx.stroke();
+
+    // Badge % desconto ao lado do preço
+    if (input.discountPct && input.discountPct > 0) {
+      drawBadge(ctx, `-${input.discountPct}%`, W / 2 + oldW / 2 + 70, 415, c.strikeFg, '#ffffff', 28, 16, 10, 12);
+    }
+
+    // Seta
+    ctx.font = '60px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('↓', W / 2, 510);
+
+    // Resposta
+    ctx.font = 'bold 38px sans-serif';
+    ctx.fillStyle = c.subText;
+    ctx.fillText('Achou errado? Não.', W / 2, 583);
+
+    drawDivider(ctx, 640, c);
+
+    // Preço final — grande, destaque
+    ctx.font = 'bold 100px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(formatBRL(input.finalPrice), W / 2, 745);
+
+    // Forma de pagamento
+    if (input.paymentMethod === 'pix') {
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillStyle = c.text;
+      ctx.fillText('💳 NO PIX', W / 2, 835);
+    } else if (input.paymentMethod === 'parcelado' && input.installments) {
+      const installVal = input.installmentValue ?? (input.finalPrice / input.installments);
+      ctx.font = 'bold 34px sans-serif';
+      ctx.fillStyle = c.text;
+      ctx.fillText(`💳 ${input.installments}x de ${formatBRL(installVal)} sem juros`, W / 2, 835);
+    }
+
+  } else {
+    // ── SEM DESCONTO: foca no produto + preço impactante ────────────────────
+
+    // Emoji
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '88px sans-serif';
+    ctx.fillText('🔥', W / 2, 120);
+
+    ctx.font = 'bold 50px sans-serif';
+    ctx.fillStyle = c.text;
+    ctx.fillText('Confira o preço!', W / 2, 220);
+
+    drawDivider(ctx, 290, c);
+
+    // Nome do produto (resumido, 2 linhas)
+    const titleFont = 'bold 42px sans-serif';
+    const titleLines = wrapText(ctx, input.title, W - 120, titleFont);
+    ctx.font = titleFont;
+    ctx.fillStyle = c.subText;
+    titleLines.slice(0, 2).forEach((line, i) => {
+      ctx.fillText(line, W / 2, 380 + i * 56);
+    });
+
+    drawDivider(ctx, 510, c);
+
+    // "Por apenas"
+    ctx.font = '38px sans-serif';
+    ctx.fillStyle = c.subText;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('por apenas', W / 2, 580);
+
+    // Preço — destaque máximo
+    ctx.font = 'bold 100px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.fillText(formatBRL(input.finalPrice), W / 2, 690);
+
+    // Forma de pagamento
+    if (input.paymentMethod === 'pix') {
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillStyle = c.text;
+      ctx.fillText('💳 NO PIX', W / 2, 790);
+    } else if (input.paymentMethod === 'parcelado' && input.installments) {
+      const installVal = input.installmentValue ?? (input.finalPrice / input.installments);
+      ctx.font = 'bold 34px sans-serif';
+      ctx.fillStyle = c.text;
+      ctx.fillText(`💳 ${input.installments}x de ${formatBRL(installVal)} sem juros`, W / 2, 790);
+    }
+
+    drawManuBrand(ctx, 920, c);
   }
 
-  // Seta/ponte
-  ctx.font = '56px sans-serif';
-  ctx.fillStyle = c.accent;
-  ctx.fillText('↓', W / 2, 510);
-
-  // Resposta: "Achou errado? Não."
-  ctx.font = 'bold 40px sans-serif';
-  ctx.fillStyle = c.subText;
-  ctx.fillText('Achou errado? Não.', W / 2, 590);
-
-  drawDivider(ctx, 650, c);
-
-  // Preço final — grande, destaque
-  ctx.font = 'bold 96px sans-serif';
-  ctx.fillStyle = c.accent;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(formatBRL(input.finalPrice), W / 2, 745);
-
-  // Forma de pagamento
-  if (input.paymentMethod === 'pix') {
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillStyle = c.text;
-    ctx.fillText('💳 NO PIX', W / 2, 830);
-  } else if (input.paymentMethod === 'parcelado' && input.installments) {
-    const installVal = input.installmentValue ?? (input.finalPrice / input.installments);
-    ctx.font = 'bold 34px sans-serif';
-    ctx.fillStyle = c.text;
-    ctx.fillText(`💳 ${input.installments}x de ${formatBRL(installVal)} sem juros`, W / 2, 830);
-  }
-
-  // Swipe
+  // Swipe hint (comum a ambos os casos)
   ctx.font = '26px sans-serif';
   ctx.fillStyle = c.subText;
   ctx.textAlign = 'center';
