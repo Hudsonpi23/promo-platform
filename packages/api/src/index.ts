@@ -40,6 +40,8 @@ import { metricsRoutes } from './routes/metrics';
 import { imageSearchRoutes } from './routes/imageSearch';
 import { amazonRoutes } from './routes/amazon';
 import { twitterMetricsRoutes } from './routes/twitterMetrics';
+import { instagramRoutes } from './routes/instagram';
+import { startInstagramWorker } from './workers/instagramWorker';
 
 const DEFAULT_NICHES = [
   { name: 'Eletrônicos',    slug: 'eletronicos',  icon: '📱', color: '#3B82F6' },
@@ -378,6 +380,9 @@ async function main() {
   // 📊 X/Twitter Metrics (leitura de métricas, timeline, menções)
   server.register(twitterMetricsRoutes, { prefix: '/api/twitter-metrics' });
 
+  // 📸 Instagram (carrosséis via Postfor.me)
+  server.register(instagramRoutes, { prefix: '/api/instagram' });
+
   // ==================== ROTAS PÚBLICAS ====================
 
   // Tracking /go/:code
@@ -400,6 +405,9 @@ async function main() {
 
     // 🔁 Corrigir nichos errados em offers e posts já existentes
     reCategorizeExistingOffers(); // Roda em background, não bloqueia o startup
+
+    // 📸 Instagram Worker (fila de carrosséis/reels)
+    startInstagramWorker();
 
     // 🔑 Auto-refresh do token do Mercado Livre (carrega do banco, renova a cada ~6h, persiste no banco)
     startMLTokenAutoRefresh();

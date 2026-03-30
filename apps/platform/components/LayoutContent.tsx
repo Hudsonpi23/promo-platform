@@ -132,6 +132,18 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
               <span className="text-lg">📸</span>
               <span>Instagram</span>
             </a>
+
+            <a 
+              href="/instagram" 
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg ${
+                pathname === '/instagram' 
+                  ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
+                  : 'hover:bg-surface-hover text-text-secondary'
+              }`}
+            >
+              <span className="text-lg">🎠</span>
+              <span>Carrosséis IG</span>
+            </a>
             
             <a 
               href="/manual/whatsapp" 

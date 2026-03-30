@@ -393,6 +393,7 @@ model Offer {
   clicks            Click[]
   postJobs          PostJob[] // 🤖 v2.0 IA: Jobs gerados pela IA
   offerPublications OfferPublication[]
+  instagramJobs     InstagramJob[]
 
   // Índice único por source + externalId
   @@unique([source, externalId])
@@ -896,6 +897,79 @@ model OfferPublication {
   @@index([offerId])
   @@index([channel])
   @@index([publishedAt])
+}
+
+// ==================== 📸 INSTAGRAM JOB QUEUE ====================
+
+enum InstagramJobStatus {
+  PENDING    // Na fila, aguardando processamento
+  SCORING    // IA está avaliando a oferta
+  RENDERING  // Gerando os slides/vídeo
+  UPLOADING  // Fazendo upload no Cloudinary
+  PUBLISHING // Enviando para o Postfor.me
+  SUCCESS    // Publicado com sucesso
+  FAILED     // Falhou (ver errorMessage)
+  CANCELLED  // Cancelado pelo operador
+}
+
+enum InstagramFormat {
+  CAROUSEL // 4 slides PNG 1080x1080 → Feed
+  REEL     // MP4 1080x1920 → Reels
+  STORY    // PNG/MP4 1080x1920 → Stories
+}
+
+model InstagramJob {
+  id      String @id @default(cuid())
+  offerId String
+  offer   Offer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  // Status do pipeline
+  status    InstagramJobStatus @default(PENDING)
+  format    InstagramFormat    @default(CAROUSEL)
+
+  // IA — Score e decisão
+  aiScore       Int?    // 0-100 calculado pela Curadora
+  aiReasoning   String? @db.Text
+  aiChosenFormat InstagramFormat? // Formato escolhido pela IA
+  aiCaption     String? @db.Text  // Caption gerada pela IA (Ana)
+
+  // Slides gerados
+  slideUrls     String[] // URLs Cloudinary dos slides
+  captionUsed   String?  @db.Text
+
+  // Resultado no Postfor.me
+  postformePostId String? // ID do post no Postfor.me
+  postformeStatus String? // "pending" | "published" | "failed"
+  instagramPostId String? // ID nativo do Instagram (após publicação)
+  instagramUrl    String? // URL do post no Instagram
+
+  // Métricas (preenchidas depois via Postfor.me analytics)
+  metricViews    Int @default(0)
+  metricLikes    Int @default(0)
+  metricComments Int @default(0)
+  metricSaves    Int @default(0)
+  metricReach    Int @default(0)
+  metricsUpdatedAt DateTime?
+
+  // Resiliência
+  attempts     Int      @default(0) // Tentativas realizadas
+  maxAttempts  Int      @default(3) // Máximo de tentativas
+  errorMessage String?  @db.Text
+  lastAttemptAt DateTime?
+  nextRetryAt  DateTime? // Quando tentar de novo
+
+  // Controle
+  triggeredBy   String @default("manual") // "manual" | "auto" | "manu-agent"
+  accountId     String? // Postfor.me social_account_id
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  publishedAt DateTime?
+
+  @@index([status])
+  @@index([offerId])
+  @@index([createdAt])
+  @@index([nextRetryAt])
 }
 
 // ==================== FRASES PERSONALIZADAS ====================
