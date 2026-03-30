@@ -1,9 +1,15 @@
 /**
- * Instagram Carousel Generator — 3 temas
+ * Instagram Carousel Generator — Copy Viral + 3 Temas
  *
- * DARK   : Azul marinho escuro + âmbar (original)
- * MEDIUM : Azul médio + branco + dourado claro
- * LIGHT  : Fundo branco/azul clarinho + acentos azul escuro
+ * DARK   : Azul marinho escuro + âmbar
+ * MEDIUM : Azul médio + dourado claro
+ * LIGHT  : Branco/azul clarinho + acentos azul escuro
+ *
+ * Filosofia dos slides:
+ *  Slide 1 — Para o scroll (headline agressiva)
+ *  Slide 2 — Dor (você ia pagar quanto nisso?)
+ *  Slide 3 — Ganho (+R$X no seu bolso)
+ *  Slide 4 — Branding + CTA final (se sumir, não volta)
  */
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -136,7 +142,98 @@ export interface CarouselResult {
   error?: string;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Copy Viral Dinâmico ────────────────────────────────────────────────────────
+
+function detectCategory(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('tv') || t.includes('televisão') || t.includes('smart tv')) return 'TV';
+  if (t.includes('celular') || t.includes('smartphone') || t.includes('iphone') || t.includes('samsung')) return 'CELULAR';
+  if (t.includes('notebook') || t.includes('laptop')) return 'NOTEBOOK';
+  if (t.includes('tablet') || t.includes('ipad')) return 'TABLET';
+  if (t.includes('fone') || t.includes('headphone') || t.includes('earphone') || t.includes('airpod')) return 'FONE';
+  if (t.includes('câmera') || t.includes('camera') || t.includes('gopro')) return 'CÂMERA';
+  if (t.includes('geladeira') || t.includes('fogão') || t.includes('máquina de lavar') || t.includes('microondas')) return 'ELETRODOMÉSTICO';
+  if (t.includes('ar condicionado') || t.includes('ventilador')) return 'APARELHO';
+  if (t.includes('console') || t.includes('playstation') || t.includes('xbox') || t.includes('nintendo')) return 'CONSOLE';
+  if (t.includes('cadeira') || t.includes('sofá') || t.includes('mesa')) return 'MÓVEL';
+  return 'PRODUTO';
+}
+
+function getViralHook(title: string, discountPct: number | null | undefined, finalPrice: number): { headline: string; sub: string } {
+  const pct = discountPct ?? 0;
+  const category = detectCategory(title);
+
+  if (pct >= 55) {
+    return { headline: 'ISSO NÃO DEVIA ESTAR ESSE PREÇO 🤯', sub: `${pct}% OFF agora` };
+  }
+  if (pct >= 40) {
+    return { headline: 'NÃO ERA PRA ESTAR ESSE PREÇO... 😳', sub: `${pct}% de desconto real` };
+  }
+  if (pct >= 30) {
+    return { headline: `ESSA ${category} DESPENCOU DE PREÇO 🔥`, sub: `${pct}% OFF hoje` };
+  }
+  if (pct >= 20) {
+    return { headline: 'ERRO DE PREÇO? ACHEI ANTES DE SUMIR 👇', sub: `${pct}% abaixo do normal` };
+  }
+  if (pct >= 10) {
+    return { headline: 'MENOR PREÇO QUE ENCONTREI 👀', sub: `Oferta por tempo limitado` };
+  }
+  // Sem desconto — foca no preço absoluto
+  const thousands = Math.floor(finalPrice / 1000);
+  if (thousands >= 1) {
+    return { headline: `${category} POR MENOS DE ${thousands + 1} MIL 😳`, sub: 'Preço que não dura' };
+  }
+  return { headline: 'GARREI ESSA OFERTA PRA VOCÊ 🛍️', sub: 'Preço baixo hoje' };
+}
+
+function getPriceShock(finalPrice: number, originalPrice: number | null | undefined, discountPct: number | null | undefined): string {
+  const pct = discountPct ?? 0;
+  if (originalPrice && originalPrice > finalPrice) {
+    if (pct >= 30) {
+      return `DE ${formatBRL(originalPrice)} → ${formatBRL(finalPrice)} 🤯`;
+    }
+    return `DE ${formatBRL(originalPrice)} POR ${formatBRL(finalPrice)}`;
+  }
+  // Sem preço original — tenta round number hook
+  const thousands = Math.floor(finalPrice / 1000);
+  if (thousands >= 1 && finalPrice < (thousands + 1) * 1000) {
+    return `POR MENOS DE ${thousands + 1} MIL 😳`;
+  }
+  return `APENAS ${formatBRL(finalPrice)}`;
+}
+
+function getPainLine(originalPrice: number | null | undefined): string {
+  if (!originalPrice) return 'Você ia pagar quanto nisso?';
+  return `Você ia pagar ${formatBRL(originalPrice)} nisso?`;
+}
+
+function getSavingsHook(saving: number, finalPrice: number): { main: string; sub: string } {
+  const pct = Math.round((saving / (saving + finalPrice)) * 100);
+  if (saving >= 2000) {
+    return { main: `+${formatBRL(saving)} NO SEU BOLSO 💰`, sub: 'Isso paga MUITA coisa' };
+  }
+  if (saving >= 500) {
+    return { main: `+${formatBRL(saving)} NO SEU BOLSO 💰`, sub: 'Isso paga outra compra 😳' };
+  }
+  if (pct >= 30) {
+    return { main: `VOCÊ ECONOMIZA ${pct}% 💸`, sub: `${formatBRL(saving)} de volta no bolso` };
+  }
+  return { main: `ECONOMIZE ${formatBRL(saving)} 💸`, sub: `${pct}% abaixo do preço normal` };
+}
+
+const CTAS_URGENCY = [
+  'CORRE NA BIO ANTES QUE ACABE ⚠️',
+  'JÁ TEM GENTE COMPRANDO 👇',
+  'LINK NA BIO — NÃO DEMORA ⏳',
+  'CORRE QUE TÁ ACABANDO 🔥',
+];
+
+function getUrgencyCTA(finalPrice: number): string {
+  // Usa o preço para variar o CTA de forma determinística
+  return CTAS_URGENCY[Math.floor(finalPrice) % CTAS_URGENCY.length];
+}
+
+// ── Helpers de desenho ─────────────────────────────────────────────────────────
 
 export function isCanvasAvailable(): boolean { return !!createCanvas; }
 
@@ -230,16 +327,21 @@ function drawDivider(ctx: any, y: number, c: ThemeColors) {
   ctx.stroke();
 }
 
-// ── SLIDE 1: Produto + Desconto ───────────────────────────────────────────────
+// ── SLIDE 1: Para o scroll ─────────────────────────────────────────────────────
+// Regra: Slide 1 não vende — Slide 1 FAZ PARAR
 
 async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
 
-  const imgSize = 520;
+  const hook = getViralHook(input.title, input.discountPct, input.finalPrice);
+  const priceShock = getPriceShock(input.finalPrice, input.originalPrice, input.discountPct);
+
+  // ── Imagem do produto (área central) ──────────────────────────────────────
+  const imgSize = 460;
   const imgX = (W - imgSize) / 2;
-  const imgY = 140;
+  const imgY = 200;
 
   if (input.imageUrl) {
     try {
@@ -274,10 +376,11 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
     ctx.fillText('🛍️', W / 2, imgY + imgSize / 2);
   }
 
+  // Badge de desconto (canto superior direito da imagem)
   if (input.discountPct && input.discountPct > 0) {
-    const bx = imgX + imgSize - 10;
-    const by = imgY + 10;
-    const bSize = 110;
+    const bx = imgX + imgSize;
+    const by = imgY;
+    const bSize = 120;
     const discGrad = ctx.createRadialGradient(bx - bSize / 2, by + bSize / 2, 10, bx - bSize / 2, by + bSize / 2, bSize / 2);
     discGrad.addColorStop(0, c.accentAlt);
     discGrad.addColorStop(1, c.strikeFg);
@@ -288,32 +391,45 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 36px sans-serif';
-    ctx.fillText(`-${input.discountPct}%`, bx - bSize / 2, by + bSize / 2 - 10);
-    ctx.font = 'bold 22px sans-serif';
-    ctx.fillText('OFF', bx - bSize / 2, by + bSize / 2 + 22);
+    ctx.font = 'bold 38px sans-serif';
+    ctx.fillText(`-${input.discountPct}%`, bx - bSize / 2, by + bSize / 2 - 12);
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('OFF', bx - bSize / 2, by + bSize / 2 + 24);
   }
 
-  drawBadge(ctx, '🔥 OFERTA DO DIA', W / 2, 68, c.badgeBg, c.badgeText, 30, 28, 16, 20);
+  // ── Headline viral (TOPO — antes da imagem) ────────────────────────────────
+  const headlineFont = 'bold 52px sans-serif';
+  const headlineLines = wrapText(ctx, hook.headline, W - 80, headlineFont);
+  const displayHeadlineLines = headlineLines.slice(0, 2);
+  const headlineH = displayHeadlineLines.length * 64;
+  const headlineY = (imgY - headlineH) / 2 + 20;
 
-  const titleY = imgY + imgSize + 48;
-  const titleFont = 'bold 44px sans-serif';
-  const titleLines = wrapText(ctx, input.title, W - 120, titleFont);
-  const displayLines = titleLines.slice(0, 2);
-  if (titleLines.length > 2) displayLines[1] = displayLines[1].replace(/\s+\S+$/, '…');
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
+  ctx.textBaseline = 'middle';
   ctx.fillStyle = c.text;
-  ctx.font = titleFont;
-  displayLines.forEach((line, i) => { ctx.fillText(line, W / 2, titleY + i * 54); });
+  ctx.font = headlineFont;
+  displayHeadlineLines.forEach((line, i) => {
+    ctx.fillText(line, W / 2, headlineY + i * 64);
+  });
 
-  const priceY = titleY + displayLines.length * 54 + 32;
-  ctx.font = 'bold 72px sans-serif';
-  ctx.fillStyle = c.accent;
+  // Sub-headline
+  ctx.font = '32px sans-serif';
+  ctx.fillStyle = c.subText;
+  ctx.fillText(hook.sub, W / 2, headlineY + displayHeadlineLines.length * 64 + 10);
+
+  // ── Price shock (ABAIXO DA IMAGEM) ─────────────────────────────────────────
+  const priceY = imgY + imgSize + 52;
+  const priceShockFont = 'bold 54px sans-serif';
+  const priceShockLines = wrapText(ctx, priceShock, W - 80, priceShockFont);
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(formatBRL(input.finalPrice), W / 2, priceY);
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = c.accent;
+  ctx.font = priceShockFont;
+  priceShockLines.slice(0, 2).forEach((line, i) => {
+    ctx.fillText(line, W / 2, priceY + i * 64);
+  });
 
+  // Swipe hint
   ctx.font = '26px sans-serif';
   ctx.fillStyle = c.subText;
   ctx.textAlign = 'center';
@@ -323,76 +439,88 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 2: Preços e Economia ─────────────────────────────────────────────────
+// ── SLIDE 2: Dor — "Você ia pagar X nisso?" ───────────────────────────────────
 
 async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
 
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '80px sans-serif';
-  ctx.fillText('💰', W / 2, 120);
-
-  ctx.font = 'bold 48px sans-serif';
-  ctx.fillStyle = c.text;
-  ctx.fillText('Confira o preço!', W / 2, 210);
-
-  drawDivider(ctx, 270, c);
-
-  if (input.originalPrice && input.originalPrice > input.finalPrice) {
-    ctx.font = '44px sans-serif';
-    ctx.fillStyle = c.subText;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const oldText = `De ${formatBRL(input.originalPrice)}`;
-    ctx.fillText(oldText, W / 2, 350);
-    const oldW = ctx.measureText(oldText).width;
-    ctx.strokeStyle = c.strikeFg;
-    ctx.lineWidth = 3;
+  // Decoração de fundo sutil
+  ctx.fillStyle = c.decorCircle;
+  for (let i = 0; i < 5; i++) {
     ctx.beginPath();
-    ctx.moveTo(W / 2 - oldW / 2, 350);
-    ctx.lineTo(W / 2 + oldW / 2, 350);
-    ctx.stroke();
+    ctx.arc(W / 2, H / 2, 200 + i * 100, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  ctx.font = '36px sans-serif';
+  // Emoji de choque
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '88px sans-serif';
+  ctx.fillText('😳', W / 2, 105);
+
+  // Linha de dor
+  const painLine = getPainLine(input.originalPrice);
+  const painFont = 'bold 52px sans-serif';
+  const painLines = wrapText(ctx, painLine, W - 100, painFont);
+  ctx.font = painFont;
+  ctx.fillStyle = c.text;
+  painLines.slice(0, 2).forEach((line, i) => {
+    ctx.fillText(line, W / 2, 210 + i * 64);
+  });
+
+  // Preço antigo riscado (grande)
+  drawDivider(ctx, 330, c);
+
+  ctx.font = 'bold 72px sans-serif';
   ctx.fillStyle = c.subText;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('por apenas', W / 2, 430);
+  if (input.originalPrice && input.originalPrice > input.finalPrice) {
+    const oldText = formatBRL(input.originalPrice);
+    ctx.fillText(oldText, W / 2, 415);
+    const oldW = ctx.measureText(oldText).width;
+    ctx.strokeStyle = c.strikeFg;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - oldW / 2, 415);
+    ctx.lineTo(W / 2 + oldW / 2, 415);
+    ctx.stroke();
+  }
 
-  ctx.font = 'bold 900 96px sans-serif';
+  // Seta/ponte
+  ctx.font = '56px sans-serif';
+  ctx.fillStyle = c.accent;
+  ctx.fillText('↓', W / 2, 510);
+
+  // Resposta: "Achou errado? Não."
+  ctx.font = 'bold 40px sans-serif';
+  ctx.fillStyle = c.subText;
+  ctx.fillText('Achou errado? Não.', W / 2, 590);
+
+  drawDivider(ctx, 650, c);
+
+  // Preço final — grande, destaque
+  ctx.font = 'bold 96px sans-serif';
   ctx.fillStyle = c.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(formatBRL(input.finalPrice), W / 2, 545);
+  ctx.fillText(formatBRL(input.finalPrice), W / 2, 745);
 
-  if (input.originalPrice && input.originalPrice > input.finalPrice) {
-    const saving = input.originalPrice - input.finalPrice;
-    drawBadge(ctx, `✅ Você economiza ${formatBRL(saving)}`, W / 2, 650, c.savingBg, c.savingText, 30, 28, 16, 20);
-  }
-
-  drawDivider(ctx, 720, c);
-
+  // Forma de pagamento
   if (input.paymentMethod === 'pix') {
-    ctx.font = 'bold 38px sans-serif';
+    ctx.font = 'bold 36px sans-serif';
     ctx.fillStyle = c.text;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('💳 NO PIX', W / 2, 810);
+    ctx.fillText('💳 NO PIX', W / 2, 830);
   } else if (input.paymentMethod === 'parcelado' && input.installments) {
     const installVal = input.installmentValue ?? (input.finalPrice / input.installments);
-    ctx.font = 'bold 38px sans-serif';
+    ctx.font = 'bold 34px sans-serif';
     ctx.fillStyle = c.text;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`💳 ${input.installments}x de ${formatBRL(installVal)} sem juros`, W / 2, 810);
+    ctx.fillText(`💳 ${input.installments}x de ${formatBRL(installVal)} sem juros`, W / 2, 830);
   }
 
-  drawManuBrand(ctx, 950, c);
-
+  // Swipe
   ctx.font = '26px sans-serif';
   ctx.fillStyle = c.subText;
   ctx.textAlign = 'center';
@@ -402,76 +530,104 @@ async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buf
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 3: CTA + Urgência ────────────────────────────────────────────────────
+// ── SLIDE 3: Ganho + Urgência ──────────────────────────────────────────────────
+// "+R$X NO SEU BOLSO" + CTA agressivo
 
 async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
   drawBg(ctx, c);
 
-  // Pontos decorativos
-  ctx.fillStyle = 'rgba(128,128,128,0.05)';
-  for (let row = 0; row < 10; row++) {
-    for (let col = 0; col < 10; col++) {
-      ctx.beginPath();
-      ctx.arc(col * 120 + 60, row * 120 + 60, 2, 0, Math.PI * 2);
-      ctx.fill();
-    }
+  const saving = (input.originalPrice && input.originalPrice > input.finalPrice)
+    ? input.originalPrice - input.finalPrice
+    : null;
+
+  // Ícone de dinheiro
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = '96px sans-serif';
+  ctx.fillText('💸', W / 2, 120);
+
+  // ── Bloco de economia (se tiver) ──────────────────────────────────────────
+  if (saving && saving > 0) {
+    const savingsHook = getSavingsHook(saving, input.finalPrice);
+
+    const mainFont = 'bold 62px sans-serif';
+    const mainLines = wrapText(ctx, savingsHook.main, W - 80, mainFont);
+    ctx.font = mainFont;
+    ctx.fillStyle = c.accent;
+    mainLines.slice(0, 2).forEach((line, i) => {
+      ctx.fillText(line, W / 2, 240 + i * 76);
+    });
+
+    ctx.font = 'bold 38px sans-serif';
+    ctx.fillStyle = c.text;
+    ctx.fillText(savingsHook.sub, W / 2, 240 + mainLines.slice(0, 2).length * 76 + 20);
+  } else {
+    // Sem saving — foca no preço final
+    ctx.font = 'bold 54px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.fillText('OFERTA POR TEMPO LIMITADO ⚡', W / 2, 240);
+    ctx.font = 'bold 88px sans-serif';
+    ctx.fillStyle = c.text;
+    ctx.fillText(formatBRL(input.finalPrice), W / 2, 350);
   }
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '100px sans-serif';
-  ctx.fillText('⚡', W / 2, 160);
-
-  ctx.font = 'bold 60px sans-serif';
-  ctx.fillStyle = c.accent;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('CORRE!', W / 2, 280);
-
-  ctx.font = 'bold 42px sans-serif';
-  ctx.fillStyle = c.text;
-  ctx.fillText('Oferta por tempo', W / 2, 370);
-  ctx.fillText('limitado! 🔥', W / 2, 430);
 
   drawDivider(ctx, 500, c);
 
-  ctx.font = 'bold 52px sans-serif';
+  // Preço resumido
+  ctx.font = 'bold 64px sans-serif';
   ctx.fillStyle = c.accent;
-  ctx.fillText(formatBRL(input.finalPrice), W / 2, 590);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(formatBRL(input.finalPrice), W / 2, 585);
 
   if (input.discountPct && input.discountPct > 0) {
-    ctx.font = 'bold 36px sans-serif';
+    ctx.font = 'bold 38px sans-serif';
     ctx.fillStyle = c.accentAlt;
-    ctx.fillText(`-${input.discountPct}% de desconto`, W / 2, 660);
+    ctx.fillText(`-${input.discountPct}% de desconto real`, W / 2, 660);
   }
 
   drawDivider(ctx, 730, c);
 
-  const ctaY = 790;
-  const ctaW = 680;
-  const ctaH = 90;
+  // ── CTA AGRESSIVO ──────────────────────────────────────────────────────────
+  const ctaText = getUrgencyCTA(input.finalPrice);
+  const ctaY = 800;
+  const ctaW = 900;
+  const ctaH = 100;
   const ctaX = (W - ctaW) / 2;
   const ctaGrad = ctx.createLinearGradient(ctaX, ctaY, ctaX + ctaW, ctaY);
   ctaGrad.addColorStop(0, c.ctaBg1);
   ctaGrad.addColorStop(1, c.ctaBg2);
   ctx.fillStyle = ctaGrad;
-  roundRect(ctx, ctaX, ctaY, ctaW, ctaH, 20);
+  roundRect(ctx, ctaX, ctaY, ctaW, ctaH, 24);
   ctx.fill();
 
-  ctx.font = 'bold 40px sans-serif';
+  const ctaFont = 'bold 42px sans-serif';
+  const ctaLines = wrapText(ctx, ctaText, ctaW - 40, ctaFont);
+  ctx.font = ctaFont;
   ctx.fillStyle = c.ctaText;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🔗 LINK NA BIO  →', W / 2, ctaY + ctaH / 2);
+  if (ctaLines.length > 1) {
+    ctaLines.slice(0, 2).forEach((line, i) => {
+      ctx.fillText(line, W / 2, ctaY + 30 + i * 46);
+    });
+  } else {
+    ctx.fillText(ctaLines[0] || ctaText, W / 2, ctaY + ctaH / 2);
+  }
 
-  drawManuBrand(ctx, 960, c);
+  // Linha "SE SUMIR, NÃO VOLTA" abaixo do CTA
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillStyle = c.strikeFg;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⚠️  SE SUMIR, NÃO VOLTA', W / 2, 940);
 
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 4: Branding Manu ─────────────────────────────────────────────────────
+// ── SLIDE 4: Branding Manu + CTA Final ────────────────────────────────────────
 
 async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
@@ -483,6 +639,7 @@ async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buf
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
+  // Círculos decorativos
   ctx.strokeStyle = c.decorCircle;
   ctx.lineWidth = 2;
   for (let i = 0; i < 4; i++) {
@@ -491,9 +648,10 @@ async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buf
     ctx.stroke();
   }
 
-  const avatarSize = 220;
+  // Avatar da Manu
+  const avatarSize = 200;
   const avatarX = W / 2 - avatarSize / 2;
-  const avatarY = 180;
+  const avatarY = 160;
 
   try {
     const avatarImg = await loadImage('https://www.manu-promocoes.com.br/manu-avatar.png');
@@ -520,30 +678,43 @@ async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buf
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 56px sans-serif';
+  ctx.font = 'bold 52px sans-serif';
   ctx.fillStyle = c.text;
-  ctx.fillText('Manu das Promoções', W / 2, 480);
+  ctx.fillText('Manu das Promoções', W / 2, 460);
 
-  ctx.font = '36px sans-serif';
+  ctx.font = '32px sans-serif';
   ctx.fillStyle = c.subText;
-  ctx.fillText('As melhores ofertas do Brasil', W / 2, 548);
+  ctx.fillText('As melhores ofertas do Brasil', W / 2, 520);
 
-  drawDivider(ctx, 610, c);
+  drawDivider(ctx, 580, c);
 
+  // Redes sociais
   const socials = [
     { icon: '📸', label: '@manupromocao' },
     { icon: '✈️', label: 't.me/manupromocao' },
     { icon: '🌐', label: 'manu-promocoes.com.br' },
   ];
   socials.forEach((s, i) => {
-    const y = 680 + i * 70;
-    ctx.font = '34px sans-serif';
+    ctx.font = '32px sans-serif';
     ctx.fillStyle = c.subText;
     ctx.textAlign = 'center';
-    ctx.fillText(`${s.icon}  ${s.label}`, W / 2, y);
+    ctx.fillText(`${s.icon}  ${s.label}`, W / 2, 650 + i * 62);
   });
 
-  drawBadge(ctx, '🔥 Siga para não perder nenhuma oferta!', W / 2, 930, c.badgeBg, c.badgeText, 28, 24, 14, 18);
+  drawDivider(ctx, 860, c);
+
+  // CTA final — 2 linhas de urgência
+  ctx.font = 'bold 34px sans-serif';
+  ctx.fillStyle = c.accent;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🔗 Link na bio para pegar a oferta', W / 2, 910);
+
+  ctx.font = 'bold 28px sans-serif';
+  ctx.fillStyle = c.strikeFg;
+  ctx.fillText('⏰ SE SUMIR, NÃO VOLTA', W / 2, 962);
+
+  drawManuBrand(ctx, 1018, c);
 
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
@@ -571,7 +742,6 @@ export async function generateCarousel(input: CarouselInput): Promise<CarouselRe
     const ts = Date.now();
     const id = input.offerId || ts;
 
-    // Sem transformation: preserva 1080×1080 e qualidade máxima
     const uploadOpts = (slide: number) => ({
       folder,
       publicId: `${id}_${theme}_slide${slide}`,
