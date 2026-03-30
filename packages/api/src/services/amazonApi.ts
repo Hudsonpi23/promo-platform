@@ -7,8 +7,10 @@
  * - Obter imagens, preços, ofertas e links de afiliado
  *
  * Autenticação: Login with Amazon (LwA) OAuth 2.0 — credenciais v3.x
+ * Fallback: scraper direto da página quando a API retornar 403
  */
 
+import * as cheerio from 'cheerio';
 import {
   ApiClient,
   GetItemsRequestContent,
@@ -370,14 +372,106 @@ async function resolveAmazonShortUrl(url: string): Promise<string> {
 }
 
 /**
+ * Scraper direto da página da Amazon — usado como fallback quando a API retorna 403
+ */
+async function scrapeAmazonProduct(asin: string, affiliateUrl: string): Promise<AmazonProduct | null> {
+  const pageUrl = `https://www.amazon.com.br/dp/${asin}`;
+  const headers: Record<string, string> = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+  };
+
+  try {
+    const res = await fetch(pageUrl, { headers, redirect: 'follow' });
+    if (!res.ok) {
+      console.error(`[Amazon Scraper] HTTP ${res.status} para ASIN ${asin}`);
+      return null;
+    }
+    const html = await res.text();
+    const $ = cheerio.load(html);
+
+    // Título
+    const title =
+      $('#productTitle').text().trim() ||
+      $('h1.a-size-large').text().trim() ||
+      $('span#title').text().trim();
+
+    if (!title) {
+      console.warn('[Amazon Scraper] Título não encontrado — Amazon pode estar bloqueando scraping');
+      return null;
+    }
+
+    // Preço atual
+    const priceText =
+      $('.a-price .a-offscreen').first().text().trim() ||
+      $('#priceblock_ourprice').text().trim() ||
+      $('#priceblock_dealprice').text().trim() ||
+      $('span.a-price-whole').first().text().trim();
+
+    const finalPrice = parseFloat(
+      priceText.replace(/[^0-9,]/g, '').replace(',', '.'),
+    ) || 0;
+
+    // Preço original (riscado)
+    const origText =
+      $('span.a-price.a-text-price .a-offscreen').first().text().trim() ||
+      $('.basisPrice .a-offscreen').first().text().trim();
+    const originalPrice = origText
+      ? parseFloat(origText.replace(/[^0-9,]/g, '').replace(',', '.')) || null
+      : null;
+
+    const discountPct =
+      originalPrice && originalPrice > finalPrice
+        ? Math.round(((originalPrice - finalPrice) / originalPrice) * 100)
+        : 0;
+
+    // Imagem principal
+    const imageUrl =
+      $('#imgTagWrapperId img').attr('src') ||
+      $('#landingImage').attr('src') ||
+      $('#main-image').attr('src') ||
+      $('img#imgBlkFront').attr('src') ||
+      null;
+
+    console.log(`[Amazon Scraper] ASIN ${asin} — título: ${title.slice(0, 60)} — preço: R$${finalPrice}`);
+
+    return {
+      asin,
+      title,
+      url: pageUrl,
+      affiliateUrl,
+      finalPrice,
+      originalPrice,
+      discountPct,
+      currency: 'BRL',
+      availability: 'Available',
+      condition: 'New',
+      merchantName: 'Amazon',
+      images: { primary: imageUrl, variants: [] },
+      features: [],
+      rating: null,
+      totalReviews: null,
+      category: null,
+    };
+  } catch (err: any) {
+    console.error(`[Amazon Scraper] Erro ao fazer scraping do ASIN ${asin}: ${err.message}`);
+    return null;
+  }
+}
+
+/**
  * Busca um produto da Amazon a partir da URL (extrai ASIN e consulta a API)
  * Suporta URLs completas e curtas (amzn.to, amzn.com/dp/...)
+ * Fallback automático para scraper se a API retornar 403
  */
 export async function getAmazonProductByUrl(url: string): Promise<AmazonProduct | null> {
   let resolvedUrl = url;
 
   // URLs curtas precisam ser resolvidas para obter o ASIN
-  const isShortUrl = url.includes('amzn.to') || url.includes('amzn.com/') && !extractAsinFromUrl(url);
+  const isShortUrl = url.includes('amzn.to') || (url.includes('amzn.com/') && !extractAsinFromUrl(url));
   if (isShortUrl || !extractAsinFromUrl(url)) {
     resolvedUrl = await resolveAmazonShortUrl(url);
   }
@@ -389,6 +483,28 @@ export async function getAmazonProductByUrl(url: string): Promise<AmazonProduct 
   }
 
   console.log(`[Amazon API] ASIN extraído: ${asin}`);
-  const products = await getAmazonItems([asin]);
-  return products[0] || null;
+
+  const affiliateUrl = `https://www.amazon.com.br/dp/${asin}?tag=${PARTNER_TAG}`;
+
+  // Tenta a API oficial primeiro
+  if (isAmazonApiConfigured()) {
+    try {
+      const products = await getAmazonItems([asin]);
+      if (products[0]) {
+        console.log('[Amazon API] Produto encontrado via API oficial');
+        return products[0];
+      }
+    } catch (err: any) {
+      const is403 = err.message?.includes('403') || err.message?.includes('eligibility') || err.message?.includes('Forbidden');
+      if (is403) {
+        console.warn('[Amazon API] 403 Forbidden — conta sem elegibilidade. Usando scraper como fallback.');
+      } else {
+        console.warn(`[Amazon API] Erro na API: ${err.message}. Tentando scraper como fallback.`);
+      }
+    }
+  }
+
+  // Fallback: scraper direto da página
+  console.log(`[Amazon Scraper] Buscando produto via scraping: ${asin}`);
+  return scrapeAmazonProduct(asin, affiliateUrl);
 }
