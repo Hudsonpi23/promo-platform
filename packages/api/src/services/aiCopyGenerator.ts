@@ -155,13 +155,22 @@ function generateXCopy(input: CopyInputData): string {
   const priceNow = formatPrice(input.price);
   const titleMax = 100;
 
+  // Linha de pagamento para X
+  let paymentSuffix = '';
+  if (input.paymentMethod === 'pix') {
+    paymentSuffix = ' 💳 NO PIX';
+  } else if (input.paymentMethod === 'parcelado' && input.installments) {
+    const perInstallment = input.installmentValue ?? input.price / input.installments;
+    paymentSuffix = `\n💳 ${input.installments}x de ${formatPrice(perInstallment)} sem juros`;
+  }
+
   let text = '';
 
   if (input.oldPrice && input.oldPrice > input.price && input.discountPct > 0) {
     const discount = Math.round(input.discountPct);
-    text = `📦 ${shortTitle(input.title, titleMax)}\n\npor ${priceNow} 💰 -${discount}% DE DESCONTO\n\n👉 ${url}`;
+    text = `📦 ${shortTitle(input.title, titleMax)}\n\nDe ${formatPrice(input.oldPrice)} por ${priceNow} 🔥 -${discount}% OFF${paymentSuffix}\n\n👉 ${url}`;
   } else {
-    text = `📦 ${shortTitle(input.title, titleMax)}\n\npor ${priceNow}\n\n👉 ${url}`;
+    text = `📦 ${shortTitle(input.title, titleMax)}\n\npor ${priceNow}${paymentSuffix}\n\n👉 ${url}`;
   }
 
   if (input.couponCode) {
@@ -174,7 +183,10 @@ function generateXCopy(input: CopyInputData): string {
 
   if (text.length > CHAR_LIMITS.X) {
     const shorter = shortTitle(input.title, 60);
-    if (input.discountPct > 0) {
+    if (input.paymentMethod === 'parcelado' && input.installments) {
+      const perInstallment = input.installmentValue ?? input.price / input.installments;
+      text = `📦 ${shorter}\n${input.installments}x de ${formatPrice(perInstallment)}\n\n👉 ${url}`;
+    } else if (input.discountPct > 0) {
       text = `📦 ${shorter}\npor ${priceNow} (-${Math.round(input.discountPct)}%)\n\n👉 ${url}`;
     } else {
       text = `📦 ${shorter}\npor ${priceNow}\n\n👉 ${url}`;
