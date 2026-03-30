@@ -23,7 +23,7 @@ import {
 
 const CREDENTIAL_ID = process.env.AMAZON_CREDENTIAL_ID || '';
 const CREDENTIAL_SECRET = process.env.AMAZON_CREDENTIAL_SECRET || '';
-const CREDENTIAL_VERSION = process.env.AMAZON_CREDENTIAL_VERSION || '2.0';
+const CREDENTIAL_VERSION = process.env.AMAZON_CREDENTIAL_VERSION || '3.1';
 const PARTNER_TAG = process.env.AMAZON_PARTNER_TAG || 'manudaspromoc-20';
 const MARKETPLACE = process.env.AMAZON_MARKETPLACE || 'www.amazon.com.br';
 
