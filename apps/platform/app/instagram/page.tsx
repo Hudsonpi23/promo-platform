@@ -127,6 +127,11 @@ export default function InstagramPage() {
   } | null>(null);
   const [previewing, setPreviewing] = useState(false);
 
+  // URL import
+  const [urlInput, setUrlInput] = useState('');
+  const [urlLoading, setUrlLoading] = useState(false);
+  const [urlError, setUrlError] = useState('');
+
   // Jobs tab
   const [jobs, setJobs] = useState<InstagramJob[]>([]);
   const [jobsTotal, setJobsTotal] = useState(0);
@@ -149,8 +154,10 @@ export default function InstagramPage() {
         ]);
         const accData = await accRes.json();
         const offData = await offRes.json();
-        setAccounts(accData.accounts || []);
-        setOffers(offData.offers || offData || []);
+        setAccounts(Array.isArray(accData.accounts) ? accData.accounts : []);
+        const offerList = Array.isArray(offData.offers) ? offData.offers
+          : Array.isArray(offData) ? offData : [];
+        setOffers(offerList);
       } catch { /* silencioso */ }
     }
     setOffersLoading(true);
@@ -188,6 +195,54 @@ export default function InstagramPage() {
         .finally(() => setMetricsLoading(false));
     }
   }, [tab]);
+
+  // ── URL Import ──────────────────────────────────────────────────────────────
+
+  async function handleUrlImport() {
+    if (!urlInput.trim()) return;
+    setUrlLoading(true);
+    setUrlError('');
+    try {
+      const isAmazon = urlInput.includes('amazon.com') || urlInput.includes('amzn.to');
+      const endpoint = isAmazon
+        ? '/api/amazon/product-from-url'
+        : '/api/affiliates/search-ml';
+
+      const res = await fetchWithAuth(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({ url: urlInput.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Erro ao buscar produto');
+
+      // Normaliza resposta (Amazon e ML têm formatos ligeiramente diferentes)
+      const product = data.product || data;
+      if (!product?.title) throw new Error('Produto não encontrado nessa URL');
+
+      // Cria um Offer temporário na memória para enfileirar
+      const tempOffer: Offer = {
+        id: product.id || `url-${Date.now()}`,
+        title: product.title,
+        finalPrice: product.finalPrice ?? product.price ?? 0,
+        originalPrice: product.originalPrice ?? null,
+        discountPct: product.discountPct ?? 0,
+        imageUrl: product.imageUrl ?? product.mainImage ?? null,
+        mainImage: product.mainImage ?? product.imageUrl ?? null,
+        niche: product.niche,
+        store: product.store,
+      };
+
+      setSelectedOffer(tempOffer);
+      setPreviewData(null);
+      setEnqueueResult(null);
+      setUrlInput('');
+    } catch (err: any) {
+      setUrlError(err.message);
+    } finally {
+      setUrlLoading(false);
+    }
+  }
 
   // ── Preview ─────────────────────────────────────────────────────────────────
 
@@ -238,7 +293,7 @@ export default function InstagramPage() {
   }
 
   const filteredOffers = offers
-    .filter(o => o.title.toLowerCase().includes(search.toLowerCase()))
+    .filter(o => (o.title || '').toLowerCase().includes(search.toLowerCase()))
     .slice(0, 25);
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -290,9 +345,35 @@ export default function InstagramPage() {
             {/* Esquerda: seleção + ação */}
             <div className="space-y-5">
 
+              {/* Cole a URL */}
+              <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+                <h2 className="font-semibold text-gray-200 mb-1">🔗 Cole a URL do Produto</h2>
+                <p className="text-gray-500 text-xs mb-3">Amazon ou Mercado Livre — o sistema busca os dados automaticamente</p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="https://www.amazon.com.br/... ou https://produto.mercadolivre.com.br/..."
+                    value={urlInput}
+                    onChange={e => { setUrlInput(e.target.value); setUrlError(''); }}
+                    onKeyDown={e => e.key === 'Enter' && handleUrlImport()}
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    onClick={handleUrlImport}
+                    disabled={urlLoading || !urlInput.trim()}
+                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all flex-shrink-0"
+                  >
+                    {urlLoading ? '⏳' : '→'}
+                  </button>
+                </div>
+                {urlError && (
+                  <p className="text-red-400 text-xs mt-2">❌ {urlError}</p>
+                )}
+              </div>
+
               {/* Busca de oferta */}
               <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-                <h2 className="font-semibold text-gray-200 mb-4">🛍️ Selecionar Oferta</h2>
+                <h2 className="font-semibold text-gray-200 mb-4">🛍️ Ou Selecionar Oferta Salva</h2>
                 <input
                   type="text"
                   placeholder="Buscar oferta..."
