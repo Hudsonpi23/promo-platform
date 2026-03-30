@@ -348,15 +348,47 @@ export function extractAsinFromUrl(url: string): string | null {
 }
 
 /**
+ * Resolve URLs curtas (amzn.to, amzn.com) seguindo redirecionamentos
+ */
+async function resolveAmazonShortUrl(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+    });
+    if (res.url && res.url !== url) {
+      console.log(`[Amazon API] URL resolvida: ${url} → ${res.url}`);
+      return res.url;
+    }
+  } catch (err: any) {
+    console.warn(`[Amazon API] Falha ao resolver URL curta ${url}: ${err.message}`);
+  }
+  return url;
+}
+
+/**
  * Busca um produto da Amazon a partir da URL (extrai ASIN e consulta a API)
+ * Suporta URLs completas e curtas (amzn.to, amzn.com/dp/...)
  */
 export async function getAmazonProductByUrl(url: string): Promise<AmazonProduct | null> {
-  const asin = extractAsinFromUrl(url);
+  let resolvedUrl = url;
+
+  // URLs curtas precisam ser resolvidas para obter o ASIN
+  const isShortUrl = url.includes('amzn.to') || url.includes('amzn.com/') && !extractAsinFromUrl(url);
+  if (isShortUrl || !extractAsinFromUrl(url)) {
+    resolvedUrl = await resolveAmazonShortUrl(url);
+  }
+
+  const asin = extractAsinFromUrl(resolvedUrl);
   if (!asin) {
-    console.error('[Amazon API] ASIN não encontrado na URL:', url);
+    console.error('[Amazon API] ASIN não encontrado. URL original:', url, '| URL resolvida:', resolvedUrl);
     return null;
   }
 
+  console.log(`[Amazon API] ASIN extraído: ${asin}`);
   const products = await getAmazonItems([asin]);
   return products[0] || null;
 }

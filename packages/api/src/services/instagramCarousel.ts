@@ -250,24 +250,58 @@ export function isCanvasAvailable(): boolean { return !!createCanvas; }
 
 // Carrega imagem com fallback de headers de browser (resolve bloqueios de CORS/hotlink)
 async function loadImageSafe(url: string): Promise<any | null> {
+  const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+  // Detecta origem para Referer correto
+  const isML = url.includes('mlstatic.com') || url.includes('mercadolivre') || url.includes('mercadolibre');
+  const referer = isML ? 'https://www.mercadolivre.com.br/' : 'https://www.google.com/';
+
   // Tentativa 1: carregamento direto
   try {
     return await loadImage(url);
-  } catch { /* falhou sem headers */ }
+  } catch { /* segue para tentativa com headers */ }
 
-  // Tentativa 2: baixa como buffer com headers de browser
+  // Tentativa 2: buffer via fetch com headers de browser (sem WebP)
   try {
     const res = await fetch(url, {
+      redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
-        'Referer': 'https://www.google.com/',
+        'User-Agent': USER_AGENT,
+        'Accept': 'image/jpeg,image/png,image/gif,image/*;q=0.9,*/*;q=0.8',
+        'Referer': referer,
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[loadImageSafe] HTTP ${res.status} para URL: ${url}`);
+      return null;
+    }
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('webp')) {
+      console.warn(`[loadImageSafe] Servidor retornou WebP (não suportado pelo canvas): ${url}`);
+      // Tentativa 3: força JPEG adicionando ?format=jpg (funciona em CDNs como mlstatic)
+      const jpgUrl = url.includes('?') ? `${url}&format=jpg` : `${url}?format=jpg`;
+      try {
+        const res2 = await fetch(jpgUrl, {
+          redirect: 'follow',
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Accept': 'image/jpeg,image/png,image/*;q=0.9',
+            'Referer': referer,
+          },
+        });
+        if (res2.ok && !((res2.headers.get('content-type') || '').includes('webp'))) {
+          const buf2 = Buffer.from(await res2.arrayBuffer());
+          return await loadImage(buf2);
+        }
+      } catch { /* sem formato forçado */ }
+      // Última alternativa: mesmo com WebP, tenta passar o buffer (pode funcionar em versões mais novas)
+    }
     const buf = Buffer.from(await res.arrayBuffer());
     return await loadImage(buf);
-  } catch {
+  } catch (err: any) {
+    console.error(`[loadImageSafe] Falha total ao carregar imagem: ${url} — ${err.message}`);
     return null;
   }
 }
