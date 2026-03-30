@@ -239,6 +239,9 @@ function getUrgencyCTA(finalPrice: number): string {
   return CTAS_URGENCY[Math.floor(finalPrice) % CTAS_URGENCY.length];
 }
 
+// URL permanente da personagem Manu (Cloudinary)
+const MANU_CHARACTER_URL = 'https://res.cloudinary.com/dmdiipxhb/image/upload/v1774907744/promo-platform/brand/manu-personagem.jpg';
+
 // ── Helpers de desenho ─────────────────────────────────────────────────────────
 
 export function isCanvasAvailable(): boolean { return !!createCanvas; }
@@ -317,6 +320,20 @@ function drawManuBrand(ctx: any, y: number, c: ThemeColors) {
   ctx.font = '22px sans-serif';
   ctx.fillStyle = c.subText;
   ctx.fillText('manu-promocoes.com.br', W / 2, y + 40);
+}
+
+async function drawManuWatermark(ctx: any, alpha = 0.18) {
+  try {
+    const img = await loadImage(MANU_CHARACTER_URL);
+    // Posiciona no canto inferior esquerdo, ~200px de largura
+    const wSize = 220;
+    const ratio = img.height / img.width;
+    const hSize = wSize * ratio;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, 20, H - hSize - 10, wSize, hSize);
+    ctx.restore();
+  } catch { /* silencia se não carregar */ }
 }
 
 function drawDivider(ctx: any, y: number, c: ThemeColors) {
@@ -434,6 +451,9 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   priceShockLines.slice(0, 2).forEach((line, i) => {
     ctx.fillText(line, W / 2, priceY + i * 64);
   });
+
+  // Marca d'água Manu (canto inferior esquerdo, sutil)
+  await drawManuWatermark(ctx, 0.18);
 
   // Swipe hint
   ctx.font = '26px sans-serif';
@@ -589,6 +609,9 @@ async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buf
     drawManuBrand(ctx, 920, c);
   }
 
+  // Marca d'água Manu
+  await drawManuWatermark(ctx, 0.18);
+
   // Swipe hint (comum a ambos os casos)
   ctx.font = '26px sans-serif';
   ctx.fillStyle = c.subText;
@@ -693,97 +716,135 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
   ctx.textBaseline = 'middle';
   ctx.fillText('⚠️  SE SUMIR, NÃO VOLTA', W / 2, 940);
 
+  // Marca d'água Manu
+  await drawManuWatermark(ctx, 0.18);
+
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 4: Branding Manu + CTA Final ────────────────────────────────────────
+// ── SLIDE 4: Branding Manu — personagem como fundo ────────────────────────────
 
 async function generateSlide4(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d') as any;
 
-  const bgGrad = ctx.createRadialGradient(W / 2, H / 2, 100, W / 2, H / 2, 700);
-  bgGrad.addColorStop(0, c.bgRadialFrom);
-  bgGrad.addColorStop(1, c.bgRadialTo);
+  // Fundo base com gradiente
+  const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+  bgGrad.addColorStop(0, c.bgFrom);
+  bgGrad.addColorStop(1, c.bgTo);
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, W, H);
 
-  // Círculos decorativos
-  ctx.strokeStyle = c.decorCircle;
-  ctx.lineWidth = 2;
-  for (let i = 0; i < 4; i++) {
-    ctx.beginPath();
-    ctx.arc(W / 2, H / 2, 200 + i * 80, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  // Avatar da Manu
-  const avatarSize = 200;
-  const avatarX = W / 2 - avatarSize / 2;
-  const avatarY = 160;
-
+  // Personagem Manu como fundo — lado esquerdo, alta opacidade
   try {
-    const avatarImg = await loadImage('https://www.manu-promocoes.com.br/manu-avatar.png');
-    ctx.fillStyle = c.accent;
-    ctx.beginPath();
-    ctx.arc(W / 2, avatarY + avatarSize / 2, avatarSize / 2 + 8, 0, Math.PI * 2);
-    ctx.fill();
+    const charImg = await loadImage(MANU_CHARACTER_URL);
+    // Escala para cobrir a metade esquerda do slide, com altura total
+    const charH = H;
+    const charW = charH * (charImg.width / charImg.height);
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(W / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+    ctx.globalAlpha = 0.90;
+    // Posiciona à esquerda, levemente cortada
+    ctx.drawImage(charImg, -charW * 0.05, 0, charW, charH);
     ctx.restore();
+
+    // Overlay gradiente da direita para cobrir o texto (legibilidade)
+    const overlayGrad = ctx.createLinearGradient(W * 0.35, 0, W, 0);
+    overlayGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    overlayGrad.addColorStop(0.4, c.bgFrom + 'cc');
+    overlayGrad.addColorStop(1, c.bgTo + 'ff');
+    ctx.fillStyle = overlayGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Overlay escuro no topo e rodapé para os textos
+    const topFade = ctx.createLinearGradient(0, 0, 0, 200);
+    topFade.addColorStop(0, c.bgTo + 'dd');
+    topFade.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = topFade;
+    ctx.fillRect(0, 0, W, 200);
+
+    const botFade = ctx.createLinearGradient(0, H - 280, 0, H);
+    botFade.addColorStop(0, 'rgba(0,0,0,0)');
+    botFade.addColorStop(1, c.bgTo + 'ee');
+    ctx.fillStyle = botFade;
+    ctx.fillRect(0, H - 280, W, 280);
   } catch {
-    ctx.fillStyle = c.accent;
-    ctx.beginPath();
-    ctx.arc(W / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.font = `${avatarSize * 0.5}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🛍️', W / 2, avatarY + avatarSize / 2);
+    // Fallback: fundo puro com círculos decorativos
+    ctx.strokeStyle = c.decorCircle;
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 200 + i * 80, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
+  // ── Nome da Manu — topo ────────────────────────────────────────────────────
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = 'bold 52px sans-serif';
-  ctx.fillStyle = c.text;
-  ctx.fillText('Manu das Promoções', W / 2, 460);
+  ctx.font = 'bold 58px sans-serif';
+  ctx.fillStyle = '#ffffff';
+  // Sombra para legibilidade
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 12;
+  ctx.fillText('Manu das Promoções', W / 2, 80);
 
-  ctx.font = '32px sans-serif';
-  ctx.fillStyle = c.subText;
-  ctx.fillText('As melhores ofertas do Brasil', W / 2, 520);
+  ctx.font = '34px sans-serif';
+  ctx.fillStyle = c.accent;
+  ctx.fillText('As melhores ofertas do Brasil 🛍️', W / 2, 140);
+  ctx.shadowBlur = 0;
 
-  drawDivider(ctx, 580, c);
-
-  // Redes sociais
+  // ── Redes sociais — lado direito (metade direita do slide) ─────────────────
   const socials = [
     { icon: '📸', label: '@manupromocao' },
     { icon: '✈️', label: 't.me/manupromocao' },
     { icon: '🌐', label: 'manu-promocoes.com.br' },
   ];
+
   socials.forEach((s, i) => {
-    ctx.font = '32px sans-serif';
-    ctx.fillStyle = c.subText;
+    const y = 520 + i * 80;
+    // Box de fundo semi-transparente
+    const bW = 480;
+    const bH = 64;
+    const bX = W / 2 + 20;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    roundRect(ctx, bX - bW / 2, y - bH / 2, bW, bH, 16);
+    ctx.fill();
+
+    ctx.font = 'bold 34px sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = 6;
     ctx.textAlign = 'center';
-    ctx.fillText(`${s.icon}  ${s.label}`, W / 2, 650 + i * 62);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${s.icon}  ${s.label}`, bX, y);
+    ctx.shadowBlur = 0;
   });
 
+  // ── CTA final ─────────────────────────────────────────────────────────────
   drawDivider(ctx, 860, c);
 
-  // CTA final — 2 linhas de urgência
-  ctx.font = 'bold 34px sans-serif';
-  ctx.fillStyle = c.accent;
+  // Botão CTA
+  const ctaW = 860;
+  const ctaH = 88;
+  const ctaX = (W - ctaW) / 2;
+  const ctaY = 890;
+  const ctaGrad = ctx.createLinearGradient(ctaX, ctaY, ctaX + ctaW, ctaY);
+  ctaGrad.addColorStop(0, c.ctaBg1);
+  ctaGrad.addColorStop(1, c.ctaBg2);
+  ctx.fillStyle = ctaGrad;
+  roundRect(ctx, ctaX, ctaY, ctaW, ctaH, 22);
+  ctx.fill();
+
+  ctx.font = 'bold 38px sans-serif';
+  ctx.fillStyle = c.ctaText;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🔗 Link na bio para pegar a oferta', W / 2, 910);
+  ctx.shadowBlur = 0;
+  ctx.fillText('🔗 LINK NA BIO PARA PEGAR A OFERTA', W / 2, ctaY + ctaH / 2);
 
-  ctx.font = 'bold 28px sans-serif';
+  ctx.font = 'bold 26px sans-serif';
   ctx.fillStyle = c.strikeFg;
-  ctx.fillText('⏰ SE SUMIR, NÃO VOLTA', W / 2, 962);
-
-  drawManuBrand(ctx, 1018, c);
+  ctx.fillText('⏰ SE SUMIR, NÃO VOLTA', W / 2, 1010);
 
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
