@@ -239,7 +239,12 @@ export default function InstagramPage() {
     try {
       const res = await fetchWithAuth('/api/instagram/publish-now', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim(), caption: caption.trim() || undefined }),
+        body: JSON.stringify({
+          url: url.trim(),
+          caption: caption.trim() || undefined,
+          // Passa os slides já gerados para evitar regenerar
+          slideUrls: slides?.slideUrls?.length ? slides.slideUrls : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao publicar.'); return; }
