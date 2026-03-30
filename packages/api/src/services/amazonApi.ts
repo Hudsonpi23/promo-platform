@@ -23,7 +23,7 @@ import {
 
 const CREDENTIAL_ID = process.env.AMAZON_CREDENTIAL_ID || '';
 const CREDENTIAL_SECRET = process.env.AMAZON_CREDENTIAL_SECRET || '';
-const CREDENTIAL_VERSION = process.env.AMAZON_CREDENTIAL_VERSION || '3.1';
+const CREDENTIAL_VERSION = process.env.AMAZON_CREDENTIAL_VERSION || '2.0';
 const PARTNER_TAG = process.env.AMAZON_PARTNER_TAG || 'manudaspromoc-20';
 const MARKETPLACE = process.env.AMAZON_MARKETPLACE || 'www.amazon.com.br';
 
@@ -122,17 +122,15 @@ function parseProduct(item: any): AmazonProduct | null {
     let primaryImage: string | null = null;
     const variantImages: string[] = [];
 
-    if (item.images?.primary?.highRes?.url) {
-      primaryImage = item.images.primary.highRes.url;
+    if (item.images?.primary?.large?.url) {
+      primaryImage = item.images.primary.large.url;
     } else if (item.images?.primary?.medium?.url) {
       primaryImage = item.images.primary.medium.url;
-    } else if (item.images?.primary?.small?.url) {
-      primaryImage = item.images.primary.small.url;
     }
 
     if (item.images?.variants) {
       for (const v of item.images.variants) {
-        const url = v.highRes?.url || v.medium?.url;
+        const url = v.large?.url || v.medium?.url;
         if (url) variantImages.push(url);
       }
     }
@@ -214,12 +212,10 @@ function extractErrorDetail(err: any): string {
 
 // ==================== RESOURCES ====================
 
-// Enum válido da Amazon Creators API v3 — campos "large" não existem, usar "highRes"
 const ITEM_RESOURCES = [
-  'images.primary.highRes',
+  'images.primary.large',
   'images.primary.medium',
-  'images.primary.small',
-  'images.variants.highRes',
+  'images.variants.large',
   'images.variants.medium',
   'itemInfo.title',
   'itemInfo.features',
@@ -231,13 +227,13 @@ const ITEM_RESOURCES = [
   'offersV2.listings.merchantInfo',
   'customerReviews.starRating',
   'customerReviews.count',
-  'browseNodeInfo.browseNodes',
+  'browseNodeInfo.browseNodes',        // era browseNodeInfo.browseNodes.displayName (inválido)
 ];
 
 const SEARCH_RESOURCES = [
-  'images.primary.highRes',
+  'images.primary.large',
   'images.primary.medium',
-  'images.variants.highRes',
+  'images.variants.large',
   'itemInfo.title',
   'itemInfo.features',
   'offersV2.listings.price',
