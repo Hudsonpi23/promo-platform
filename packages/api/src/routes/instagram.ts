@@ -312,7 +312,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           affiliateUrl: productData.affiliateUrl,
         });
 
-        // 4. Publicar via Postfor.me
+        // 4. Publicar via Postfor.me — ponto crítico, sem try/catch aqui
         console.log(`[publish-now] Publicando para conta ${accountIdToUse} com ${slideUrls.length} slides`);
         const publishResult = await publishCarousel({
           caption,
@@ -324,34 +324,44 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           return reply.status(502).send({ error: `Postfor.me: ${publishResult.error || 'falha desconhecida'}` });
         }
 
-        // 5. Salvar no banco
-        const [store, niche] = await Promise.all([
-          upsertStore(isAmazon ? 'Amazon' : 'Mercado Livre', isAmazon ? 'amazon' : 'mercadolivre'),
-          upsertNiche('Geral', 'geral', '🛍️'),
-        ]);
-        const offer = await findOrCreateOffer(productData, store.id, niche.id);
-        await prisma.instagramJob.create({
-          data: {
-            offerId: offer.id,
-            status: 'SUCCESS',
-            format: 'CAROUSEL',
-            slideUrls,
-            captionUsed: caption,
-            postformePostId: publishResult.postId,
-            postformeStatus: publishResult.status,
-            accountId: accountIdToUse,
-            triggeredBy: 'manual',
-            publishedAt: new Date(),
-            attempts: 1,
-          },
-        });
-
-        return reply.send({
+        // ✅ POST PUBLICADO COM SUCESSO — retorna ao frontend IMEDIATAMENTE
+        // O salvamento no banco é feito em background e não pode afetar a resposta.
+        // Isso evita o bug: "plataforma diz erro mas post foi ao ar"
+        reply.send({
           success: true,
           slideUrls,
           postId: publishResult.postId,
           caption,
         });
+
+        // 5. Salvar no banco em background (falha silenciosa — não bloqueia o usuário)
+        try {
+          const [store, niche] = await Promise.all([
+            upsertStore(isAmazon ? 'Amazon' : 'Mercado Livre', isAmazon ? 'amazon' : 'mercadolivre'),
+            upsertNiche('Geral', 'geral', '🛍️'),
+          ]);
+          const offer = await findOrCreateOffer(productData, store.id, niche.id);
+          await prisma.instagramJob.create({
+            data: {
+              offerId: offer.id,
+              status: 'SUCCESS',
+              format: 'CAROUSEL',
+              slideUrls,
+              captionUsed: caption,
+              postformePostId: publishResult.postId,
+              postformeStatus: publishResult.status,
+              accountId: accountIdToUse,
+              triggeredBy: 'manual',
+              publishedAt: new Date(),
+              attempts: 1,
+              carouselTheme: (theme as string) || 'dark',
+            },
+          });
+          console.log(`[publish-now] ✅ Job salvo no banco (postId: ${publishResult.postId})`);
+        } catch (dbErr: any) {
+          // Não propaga o erro — o post JÁ foi publicado com sucesso
+          console.error('[publish-now] ⚠️  Falha ao salvar no banco (post já publicado):', dbErr.message);
+        }
       } catch (err: any) {
         console.error('[publish-now] erro:', err);
         return reply.status(500).send({ error: err.message || 'Erro interno ao publicar' });
