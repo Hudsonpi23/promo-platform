@@ -153,7 +153,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           if (prod) {
             productData = {
               title: prod.title,
-              finalPrice: prod.finalPrice ?? prod.price,
+              finalPrice: prod.finalPrice,
               originalPrice: (prod as any).originalPrice ?? null,
               discountPct: (prod as any).discountPct ?? 0,
               imageUrl: prod.images?.primary ?? null,
@@ -212,11 +212,11 @@ export async function instagramRoutes(fastify: FastifyInstance) {
       });
 
       // Enfileira job
-      const job = await enqueueInstagramJob(offer.id, accountIdToUse, 'manual');
+      const jobId = await enqueueInstagramJob({ offerId: offer.id, accountId: accountIdToUse, triggeredBy: 'manual' });
 
       return reply.send({
         success: true,
-        jobId: job.id,
+        jobId,
         offerId: offer.id,
         product: {
           title: productData.title,
