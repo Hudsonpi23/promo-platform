@@ -5,74 +5,48 @@ import { fetchWithAuth } from '@/lib/auth';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-interface Offer {
-  id: string;
+type JobStatus =
+  | 'PENDING' | 'SCORING' | 'RENDERING' | 'UPLOADING'
+  | 'PUBLISHING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+
+interface ProductPreview {
   title: string;
   finalPrice: number;
   originalPrice: number | null;
   discountPct: number;
   imageUrl: string | null;
-  mainImage: string | null;
-  niche?: { name: string };
-  store?: { name: string };
+  source: 'amazon' | 'mercadolivre';
 }
 
 interface InstagramJob {
   id: string;
   status: JobStatus;
-  format: 'CAROUSEL' | 'REEL' | 'STORY';
+  format: string;
   aiScore: number | null;
-  aiReasoning: string | null;
-  aiChosenFormat: string | null;
-  aiCaption: string | null;
   slideUrls: string[];
   captionUsed: string | null;
-  postformePostId: string | null;
-  postformeStatus: string | null;
+  errorMessage: string | null;
   attempts: number;
   maxAttempts: number;
-  errorMessage: string | null;
   nextRetryAt: string | null;
   publishedAt: string | null;
   createdAt: string;
-  triggeredBy: string;
   metricViews: number;
   metricLikes: number;
   metricSaves: number;
-  metricReach: number;
   offer?: {
-    id: string;
     title: string;
     finalPrice: number;
-    discountPct: number;
     mainImage: string | null;
     imageUrl: string | null;
   };
 }
 
-interface MetricsSummary {
-  summary: {
-    totalPublished: number;
-    totalViews: number;
-    totalLikes: number;
-    totalSaves: number;
-  };
-  statusBreakdown: Record<string, number>;
-  topPosts: InstagramJob[];
-  recent: InstagramJob[];
-}
-
-type JobStatus =
-  | 'PENDING' | 'SCORING' | 'RENDERING' | 'UPLOADING'
-  | 'PUBLISHING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
-
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
-// fetchWithAuth already prepends NEXT_PUBLIC_API_URL — use relative paths only
 
 function fmtPrice(v?: number | null) {
   if (!v) return '—';
-  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: v % 1 !== 0 ? 2 : 0 });
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
 function timeAgo(iso: string) {
@@ -86,205 +60,179 @@ function timeAgo(iso: string) {
 }
 
 const STATUS_CONFIG: Record<JobStatus, { label: string; color: string; bg: string; dot: string; spin?: boolean }> = {
-  PENDING:    { label: 'Na fila',    color: 'text-slate-300',  bg: 'bg-slate-800',   dot: 'bg-slate-400' },
-  SCORING:    { label: 'IA Score',   color: 'text-purple-300', bg: 'bg-purple-900/40', dot: 'bg-purple-400', spin: true },
-  RENDERING:  { label: 'Gerando',    color: 'text-blue-300',   bg: 'bg-blue-900/40', dot: 'bg-blue-400',   spin: true },
-  UPLOADING:  { label: 'Upload',     color: 'text-cyan-300',   bg: 'bg-cyan-900/40', dot: 'bg-cyan-400',   spin: true },
-  PUBLISHING: { label: 'Publicando', color: 'text-orange-300', bg: 'bg-orange-900/40',dot: 'bg-orange-400',spin: true },
-  SUCCESS:    { label: 'Publicado',  color: 'text-green-300',  bg: 'bg-green-900/40',dot: 'bg-green-400' },
-  FAILED:     { label: 'Falhou',     color: 'text-red-300',    bg: 'bg-red-900/40',  dot: 'bg-red-400' },
-  CANCELLED:  { label: 'Cancelado',  color: 'text-gray-400',   bg: 'bg-gray-800',    dot: 'bg-gray-500' },
+  PENDING:    { label: 'Na fila',    color: 'text-slate-300',   bg: 'bg-slate-800',      dot: 'bg-slate-400' },
+  SCORING:    { label: 'IA avaliando', color: 'text-purple-300', bg: 'bg-purple-900/40', dot: 'bg-purple-400', spin: true },
+  RENDERING:  { label: 'Gerando slides', color: 'text-blue-300', bg: 'bg-blue-900/40',   dot: 'bg-blue-400',   spin: true },
+  UPLOADING:  { label: 'Enviando',   color: 'text-cyan-300',    bg: 'bg-cyan-900/40',    dot: 'bg-cyan-400',   spin: true },
+  PUBLISHING: { label: 'Publicando', color: 'text-orange-300',  bg: 'bg-orange-900/40',  dot: 'bg-orange-400', spin: true },
+  SUCCESS:    { label: '✅ Publicado', color: 'text-green-300',  bg: 'bg-green-900/40',   dot: 'bg-green-400' },
+  FAILED:     { label: '❌ Falhou',   color: 'text-red-300',    bg: 'bg-red-900/40',     dot: 'bg-red-400' },
+  CANCELLED:  { label: 'Cancelado',  color: 'text-gray-400',    bg: 'bg-gray-800',        dot: 'bg-gray-500' },
 };
 
 function StatusBadge({ status }: { status: JobStatus }) {
   const c = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${c.bg} ${c.color}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${c.bg} ${c.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${c.dot} ${c.spin ? 'animate-pulse' : ''}`} />
       {c.label}
     </span>
   );
 }
 
-// ── Tabs ───────────────────────────────────────────────────────────────────────
-
-type Tab = 'enqueue' | 'jobs' | 'metrics';
-
 // ══════════════════════════════════════════════════════════════════════════════
+
 export default function InstagramPage() {
-  const [tab, setTab] = useState<Tab>('enqueue');
   const [accounts, setAccounts] = useState<Array<{ id: string; name: string; username?: string }>>([]);
-  const [offers, setOffers] = useState<Offer[]>([]);
-  const [offersLoading, setOffersLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
-  const [enqueueing, setEnqueueing] = useState(false);
-  const [enqueueResult, setEnqueueResult] = useState<{ success: boolean; jobId?: string; error?: string } | null>(null);
-  const [previewData, setPreviewData] = useState<{
-    slideUrls: string[];
-    caption: string;
-    ai: { score: number; format: string; shouldPublish: boolean; reasoning: string };
-  } | null>(null);
-  const [previewing, setPreviewing] = useState(false);
 
-  // URL import
-  const [urlInput, setUrlInput] = useState('');
-  const [urlLoading, setUrlLoading] = useState(false);
-  const [urlError, setUrlError] = useState('');
+  // URL input → produto → publicar
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [product, setProduct] = useState<ProductPreview | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
-  // Jobs tab
+  // Fila
   const [jobs, setJobs] = useState<InstagramJob[]>([]);
-  const [jobsTotal, setJobsTotal] = useState(0);
   const [jobsLoading, setJobsLoading] = useState(false);
-  const [jobFilter, setJobFilter] = useState<JobStatus | ''>('');
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
 
-  // Metrics tab
-  const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
-  const [metricsLoading, setMetricsLoading] = useState(false);
-
-  // ── Load inicial ────────────────────────────────────────────────────────────
+  // ── Load contas ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [accRes, offRes] = await Promise.all([
-          fetchWithAuth('/api/instagram/accounts'),
-          fetchWithAuth('/api/offers?limit=100&status=ACTIVE'),
-        ]);
-        const accData = await accRes.json();
-        const offData = await offRes.json();
-        setAccounts(Array.isArray(accData.accounts) ? accData.accounts : []);
-        const offerList = Array.isArray(offData.offers) ? offData.offers
-          : Array.isArray(offData) ? offData : [];
-        setOffers(offerList);
-      } catch { /* silencioso */ }
-    }
-    setOffersLoading(true);
-    load().finally(() => setOffersLoading(false));
+    fetchWithAuth('/api/instagram/accounts')
+      .then(r => r.json())
+      .then(d => setAccounts(Array.isArray(d.accounts) ? d.accounts : []))
+      .catch(() => {});
   }, []);
 
-  // Auto-refresh jobs quando tab estiver aberta
+  // ── Fila de jobs ─────────────────────────────────────────────────────────────
+
   const loadJobs = useCallback(async () => {
     setJobsLoading(true);
     try {
-      const url = `/api/instagram/jobs${jobFilter ? `?status=${jobFilter}` : ''}`;
-      const res = await fetchWithAuth(url);
+      const res = await fetchWithAuth('/api/instagram/jobs');
       const data = await res.json();
-      setJobs(data.jobs || []);
-      setJobsTotal(data.total || 0);
+      setJobs(Array.isArray(data.jobs) ? data.jobs : []);
     } catch { /* silencioso */ }
     finally { setJobsLoading(false); }
-  }, [jobFilter]);
+  }, []);
 
   useEffect(() => {
-    if (tab === 'jobs') {
-      loadJobs();
-      const t = setInterval(loadJobs, 8000); // refresh a cada 8s
-      return () => clearInterval(t);
-    }
-  }, [tab, loadJobs]);
+    loadJobs();
+    const t = setInterval(loadJobs, 8000);
+    return () => clearInterval(t);
+  }, [loadJobs]);
 
-  useEffect(() => {
-    if (tab === 'metrics') {
-      setMetricsLoading(true);
-      fetchWithAuth('/api/instagram/metrics')
-        .then(r => r.json())
-        .then(setMetrics)
-        .catch(() => {})
-        .finally(() => setMetricsLoading(false));
-    }
-  }, [tab]);
+  // ── Buscar produto pela URL ──────────────────────────────────────────────────
 
-  // ── URL Import ──────────────────────────────────────────────────────────────
+  async function handleFetchProduct() {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    setLoading(true);
+    setError('');
+    setProduct(null);
+    setJobId(null);
 
-  async function handleUrlImport() {
-    if (!urlInput.trim()) return;
-    setUrlLoading(true);
-    setUrlError('');
     try {
-      const isAmazon = urlInput.includes('amazon.com') || urlInput.includes('amzn.to');
-      const endpoint = isAmazon
-        ? '/api/amazon/product-from-url'
-        : '/api/affiliates/search-ml';
+      const isAmazon = trimmed.includes('amazon.com') || trimmed.includes('amzn');
+      const isML = trimmed.includes('mercadolivre.com') || trimmed.includes('mercadolibre.com');
+
+      if (!isAmazon && !isML) {
+        setError('Cole uma URL da Amazon ou do Mercado Livre');
+        return;
+      }
+
+      // Chama o endpoint unificado — ele busca o produto, salva e retorna preview
+      // Não publica ainda: usamos o from-url só para preview aqui,
+      // e o botão "Publicar" faz a publicação de fato
+      const isAmazonUrl = isAmazon;
+      const endpoint = isAmazonUrl ? '/api/amazon/product-from-url' : '/api/affiliates/generate';
 
       const res = await fetchWithAuth(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ url: urlInput.trim() }),
+        body: JSON.stringify({ url: trimmed }),
       });
       const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || 'Erro ao buscar produto');
+      if (!res.ok) {
+        setError(data.error || 'Não foi possível buscar o produto. Verifique a URL.');
+        return;
+      }
 
-      // Normaliza resposta (Amazon e ML têm formatos ligeiramente diferentes)
-      const product = data.product || data;
-      if (!product?.title) throw new Error('Produto não encontrado nessa URL');
+      // Normaliza resposta (Amazon vs ML têm formatos diferentes)
+      let prod: ProductPreview | null = null;
 
-      // Cria um Offer temporário na memória para enfileirar
-      const tempOffer: Offer = {
-        id: product.id || `url-${Date.now()}`,
-        title: product.title,
-        finalPrice: product.finalPrice ?? product.price ?? 0,
-        originalPrice: product.originalPrice ?? null,
-        discountPct: product.discountPct ?? 0,
-        imageUrl: product.imageUrl ?? product.mainImage ?? null,
-        mainImage: product.mainImage ?? product.imageUrl ?? null,
-        niche: product.niche,
-        store: product.store,
-      };
+      if (isAmazonUrl) {
+        const p = data.product;
+        if (p?.title) {
+          prod = {
+            title: p.title,
+            finalPrice: p.finalPrice ?? p.price ?? 0,
+            originalPrice: p.originalPrice ?? null,
+            discountPct: p.discountPct ?? 0,
+            imageUrl: p.images?.primary ?? null,
+            source: 'amazon',
+          };
+        }
+      } else {
+        const p = data.data?.product;
+        if (p?.title) {
+          prod = {
+            title: p.title,
+            finalPrice: p.price ?? 0,
+            originalPrice: p.original_price ?? null,
+            discountPct: p.discount_percentage ?? 0,
+            imageUrl: p.thumbnail ?? null,
+            source: 'mercadolivre',
+          };
+        }
+      }
 
-      setSelectedOffer(tempOffer);
-      setPreviewData(null);
-      setEnqueueResult(null);
-      setUrlInput('');
+      if (!prod) {
+        setError('Produto não encontrado nessa URL. Tente outra URL.');
+        return;
+      }
+
+      setProduct(prod);
     } catch (err: any) {
-      setUrlError(err.message);
+      setError('Erro de conexão. Tente novamente.');
     } finally {
-      setUrlLoading(false);
+      setLoading(false);
     }
   }
 
-  // ── Preview ─────────────────────────────────────────────────────────────────
+  // ── Publicar no Instagram ────────────────────────────────────────────────────
 
-  async function handlePreview() {
-    if (!selectedOffer) return;
-    setPreviewing(true);
-    setPreviewData(null);
+  async function handlePublish() {
+    if (!url.trim()) return;
+    setPublishing(true);
+    setError('');
     try {
-      const res = await fetchWithAuth(`/api/instagram/carousel/preview/${selectedOffer.id}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || 'Erro ao gerar preview');
-      setPreviewData(data);
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setPreviewing(false);
-    }
-  }
-
-  // ── Enqueue ─────────────────────────────────────────────────────────────────
-
-  async function handleEnqueue() {
-    if (!selectedOffer) return;
-    setEnqueueing(true);
-    setEnqueueResult(null);
-    try {
-      const res = await fetchWithAuth(`/api/instagram/enqueue/${selectedOffer.id}`, {
+      const res = await fetchWithAuth('/api/instagram/from-url', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ triggeredBy: 'manual' }),
+        body: JSON.stringify({ url: url.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erro ao enfileirar');
-      setEnqueueResult({ success: true, jobId: data.jobId });
-    } catch (err: any) {
-      setEnqueueResult({ success: false, error: err.message });
+
+      if (!res.ok) {
+        setError(data.error || 'Erro ao publicar');
+        return;
+      }
+
+      setJobId(data.jobId);
+      setUrl('');
+      setProduct(null);
+      await loadJobs();
+    } catch {
+      setError('Erro de conexão. Tente novamente.');
     } finally {
-      setEnqueueing(false);
+      setPublishing(false);
     }
   }
 
-  // ── Cancel job ──────────────────────────────────────────────────────────────
+  // ── Cancel job ───────────────────────────────────────────────────────────────
 
   async function handleCancelJob(jobId: string) {
     if (!confirm('Cancelar este job?')) return;
@@ -292,557 +240,268 @@ export default function InstagramPage() {
     loadJobs();
   }
 
-  const filteredOffers = offers
-    .filter(o => (o.title || '').toLowerCase().includes(search.toLowerCase()))
-    .slice(0, 25);
+  // ── Render ───────────────────────────────────────────────────────────────────
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  const accountConnected = accounts.length > 0;
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
 
         {/* Header */}
-        <div className="flex items-center gap-4 mb-6">
+        <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-2xl shadow-lg">
             📸
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Instagram — Pipeline Inteligente</h1>
-            <p className="text-gray-400 text-sm">
-              {accounts.length > 0
-                ? `✅ @${accounts[0]?.username || 'manudaspromocoes'} conectado`
-                : '⚠️ Nenhuma conta conectada'}
+            <h1 className="text-2xl font-bold">Publicar no Instagram</h1>
+            <p className={`text-sm ${accountConnected ? 'text-green-400' : 'text-amber-400'}`}>
+              {accountConnected
+                ? `✅ @${accounts[0]?.username || 'manudasPromocoes'} conectado`
+                : '⚠️ Nenhuma conta Instagram conectada'}
             </p>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6 border-b border-gray-800 pb-0">
-          {([
-            { id: 'enqueue', label: '🚀 Enfileirar' },
-            { id: 'jobs',    label: '⚡ Fila de Jobs' },
-            { id: 'metrics', label: '📊 Métricas' },
-          ] as { id: Tab; label: string }[]).map(t => (
+        {/* ── STEP 1: Cole a URL ──────────────────────────────────────────── */}
+        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+          <h2 className="text-lg font-bold text-white mb-1">1. Cole a URL do produto</h2>
+          <p className="text-gray-400 text-sm mb-4">Amazon ou Mercado Livre — o sistema busca o produto automaticamente</p>
+
+          <div className="flex gap-3">
+            <input
+              type="url"
+              placeholder="https://www.amazon.com.br/... ou https://produto.mercadolivre.com.br/..."
+              value={url}
+              onChange={e => { setUrl(e.target.value); setError(''); setProduct(null); setJobId(null); }}
+              onKeyDown={e => e.key === 'Enter' && handleFetchProduct()}
+              className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+            />
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 text-sm font-semibold rounded-t-xl transition-all border-b-2 ${
-                tab === t.id
-                  ? 'border-purple-500 text-purple-300 bg-purple-900/20'
-                  : 'border-transparent text-gray-400 hover:text-white'
-              }`}
+              onClick={handleFetchProduct}
+              disabled={loading || !url.trim()}
+              className="px-5 py-3 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all whitespace-nowrap"
             >
-              {t.label}
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Buscando...
+                </span>
+              ) : '🔍 Buscar produto'}
             </button>
-          ))}
+          </div>
+
+          {error && (
+            <div className="mt-3 flex items-start gap-2 bg-red-950/50 border border-red-800 rounded-xl px-4 py-3">
+              <span className="text-red-400 text-sm">{error}</span>
+            </div>
+          )}
         </div>
 
-        {/* ══ TAB: ENQUEUE ══════════════════════════════════════════════════════ */}
-        {tab === 'enqueue' && (
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* ── STEP 2: Preview do produto + botão publicar ─────────────────── */}
+        {product && (
+          <div className="bg-gray-900 rounded-2xl border border-purple-800/60 p-6 space-y-5">
+            <h2 className="text-lg font-bold text-white">2. Confirme o produto</h2>
 
-            {/* Esquerda: seleção + ação */}
-            <div className="space-y-5">
-
-              {/* Cole a URL */}
-              <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-                <h2 className="font-semibold text-gray-200 mb-1">🔗 Cole a URL do Produto</h2>
-                <p className="text-gray-500 text-xs mb-3">Amazon ou Mercado Livre — o sistema busca os dados automaticamente</p>
-                <div className="flex gap-2">
-                  <input
-                    type="url"
-                    placeholder="https://www.amazon.com.br/... ou https://produto.mercadolivre.com.br/..."
-                    value={urlInput}
-                    onChange={e => { setUrlInput(e.target.value); setUrlError(''); }}
-                    onKeyDown={e => e.key === 'Enter' && handleUrlImport()}
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500"
-                  />
-                  <button
-                    onClick={handleUrlImport}
-                    disabled={urlLoading || !urlInput.trim()}
-                    className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all flex-shrink-0"
-                  >
-                    {urlLoading ? '⏳' : '→'}
-                  </button>
-                </div>
-                {urlError && (
-                  <p className="text-red-400 text-xs mt-2">❌ {urlError}</p>
-                )}
-              </div>
-
-              {/* Busca de oferta */}
-              <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-                <h2 className="font-semibold text-gray-200 mb-4">🛍️ Ou Selecionar Oferta Salva</h2>
-                <input
-                  type="text"
-                  placeholder="Buscar oferta..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 mb-3"
+            {/* Card do produto */}
+            <div className="flex gap-4 bg-gray-800 rounded-xl p-4">
+              {product.imageUrl ? (
+                <img
+                  src={product.imageUrl}
+                  alt={product.title}
+                  className="w-24 h-24 object-contain rounded-xl bg-white flex-shrink-0"
                 />
-                {offersLoading ? (
-                  <p className="text-gray-500 text-sm text-center py-6">Carregando ofertas...</p>
-                ) : (
-                  <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                    {filteredOffers.map(offer => (
-                      <button
-                        key={offer.id}
-                        onClick={() => { setSelectedOffer(offer); setPreviewData(null); setEnqueueResult(null); }}
-                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                          selectedOffer?.id === offer.id
-                            ? 'border-purple-500 bg-purple-500/10'
-                            : 'border-gray-700 bg-gray-800 hover:border-gray-600'
-                        }`}
-                      >
-                        {(offer.mainImage || offer.imageUrl) ? (
-                          <img src={offer.mainImage || offer.imageUrl!} alt="" className="w-12 h-12 object-contain rounded-lg bg-white flex-shrink-0" />
-                        ) : (
-                          <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center text-xl flex-shrink-0">🛍️</div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-white truncate">{offer.title}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs font-bold text-amber-400">{fmtPrice(offer.finalPrice)}</span>
-                            {offer.discountPct > 0 && (
-                              <span className="text-xs bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full font-bold">
-                                -{offer.discountPct}%
-                              </span>
-                            )}
-                            {offer.store && <span className="text-xs text-gray-500">{offer.store.name}</span>}
-                          </div>
-                        </div>
-                        {selectedOffer?.id === offer.id && <span className="text-purple-400 text-sm flex-shrink-0">✓</span>}
-                      </button>
-                    ))}
-                    {filteredOffers.length === 0 && (
-                      <p className="text-gray-500 text-sm text-center py-6">Nenhuma oferta encontrada</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Ações */}
-              {selectedOffer && (
-                <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 space-y-3">
-                  <h2 className="font-semibold text-gray-200 mb-1">⚡ Ações</h2>
-
-                  {/* Preview */}
-                  <button
-                    onClick={handlePreview}
-                    disabled={previewing}
-                    className="w-full py-3 rounded-xl font-semibold text-sm bg-gray-700 hover:bg-gray-600 text-white transition-all disabled:opacity-50"
-                  >
-                    {previewing ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="animate-spin">⏳</span> Gerando preview...
+              ) : (
+                <div className="w-24 h-24 bg-gray-700 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">🛍️</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-white leading-snug line-clamp-3 mb-2">{product.title}</p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-2xl font-black text-amber-400">{fmtPrice(product.finalPrice)}</span>
+                  {product.discountPct > 0 && (
+                    <>
+                      {product.originalPrice && (
+                        <span className="text-gray-500 line-through text-sm">{fmtPrice(product.originalPrice)}</span>
+                      )}
+                      <span className="bg-orange-500/20 text-orange-400 text-sm font-bold px-2 py-0.5 rounded-full">
+                        -{product.discountPct}% OFF
                       </span>
-                    ) : '🔍 Ver Preview dos Slides + Score IA'}
-                  </button>
-
-                  {/* Enqueue */}
-                  <button
-                    onClick={handleEnqueue}
-                    disabled={enqueueing || !!enqueueResult?.success || accounts.length === 0}
-                    className={`w-full py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                      enqueueResult?.success
-                        ? 'bg-green-700 text-white'
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg'
-                    }`}
-                  >
-                    {enqueueing ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <span className="animate-spin">⏳</span> Enfileirando...
-                      </span>
-                    ) : enqueueResult?.success
-                      ? '✅ Enfileirado! Worker vai publicar em breve'
-                      : '🚀 Enfileirar para Instagram'}
-                  </button>
-
-                  {enqueueResult?.success && (
-                    <div className="bg-green-950/50 border border-green-800 rounded-xl p-3">
-                      <p className="text-green-300 text-sm font-semibold">✅ Job criado com sucesso!</p>
-                      <p className="text-green-400/70 text-xs mt-1">
-                        ID: <code className="font-mono">{enqueueResult.jobId}</code>
-                      </p>
-                      <p className="text-green-400/70 text-xs">
-                        A IA vai avaliar, gerar os slides e publicar automaticamente. Acompanhe em{' '}
-                        <button onClick={() => setTab('jobs')} className="underline text-green-300">Fila de Jobs</button>.
-                      </p>
-                    </div>
-                  )}
-
-                  {enqueueResult?.success === false && (
-                    <div className="bg-red-950/50 border border-red-800 rounded-xl p-3 text-red-300 text-sm">
-                      ❌ {enqueueResult.error}
-                    </div>
+                    </>
                   )}
                 </div>
-              )}
-
-              {/* Info */}
-              <div className="bg-blue-950/30 border border-blue-800/40 rounded-2xl p-4">
-                <p className="text-blue-300 text-xs font-semibold mb-2">💡 Como funciona</p>
-                <ol className="text-blue-400/80 text-xs space-y-1 leading-relaxed">
-                  <li>1. Selecione a oferta e clique em <strong className="text-blue-300">Enfileirar</strong></li>
-                  <li>2. O worker (10s) pega o job e aciona a <strong className="text-blue-300">IA Ana</strong></li>
-                  <li>3. Ana dá um <strong className="text-blue-300">Score 0-100</strong> e escolhe o formato</li>
-                  <li>4. Se score ≥ 40: gera slides → Cloudinary → Postfor.me → Instagram</li>
-                  <li>5. Se falhar: <strong className="text-blue-300">retry automático</strong> (1min → 4min → 15min)</li>
-                </ol>
+                <span className={`mt-1 inline-block text-xs px-2 py-0.5 rounded-full font-semibold ${
+                  product.source === 'amazon' ? 'bg-amber-900/30 text-amber-400' : 'bg-yellow-900/30 text-yellow-400'
+                }`}>
+                  {product.source === 'amazon' ? '📦 Amazon' : '🛒 Mercado Livre'}
+                </span>
               </div>
             </div>
 
-            {/* Direita: Preview dos slides */}
-            <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
-              <h2 className="font-semibold text-gray-200 mb-4">🖼️ Preview dos Slides</h2>
+            {/* Explicação do que vai acontecer */}
+            <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl px-4 py-3">
+              <p className="text-blue-300 text-xs font-semibold mb-1">🤖 O que vai acontecer:</p>
+              <ol className="text-blue-400/80 text-xs space-y-0.5">
+                <li>1. A IA Ana avalia o produto e dá um score</li>
+                <li>2. Se aprovado, gera os slides do carrossel automaticamente</li>
+                <li>3. Publica no Instagram via Postfor.me</li>
+                <li>4. Se falhar, tenta novamente até 3 vezes</li>
+              </ol>
+            </div>
 
-              {!previewData && !previewing && (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <div className="text-6xl mb-4 opacity-20">📸</div>
-                  <p className="text-gray-500 text-sm">
-                    {selectedOffer
-                      ? 'Clique em "Ver Preview" para gerar os slides'
-                      : 'Selecione uma oferta primeiro'}
-                  </p>
-                </div>
-              )}
+            {/* Botão publicar */}
+            <button
+              onClick={handlePublish}
+              disabled={publishing || !accountConnected}
+              className="w-full py-4 rounded-xl font-bold text-base bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {publishing ? (
+                <span className="flex items-center justify-center gap-3">
+                  <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Enviando para a fila...
+                </span>
+              ) : !accountConnected
+                ? '⚠️ Conta Instagram não conectada'
+                : '🚀 Publicar no Instagram'}
+            </button>
+          </div>
+        )}
 
-              {previewing && (
-                <div className="flex flex-col items-center justify-center py-24">
-                  <div className="w-10 h-10 rounded-full border-2 border-purple-500 border-t-transparent animate-spin mb-4" />
-                  <p className="text-gray-400 text-sm">Gerando slides + analisando com IA...</p>
-                  <p className="text-gray-500 text-xs mt-1">Pode levar até 20 segundos</p>
-                </div>
-              )}
+        {/* Sucesso */}
+        {jobId && (
+          <div className="bg-green-950/50 border border-green-700 rounded-2xl p-5">
+            <p className="text-green-300 font-bold text-lg mb-1">✅ Enfileirado com sucesso!</p>
+            <p className="text-green-400/80 text-sm">
+              A IA já está avaliando o produto. Em alguns segundos vai gerar os slides e publicar no Instagram.
+              Acompanhe o status abaixo em <strong>Fila de Publicações</strong>.
+            </p>
+          </div>
+        )}
 
-              {previewData && !previewing && (
-                <div className="space-y-4">
+        {/* ── STEP 3: Fila de jobs ─────────────────────────────────────────── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">📋 Fila de Publicações</h2>
+            <button
+              onClick={loadJobs}
+              className="text-gray-500 hover:text-white text-xs px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700 transition-colors"
+            >
+              🔄 Atualizar
+            </button>
+          </div>
 
-                  {/* Score IA */}
-                  <div className={`rounded-xl p-3 border ${
-                    previewData.ai.shouldPublish
-                      ? 'bg-green-950/40 border-green-800'
-                      : 'bg-red-950/40 border-red-800'
-                  }`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-bold text-white">Score IA</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-2xl font-black ${previewData.ai.score >= 70 ? 'text-green-400' : previewData.ai.score >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                          {previewData.ai.score}
-                        </span>
-                        <span className="text-gray-400 text-sm">/100</span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-800 rounded-full h-2 mb-2">
-                      <div
-                        className={`h-2 rounded-full transition-all ${previewData.ai.score >= 70 ? 'bg-green-500' : previewData.ai.score >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
-                        style={{ width: `${previewData.ai.score}%` }}
+          {jobsLoading && jobs.length === 0 ? (
+            <div className="flex justify-center py-10">
+              <div className="w-7 h-7 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="bg-gray-900 border border-gray-800 rounded-2xl py-12 text-center">
+              <div className="text-4xl mb-3 opacity-20">📋</div>
+              <p className="text-gray-500 text-sm">Nenhuma publicação ainda</p>
+              <p className="text-gray-600 text-xs mt-1">Cole uma URL acima e publique sua primeira oferta</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {jobs.map(job => (
+                <div key={job.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
+
+                  {/* Linha principal */}
+                  <button
+                    onClick={() => setExpandedJob(expandedJob === job.id ? null : job.id)}
+                    className="w-full flex items-center gap-4 p-4 text-left hover:bg-gray-800/50 transition-colors"
+                  >
+                    {/* Imagem */}
+                    {(job.offer?.mainImage || job.offer?.imageUrl) ? (
+                      <img
+                        src={job.offer.mainImage || job.offer.imageUrl!}
+                        alt=""
+                        className="w-12 h-12 rounded-xl object-contain bg-white flex-shrink-0"
                       />
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-gray-400">Formato: <strong className="text-white">{previewData.ai.format}</strong></span>
-                      <span className={previewData.ai.shouldPublish ? 'text-green-400 font-bold' : 'text-red-400 font-bold'}>
-                        {previewData.ai.shouldPublish ? '✅ Vai publicar' : '⛔ Score baixo'}
-                      </span>
-                    </div>
-                    {previewData.ai.reasoning && (
-                      <p className="text-gray-500 text-xs mt-2 italic line-clamp-2">{previewData.ai.reasoning}</p>
+                    ) : (
+                      <div className="w-12 h-12 bg-gray-700 rounded-xl flex items-center justify-center flex-shrink-0">🛍️</div>
                     )}
-                  </div>
 
-                  {/* Slides grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {previewData.slideUrls.map((url, i) => (
-                      <div key={i} className="relative group aspect-square rounded-xl overflow-hidden bg-gray-800 border border-gray-700">
-                        <img src={url} alt={`Slide ${i + 1}`} className="w-full h-full object-cover" />
-                        <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-0.5 rounded-lg font-bold">
-                          {i + 1}
-                        </div>
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs rounded-xl"
-                        >
-                          🔍 Ampliar
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Caption preview */}
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1 font-semibold uppercase tracking-wider">Caption (gerada pela IA)</p>
-                    <div className="bg-gray-800 rounded-xl p-3 text-xs text-gray-300 leading-relaxed max-h-36 overflow-y-auto whitespace-pre-wrap font-mono">
-                      {previewData.caption}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ══ TAB: JOBS ═════════════════════════════════════════════════════════ */}
-        {tab === 'jobs' && (
-          <div className="space-y-4">
-
-            {/* Filtros */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-gray-400 text-sm font-semibold">Filtrar:</span>
-              {(['', 'PENDING', 'SCORING', 'RENDERING', 'UPLOADING', 'PUBLISHING', 'SUCCESS', 'FAILED', 'CANCELLED'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setJobFilter(s as JobStatus | '')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    jobFilter === s
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:text-white border border-gray-700'
-                  }`}
-                >
-                  {s === '' ? 'Todos' : STATUS_CONFIG[s as JobStatus]?.label || s}
-                </button>
-              ))}
-              <button onClick={loadJobs} className="ml-auto text-gray-500 hover:text-white text-xs px-3 py-1.5 bg-gray-800 rounded-full border border-gray-700">
-                🔄 Atualizar
-              </button>
-              <span className="text-gray-600 text-xs">{jobsTotal} jobs total</span>
-            </div>
-
-            {/* Lista */}
-            {jobsLoading && jobs.length === 0 ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
-              </div>
-            ) : jobs.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="text-5xl mb-3 opacity-20">📋</div>
-                <p className="text-gray-500 text-sm">Nenhum job encontrado</p>
-                <button
-                  onClick={() => setTab('enqueue')}
-                  className="mt-3 text-purple-400 text-sm underline"
-                >
-                  Enfileirar primeira oferta →
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {jobs.map(job => (
-                  <div
-                    key={job.id}
-                    className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden"
-                  >
-                    {/* Linha principal */}
-                    <button
-                      onClick={() => setExpandedJob(expandedJob === job.id ? null : job.id)}
-                      className="w-full flex items-center gap-4 p-4 text-left hover:bg-gray-800/50 transition-colors"
-                    >
-                      {/* Thumb */}
-                      {job.offer?.mainImage || job.offer?.imageUrl ? (
-                        <img
-                          src={job.offer.mainImage || job.offer.imageUrl!}
-                          alt=""
-                          className="w-10 h-10 rounded-lg object-contain bg-white flex-shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center flex-shrink-0">🛍️</div>
-                      )}
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold text-white truncate">
-                          {job.offer?.title || job.id}
-                        </div>
-                        <div className="flex items-center gap-3 mt-0.5">
-                          <StatusBadge status={job.status} />
-                          {job.aiScore !== null && (
-                            <span className="text-xs text-gray-500">
-                              Score: <span className={job.aiScore >= 70 ? 'text-green-400' : job.aiScore >= 40 ? 'text-amber-400' : 'text-red-400'} >{job.aiScore}/100</span>
-                            </span>
-                          )}
-                          <span className="text-xs text-gray-600">{timeAgo(job.createdAt)}</span>
-                          {job.attempts > 1 && (
-                            <span className="text-xs text-orange-400">tentativa {job.attempts}/{job.maxAttempts}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Métricas se publicado */}
-                      {job.status === 'SUCCESS' && (job.metricViews > 0 || job.metricLikes > 0) && (
-                        <div className="flex items-center gap-3 text-xs text-gray-400 flex-shrink-0">
-                          {job.metricViews > 0 && <span>👁️ {job.metricViews.toLocaleString()}</span>}
-                          {job.metricLikes > 0 && <span>❤️ {job.metricLikes}</span>}
-                          {job.metricSaves > 0 && <span>🔖 {job.metricSaves}</span>}
-                        </div>
-                      )}
-
-                      <span className="text-gray-600 text-sm flex-shrink-0">{expandedJob === job.id ? '▲' : '▼'}</span>
-                    </button>
-
-                    {/* Expandido */}
-                    {expandedJob === job.id && (
-                      <div className="border-t border-gray-800 p-4 space-y-3">
-
-                        {/* Slides */}
-                        {job.slideUrls?.length > 0 && (
-                          <div>
-                            <p className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Slides gerados</p>
-                            <div className="flex gap-2 overflow-x-auto pb-1">
-                              {job.slideUrls.map((url, i) => (
-                                <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                                  <img src={url} alt={`Slide ${i + 1}`} className="w-20 h-20 rounded-lg object-cover border border-gray-700 hover:border-purple-500 transition-colors flex-shrink-0" />
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Caption */}
-                        {job.captionUsed && (
-                          <div>
-                            <p className="text-xs text-gray-500 mb-1 font-semibold uppercase tracking-wider">Caption publicada</p>
-                            <div className="bg-gray-800 rounded-xl p-3 text-xs text-gray-300 max-h-28 overflow-y-auto whitespace-pre-wrap font-mono leading-relaxed">
-                              {job.captionUsed}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Erro */}
-                        {job.errorMessage && (
-                          <div className="bg-red-950/40 border border-red-800 rounded-xl p-3">
-                            <p className="text-red-300 text-xs font-semibold mb-1">Mensagem de erro</p>
-                            <p className="text-red-400/80 text-xs font-mono">{job.errorMessage}</p>
-                            {job.nextRetryAt && (
-                              <p className="text-orange-400 text-xs mt-1">
-                                Próxima tentativa: {new Date(job.nextRetryAt).toLocaleTimeString('pt-BR')}
-                              </p>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Postfor.me */}
-                        {job.postformePostId && (
-                          <div className="text-xs text-gray-500">
-                            Postfor.me ID: <code className="text-gray-400 font-mono">{job.postformePostId}</code>
-                            {' · '}Status: <span className="text-green-400">{job.postformeStatus}</span>
-                          </div>
-                        )}
-
-                        {/* Ações */}
-                        <div className="flex gap-2">
-                          {['PENDING', 'FAILED'].includes(job.status) && (
-                            <button
-                              onClick={() => handleCancelJob(job.id)}
-                              className="text-xs px-3 py-1.5 bg-red-900/40 text-red-300 border border-red-800 rounded-lg hover:bg-red-900/60 transition-colors"
-                            >
-                              Cancelar job
-                            </button>
-                          )}
-                          <span className="text-xs text-gray-600 self-center">
-                            ID: <code className="font-mono">{job.id.slice(-8)}</code>
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ══ TAB: METRICS ══════════════════════════════════════════════════════ */}
-        {tab === 'metrics' && (
-          <div className="space-y-6">
-            {metricsLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin" />
-              </div>
-            ) : metrics ? (
-              <>
-                {/* Cards de totais */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Publicados', value: metrics.summary.totalPublished, icon: '✅', color: 'text-green-400' },
-                    { label: 'Total Views', value: metrics.summary.totalViews.toLocaleString('pt-BR'), icon: '👁️', color: 'text-blue-400' },
-                    { label: 'Total Likes', value: metrics.summary.totalLikes.toLocaleString('pt-BR'), icon: '❤️', color: 'text-pink-400' },
-                    { label: 'Total Saves', value: metrics.summary.totalSaves.toLocaleString('pt-BR'), icon: '🔖', color: 'text-amber-400' },
-                  ].map(c => (
-                    <div key={c.label} className="bg-gray-900 border border-gray-800 rounded-2xl p-5 text-center">
-                      <div className="text-3xl mb-2">{c.icon}</div>
-                      <div className={`text-2xl font-black ${c.color}`}>{c.value}</div>
-                      <div className="text-gray-500 text-xs mt-1 font-semibold uppercase tracking-wider">{c.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Status breakdown */}
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                  <h3 className="font-semibold text-gray-200 mb-4">📊 Status dos Jobs</h3>
-                  <div className="flex flex-wrap gap-3">
-                    {Object.entries(metrics.statusBreakdown).map(([status, count]) => {
-                      const cfg = STATUS_CONFIG[status as JobStatus];
-                      return (
-                        <div key={status} className={`flex items-center gap-2 px-3 py-2 rounded-xl ${cfg?.bg || 'bg-gray-800'}`}>
-                          <span className={`text-xs font-bold ${cfg?.color || 'text-gray-400'}`}>{cfg?.label || status}</span>
-                          <span className="text-white font-black text-sm">{count}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Top posts */}
-                {metrics.topPosts.length > 0 && (
-                  <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                    <h3 className="font-semibold text-gray-200 mb-4">🏆 Top Posts por Views</h3>
-                    <div className="space-y-2">
-                      {metrics.topPosts.map((post, i) => (
-                        <div key={post.id} className="flex items-center gap-3 p-3 bg-gray-800 rounded-xl">
-                          <span className="text-gray-500 font-bold text-sm w-5">#{i + 1}</span>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-white truncate">{post.offer?.title || post.id}</div>
-                            <div className="flex gap-3 text-xs text-gray-400 mt-0.5">
-                              <span>👁️ {post.metricViews.toLocaleString()}</span>
-                              <span>❤️ {post.metricLikes}</span>
-                              <span>🔖 {post.metricSaves}</span>
-                            </div>
-                          </div>
-                          <span className="text-amber-400 text-xs font-bold">{fmtPrice(post.offer?.finalPrice)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recentes */}
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
-                  <h3 className="font-semibold text-gray-200 mb-4">🕐 Jobs Recentes</h3>
-                  <div className="space-y-2">
-                    {metrics.recent.map(job => (
-                      <div key={job.id} className="flex items-center gap-3 p-2.5 bg-gray-800 rounded-xl">
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">
+                        {job.offer?.title || `Job ${job.id.slice(-8)}`}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <StatusBadge status={job.status} />
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm text-white truncate block">{job.offer?.title || job.id}</span>
-                        </div>
                         {job.aiScore !== null && (
-                          <span className="text-xs text-gray-500">Score: <strong className="text-white">{job.aiScore}</strong></span>
+                          <span className="text-xs text-gray-500">
+                            Score: <span className={job.aiScore >= 70 ? 'text-green-400' : job.aiScore >= 40 ? 'text-amber-400' : 'text-red-400'}>{job.aiScore}/100</span>
+                          </span>
                         )}
-                        <span className="text-xs text-gray-600 flex-shrink-0">{timeAgo(job.createdAt)}</span>
+                        <span className="text-xs text-gray-600">{timeAgo(job.createdAt)}</span>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+
+                    {/* Métricas (se publicado) */}
+                    {job.status === 'SUCCESS' && (job.metricViews > 0 || job.metricLikes > 0) && (
+                      <div className="flex gap-2 text-xs text-gray-400 flex-shrink-0">
+                        {job.metricViews > 0 && <span>👁️ {job.metricViews.toLocaleString()}</span>}
+                        {job.metricLikes > 0 && <span>❤️ {job.metricLikes}</span>}
+                      </div>
+                    )}
+
+                    <span className="text-gray-600 text-xs flex-shrink-0">{expandedJob === job.id ? '▲' : '▼'}</span>
+                  </button>
+
+                  {/* Expandido */}
+                  {expandedJob === job.id && (
+                    <div className="border-t border-gray-800 p-4 space-y-3">
+
+                      {/* Slides gerados */}
+                      {job.slideUrls?.length > 0 && (
+                        <div>
+                          <p className="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wider">Slides gerados</p>
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                            {job.slideUrls.map((u, i) => (
+                              <a key={i} href={u} target="_blank" rel="noopener noreferrer">
+                                <img src={u} alt={`Slide ${i + 1}`} className="w-20 h-20 rounded-lg object-cover border border-gray-700 hover:border-purple-500 transition-colors flex-shrink-0" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Erro */}
+                      {job.errorMessage && (
+                        <div className="bg-red-950/40 border border-red-800 rounded-xl p-3">
+                          <p className="text-red-300 text-xs font-semibold mb-1">Erro</p>
+                          <p className="text-red-400/80 text-xs font-mono">{job.errorMessage}</p>
+                          {job.nextRetryAt && (
+                            <p className="text-orange-400 text-xs mt-1">
+                              Próxima tentativa: {new Date(job.nextRetryAt).toLocaleTimeString('pt-BR')}
+                            </p>
+                          )}
+                          {job.attempts > 1 && (
+                            <p className="text-gray-500 text-xs">Tentativa {job.attempts}/{job.maxAttempts}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Ações */}
+                      <div className="flex items-center gap-2">
+                        {['PENDING', 'FAILED'].includes(job.status) && (
+                          <button
+                            onClick={() => handleCancelJob(job.id)}
+                            className="text-xs px-3 py-1.5 bg-red-900/30 text-red-300 border border-red-800 rounded-lg hover:bg-red-900/50 transition-colors"
+                          >
+                            Cancelar
+                          </button>
+                        )}
+                        <span className="text-xs text-gray-600 ml-auto">
+                          ID: <code className="font-mono">{job.id.slice(-10)}</code>
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="text-5xl mb-3 opacity-20">📊</div>
-                <p className="text-gray-500 text-sm">Nenhum dado de métricas ainda</p>
-              </div>
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
     </div>

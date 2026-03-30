@@ -14,17 +14,21 @@
  */
 
 import { FastifyInstance, FastifyRequest } from 'fastify';
+import axios from 'axios';
 import { authGuard } from '../lib/auth.js';
 import { prisma } from '../lib/prisma.js';
 import { enqueueInstagramJob, listJobs, cancelJob } from '../services/instagramQueue.js';
 import { analyzeOfferForInstagram } from '../services/instagramAI.js';
 import { generateCarousel } from '../services/instagramCarousel.js';
 import { listConnectedAccounts, generateInstagramCaption } from '../services/postforme.js';
+import { generateAffiliateUrl } from '../services/mlAffiliate.js';
+import { getAmazonProductByUrl } from '../services/amazonApi.js';
 import { InstagramJobStatus } from '@prisma/client';
+import { getMLToken } from './mlAuth.js';
 
 const ACCOUNT_ID = () => process.env.POSTFORME_INSTAGRAM_ACCOUNT_ID || '';
 
-// ── Helper ─────────────────────────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
 async function getOffer(id: string) {
   return prisma.offer.findUnique({
@@ -33,9 +37,198 @@ async function getOffer(id: string) {
   });
 }
 
+function extractMLItemId(url: string): string | null {
+  const match = url.match(/MLB-?(\d+)/i);
+  return match ? `MLB${match[1]}` : null;
+}
+
+function extractMLProductId(url: string): string | null {
+  const match = url.match(/\/p\/(MLB\w+)/i);
+  return match ? match[1] : null;
+}
+
+/** Busca ou cria Store pelo slug */
+async function upsertStore(name: string, slug: string) {
+  return prisma.store.upsert({
+    where: { slug },
+    update: {},
+    create: { name, slug },
+  });
+}
+
+/** Busca ou cria Niche pelo slug */
+async function upsertNiche(name: string, slug: string, icon = '🛍️') {
+  return prisma.niche.upsert({
+    where: { slug },
+    update: {},
+    create: { name, slug, icon },
+  });
+}
+
+/** Busca dados de produto via URL do Mercado Livre */
+async function fetchMLProduct(url: string) {
+  const affiliateUrl = generateAffiliateUrl(url);
+  const itemId = extractMLItemId(url);
+  const catalogId = extractMLProductId(url);
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  const tok = getMLToken();
+  if (tok?.access_token) headers['Authorization'] = `Bearer ${tok.access_token}`;
+
+  let info: any = null;
+
+  if (catalogId) {
+    try {
+      const [prodRes, itemsRes] = await Promise.all([
+        axios.get(`https://api.mercadolibre.com/products/${catalogId}`, { timeout: 8000, headers }),
+        axios.get(`https://api.mercadolibre.com/products/${catalogId}/items?limit=1`, { timeout: 8000, headers }),
+      ]);
+      const prod = prodRes.data;
+      const listing = itemsRes.data.results?.[0];
+      const price = listing?.price ?? prod.buy_box_winner?.price;
+      const origPrice = listing?.original_price ?? null;
+      const thumb = (prod.pictures?.[0]?.url || listing?.thumbnail || '').replace('http://', 'https://');
+      info = {
+        title: prod.name || listing?.title,
+        finalPrice: price,
+        originalPrice: origPrice,
+        discountPct: origPrice && origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
+        imageUrl: thumb,
+        affiliateUrl,
+        source: 'mercadolivre',
+      };
+    } catch { /* fallback para itemId */ }
+  }
+
+  if (!info && itemId) {
+    try {
+      const res = await axios.get(`https://api.mercadolibre.com/items/${itemId}`, { timeout: 8000, headers });
+      const item = res.data;
+      const price = item.price;
+      const origPrice = item.original_price ?? null;
+      info = {
+        title: item.title,
+        finalPrice: price,
+        originalPrice: origPrice,
+        discountPct: origPrice && origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
+        imageUrl: (item.thumbnail || '').replace('http://', 'https://'),
+        affiliateUrl,
+        source: 'mercadolivre',
+      };
+    } catch { /* nada */ }
+  }
+
+  return info;
+}
+
 // ── Routes ─────────────────────────────────────────────────────────────────────
 
 export async function instagramRoutes(fastify: FastifyInstance) {
+
+  // ── POST /api/instagram/from-url ─────────────────────────────────────────────
+  // Cola URL → busca produto → cria/atualiza Offer no DB → enfileira InstagramJob
+  fastify.post(
+    '/from-url',
+    { preHandler: authGuard },
+    async (req: FastifyRequest<{ Body: { url: string; accountId?: string } }>, reply) => {
+      const { url, accountId } = req.body || {};
+      if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
+
+      const accountIdToUse = accountId || ACCOUNT_ID();
+      if (!accountIdToUse) {
+        return reply.status(400).send({ error: 'POSTFORME_INSTAGRAM_ACCOUNT_ID não configurado' });
+      }
+
+      const isAmazon = url.includes('amazon.com') || url.includes('amzn.to') || url.includes('amzn.com');
+      const isML = url.includes('mercadolivre.com') || url.includes('mercadolibre.com');
+
+      if (!isAmazon && !isML) {
+        return reply.status(400).send({ error: 'Use uma URL da Amazon ou do Mercado Livre' });
+      }
+
+      let productData: any = null;
+
+      try {
+        if (isAmazon) {
+          const prod = await getAmazonProductByUrl(url);
+          if (prod) {
+            productData = {
+              title: prod.title,
+              finalPrice: prod.finalPrice ?? prod.price,
+              originalPrice: (prod as any).originalPrice ?? null,
+              discountPct: (prod as any).discountPct ?? 0,
+              imageUrl: prod.images?.primary ?? null,
+              affiliateUrl: prod.affiliateUrl ?? url,
+              source: 'amazon',
+            };
+          }
+        } else {
+          productData = await fetchMLProduct(url);
+        }
+      } catch (err: any) {
+        return reply.status(500).send({ error: `Erro ao buscar produto: ${err.message}` });
+      }
+
+      if (!productData || !productData.title) {
+        return reply.status(404).send({ error: 'Produto não encontrado. Verifique a URL e tente novamente.' });
+      }
+
+      if (!productData.finalPrice || productData.finalPrice <= 0) {
+        return reply.status(400).send({ error: 'Preço do produto não encontrado na URL.' });
+      }
+
+      // Garante Store e Niche no banco
+      const storeName = productData.source === 'amazon' ? 'Amazon' : 'Mercado Livre';
+      const storeSlug = productData.source === 'amazon' ? 'amazon' : 'mercadolivre';
+      const [store, niche] = await Promise.all([
+        upsertStore(storeName, storeSlug),
+        upsertNiche('Geral', 'geral', '🛍️'),
+      ]);
+
+      // Cria ou atualiza Offer (deduplica por affiliateUrl)
+      const offer = await prisma.offer.upsert({
+        where: { canonicalUrl: productData.affiliateUrl } as any,
+        update: {
+          title: productData.title,
+          finalPrice: productData.finalPrice,
+          originalPrice: productData.originalPrice ?? undefined,
+          discountPct: productData.discountPct ?? 0,
+          imageUrl: productData.imageUrl,
+          mainImage: productData.imageUrl,
+          status: 'ACTIVE',
+        },
+        create: {
+          title: productData.title,
+          finalPrice: productData.finalPrice,
+          originalPrice: productData.originalPrice ?? undefined,
+          discountPct: productData.discountPct ?? 0,
+          affiliateUrl: productData.affiliateUrl,
+          canonicalUrl: productData.affiliateUrl,
+          imageUrl: productData.imageUrl,
+          mainImage: productData.imageUrl,
+          nicheId: niche.id,
+          storeId: store.id,
+          status: 'ACTIVE',
+        },
+      });
+
+      // Enfileira job
+      const job = await enqueueInstagramJob(offer.id, accountIdToUse, 'manual');
+
+      return reply.send({
+        success: true,
+        jobId: job.id,
+        offerId: offer.id,
+        product: {
+          title: productData.title,
+          finalPrice: productData.finalPrice,
+          originalPrice: productData.originalPrice,
+          discountPct: productData.discountPct,
+          imageUrl: productData.imageUrl,
+          source: productData.source,
+        },
+      });
+    },
+  );
 
   // ── GET /api/instagram/accounts ─────────────────────────────────────────────
   fastify.get('/accounts', { preHandler: authGuard }, async (_req, reply) => {
