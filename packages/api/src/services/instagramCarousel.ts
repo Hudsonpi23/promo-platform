@@ -128,6 +128,7 @@ export interface CarouselInput {
   originalPrice?: number | null;
   discountPct?: number | null;
   imageUrl?: string | null;
+  fallbackImageUrl?: string | null;
   installments?: number | null;
   installmentValue?: number | null;
   paymentMethod?: 'pix' | 'parcelado' | 'normal' | null;
@@ -897,11 +898,30 @@ export async function generateCarousel(input: CarouselInput): Promise<CarouselRe
     const c = THEMES[theme];
     console.log(`[Carousel] Gerando slides — tema: ${theme} — produto: ${input.title.slice(0, 60)}`);
 
+    // Pré-valida a imagem antes de gerar os slides
+    // Se a imageUrl customizada falhar, usa fallbackImageUrl (imagem original do produto)
+    let resolvedInput = input;
+    if (input.imageUrl) {
+      const testImg = await loadImageSafe(input.imageUrl);
+      if (!testImg) {
+        const fallback = input.fallbackImageUrl || null;
+        if (fallback) {
+          console.warn(`[Carousel] Imagem customizada falhou (${input.imageUrl.slice(0, 80)}…), usando imagem do produto como fallback`);
+          resolvedInput = { ...input, imageUrl: fallback };
+        } else {
+          console.warn(`[Carousel] Imagem não carregou: ${input.imageUrl.slice(0, 80)}…`);
+          resolvedInput = { ...input, imageUrl: null };
+        }
+      } else {
+        console.log(`[Carousel] Imagem carregada com sucesso: ${input.imageUrl.slice(0, 80)}`);
+      }
+    }
+
     const [buf1, buf2, buf3, buf4] = await Promise.all([
-      generateSlide1(input, c),
-      generateSlide2(input, c),
-      generateSlide3(input, c),
-      generateSlide4(input, c),
+      generateSlide1(resolvedInput, c),
+      generateSlide2(resolvedInput, c),
+      generateSlide3(resolvedInput, c),
+      generateSlide4(resolvedInput, c),
     ]);
 
     const folder = 'promo-platform/carousels';

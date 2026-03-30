@@ -294,6 +294,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
             originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
             discountPct: productData.discountPct ?? 0,
             imageUrl: customImageUrl || productData.imageUrl,
+            fallbackImageUrl: customImageUrl ? productData.imageUrl : null,
             affiliateUrl: productData.affiliateUrl,
             theme: (theme as any) || 'dark',
           });
@@ -416,6 +417,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
         discountPct: productData.discountPct ?? 0,
         imageUrl: customImageUrl || productData.imageUrl,
+        fallbackImageUrl: customImageUrl ? productData.imageUrl : null,
         affiliateUrl: productData.affiliateUrl,
         theme: (theme as any) || 'dark',
       });
