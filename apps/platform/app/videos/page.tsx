@@ -114,11 +114,16 @@ interface TextBlockPos   { x: number; y: number }   // 0–1 fractions of canvas
 interface StoryTextPositions { headline: TextBlockPos; subheadline: TextBlockPos; price: TextBlockPos; cta: TextBlockPos }
 interface DragState { block: keyof StoryTextPositions; startCX: number; startCY: number; startPX: number; startPY: number }
 
+// Instagram safe zone: top 13% (250px) and bottom 13% (250px) are covered by Instagram UI
+// Keep ALL content between y=0.14 and y=0.85 for safe display on mobile
+const IG_SAFE_TOP    = 0.14;   // 250/1920 ≈ 13% + small buffer
+const IG_SAFE_BOTTOM = 0.85;   // 1 - 250/1920 - buffer
+
 const DEFAULT_TEXT_POSITIONS: StoryTextPositions = {
-  headline:    { x: 0.5, y: 0.08 },
+  headline:    { x: 0.5, y: 0.15 },   // just below Instagram's progress bar
   subheadline: { x: 0.5, y: 0.68 },
-  price:       { x: 0.5, y: 0.78 },
-  cta:         { x: 0.5, y: 0.90 },
+  price:       { x: 0.5, y: 0.77 },
+  cta:         { x: 0.5, y: 0.84 },   // above the reply-box safe limit
 };
 
 function hexToRgbStr(hex: string): string {
@@ -434,8 +439,9 @@ export default function VideosPage() {
       ctx.fillText(l1,W/2,belowY);
       if (l2) { ctx.fillText(l2,W/2,belowY+44); belowY+=44; }
     }
+    // Watermark must stay inside safe zone (bottom 250px = 13% is covered by reply bar)
     ctx.font=fontStr(38,'600'); ctx.fillStyle='rgba(255,255,255,0.30)'; ctx.textAlign='center';
-    ctx.fillText('@manudaspromocoes',W/2,H-68);
+    ctx.fillText('@manudaspromocoes', W/2, H - 280);
   }, [effectiveProduct]);
 
   // Draws a single text block centred at (cx, cy) using per-block TextBlockConfig
@@ -704,8 +710,8 @@ export default function VideosPage() {
     const rect = previewContainerRef.current.getBoundingClientRect();
     const dx = (cx - dragStateRef.current.startCX) / rect.width;
     const dy = (cy - dragStateRef.current.startCY) / rect.height;
-    const newX = Math.max(0.05, Math.min(0.95, dragStateRef.current.startPX + dx));
-    const newY = Math.max(0.02, Math.min(0.97, dragStateRef.current.startPY + dy));
+    const newX = Math.max(0.06, Math.min(0.94, dragStateRef.current.startPX + dx));
+    const newY = Math.max(IG_SAFE_TOP, Math.min(IG_SAFE_BOTTOM, dragStateRef.current.startPY + dy));
     setStoryTextPositions(prev => ({
       ...prev,
       [dragStateRef.current!.block]: { x: newX, y: newY },
@@ -1408,6 +1414,18 @@ export default function VideosPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/manu-story-bg.png" alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
                         <div className="absolute inset-0 pointer-events-none bg-black/30" />
+
+                        {/* ── Instagram safe zone guides ── */}
+                        {/* Top unsafe zone: username + progress bar (~13%) */}
+                        <div className="absolute inset-x-0 top-0 pointer-events-none z-30 flex items-end pb-0.5 pl-1"
+                          style={{ height: `${IG_SAFE_TOP * 100}%`, background: 'rgba(255,80,0,0.18)', borderBottom: '1px dashed rgba(255,120,0,0.6)' }}>
+                          <span className="text-[6px] text-orange-300 font-bold leading-none">▲ barra Instagram</span>
+                        </div>
+                        {/* Bottom unsafe zone: reply box (~13%) */}
+                        <div className="absolute inset-x-0 bottom-0 pointer-events-none z-30 flex items-start pt-0.5 pl-1"
+                          style={{ height: `${(1 - IG_SAFE_BOTTOM) * 100}%`, background: 'rgba(255,80,0,0.18)', borderTop: '1px dashed rgba(255,120,0,0.6)' }}>
+                          <span className="text-[6px] text-orange-300 font-bold leading-none">▼ resposta Instagram</span>
+                        </div>
                         {/* Canvas layer hidden from live preview — used only for final export */}
 
                         {/* ── Live CSS product card — moves instantly during drag ── */}
@@ -1512,7 +1530,10 @@ export default function VideosPage() {
                                 lineHeight: 1.38,
                                 userSelect: 'none',
                                 touchAction: 'none',
-                                whiteSpace: 'nowrap',
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-word',
+                                width: '88%',
+                                textAlign: 'center',
                                 ...modeBg,
                               }}
                             >
@@ -1535,12 +1556,12 @@ export default function VideosPage() {
                             <span className={`text-[9px] font-semibold w-16 flex-shrink-0 ${color}`}>{label}</span>
                             <div className="flex gap-1 flex-1">
                               {[
-                                { label: '⬆ Topo',  y: 0.07,  x: null },
-                                { label: '⬛ Meio',  y: 0.50,  x: null },
-                                { label: '⬇ Base',  y: 0.90,  x: null },
-                                { label: '◀ Esq',   y: null,  x: 0.15 },
+                                { label: '⬆ Topo',  y: IG_SAFE_TOP + 0.02,  x: null },
+                                { label: '⬛ Meio',  y: 0.50,                x: null },
+                                { label: '⬇ Base',  y: IG_SAFE_BOTTOM - 0.02, x: null },
+                                { label: '◀ Esq',   y: null,  x: 0.20 },
                                 { label: '⬛ Cent',  y: null,  x: 0.50 },
-                                { label: '▶ Dir',   y: null,  x: 0.85 },
+                                { label: '▶ Dir',   y: null,  x: 0.80 },
                               ].map(snap => (
                                 <button key={snap.label}
                                   onClick={() => snapBlock(block, snap.x, snap.y)}
@@ -1557,9 +1578,9 @@ export default function VideosPage() {
                           <span className="text-[9px] font-semibold w-16 flex-shrink-0 text-cyan-400">Imagem</span>
                           <div className="flex gap-1 flex-1">
                             {[
-                              { label: '⬆ Topo',  y: 0.25, x: null },
-                              { label: '⬛ Meio',  y: 0.42, x: null },
-                              { label: '⬇ Base',  y: 0.65, x: null },
+                              { label: '⬆ Topo',  y: 0.28, x: null },
+                              { label: '⬛ Meio',  y: 0.43, x: null },
+                              { label: '⬇ Base',  y: 0.62, x: null },
                               { label: '◀ Esq',   y: null,  x: 0.30 },
                               { label: '⬛ Cent',  y: null,  x: 0.50 },
                               { label: '▶ Dir',   y: null,  x: 0.70 },
