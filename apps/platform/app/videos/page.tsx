@@ -110,6 +110,12 @@ export default function VideosPage() {
   const [storyDragOver, setStoryDragOver]   = useState(false);
   const storyImageRef = useRef<HTMLInputElement>(null);
 
+  // ── Share to Instagram ────────────────────────────────────────────────
+  const [isMobile, setIsMobile]         = useState(false);
+  const [sharing, setSharing]           = useState(false);
+  const [shareStatus, setShareStatus]   = useState<'idle' | 'shared' | 'error' | 'unsupported'>('idle');
+  const [shareDownloadUrl, setShareDownloadUrl] = useState('');
+
   // Remove "R$", espaços e pontos de milhar antes de parsear
   const parsePrice = (v: string) =>
     parseFloat(v.replace(/R\$\s*/gi, '').replace(/\./g, '').replace(',', '.').trim()) || 0;
@@ -283,6 +289,11 @@ export default function VideosPage() {
     setStoryResult(null);
   }, []);
 
+  // Detecta se é dispositivo móvel
+  useEffect(() => {
+    setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  }, []);
+
   // Auto-fill caption when product is loaded
   useEffect(() => {
     if (effectiveProduct) {
@@ -332,6 +343,83 @@ export default function VideosPage() {
       setPostingStory(false);
     }
   }, [storyType, storyImageFile, videoFile, videoLinkInput, hasVideo, storyCaption]);
+
+  // ── Compartilhar mídia para o Instagram via share sheet do celular ──────
+  const handleShareToInstagram = useCallback(async () => {
+    setSharing(true);
+    setShareStatus('idle');
+    setShareDownloadUrl('');
+
+    // Resolve o arquivo a ser compartilhado
+    const file: File | null = storyType === 'video' ? videoFile : storyImageFile;
+
+    // Se não tem arquivo mas tem link de vídeo, tenta baixar como blob
+    let resolvedFile = file;
+    if (!resolvedFile && storyType === 'video' && videoLinkInput.trim()) {
+      try {
+        const res = await fetch(videoLinkInput.trim());
+        if (res.ok) {
+          const blob = await res.blob();
+          const ext  = blob.type.includes('mp4') ? 'mp4' : 'mov';
+          resolvedFile = new File([blob], `story.${ext}`, { type: blob.type });
+        }
+      } catch { /* usa URL direta como fallback */ }
+    }
+
+    // ── CELULAR: tenta Web Share API com arquivo ──────────────────────────
+    if (isMobile && typeof navigator.share === 'function') {
+      if (resolvedFile) {
+        const canShare = typeof navigator.canShare === 'function'
+          ? navigator.canShare({ files: [resolvedFile] })
+          : true;
+
+        if (canShare) {
+          try {
+            await navigator.share({
+              files: [resolvedFile],
+              title: effectiveProduct?.title || 'Story',
+            });
+            setShareStatus('shared');
+            setSharing(false);
+            return;
+          } catch (err: any) {
+            if (err.name === 'AbortError') { setSharing(false); return; }
+            // Cai para o fallback de URL
+          }
+        }
+      }
+
+      // Fallback: compartilha como URL (link direto para download)
+      const urlToShare = videoLinkInput.trim() || storyImagePreview;
+      if (urlToShare && typeof navigator.share === 'function') {
+        try {
+          await navigator.share({ url: urlToShare, title: effectiveProduct?.title || 'Story' });
+          setShareStatus('shared');
+          setSharing(false);
+          return;
+        } catch (err: any) {
+          if (err.name === 'AbortError') { setSharing(false); return; }
+        }
+      }
+
+      setShareStatus('unsupported');
+      setSharing(false);
+      return;
+    }
+
+    // ── DESKTOP: prepara URL de download ─────────────────────────────────
+    if (resolvedFile) {
+      const objUrl = URL.createObjectURL(resolvedFile);
+      setShareDownloadUrl(objUrl);
+    } else if (videoLinkInput.trim()) {
+      setShareDownloadUrl(videoLinkInput.trim());
+    } else if (storyImagePreview) {
+      setShareDownloadUrl(storyImagePreview);
+    }
+
+    setShareStatus('unsupported'); // desktop sempre cai aqui
+    setSharing(false);
+  }, [storyType, videoFile, storyImageFile, videoLinkInput, storyImagePreview, isMobile, effectiveProduct]);
 
   const isPosting = postingX || postingIg || postingStory;
 
@@ -979,6 +1067,72 @@ export default function VideosPage() {
                     ? <span>✗ {storyResult.error}</span>
                     : <span>✓ Story publicado com sucesso! (ID: {storyResult.url})</span>
                   }
+                </div>
+              )}
+
+              {/* ── Divisor ── */}
+              <div className="flex items-center gap-2 my-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-[10px] text-text-muted font-semibold uppercase tracking-wider">ou</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              {/* ── Botão: Enviar para o Instagram com sticker de link ── */}
+              <button
+                onClick={handleShareToInstagram}
+                disabled={
+                  sharing ||
+                  (storyType === 'image' && !storyImageFile) ||
+                  (storyType === 'video' && !hasVideo)
+                }
+                className="w-full py-2.5 rounded-lg border-2 border-pink-500/50 bg-pink-500/5 text-pink-400 font-bold text-sm hover:bg-pink-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {sharing ? (
+                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Preparando...</>
+                ) : (
+                  <><span>📲</span> Enviar para o Instagram (com sticker de link)</>
+                )}
+              </button>
+              <p className="text-[10px] text-text-muted text-center mt-1">
+                Abre o compartilhamento do celular → escolha Instagram → adicione o sticker de link
+              </p>
+
+              {/* ── Resultado do compartilhamento ── */}
+              {shareStatus === 'shared' && (
+                <div className="mt-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+                  ✓ Mídia enviada! Agora escolha o Instagram, adicione o sticker de link e publique o Story.
+                </div>
+              )}
+
+              {shareStatus === 'unsupported' && (
+                <div className="mt-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs space-y-2">
+                  <p className="text-blue-400 font-semibold">📱 Abra esta página no celular para compartilhar</p>
+                  <p className="text-text-muted">No computador, baixe a mídia e envie para o celular via WhatsApp ou AirDrop.</p>
+
+                  {shareDownloadUrl && (
+                    <a
+                      href={shareDownloadUrl}
+                      download={storyType === 'video' ? 'story.mp4' : 'story.jpg'}
+                      className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-blue-500/20 text-blue-400 font-semibold hover:bg-blue-500/30 transition-colors"
+                    >
+                      ⬇️ Baixar mídia do Story
+                    </a>
+                  )}
+
+                  {effectiveProduct?.affiliateUrl && (
+                    <div className="space-y-1">
+                      <p className="text-[10px] text-text-muted">Link para o sticker (copie e cole no Instagram):</p>
+                      <div className="flex items-center gap-2 bg-background rounded-lg px-2 py-1.5 border border-border">
+                        <p className="text-xs text-text-primary font-mono flex-1 truncate">{effectiveProduct.affiliateUrl}</p>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(effectiveProduct!.affiliateUrl); }}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded whitespace-nowrap"
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
