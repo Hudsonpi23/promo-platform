@@ -167,9 +167,7 @@ export default function VideosPage() {
   const [installments, setInstallments]   = useState(12);
 
   // Posting state
-  const [postingX, setPostingX]     = useState(false);
   const [postingIg, setPostingIg]   = useState(false);
-  const [xResult, setXResult]       = useState<{ url?: string; error?: string } | null>(null);
   const [igResult, setIgResult]     = useState<{ url?: string; error?: string } | null>(null);
   const [copied, setCopied]         = useState(false);
 
@@ -190,6 +188,8 @@ export default function VideosPage() {
   const [storyStyle, setStoryStyle]               = useState<StoryStyleConfig>(STORY_PRESETS[0]);
   const [showStylePanel, setShowStylePanel]       = useState(false);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [openStorySections, setOpenStorySections] = useState<Set<string>>(new Set(['text', 'style']));
+  const toggleStorySection = (id: string) => setOpenStorySections(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
   const [storyTextPositions, setStoryTextPositions] = useState<StoryTextPositions>(DEFAULT_TEXT_POSITIONS);
   const [storyBgPreview, setStoryBgPreview]       = useState('');
   const [isDragging, setIsDragging]               = useState<string | null>(null);
@@ -293,39 +293,7 @@ export default function VideosPage() {
     }
   }, [videoLinkInput]);
 
-  // ── Post to X ────────────────────────────────────────────────────────────
   const hasVideo = !!videoFile || videoLinkReady;
-
-  const handlePostX = useCallback(async () => {
-    if (!hasVideo || !effectiveProduct) return;
-    setPostingX(true);
-    setXResult(null);
-
-    // Campos de texto ANTES do arquivo — evita perda de dados em streams multipart grandes
-    const form = new FormData();
-    form.append('title',         effectiveProduct.title);
-    form.append('finalPrice',    effectiveProduct.finalPrice.toString());
-    form.append('originalPrice', (effectiveProduct.originalPrice ?? 0).toString());
-    form.append('discountPct',   effectiveProduct.discountPct.toString());
-    form.append('affiliateUrl',   effectiveProduct.affiliateUrl);
-    form.append('paymentMethod',  paymentMethod);
-    form.append('installments',   installments.toString());
-    if (videoFile) {
-      form.append('video', videoFile);
-    } else {
-      form.append('videoUrl', videoLinkInput.trim());
-    }
-
-    try {
-      const res  = await fetchWithAuth('/api/video-publish/post-x', { method: 'POST', body: form });
-      const data = await res.json();
-      setXResult(res.ok ? { url: data.tweetUrl } : { error: data.error || 'Erro ao postar no X.' });
-    } catch (err: any) {
-      setXResult({ error: err.message });
-    } finally {
-      setPostingX(false);
-    }
-  }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
   // ── Post to Instagram ────────────────────────────────────────────────────
   const handlePostInstagram = useCallback(async () => {
@@ -734,7 +702,7 @@ export default function VideosPage() {
     setSharing(false);
   }, [storyType, videoFile, storyImageFile, videoLinkInput, storyImagePreview, isMobile, effectiveProduct]);
 
-  const isPosting = postingX || postingIg || postingStory;
+  const isPosting = postingIg || postingStory;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -743,10 +711,10 @@ export default function VideosPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-          🎬 Publicar Vídeo
+          📸 Publicar no Instagram
         </h1>
         <p className="text-text-secondary mt-1 text-sm">
-          Cole o link afiliado para extrair os dados do produto automaticamente, faça upload do seu vídeo e publique no X ou Instagram.
+          Cole o link afiliado para extrair os dados do produto, faça upload do vídeo e publique como Reels ou crie um Story com editor visual.
         </p>
       </div>
 
@@ -1178,7 +1146,7 @@ export default function VideosPage() {
           {/* ── RIGHT: Publish buttons ──────────────────────────────────── */}
           <div className="flex flex-col gap-4">
             <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              🚀 Publicar em
+              📸 Publicar no Instagram
             </p>
 
             {/* Hint when no video */}
@@ -1190,35 +1158,7 @@ export default function VideosPage() {
               </div>
             )}
 
-            {/* X Button */}
-            <div className="rounded-xl border border-border p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-lg font-black text-text-primary">𝕏</span>
-                <span className="text-sm font-semibold text-text-primary">X (Twitter)</span>
-              </div>
-              <p className="text-xs text-text-muted mb-3">
-                Envia o vídeo + copy gerada automaticamente com preço, desconto e links.
-              </p>
-              <button
-                onClick={handlePostX}
-                disabled={!hasVideo || !effectiveProduct || isPosting}
-                className="w-full py-2.5 rounded-lg bg-black text-white font-semibold text-sm hover:bg-gray-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {postingX ? (
-                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Enviando para o X...</>
-                ) : '𝕏 Publicar no X'}
-              </button>
-              {xResult && (
-                <div className={`mt-2 p-2 rounded-lg text-xs ${xResult.url ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border border-red-500/20 text-red-400'}`}>
-                  {xResult.url
-                    ? <span>✓ Publicado! <a href={xResult.url} target="_blank" rel="noreferrer" className="underline">Ver tweet →</a></span>
-                    : <span>✗ {xResult.error}</span>
-                  }
-                </div>
-              )}
-            </div>
-
-            {/* Instagram Button */}
+            {/* Instagram Reels Button */}
             <div className="rounded-xl border border-border p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-lg">📸</span>
