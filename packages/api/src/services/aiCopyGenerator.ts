@@ -153,44 +153,48 @@ function generateSiteCopy(input: CopyInputData): string {
 function generateXCopy(input: CopyInputData): string {
   const url = (input.trackingUrl || '').toLowerCase();
   const priceNow = formatPrice(input.price);
-  const titleMax = 100;
+  const titleMax = 90;
 
-  // Linha de pagamento para X
-  let paymentSuffix = '';
-  if (input.paymentMethod === 'pix') {
-    paymentSuffix = ' 💳 NO PIX';
-  } else if (input.paymentMethod === 'parcelado' && input.installments) {
-    const perInstallment = input.installmentValue ?? input.price / input.installments;
-    paymentSuffix = `\n💳 ${input.installments}x de ${formatPrice(perInstallment)} sem juros`;
-  }
-
-  let text = '';
-
+  // ── Linha de preço: destaque visual separado ──────────────────────────────
+  let priceLine = '';
   if (input.oldPrice && input.oldPrice > input.price && input.discountPct > 0) {
     const discount = Math.round(input.discountPct);
-    text = `📦 ${shortTitle(input.title, titleMax)}\n\nDe ${formatPrice(input.oldPrice)} por ${priceNow} 🔥 -${discount}% OFF${paymentSuffix}\n\n👉 ${url}`;
+    // Original riscado visualmente com seta → preço final + % de desconto
+    priceLine = `💰 De ${formatPrice(input.oldPrice)} → ${priceNow} (-${discount}%)`;
   } else {
-    text = `📦 ${shortTitle(input.title, titleMax)}\n\npor ${priceNow}${paymentSuffix}\n\n👉 ${url}`;
+    priceLine = `💰 ${priceNow}`;
   }
 
-  if (input.couponCode) {
-    const couponInsert = `\n🏷️ Cupom: ${input.couponCode}`;
-    const insertPos = text.lastIndexOf('\n\n👉');
-    if (insertPos > 0) {
-      text = text.substring(0, insertPos) + couponInsert + text.substring(insertPos);
-    }
+  // ── Linha de forma de pagamento ───────────────────────────────────────────
+  let paymentLine = '';
+  if (input.paymentMethod === 'pix') {
+    paymentLine = `💳 No PIX`;
+  } else if (input.paymentMethod === 'parcelado' && input.installments) {
+    const perInstallment = input.installmentValue ?? input.price / input.installments;
+    paymentLine = `💳 ${input.installments}x de ${formatPrice(perInstallment)} sem juros`;
   }
 
+  // ── Montar texto com cada info em sua própria linha ───────────────────────
+  const parts: string[] = [];
+  parts.push(`📦 ${shortTitle(input.title, titleMax)}`);
+  parts.push('');                      // linha em branco após o título
+  parts.push(priceLine);
+  if (paymentLine) parts.push(paymentLine);
+  if (input.couponCode) parts.push(`🏷️ Cupom: ${input.couponCode}`);
+  parts.push('');                      // linha em branco antes da URL
+  parts.push(`👉 ${url}`);
+
+  let text = parts.join('\n');
+
+  // ── Fallback compacto se ultrapassar o limite ─────────────────────────────
   if (text.length > CHAR_LIMITS.X) {
-    const shorter = shortTitle(input.title, 60);
-    if (input.paymentMethod === 'parcelado' && input.installments) {
-      const perInstallment = input.installmentValue ?? input.price / input.installments;
-      text = `📦 ${shorter}\n${input.installments}x de ${formatPrice(perInstallment)}\n\n👉 ${url}`;
-    } else if (input.discountPct > 0) {
-      text = `📦 ${shorter}\npor ${priceNow} (-${Math.round(input.discountPct)}%)\n\n👉 ${url}`;
-    } else {
-      text = `📦 ${shorter}\npor ${priceNow}\n\n👉 ${url}`;
-    }
+    const shorter = shortTitle(input.title, 55);
+    const compactParts: string[] = [`📦 ${shorter}`, ''];
+    compactParts.push(priceLine);
+    if (paymentLine) compactParts.push(paymentLine);
+    compactParts.push('');
+    compactParts.push(`👉 ${url}`);
+    text = compactParts.join('\n');
   }
 
   return truncate(text, CHAR_LIMITS.X);
