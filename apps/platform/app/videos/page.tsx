@@ -92,30 +92,33 @@ type TextMode = typeof TEXT_MODES[number]['id'];
 const BLOCK_SIZES = {
   headline:    { S: 38, M: 52, L: 68 },
   subheadline: { S: 26, M: 36, L: 48 },
+  price:       { S: 42, M: 60, L: 78 },
   cta:         { S: 30, M: 42, L: 56 },
 } as const;
 type BlockSizeKey = keyof typeof BLOCK_SIZES;
 
 const QUICK_COLORS = ['#ffffff', '#f0c040', '#ff4444', '#40ff80', '#00cfff', '#ff69b4', '#000000'];
 
-interface TextBlockConfig { stylePresetId: TextStylePresetId; mode: TextMode; color: string; size: 'S'|'M'|'L' }
-interface AllBlockConfigs  { headline: TextBlockConfig; subheadline: TextBlockConfig; cta: TextBlockConfig }
+interface TextBlockConfig { stylePresetId: TextStylePresetId; mode: TextMode; color: string; boxColor: string; size: 'S'|'M'|'L' }
+interface AllBlockConfigs  { headline: TextBlockConfig; subheadline: TextBlockConfig; price: TextBlockConfig; cta: TextBlockConfig }
 
 const DEFAULT_BLOCK_CONFIGS: AllBlockConfigs = {
-  headline:    { stylePresetId: 'strong',  mode: 'box', color: '#ffffff', size: 'M' },
-  subheadline: { stylePresetId: 'modern',  mode: 'box', color: '#ffffff', size: 'M' },
-  cta:         { stylePresetId: 'promo',   mode: 'box', color: '#f0c040', size: 'M' },
+  headline:    { stylePresetId: 'strong', mode: 'box', color: '#ffffff', boxColor: '#000000', size: 'M' },
+  subheadline: { stylePresetId: 'modern', mode: 'box', color: '#ffffff', boxColor: '#000000', size: 'M' },
+  price:       { stylePresetId: 'promo',  mode: 'box', color: '#f0c040', boxColor: '#000000', size: 'L' },
+  cta:         { stylePresetId: 'promo',  mode: 'box', color: '#f0c040', boxColor: '#cc0000', size: 'M' },
 };
 
 // ── Story text positioning ──────────────────────────────────────────────────
 interface TextBlockPos   { x: number; y: number }   // 0–1 fractions of canvas
-interface StoryTextPositions { headline: TextBlockPos; subheadline: TextBlockPos; cta: TextBlockPos }
+interface StoryTextPositions { headline: TextBlockPos; subheadline: TextBlockPos; price: TextBlockPos; cta: TextBlockPos }
 interface DragState { block: keyof StoryTextPositions; startCX: number; startCY: number; startPX: number; startPY: number }
 
 const DEFAULT_TEXT_POSITIONS: StoryTextPositions = {
   headline:    { x: 0.5, y: 0.08 },
-  subheadline: { x: 0.5, y: 0.72 },
-  cta:         { x: 0.5, y: 0.87 },
+  subheadline: { x: 0.5, y: 0.68 },
+  price:       { x: 0.5, y: 0.78 },
+  cta:         { x: 0.5, y: 0.90 },
 };
 
 function hexToRgbStr(hex: string): string {
@@ -221,6 +224,7 @@ export default function VideosPage() {
   // ── Story Style Editor ────────────────────────────────────────────────
   const [storyHeadline, setStoryHeadline]         = useState('');
   const [storySubheadline, setStorySubheadline]   = useState('');
+  const [storyPrice, setStoryPrice]               = useState('');
   const [storyCta, setStoryCta]                   = useState('');
   const [storyStyle, setStoryStyle]               = useState<StoryStyleConfig>(STORY_PRESETS[0]);
   const [showStylePanel, setShowStylePanel]       = useState(false);
@@ -418,10 +422,11 @@ export default function VideosPage() {
   const drawTextAtPos = useCallback((
     ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number,
     opts: { blockCfg: TextBlockConfig; sizeMap: { S:number; M:number; L:number };
-            boxColor: string; boxOpacity: number; boxRadius: number; W: number }
+            boxOpacity: number; boxRadius: number; W: number }
   ) => {
     if (!text.trim()) return;
-    const { blockCfg, sizeMap, boxColor, boxOpacity, boxRadius, W } = opts;
+    const { blockCfg, sizeMap, boxOpacity, boxRadius, W } = opts;
+    const boxColor = blockCfg.boxColor;
     const preset  = TEXT_STYLE_PRESETS.find(p => p.id === blockCfg.stylePresetId) ?? TEXT_STYLE_PRESETS[0];
     const size    = sizeMap[blockCfg.size];
     const actual  = preset.uppercase ? text.toUpperCase() : text;
@@ -515,11 +520,13 @@ export default function VideosPage() {
         const fontStr = (sz:number,wt='bold') =>
           `${wt} ${sz}px ${s.fontFamily!=='sans-serif'?`'${s.fontFamily}', `:''}sans-serif`;
         await drawStoryBase(ctx,img,W,H,s);
-        const sharedOpts = { boxColor:s.boxColor, boxOpacity:s.boxOpacity, boxRadius:s.boxRadius, W };
+        const sharedOpts = { boxOpacity:s.boxOpacity, boxRadius:s.boxRadius, W };
         drawTextAtPos(ctx, storyHeadline,    storyTextPositions.headline.x*W,    storyTextPositions.headline.y*H,
           { blockCfg:blockConfigs.headline,    sizeMap:BLOCK_SIZES.headline,    ...sharedOpts });
         drawTextAtPos(ctx, storySubheadline, storyTextPositions.subheadline.x*W, storyTextPositions.subheadline.y*H,
           { blockCfg:blockConfigs.subheadline, sizeMap:BLOCK_SIZES.subheadline, ...sharedOpts });
+        drawTextAtPos(ctx, storyPrice,       storyTextPositions.price.x*W,       storyTextPositions.price.y*H,
+          { blockCfg:blockConfigs.price,       sizeMap:BLOCK_SIZES.price,       ...sharedOpts });
         drawTextAtPos(ctx, storyCta,         storyTextPositions.cta.x*W,         storyTextPositions.cta.y*H,
           { blockCfg:blockConfigs.cta,         sizeMap:BLOCK_SIZES.cta,         ...sharedOpts });
         URL.revokeObjectURL(url);
@@ -531,7 +538,7 @@ export default function VideosPage() {
       img.onerror=()=>{ URL.revokeObjectURL(url); resolve(file); };
       img.src=url;
     });
-  }, [effectiveProduct, storyHeadline, storySubheadline, storyCta, storyStyle, storyTextPositions, blockConfigs, drawStoryBase, drawTextAtPos]);
+  }, [effectiveProduct, storyHeadline, storySubheadline, storyPrice, storyCta, storyStyle, storyTextPositions, blockConfigs, drawStoryBase, drawTextAtPos]);
 
   const handleStoryImage = useCallback(async (file: File) => {
     rawStoryFileRef.current = file;
@@ -565,7 +572,8 @@ export default function VideosPage() {
       const shortTitle = effectiveProduct.title.slice(0, 60).toUpperCase();
       setStoryHeadline(`🔥 ${shortTitle}`);
       setStorySubheadline(effectiveProduct.discountPct > 0 ? `DE ${fmtPrice(effectiveProduct.originalPrice ?? 0)} → ${price}${discount}` : `POR APENAS ${price}`);
-      setStoryCta('CORRE NA BIO ANTES QUE ACABE ⚠️');
+      setStoryPrice(price);
+      setStoryCta('CORRE NA BIO ANTES QUE ACABA ⚠️');
     }
   }, [effectiveProduct]);
 
@@ -593,15 +601,16 @@ export default function VideosPage() {
       }
     }, 900);
     return () => clearTimeout(t);
-  }, [storyStyle, storyHeadline, storySubheadline, storyCta, storyTextPositions, blockConfigs, formatImageForStory]);
+  }, [storyStyle, storyHeadline, storySubheadline, storyPrice, storyCta, storyTextPositions, blockConfigs, formatImageForStory]);
 
   // Sync block colors when a named background preset changes
   useEffect(() => {
     if (storyStyle.presetName === 'Custom') return;
     setBlockConfigs(prev => ({
-      headline:    { ...prev.headline,    color: storyStyle.textPrimaryColor },
-      subheadline: { ...prev.subheadline, color: storyStyle.textSecondaryColor },
-      cta:         { ...prev.cta,         color: storyStyle.ctaColor },
+      headline:    { ...prev.headline,    color: storyStyle.textPrimaryColor,   boxColor: storyStyle.boxColor },
+      subheadline: { ...prev.subheadline, color: storyStyle.textSecondaryColor, boxColor: storyStyle.boxColor },
+      price:       { ...prev.price,       color: storyStyle.ctaColor,           boxColor: storyStyle.boxColor },
+      cta:         { ...prev.cta,         color: storyStyle.ctaColor,           boxColor: storyStyle.boxColor },
     }));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storyStyle.presetName]);
@@ -693,7 +702,7 @@ export default function VideosPage() {
       form.append('mediaType', 'image');
     }
 
-    const builtCaption = [storyHeadline, storySubheadline, storyCta].filter(Boolean).join('\n');
+    const builtCaption = [storyHeadline, storySubheadline, storyPrice, storyCta].filter(Boolean).join('\n');
     if (builtCaption.trim()) form.append('caption', builtCaption.trim());
 
     try {
@@ -705,7 +714,7 @@ export default function VideosPage() {
     } finally {
       setPostingStory(false);
     }
-  }, [storyType, storyImageFile, videoFile, videoLinkInput, hasVideo, storyHeadline, storySubheadline, storyCta]);
+  }, [storyType, storyImageFile, videoFile, videoLinkInput, hasVideo, storyHeadline, storySubheadline, storyPrice, storyCta]);
 
   // ── Compartilhar mídia para o Instagram via share sheet do celular ──────
   const handleShareToInstagram = useCallback(async () => {
@@ -1366,8 +1375,8 @@ export default function VideosPage() {
                         <div className="absolute bottom-2 left-0 right-0 text-center text-[7px] text-white/30 font-semibold pointer-events-none">@manudaspromocoes</div>
 
                         {/* ── Draggable text blocks ── */}
-                        {(['headline', 'subheadline', 'cta'] as const).map(block => {
-                          const text = block==='headline' ? storyHeadline : block==='subheadline' ? storySubheadline : storyCta;
+                        {(['headline', 'subheadline', 'price', 'cta'] as const).map(block => {
+                          const text = block==='headline' ? storyHeadline : block==='subheadline' ? storySubheadline : block==='price' ? storyPrice : storyCta;
                           if (!text.trim()) return null;
                           const cfg     = blockConfigs[block];
                           const preset  = TEXT_STYLE_PRESETS.find(p => p.id === cfg.stylePresetId) ?? TEXT_STYLE_PRESETS[0];
@@ -1376,7 +1385,7 @@ export default function VideosPage() {
                           const previewW = previewContainerRef.current?.offsetWidth || 220;
                           const sc      = previewW / 1080;
                           const scaledFont = Math.max(7, Math.round(sizeMap[cfg.size] * sc));
-                          const bgRgb   = hexToRgbStr(storyStyle.boxColor.startsWith('#') ? storyStyle.boxColor : '#000000');
+                          const bgRgb   = hexToRgbStr(cfg.boxColor.startsWith('#') ? cfg.boxColor : '#000000');
                           const displayText = preset.uppercase ? text.toUpperCase() : text;
 
                           // Background style based on mode
@@ -1422,6 +1431,7 @@ export default function VideosPage() {
                         {([
                           { block: 'headline'    as const, label: 'Headline',    color: 'text-pink-400'   },
                           { block: 'subheadline' as const, label: 'Subheadline', color: 'text-blue-400'   },
+                          { block: 'price'       as const, label: 'Preço',       color: 'text-green-400'  },
                           { block: 'cta'         as const, label: 'CTA',         color: 'text-yellow-400' },
                         ]).map(({ block, label, color }) => (
                           <div key={block} className="flex items-center gap-1.5">
@@ -1561,12 +1571,17 @@ export default function VideosPage() {
                   {([
                     { block: 'headline'    as const, label: 'HEADLINE',    hint: 'gancho principal', labelColor: 'text-pink-400',   text: storyHeadline,    setText: setStoryHeadline,    ph: '💀 ESSE TÊNIS TÁ DIFERENTE' },
                     { block: 'subheadline' as const, label: 'SUBHEADLINE', hint: 'comparação',       labelColor: 'text-blue-400',   text: storySubheadline, setText: setStorySubheadline, ph: 'DE R$ 389 → R$ 199' },
+                    { block: 'price'       as const, label: 'PREÇO',       hint: 'valor do produto', labelColor: 'text-green-400',  text: storyPrice,       setText: setStoryPrice,       ph: 'R$ 199,90' },
                     { block: 'cta'         as const, label: 'CTA',         hint: 'ação',             labelColor: 'text-yellow-400', text: storyCta,         setText: setStoryCta,         ph: '🔥 CORRE QUE ACABA' },
                   ]).map(({ block, label, hint, labelColor, text, setText, ph }) => {
                     const cfg = blockConfigs[block];
                     const activePreset = TEXT_STYLE_PRESETS.find(p => p.id === cfg.stylePresetId) ?? TEXT_STYLE_PRESETS[0];
                     const updateCfg = (patch: Partial<TextBlockConfig>) =>
                       setBlockConfigs(prev => ({ ...prev, [block]: { ...prev[block], ...patch } }));
+
+                    // Quick background colors
+                    const BG_COLORS = ['#000000', '#0a1628', '#1a1a2e', '#cc0000', '#006600', '#1565c0', '#ffffff'];
+
                     return (
                       <div key={block} className="rounded-xl border border-border bg-background/40 p-3 space-y-2">
                         {/* Header */}
@@ -1594,7 +1609,7 @@ export default function VideosPage() {
                             </button>
                           ))}
                         </div>
-                        {/* Mode + Color + Size */}
+                        {/* Mode + Text Color + Size */}
                         <div className="flex items-center gap-2">
                           {/* Modes */}
                           <div className="flex gap-0.5">
@@ -1609,7 +1624,7 @@ export default function VideosPage() {
                               >{mode.icon}</button>
                             ))}
                           </div>
-                          {/* Color swatches */}
+                          {/* Text color swatches */}
                           <div className="flex gap-1 flex-1 items-center">
                             {QUICK_COLORS.map(c => (
                               <button key={c}
@@ -1619,7 +1634,7 @@ export default function VideosPage() {
                               />
                             ))}
                             <input type="color" value={cfg.color} onChange={e => updateCfg({ color: e.target.value })}
-                              className="w-4 h-4 rounded cursor-pointer border-0 p-0 flex-shrink-0" />
+                              className="w-4 h-4 rounded cursor-pointer border-0 p-0 flex-shrink-0" title="Cor do texto" />
                           </div>
                           {/* Size S/M/L */}
                           <div className="flex gap-0.5 flex-shrink-0">
@@ -1632,6 +1647,24 @@ export default function VideosPage() {
                               >{s}</button>
                             ))}
                           </div>
+                        </div>
+                        {/* Background (fundo) color row */}
+                        <div className="flex items-center gap-1.5 pt-0.5 border-t border-border/40">
+                          <span className="text-[9px] text-text-muted uppercase tracking-wider flex-shrink-0">Fundo</span>
+                          <div className="flex gap-1 flex-1 items-center">
+                            {BG_COLORS.map(c => (
+                              <button key={c}
+                                onClick={() => updateCfg({ boxColor: c })}
+                                className={`w-4 h-4 rounded-sm flex-shrink-0 border-2 transition-all ${cfg.boxColor===c?'border-pink-500 scale-125':'border-border/40 hover:border-white/40'}`}
+                                style={{ background: c }}
+                                title={c}
+                              />
+                            ))}
+                            <input type="color" value={cfg.boxColor} onChange={e => updateCfg({ boxColor: e.target.value })}
+                              className="w-4 h-4 rounded cursor-pointer border-0 p-0 flex-shrink-0" title="Cor personalizada do fundo" />
+                          </div>
+                          {/* Opacity hint */}
+                          <span className="text-[9px] text-text-muted flex-shrink-0">opac. global ↑</span>
                         </div>
                       </div>
                     );
