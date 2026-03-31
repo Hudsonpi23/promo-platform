@@ -645,12 +645,32 @@ export default function VideosPage() {
     document.head.appendChild(link);
   }, []);
 
-  // ── Drag handlers for the interactive story preview ──────────────────────
+  // ── Drag helpers ─────────────────────────────────────────────────────────
   const getClientXY = (e: React.MouseEvent | React.TouchEvent) => {
     if ('touches' in e) return { cx: e.touches[0].clientX, cy: e.touches[0].clientY };
     return { cx: (e as React.MouseEvent).clientX, cy: (e as React.MouseEvent).clientY };
   };
 
+  // ── Product image drag handlers (declared first — used inside handleDragMove) ──
+  const handleProductDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    if (!previewContainerRef.current) return;
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    productDragRef.current = {
+      startCX: clientX, startCY: clientY,
+      startPX: productImagePos.x, startPY: productImagePos.y,
+    };
+    setIsDraggingProduct(true);
+    e.preventDefault();
+  }, [productImagePos]);
+
+  const handleProductDragEnd = useCallback(() => {
+    productDragRef.current = null;
+    setIsDraggingProduct(false);
+  }, []);
+
+  // ── Text / general drag handlers ─────────────────────────────────────────
   const handleDragStart = useCallback((block: keyof StoryTextPositions, e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
     const { cx, cy } = getClientXY(e);
@@ -665,10 +685,15 @@ export default function VideosPage() {
 
   const handleDragMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const { cx, cy } = getClientXY(e);
-    // Product image drag
-    if (productDragRef.current) {
+    // Product image drag — inline logic to avoid hoisting issues
+    if (productDragRef.current && previewContainerRef.current) {
       e.preventDefault();
-      handleProductDragMove(cx, cy);
+      const rect = previewContainerRef.current.getBoundingClientRect();
+      const { startCX, startCY, startPX, startPY } = productDragRef.current;
+      setProductImagePos({
+        x: Math.min(0.95, Math.max(0.05, startPX + (cx - startCX) / rect.width)),
+        y: Math.min(0.90, Math.max(0.05, startPY + (cy - startCY) / rect.height)),
+      });
       return;
     }
     if (!dragStateRef.current || !previewContainerRef.current) return;
@@ -682,43 +707,11 @@ export default function VideosPage() {
       ...prev,
       [dragStateRef.current!.block]: { x: newX, y: newY },
     }));
-  }, [handleProductDragMove]);
+  }, []);
 
   const handleDragEnd = useCallback(() => {
     dragStateRef.current = null;
     setIsDragging(null);
-    handleProductDragEnd();
-  }, [handleProductDragEnd]);
-
-  // ── Product image drag handlers ──────────────────────────────────────────
-  const handleProductDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation();
-    const el = previewContainerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    productDragRef.current = {
-      startCX: clientX, startCY: clientY,
-      startPX: productImagePos.x, startPY: productImagePos.y,
-    };
-    setIsDraggingProduct(true);
-    if ('preventDefault' in e) e.preventDefault();
-  }, [productImagePos]);
-
-  const handleProductDragMove = useCallback((clientX: number, clientY: number) => {
-    if (!productDragRef.current || !previewContainerRef.current) return;
-    const rect = previewContainerRef.current.getBoundingClientRect();
-    const { startCX, startCY, startPX, startPY } = productDragRef.current;
-    const dx = (clientX - startCX) / rect.width;
-    const dy = (clientY - startCY) / rect.height;
-    setProductImagePos({
-      x: Math.min(0.95, Math.max(0.05, startPX + dx)),
-      y: Math.min(0.90, Math.max(0.05, startPY + dy)),
-    });
-  }, []);
-
-  const handleProductDragEnd = useCallback(() => {
     productDragRef.current = null;
     setIsDraggingProduct(false);
   }, []);
