@@ -13,6 +13,63 @@ interface ProductData {
   affiliateUrl:  string;
 }
 
+// ── Story Style ─────────────────────────────────────────────────────────────
+interface StoryStyleConfig {
+  presetName:          string;
+  bgType:              'solid' | 'gradient';
+  bgColor:             string;
+  bgGradient:          [string, string];
+  boxColor:            string;
+  boxOpacity:          number;
+  boxRadius:           number;
+  textPrimaryColor:    string;
+  textSecondaryColor:  string;
+  ctaColor:            string;
+  priceColor:          string;
+  fontFamily:          string;
+  headlineSize:        number;
+  subheadlineSize:     number;
+  ctaSize:             number;
+}
+
+const STORY_PRESETS: StoryStyleConfig[] = [
+  {
+    presetName: 'Manu Padrão', bgType: 'gradient', bgColor: '#0a1628',
+    bgGradient: ['#0a1628', '#0d2240'], boxColor: '#000000', boxOpacity: 0.55,
+    boxRadius: 24, textPrimaryColor: '#ffffff', textSecondaryColor: 'rgba(255,255,255,0.85)',
+    ctaColor: '#f0c040', priceColor: '#f0c040', fontFamily: 'sans-serif',
+    headlineSize: 52, subheadlineSize: 36, ctaSize: 44,
+  },
+  {
+    presetName: 'Oferta', bgType: 'gradient', bgColor: '#0d0d0d',
+    bgGradient: ['#1a0800', '#0d0d0d'], boxColor: '#000000', boxOpacity: 0.65,
+    boxRadius: 20, textPrimaryColor: '#ffffff', textSecondaryColor: 'rgba(255,255,255,0.9)',
+    ctaColor: '#ff4444', priceColor: '#f0c040', fontFamily: 'sans-serif',
+    headlineSize: 54, subheadlineSize: 38, ctaSize: 46,
+  },
+  {
+    presetName: 'Urgente', bgType: 'gradient', bgColor: '#1a0000',
+    bgGradient: ['#2d0000', '#1a0000'], boxColor: '#aa0000', boxOpacity: 0.70,
+    boxRadius: 20, textPrimaryColor: '#ffffff', textSecondaryColor: '#ffffff',
+    ctaColor: '#ffdd00', priceColor: '#ffdd00', fontFamily: 'sans-serif',
+    headlineSize: 56, subheadlineSize: 38, ctaSize: 48,
+  },
+  {
+    presetName: 'Economia', bgType: 'gradient', bgColor: '#001a0a',
+    bgGradient: ['#002a10', '#001a0a'], boxColor: '#004d1a', boxOpacity: 0.65,
+    boxRadius: 20, textPrimaryColor: '#ffffff', textSecondaryColor: '#a0ffb0',
+    ctaColor: '#40ff80', priceColor: '#f0c040', fontFamily: 'sans-serif',
+    headlineSize: 52, subheadlineSize: 36, ctaSize: 44,
+  },
+  {
+    presetName: 'Claro', bgType: 'gradient', bgColor: '#f0f4ff',
+    bgGradient: ['#ffffff', '#e8f0fe'], boxColor: '#1a2a6c', boxOpacity: 0.08,
+    boxRadius: 24, textPrimaryColor: '#1a2a6c', textSecondaryColor: '#2d3a7a',
+    ctaColor: '#e63946', priceColor: '#1565C0', fontFamily: 'sans-serif',
+    headlineSize: 50, subheadlineSize: 34, ctaSize: 42,
+  },
+];
+
 // ── Price formatter ────────────────────────────────────────────────────────
 function fmtPrice(v?: number | null): string {
   if (!v) return '—';
@@ -101,15 +158,22 @@ export default function VideosPage() {
   const [copied, setCopied]         = useState(false);
 
   // ── Stories ──────────────────────────────────────────────────────────────
-  const [storyType, setStoryType]           = useState<'video' | 'image'>('video');
-  const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
+  const [storyType, setStoryType]                 = useState<'video' | 'image'>('video');
+  const [storyImageFile, setStoryImageFile]       = useState<File | null>(null);
   const [storyImagePreview, setStoryImagePreview] = useState('');
-  const [storyCaption, setStoryCaption]     = useState('');
-  const [postingStory, setPostingStory]     = useState(false);
-  const [storyResult, setStoryResult]       = useState<{ url?: string; error?: string } | null>(null);
-  const [storyDragOver, setStoryDragOver]   = useState(false);
-  const storyImageRef = useRef<HTMLInputElement>(null);
+  const [postingStory, setPostingStory]           = useState(false);
+  const [storyResult, setStoryResult]             = useState<{ url?: string; error?: string } | null>(null);
+  const [storyDragOver, setStoryDragOver]         = useState(false);
+  const storyImageRef   = useRef<HTMLInputElement>(null);
   const rawStoryFileRef = useRef<File | null>(null);
+
+  // ── Story Style Editor ────────────────────────────────────────────────
+  const [storyHeadline, setStoryHeadline]         = useState('');
+  const [storySubheadline, setStorySubheadline]   = useState('');
+  const [storyCta, setStoryCta]                   = useState('');
+  const [storyStyle, setStoryStyle]               = useState<StoryStyleConfig>(STORY_PRESETS[0]);
+  const [showStylePanel, setShowStylePanel]       = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
 
   // ── Share to Instagram ────────────────────────────────────────────────
   const [isMobile, setIsMobile]         = useState(false);
@@ -275,131 +339,177 @@ export default function VideosPage() {
     }
   }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
-  // ── Handle story image ───────────────────────────────────────────────────
-  // Converte qualquer imagem para o formato Story 9:16 (1080×1920)
-  // Fundo gradiente azul da Manu + produto centralizado com sombra
+  // ── Handle story image ────────────────────────────────────────────────────
+  // Converte imagem para 9:16 (1080×1920) aplicando o storyStyle ativo
   const formatImageForStory = useCallback((file: File): Promise<File> => {
     return new Promise((resolve) => {
       const W = 1080, H = 1920;
       const img = new Image();
       const objectUrl = URL.createObjectURL(file);
-      img.onload = () => {
+
+      img.onload = async () => {
         const canvas = document.createElement('canvas');
         canvas.width  = W;
         canvas.height = H;
         const ctx = canvas.getContext('2d')!;
+        const s   = storyStyle;
 
-        // Fundo gradiente azul escuro (tema Manu)
-        const grad = ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0,   '#0a1628');
-        grad.addColorStop(0.5, '#0d2240');
-        grad.addColorStop(1,   '#0a1628');
-        ctx.fillStyle = grad;
+        // Load custom font if needed
+        if (s.fontFamily !== 'sans-serif') {
+          try { await document.fonts.load(`bold ${s.headlineSize}px '${s.fontFamily}'`); } catch {}
+        }
+
+        const fontStr = (size: number, weight = 'bold') =>
+          `${weight} ${size}px ${s.fontFamily !== 'sans-serif' ? `'${s.fontFamily}', ` : ''}sans-serif`;
+
+        // ── Background ──────────────────────────────────────────────────
+        if (s.bgType === 'gradient') {
+          const grad = ctx.createLinearGradient(0, 0, 0, H);
+          grad.addColorStop(0, s.bgGradient[0]);
+          grad.addColorStop(1, s.bgGradient[1]);
+          ctx.fillStyle = grad;
+        } else {
+          ctx.fillStyle = s.bgColor;
+        }
         ctx.fillRect(0, 0, W, H);
 
-        // Brilho sutil no centro
-        const radial = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W * 0.8);
-        radial.addColorStop(0,   'rgba(30,80,160,0.35)');
-        radial.addColorStop(1,   'rgba(0,0,0,0)');
-        ctx.fillStyle = radial;
+        // Subtle center glow
+        const glow = ctx.createRadialGradient(W/2, H * 0.4, 0, W/2, H * 0.4, W * 0.9);
+        glow.addColorStop(0, 'rgba(255,255,255,0.04)');
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
         ctx.fillRect(0, 0, W, H);
 
-        // Área da imagem do produto: ocupa 75% da largura, centrada verticalmente
+        // ── Helper: rounded rect ─────────────────────────────────────────
+        const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+          ctx.beginPath();
+          ctx.moveTo(x+r, y);
+          ctx.lineTo(x+w-r, y);   ctx.arcTo(x+w, y,   x+w, y+r,   r);
+          ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+          ctx.lineTo(x+r, y+h);   ctx.arcTo(x,   y+h, x,   y+h-r, r);
+          ctx.lineTo(x,   y+r);   ctx.arcTo(x,   y,   x+r, y,     r);
+          ctx.closePath();
+        };
+
+        // ── Helper: draw text block with optional box, returns bottomY ──
+        const drawTextBlock = (
+          text: string, topY: number,
+          opts: { size: number; color: string; boxBg?: string; boxAlpha?: number; pad?: number; lh?: number; w?: string; }
+        ): number => {
+          if (!text.trim()) return topY;
+          const { size, color, boxBg, boxAlpha = 0.55, pad = 36, lh = size * 1.38, w = 'bold' } = opts;
+          const maxW = W - 80;
+
+          ctx.font = fontStr(size, w);
+          ctx.textAlign = 'center';
+
+          // Word-wrap
+          const words  = text.split(' ');
+          const lines: string[] = [];
+          let cur = '';
+          for (const word of words) {
+            const test = cur ? `${cur} ${word}` : word;
+            if (ctx.measureText(test).width > maxW) { if (cur) lines.push(cur); cur = word; }
+            else cur = test;
+          }
+          if (cur) lines.push(cur);
+
+          const totalH = lines.length * lh + pad * 1.2;
+
+          if (boxBg) {
+            const hex = boxBg.startsWith('#') ? boxBg : '#000000';
+            const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+            ctx.fillStyle = `rgba(${r},${g},${b},${boxAlpha})`;
+            roundRect(40, topY - pad * 0.4, W - 80, totalH, s.boxRadius);
+            ctx.fill();
+          }
+
+          ctx.fillStyle = color;
+          lines.forEach((line, i) => ctx.fillText(line, W/2, topY + i * lh + pad * 0.6));
+          return topY + totalH + 16;
+        };
+
+        // ── Layout ───────────────────────────────────────────────────────
+        let curY = 130;
+
+        // Headline (above image)
+        if (storyHeadline.trim()) {
+          curY = drawTextBlock(storyHeadline, curY, {
+            size: s.headlineSize, color: s.textPrimaryColor,
+            boxBg: s.boxColor, boxAlpha: s.boxOpacity,
+          }) + 20;
+        }
+
+        // Product image in white card
+        const maxImgH = storyHeadline.trim() ? H * 0.38 : H * 0.45;
         const maxImgW = W * 0.80;
-        const maxImgH = H * 0.52;
         const ratio   = Math.min(maxImgW / img.width, maxImgH / img.height);
         const dw = img.width  * ratio;
         const dh = img.height * ratio;
         const dx = (W - dw) / 2;
-        const dy = (H - dh) / 2 - 60; // levemente acima do centro
+        const dy = curY + 10;
+        const pad = 36;
 
-        // Sombra suave atrás da imagem
-        ctx.shadowColor   = 'rgba(0,0,0,0.6)';
-        ctx.shadowBlur    = 60;
-        ctx.shadowOffsetY = 20;
-
-        // Fundo branco arredondado para a imagem
-        const pad = 32;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 20;
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        const rx = dx - pad, ry = dy - pad, rw = dw + pad*2, rh = dh + pad*2, r = 40;
-        ctx.moveTo(rx + r, ry);
-        ctx.lineTo(rx + rw - r, ry);  ctx.arcTo(rx+rw, ry, rx+rw, ry+r, r);
-        ctx.lineTo(rx + rw, ry + rh - r); ctx.arcTo(rx+rw, ry+rh, rx+rw-r, ry+rh, r);
-        ctx.lineTo(rx + r, ry + rh); ctx.arcTo(rx, ry+rh, rx, ry+rh-r, r);
-        ctx.lineTo(rx, ry + r);      ctx.arcTo(rx, ry, rx+r, ry, r);
-        ctx.closePath();
+        roundRect(dx - pad, dy - pad, dw + pad*2, dh + pad*2, 40);
         ctx.fill();
-        ctx.shadowColor = 'transparent';
-
-        // Imagem do produto
+        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
         ctx.drawImage(img, dx, dy, dw, dh);
 
-        // Faixa inferior com texto de produto (se disponível)
-        const prodTitle = effectiveProduct?.title;
+        // Price + title below image
+        let belowY = dy + dh + pad + 60;
         const prodPrice = effectiveProduct ? fmtPrice(effectiveProduct.finalPrice) : null;
-        if (prodTitle || prodPrice) {
-          const textY = dy + dh + pad + 60;
-          if (prodPrice) {
-            ctx.font = 'bold 72px sans-serif';
-            ctx.fillStyle = '#f0c040';
-            ctx.textAlign = 'center';
-            ctx.fillText(prodPrice, W/2, textY);
-          }
-          if (prodTitle) {
-            ctx.font = '36px sans-serif';
-            ctx.fillStyle = 'rgba(255,255,255,0.85)';
-            ctx.textAlign = 'center';
-            const maxChars = 52;
-            const line1 = prodTitle.slice(0, maxChars);
-            const line2 = prodTitle.length > maxChars ? prodTitle.slice(maxChars, maxChars * 2) + '…' : '';
-            ctx.fillText(line1, W/2, textY + (prodPrice ? 70 : 0));
-            if (line2) ctx.fillText(line2, W/2, textY + (prodPrice ? 120 : 50));
-          }
+        const prodTitle = effectiveProduct?.title;
+
+        if (prodPrice) {
+          ctx.font = fontStr(72); ctx.fillStyle = s.priceColor; ctx.textAlign = 'center';
+          ctx.fillText(prodPrice, W/2, belowY); belowY += 84;
+        }
+        if (prodTitle) {
+          ctx.font = fontStr(34, '600'); ctx.fillStyle = s.textSecondaryColor; ctx.textAlign = 'center';
+          const mc = 52;
+          const l1 = prodTitle.slice(0, mc);
+          const l2 = prodTitle.length > mc ? prodTitle.slice(mc, mc * 2) + '…' : '';
+          ctx.fillText(l1, W/2, belowY);
+          if (l2) { ctx.fillText(l2, W/2, belowY + 44); belowY += 44; }
+          belowY += 52;
         }
 
-        // Legenda digitada pelo usuário — gravada na imagem em destaque
-        if (storyCaption.trim()) {
-          const captionLines = storyCaption.trim().split('\n').slice(0, 4);
-          const blockH = captionLines.length * 58 + 48;
-          const blockY = H - 200 - blockH;
+        // Subheadline (below price area)
+        if (storySubheadline.trim()) {
+          belowY = drawTextBlock(storySubheadline, belowY + 8, {
+            size: s.subheadlineSize, color: s.textSecondaryColor,
+            boxBg: s.boxColor, boxAlpha: s.boxOpacity * 0.75,
+          }) + 12;
+        }
 
-          // Fundo semitransparente para a legenda
-          ctx.fillStyle = 'rgba(0,0,0,0.55)';
-          const bx = 40, bw = W - 80, br = 24;
-          ctx.beginPath();
-          ctx.moveTo(bx + br, blockY);
-          ctx.lineTo(bx + bw - br, blockY); ctx.arcTo(bx+bw, blockY, bx+bw, blockY+br, br);
-          ctx.lineTo(bx+bw, blockY+blockH-br); ctx.arcTo(bx+bw, blockY+blockH, bx+bw-br, blockY+blockH, br);
-          ctx.lineTo(bx+br, blockY+blockH); ctx.arcTo(bx, blockY+blockH, bx, blockY+blockH-br, br);
-          ctx.lineTo(bx, blockY+br); ctx.arcTo(bx, blockY, bx+br, blockY, br);
-          ctx.closePath();
-          ctx.fill();
-
-          ctx.font = 'bold 44px sans-serif';
-          ctx.fillStyle = '#ffffff';
-          ctx.textAlign = 'center';
-          captionLines.forEach((line, i) => {
-            ctx.fillText(line, W/2, blockY + 52 + i * 58);
+        // CTA (anchored near bottom if there's room)
+        if (storyCta.trim()) {
+          const ctaY = Math.max(belowY + 8, H - 310);
+          drawTextBlock(storyCta, ctaY, {
+            size: s.ctaSize, color: s.ctaColor,
+            boxBg: s.boxColor, boxAlpha: Math.min(s.boxOpacity * 1.1, 0.85),
           });
         }
 
-        // Marca Manu na parte inferior
-        ctx.font = 'bold 40px sans-serif';
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        // Watermark
+        ctx.font = fontStr(38, '600');
+        ctx.fillStyle = 'rgba(255,255,255,0.32)';
         ctx.textAlign = 'center';
-        ctx.fillText('@manudaspromocoes', W/2, H - 80);
+        ctx.fillText('@manudaspromocoes', W/2, H - 68);
 
         URL.revokeObjectURL(objectUrl);
         canvas.toBlob(blob => {
           if (!blob) { resolve(file); return; }
           resolve(new File([blob], 'story_1080x1920.jpg', { type: 'image/jpeg' }));
-        }, 'image/jpeg', 0.92);
+        }, 'image/jpeg', 0.93);
       };
+
       img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
       img.src = objectUrl;
     });
-  }, [effectiveProduct, storyCaption]);
+  }, [effectiveProduct, storyHeadline, storySubheadline, storyCta, storyStyle]);
 
   const handleStoryImage = useCallback(async (file: File) => {
     rawStoryFileRef.current = file;  // guarda original para re-converter com nova legenda
@@ -423,14 +533,44 @@ export default function VideosPage() {
     setIsMobile('ontouchstart' in window || navigator.maxTouchPoints > 0);
   }, []);
 
-  // Auto-fill caption when product is loaded
+  // Auto-fill story text blocks when product is loaded
   useEffect(() => {
     if (effectiveProduct) {
-      const price = fmtPrice(effectiveProduct.finalPrice);
-      const discount = effectiveProduct.discountPct > 0 ? ` (-${effectiveProduct.discountPct}%)` : '';
-      setStoryCaption(`🔥 ${effectiveProduct.title.slice(0, 80)}\n💰 ${price}${discount}\n👉 Link na bio!`);
+      const price    = fmtPrice(effectiveProduct.finalPrice);
+      const discount = effectiveProduct.discountPct >= 30 ? ` (-${effectiveProduct.discountPct}%)` : '';
+      const shortTitle = effectiveProduct.title.slice(0, 60).toUpperCase();
+      setStoryHeadline(`🔥 ${shortTitle}`);
+      setStorySubheadline(effectiveProduct.discountPct > 0 ? `DE ${fmtPrice(effectiveProduct.originalPrice ?? 0)} → ${price}${discount}` : `POR APENAS ${price}`);
+      setStoryCta('CORRE NA BIO ANTES QUE ACABE ⚠️');
     }
   }, [effectiveProduct]);
+
+  // Auto-regenerate preview when style/text changes (debounced)
+  useEffect(() => {
+    if (!rawStoryFileRef.current) return;
+    const t = setTimeout(async () => {
+      setIsGeneratingPreview(true);
+      try {
+        const formatted = await formatImageForStory(rawStoryFileRef.current!);
+        setStoryImageFile(formatted);
+        setStoryImagePreview(URL.createObjectURL(formatted));
+      } finally {
+        setIsGeneratingPreview(false);
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [storyStyle, storyHeadline, storySubheadline, storyCta, formatImageForStory]);
+
+  // Load Google Fonts for canvas
+  useEffect(() => {
+    const id = 'story-gfonts';
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id   = id;
+    link.rel  = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800&display=swap';
+    document.head.appendChild(link);
+  }, []);
 
   // ── Post Story ───────────────────────────────────────────────────────────
   const handlePostStory = useCallback(async () => {
@@ -460,7 +600,8 @@ export default function VideosPage() {
       form.append('mediaType', 'image');
     }
 
-    if (storyCaption.trim()) form.append('caption', storyCaption.trim());
+    const builtCaption = [storyHeadline, storySubheadline, storyCta].filter(Boolean).join('\n');
+    if (builtCaption.trim()) form.append('caption', builtCaption.trim());
 
     try {
       const res  = await fetchWithAuth('/api/instagram/publish-story', { method: 'POST', body: form });
@@ -471,7 +612,7 @@ export default function VideosPage() {
     } finally {
       setPostingStory(false);
     }
-  }, [storyType, storyImageFile, videoFile, videoLinkInput, hasVideo, storyCaption]);
+  }, [storyType, storyImageFile, videoFile, videoLinkInput, hasVideo, storyHeadline, storySubheadline, storyCta]);
 
   // ── Compartilhar mídia para o Instagram via share sheet do celular ──────
   const handleShareToInstagram = useCallback(async () => {
@@ -1063,27 +1204,23 @@ export default function VideosPage() {
             </div>
 
             {/* ── Instagram Stories ──────────────────────────────────── */}
-            <div className="rounded-xl border-2 border-pink-500/30 bg-gradient-to-br from-purple-900/10 via-pink-900/10 to-orange-900/10 p-4">
-              <div className="flex items-center gap-2 mb-1">
+            <div className="rounded-xl border-2 border-pink-500/30 bg-gradient-to-br from-purple-900/10 via-pink-900/10 to-orange-900/10 p-4 space-y-3">
+              {/* Header */}
+              <div className="flex items-center gap-2">
                 <span className="text-lg">✨</span>
                 <span className="text-sm font-bold text-text-primary">Instagram Stories</span>
                 <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white">
                   VIA POSTFOR.ME
                 </span>
               </div>
-              <p className="text-xs text-text-muted mb-3">
-                Publica imagem ou vídeo como Story (1080×1920). Suporte a vídeo e imagem.
-              </p>
 
               {/* Story type selector */}
-              <div className="flex gap-2 mb-3">
+              <div className="flex gap-2">
                 {([
                   { value: 'video', label: '📹 Vídeo', desc: 'usa o vídeo carregado' },
                   { value: 'image', label: '🖼️ Imagem', desc: 'upload de foto' },
                 ] as { value: 'video' | 'image'; label: string; desc: string }[]).map(opt => (
-                  <button
-                    key={opt.value}
-                    type="button"
+                  <button key={opt.value} type="button"
                     onClick={() => { setStoryType(opt.value); setStoryResult(null); }}
                     className={`flex-1 py-2 px-3 rounded-lg border text-xs font-semibold transition-all text-center ${
                       storyType === opt.value
@@ -1097,191 +1234,307 @@ export default function VideosPage() {
                 ))}
               </div>
 
-              {/* Image upload area (only for image stories) */}
+              {/* ── Image mode ── */}
               {storyType === 'image' && (
-                <div className="mb-3">
+                <>
+                  {/* Upload or Preview */}
                   {!storyImageFile ? (
                     <div
                       onDragOver={e => { e.preventDefault(); setStoryDragOver(true); }}
                       onDragLeave={() => setStoryDragOver(false)}
-                      onDrop={e => {
-                        e.preventDefault();
-                        setStoryDragOver(false);
-                        const f = e.dataTransfer.files[0];
-                        if (f) handleStoryImage(f);
-                      }}
+                      onDrop={e => { e.preventDefault(); setStoryDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleStoryImage(f); }}
                       onClick={() => storyImageRef.current?.click()}
-                      className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all py-6 ${
-                        storyDragOver
-                          ? 'border-pink-500 bg-pink-500/10'
-                          : 'border-border hover:border-pink-500/60 hover:bg-surface-hover'
-                      }`}
+                      className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all py-7 ${storyDragOver ? 'border-pink-500 bg-pink-500/10' : 'border-border hover:border-pink-500/60 hover:bg-surface-hover'}`}
                     >
                       <span className="text-3xl mb-2">🖼️</span>
                       <p className="text-xs font-semibold text-text-primary">Arraste a imagem aqui</p>
-                      <p className="text-[11px] text-text-muted mt-1">Qualquer formato — convertido automaticamente para 9:16</p>
+                      <p className="text-[11px] text-text-muted mt-1">Qualquer formato → convertido para 9:16</p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {/* Badge de confirmação */}
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                        <span className="text-emerald-400 text-sm">✓</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-emerald-400">Convertida para Stories (9:16)</p>
-                          <p className="text-[10px] text-text-muted">1080 × 1920 px — pronta para Instagram</p>
-                        </div>
-                        <button
-                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryResult(null); }}
-                          className="text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded whitespace-nowrap"
-                        >Trocar</button>
-                      </div>
-                      {/* Preview em proporção 9:16 real */}
-                      <div className="relative mx-auto rounded-xl overflow-hidden border-2 border-pink-500/30 bg-black"
-                        style={{ width: '100%', aspectRatio: '9/16', maxWidth: 160 }}>
+                    <div className="flex gap-3 items-start">
+                      {/* Preview 9:16 */}
+                      <div className="relative rounded-xl overflow-hidden border-2 border-pink-500/40 bg-black flex-shrink-0" style={{ width: 90, height: 160 }}>
+                        {isGeneratingPreview && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/75 z-10">
+                            <svg className="animate-spin w-5 h-5 text-pink-400" viewBox="0 0 24 24" fill="none">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                            </svg>
+                          </div>
+                        )}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={storyImagePreview}
-                          alt="preview story"
-                          className="absolute inset-0 w-full h-full object-contain"
-                        />
+                        <img src={storyImagePreview} alt="preview" className="w-full h-full object-cover" />
                         <div className="absolute bottom-1 left-0 right-0 flex justify-center">
-                          <span className="text-[9px] bg-black/60 text-white px-2 py-0.5 rounded-full">9:16</span>
+                          <span className="text-[8px] bg-black/70 text-white px-1.5 py-0.5 rounded-full">9:16</span>
                         </div>
+                      </div>
+                      <div className="flex-1 space-y-1.5 pt-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-400 text-xs">✓</span>
+                          <span className="text-xs font-semibold text-emerald-400">Convertida (9:16)</span>
+                        </div>
+                        <p className="text-[10px] text-text-muted">1080 × 1920 px</p>
+                        {isGeneratingPreview && <p className="text-[10px] text-pink-400 animate-pulse">Atualizando preview...</p>}
+                        <button
+                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryResult(null); rawStoryFileRef.current = null; }}
+                          className="text-[10px] text-red-400 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+                        >Trocar imagem</button>
                       </div>
                     </div>
                   )}
-                  <input
-                    ref={storyImageRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) handleStoryImage(f); e.target.value = ''; }}
-                  />
-                </div>
+                  <input ref={storyImageRef} type="file" accept="image/*" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleStoryImage(f); e.target.value = ''; }} />
+
+                  {/* ── 🎨 Estilo Visual ── */}
+                  <div className="rounded-xl border border-pink-500/20 bg-black/20 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-bold text-pink-300 uppercase tracking-wider">🎨 Estilo Visual</p>
+                      <button onClick={() => setShowStylePanel(p => !p)}
+                        className="text-[10px] text-text-muted border border-border px-2 py-0.5 rounded hover:border-pink-500/40 transition-colors">
+                        {showStylePanel ? '▲ Fechar' : '▼ Editor avançado'}
+                      </button>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="grid grid-cols-5 gap-1">
+                      {STORY_PRESETS.map(preset => (
+                        <button key={preset.presetName}
+                          onClick={() => setStoryStyle(preset)}
+                          title={preset.presetName}
+                          className={`py-2 px-1 rounded-lg border text-[9px] font-bold transition-all text-center leading-tight ${
+                            storyStyle.presetName === preset.presetName
+                              ? 'border-pink-500 ring-1 ring-pink-500/50 scale-105'
+                              : 'border-transparent hover:border-white/20 hover:scale-105'
+                          }`}
+                          style={{
+                            background: `linear-gradient(135deg, ${preset.bgGradient[0]}, ${preset.bgGradient[1]})`,
+                            color: preset.textPrimaryColor,
+                          }}
+                        >
+                          {preset.presetName}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Advanced editor */}
+                    {showStylePanel && (
+                      <div className="space-y-3 pt-1 border-t border-border">
+                        {/* Background */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Fundo (gradiente)</p>
+                          <div className="flex gap-3 items-center">
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[10px] text-text-muted">Topo</label>
+                              <input type="color" value={storyStyle.bgGradient[0]}
+                                onChange={e => setStoryStyle(s => ({...s, bgGradient: [e.target.value, s.bgGradient[1]], bgColor: e.target.value, presetName: 'Custom'}))}
+                                className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[10px] text-text-muted">Base</label>
+                              <input type="color" value={storyStyle.bgGradient[1]}
+                                onChange={e => setStoryStyle(s => ({...s, bgGradient: [s.bgGradient[0], e.target.value], presetName: 'Custom'}))}
+                                className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Box */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Caixa de texto</p>
+                          <div className="flex gap-3 items-center flex-wrap">
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[10px] text-text-muted">Cor</label>
+                              <input type="color" value={storyStyle.boxColor}
+                                onChange={e => setStoryStyle(s => ({...s, boxColor: e.target.value, presetName: 'Custom'}))}
+                                className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                            </div>
+                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                              <label className="text-[10px] text-text-muted whitespace-nowrap">
+                                Opac. {Math.round(storyStyle.boxOpacity * 100)}%
+                              </label>
+                              <input type="range" min={0} max={100} value={Math.round(storyStyle.boxOpacity * 100)}
+                                onChange={e => setStoryStyle(s => ({...s, boxOpacity: parseInt(e.target.value) / 100, presetName: 'Custom'}))}
+                                className="flex-1 accent-pink-500" />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Text colors */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Cores do texto</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {([
+                              { label: 'Principal',   key: 'textPrimaryColor'   },
+                              { label: 'Secundário',  key: 'textSecondaryColor' },
+                              { label: 'CTA',         key: 'ctaColor'           },
+                              { label: 'Preço',       key: 'priceColor'         },
+                            ] as { label: string; key: keyof StoryStyleConfig }[]).map(({ label, key }) => (
+                              <div key={key as string} className="flex items-center gap-2">
+                                <input type="color" value={storyStyle[key] as string}
+                                  onChange={e => setStoryStyle(s => ({...s, [key]: e.target.value, presetName: 'Custom'}))}
+                                  className="w-8 h-8 rounded cursor-pointer border-0 p-0 flex-shrink-0" />
+                                <label className="text-[10px] text-text-muted">{label}</label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Font */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Fonte</p>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(['sans-serif', 'Poppins', 'Inter', 'Montserrat'] as const).map(f => (
+                              <button key={f}
+                                onClick={() => setStoryStyle(s => ({...s, fontFamily: f, presetName: 'Custom'}))}
+                                className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
+                                  storyStyle.fontFamily === f
+                                    ? 'border-pink-500 bg-pink-500/10 text-pink-400'
+                                    : 'border-border text-text-muted hover:border-pink-400/40'
+                                }`}
+                                style={{ fontFamily: f === 'sans-serif' ? 'sans-serif' : f }}
+                              >
+                                {f === 'sans-serif' ? 'Padrão' : f}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Tamanhos */}
+                        <div>
+                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Tamanho da fonte</p>
+                          <div className="space-y-2">
+                            {([
+                              { label: 'Headline',    key: 'headlineSize',    min: 32, max: 80 },
+                              { label: 'Subheadline', key: 'subheadlineSize', min: 24, max: 60 },
+                              { label: 'CTA',         key: 'ctaSize',         min: 28, max: 70 },
+                            ] as { label: string; key: 'headlineSize' | 'subheadlineSize' | 'ctaSize'; min: number; max: number }[]).map(({ label, key, min, max }) => (
+                              <div key={key} className="flex items-center gap-2">
+                                <label className="text-[10px] text-text-muted w-20 flex-shrink-0">{label} {storyStyle[key]}px</label>
+                                <input type="range" min={min} max={max} value={storyStyle[key]}
+                                  onChange={e => setStoryStyle(s => ({...s, [key]: parseInt(e.target.value), presetName: 'Custom'}))}
+                                  className="flex-1 accent-pink-500" />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-1">
+                          <button onClick={() => setStoryStyle(STORY_PRESETS[0])}
+                            className="flex-1 py-1.5 rounded-lg border border-border text-[10px] text-text-muted hover:border-pink-500/40 transition-colors">
+                            ↩ Resetar
+                          </button>
+                          <button onClick={() => { localStorage.setItem('manu_story_style', JSON.stringify(storyStyle)); }}
+                            className="flex-1 py-1.5 rounded-lg border border-emerald-500/30 text-[10px] text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                            💾 Salvar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── ✏️ Texto do Story ── */}
+                  <div className="rounded-xl border border-border bg-background/40 p-3 space-y-2">
+                    <p className="text-[11px] font-bold text-text-primary uppercase tracking-wider">✏️ Texto do Story</p>
+                    <div>
+                      <label className="block text-[10px] text-pink-400 font-semibold mb-1">
+                        Headline <span className="text-text-muted font-normal">(gancho principal — para no scroll)</span>
+                      </label>
+                      <input type="text" value={storyHeadline} onChange={e => setStoryHeadline(e.target.value)}
+                        placeholder="Ex: 💀 ESSE TÊNIS TÁ DIFERENTE"
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-text-muted font-semibold mb-1">
+                        Subheadline <span className="font-normal opacity-70">(reforço / comparação de preço)</span>
+                      </label>
+                      <input type="text" value={storySubheadline} onChange={e => setStorySubheadline(e.target.value)}
+                        placeholder="Ex: DE R$ 389 → R$ 199 (-49%)"
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] text-yellow-400 font-semibold mb-1">
+                        CTA <span className="text-text-muted font-normal">(chamada para ação)</span>
+                      </label>
+                      <input type="text" value={storyCta} onChange={e => setStoryCta(e.target.value)}
+                        placeholder="Ex: 🔥 CORRE QUE ACABA"
+                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500" />
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* Video story status */}
               {storyType === 'video' && !hasVideo && (
-                <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
+                <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
                   ⚠️ Faça upload de um vídeo (seção à esquerda) para publicar como Story
                 </p>
               )}
               {storyType === 'video' && hasVideo && (
-                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 mb-3">
+                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
                   ✓ Vídeo pronto — será publicado como Story
                 </p>
               )}
 
-              {/* Caption */}
-              <div className="mb-3">
-                <label className="block text-[11px] font-medium text-text-muted mb-1">
-                  Legenda <span className="opacity-60 text-pink-400 font-semibold">(será gravada na imagem)</span>
-                </label>
-                <textarea
-                  value={storyCaption}
-                  onChange={e => setStoryCaption(e.target.value)}
-                  rows={3}
-                  placeholder="Ex: 🔥 Oferta imperdível! Corre na bio 👇"
-                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
-                />
-                {storyImageFile && (
-                  <button
-                    onClick={async () => {
-                      const rawFile = rawStoryFileRef.current;
-                      if (!rawFile) return;
-                      const formatted = await formatImageForStory(rawFile);
-                      setStoryImageFile(formatted);
-                      setStoryImagePreview(URL.createObjectURL(formatted));
-                    }}
-                    className="mt-1.5 w-full py-1.5 rounded-lg bg-pink-600/20 border border-pink-500/40 text-pink-300 text-xs font-semibold hover:bg-pink-600/40 transition-all"
-                  >
-                    🔄 Atualizar imagem com o texto acima
-                  </button>
-                )}
-              </div>
-
               {/* Publish button */}
-              <button
-                onClick={handlePostStory}
-                disabled={
-                  isPosting ||
-                  (storyType === 'image' && !storyImageFile) ||
-                  (storyType === 'video' && !hasVideo)
-                }
+              <button onClick={handlePostStory}
+                disabled={postingStory || (storyType === 'image' && !storyImageFile) || (storyType === 'video' && !hasVideo)}
                 className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 text-white font-bold text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-pink-500/20"
               >
-                {postingStory ? (
-                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Publicando Story...</>
-                ) : '✨ Publicar Story'}
+                {postingStory
+                  ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Publicando Story...</>
+                  : '✨ Publicar Story'}
               </button>
 
               {storyResult && (
-                <div className={`mt-2 p-2 rounded-lg text-xs ${storyResult.error ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
-                  {storyResult.error
-                    ? <span>✗ {storyResult.error}</span>
-                    : <span>✓ Story publicado com sucesso! (ID: {storyResult.url})</span>
-                  }
+                <div className={`p-2 rounded-lg text-xs ${storyResult.error ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
+                  {storyResult.error ? `✗ ${storyResult.error}` : `✓ Story publicado! (ID: ${storyResult.url})`}
                 </div>
               )}
 
-              {/* ── Divisor ── */}
-              <div className="flex items-center gap-2 my-3">
+              {/* Divisor */}
+              <div className="flex items-center gap-2">
                 <div className="flex-1 h-px bg-border" />
                 <span className="text-[10px] text-text-muted font-semibold uppercase tracking-wider">ou</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
 
-              {/* ── Botão: Enviar para o Instagram com sticker de link ── */}
-              <button
-                onClick={handleShareToInstagram}
-                disabled={
-                  sharing ||
-                  (storyType === 'image' && !storyImageFile) ||
-                  (storyType === 'video' && !hasVideo)
-                }
+              {/* Compartilhar */}
+              <button onClick={handleShareToInstagram}
+                disabled={sharing || (storyType === 'image' && !storyImageFile) || (storyType === 'video' && !hasVideo)}
                 className="w-full py-2.5 rounded-lg border-2 border-pink-500/50 bg-pink-500/5 text-pink-400 font-bold text-sm hover:bg-pink-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
               >
-                {sharing ? (
-                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Preparando...</>
-                ) : (
-                  <><span>📲</span> Enviar para o Instagram (com sticker de link)</>
-                )}
+                {sharing
+                  ? <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Preparando...</>
+                  : <><span>📲</span> Enviar para o Instagram (com sticker de link)</>}
               </button>
-              <p className="text-[10px] text-text-muted text-center mt-1">
+              <p className="text-[10px] text-text-muted text-center -mt-1">
                 Abre o compartilhamento do celular → escolha Instagram → adicione o sticker de link
               </p>
 
-              {/* ── Resultado do compartilhamento ── */}
               {shareStatus === 'shared' && (
-                <div className="mt-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
-                  ✓ Mídia enviada! Agora escolha o Instagram, adicione o sticker de link e publique o Story.
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs">
+                  ✓ Mídia enviada! Agora escolha o Instagram, adicione o sticker de link e publique.
                 </div>
               )}
 
               {shareStatus === 'unsupported' && (
-                <div className="mt-2 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs space-y-2">
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs space-y-2">
                   <p className="text-blue-400 font-semibold">📱 Abra esta página no celular para compartilhar</p>
                   <p className="text-text-muted">No computador, baixe a mídia e envie para o celular via WhatsApp ou AirDrop.</p>
-
                   {shareDownloadUrl && (
-                    <a
-                      href={shareDownloadUrl}
-                      download={storyType === 'video' ? 'story.mp4' : 'story.jpg'}
-                      className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-blue-500/20 text-blue-400 font-semibold hover:bg-blue-500/30 transition-colors"
-                    >
+                    <a href={shareDownloadUrl} download={storyType === 'video' ? 'story.mp4' : 'story.jpg'}
+                      className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-blue-500/20 text-blue-400 font-semibold hover:bg-blue-500/30 transition-colors">
                       ⬇️ Baixar mídia do Story
                     </a>
                   )}
-
                   {effectiveProduct?.affiliateUrl && (
                     <div className="space-y-1">
                       <p className="text-[10px] text-text-muted">Link para o sticker (copie e cole no Instagram):</p>
                       <div className="flex items-center gap-2 bg-background rounded-lg px-2 py-1.5 border border-border">
                         <p className="text-xs text-text-primary font-mono flex-1 truncate">{effectiveProduct.affiliateUrl}</p>
-                        <button
-                          onClick={() => { navigator.clipboard.writeText(effectiveProduct!.affiliateUrl); }}
-                          className="text-[10px] text-blue-400 hover:text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded whitespace-nowrap"
-                        >
+                        <button onClick={() => navigator.clipboard.writeText(effectiveProduct!.affiliateUrl)}
+                          className="text-[10px] text-blue-400 hover:text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded whitespace-nowrap">
                           Copiar
                         </button>
                       </div>
