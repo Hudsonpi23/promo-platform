@@ -168,7 +168,7 @@ function generateXCopy(input: CopyInputData): string {
   // ── Linha de forma de pagamento ───────────────────────────────────────────
   let paymentLine = '';
   if (input.paymentMethod === 'pix') {
-    paymentLine = `💳 No PIX`;
+    paymentLine = `💸 No PIX`;
   } else if (input.paymentMethod === 'parcelado' && input.installments) {
     const perInstallment = input.installmentValue ?? input.price / input.installments;
     paymentLine = `💳 ${input.installments}x de ${formatPrice(perInstallment)} sem juros`;
