@@ -1408,11 +1408,7 @@ export default function VideosPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/manu-story-bg.png" alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
                         <div className="absolute inset-0 pointer-events-none bg-black/30" />
-                        {/* Canvas layer — only for price/title/watermark (below the live product card) */}
-                        {storyBgPreview && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={storyBgPreview} alt="bg layer" className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-60" />
-                        )}
+                        {/* Canvas layer hidden from live preview — used only for final export */}
 
                         {/* ── Live CSS product card — moves instantly during drag ── */}
                         {rawProductPreview && (
