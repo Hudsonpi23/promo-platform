@@ -224,7 +224,7 @@ export default function VideosPage() {
     setScraping(true);
     setScrapeError('');
     setProduct(null);
-    setXResult(null);
+    
     setIgResult(null);
 
     try {
@@ -259,7 +259,7 @@ export default function VideosPage() {
     }
     setVideoFile(file);
     setVideoPreview(URL.createObjectURL(file));
-    setXResult(null);
+    
     setIgResult(null);
   }, []);
 
@@ -271,7 +271,7 @@ export default function VideosPage() {
     setVideoLinkError('');
     setVideoFile(null);
     setVideoPreview('');
-    setXResult(null);
+    
     setIgResult(null);
     try {
       // Tenta baixar o vídeo como blob (funciona para URLs diretas sem CORS)
@@ -1052,7 +1052,7 @@ export default function VideosPage() {
                         <p className="text-xs text-text-muted">{(videoFile.size / 1024 / 1024).toFixed(1)} MB</p>
                       </div>
                       <button
-                        onClick={() => { setVideoFile(null); setVideoPreview(''); setXResult(null); setIgResult(null); }}
+                        onClick={() => { setVideoFile(null); setVideoPreview('');  setIgResult(null); }}
                         className="ml-3 text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded-lg"
                       >Trocar</button>
                     </div>
@@ -1104,7 +1104,7 @@ export default function VideosPage() {
                     <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border border-border">
                       <p className="text-xs text-text-muted font-mono truncate flex-1">{videoLinkInput}</p>
                       <button
-                        onClick={() => { setVideoLinkReady(false); setVideoPreview(''); setVideoLinkInput(''); setXResult(null); setIgResult(null); }}
+                        onClick={() => { setVideoLinkReady(false); setVideoPreview(''); setVideoLinkInput('');  setIgResult(null); }}
                         className="ml-3 text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded-lg"
                       >Trocar</button>
                     </div>
