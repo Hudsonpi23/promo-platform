@@ -275,7 +275,106 @@ export default function VideosPage() {
   }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
   // ── Handle story image ───────────────────────────────────────────────────
-  const handleStoryImage = useCallback((file: File) => {
+  // Converte qualquer imagem para o formato Story 9:16 (1080×1920)
+  // Fundo gradiente azul da Manu + produto centralizado com sombra
+  const formatImageForStory = useCallback((file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const W = 1080, H = 1920;
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d')!;
+
+        // Fundo gradiente azul escuro (tema Manu)
+        const grad = ctx.createLinearGradient(0, 0, 0, H);
+        grad.addColorStop(0,   '#0a1628');
+        grad.addColorStop(0.5, '#0d2240');
+        grad.addColorStop(1,   '#0a1628');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, H);
+
+        // Brilho sutil no centro
+        const radial = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W * 0.8);
+        radial.addColorStop(0,   'rgba(30,80,160,0.35)');
+        radial.addColorStop(1,   'rgba(0,0,0,0)');
+        ctx.fillStyle = radial;
+        ctx.fillRect(0, 0, W, H);
+
+        // Área da imagem do produto: ocupa 75% da largura, centrada verticalmente
+        const maxImgW = W * 0.80;
+        const maxImgH = H * 0.52;
+        const ratio   = Math.min(maxImgW / img.width, maxImgH / img.height);
+        const dw = img.width  * ratio;
+        const dh = img.height * ratio;
+        const dx = (W - dw) / 2;
+        const dy = (H - dh) / 2 - 60; // levemente acima do centro
+
+        // Sombra suave atrás da imagem
+        ctx.shadowColor   = 'rgba(0,0,0,0.6)';
+        ctx.shadowBlur    = 60;
+        ctx.shadowOffsetY = 20;
+
+        // Fundo branco arredondado para a imagem
+        const pad = 32;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        const rx = dx - pad, ry = dy - pad, rw = dw + pad*2, rh = dh + pad*2, r = 40;
+        ctx.moveTo(rx + r, ry);
+        ctx.lineTo(rx + rw - r, ry);  ctx.arcTo(rx+rw, ry, rx+rw, ry+r, r);
+        ctx.lineTo(rx + rw, ry + rh - r); ctx.arcTo(rx+rw, ry+rh, rx+rw-r, ry+rh, r);
+        ctx.lineTo(rx + r, ry + rh); ctx.arcTo(rx, ry+rh, rx, ry+rh-r, r);
+        ctx.lineTo(rx, ry + r);      ctx.arcTo(rx, ry, rx+r, ry, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+
+        // Imagem do produto
+        ctx.drawImage(img, dx, dy, dw, dh);
+
+        // Faixa inferior com texto de produto (se disponível)
+        const prodTitle = effectiveProduct?.title;
+        const prodPrice = effectiveProduct ? fmtPrice(effectiveProduct.finalPrice) : null;
+        if (prodTitle || prodPrice) {
+          const textY = dy + dh + pad + 60;
+          if (prodPrice) {
+            ctx.font = 'bold 72px sans-serif';
+            ctx.fillStyle = '#f0c040';
+            ctx.textAlign = 'center';
+            ctx.fillText(prodPrice, W/2, textY);
+          }
+          if (prodTitle) {
+            ctx.font = '36px sans-serif';
+            ctx.fillStyle = 'rgba(255,255,255,0.85)';
+            ctx.textAlign = 'center';
+            const maxChars = 52;
+            const line1 = prodTitle.slice(0, maxChars);
+            const line2 = prodTitle.length > maxChars ? prodTitle.slice(maxChars, maxChars * 2) + '…' : '';
+            ctx.fillText(line1, W/2, textY + (prodPrice ? 70 : 0));
+            if (line2) ctx.fillText(line2, W/2, textY + (prodPrice ? 120 : 50));
+          }
+        }
+
+        // Marca Manu na parte inferior
+        ctx.font = 'bold 40px sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.textAlign = 'center';
+        ctx.fillText('@manudaspromocoes', W/2, H - 80);
+
+        URL.revokeObjectURL(objectUrl);
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return; }
+          resolve(new File([blob], 'story_1080x1920.jpg', { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+      img.src = objectUrl;
+    });
+  }, [effectiveProduct]);
+
+  const handleStoryImage = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       alert('Selecione uma imagem (JPG, PNG, WebP)');
       return;
@@ -284,10 +383,12 @@ export default function VideosPage() {
       alert('Imagem muito grande (máx. 30 MB).');
       return;
     }
-    setStoryImageFile(file);
-    setStoryImagePreview(URL.createObjectURL(file));
     setStoryResult(null);
-  }, []);
+    // Converte para 9:16 automaticamente
+    const formatted = await formatImageForStory(file);
+    setStoryImageFile(formatted);
+    setStoryImagePreview(URL.createObjectURL(formatted));
+  }, [formatImageForStory]);
 
   // Detecta se é dispositivo móvel
   useEffect(() => {
@@ -990,7 +1091,7 @@ export default function VideosPage() {
                     >
                       <span className="text-3xl mb-2">🖼️</span>
                       <p className="text-xs font-semibold text-text-primary">Arraste a imagem aqui</p>
-                      <p className="text-[11px] text-text-muted mt-1">JPG • PNG • WebP — ideal 1080×1920</p>
+                      <p className="text-[11px] text-text-muted mt-1">Qualquer formato — convertido automaticamente para 9:16</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
