@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { fetchWithAuth } from '@/lib/auth';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -99,6 +99,16 @@ export default function VideosPage() {
   const [xResult, setXResult]       = useState<{ url?: string; error?: string } | null>(null);
   const [igResult, setIgResult]     = useState<{ url?: string; error?: string } | null>(null);
   const [copied, setCopied]         = useState(false);
+
+  // ── Stories ──────────────────────────────────────────────────────────────
+  const [storyType, setStoryType]           = useState<'video' | 'image'>('video');
+  const [storyImageFile, setStoryImageFile] = useState<File | null>(null);
+  const [storyImagePreview, setStoryImagePreview] = useState('');
+  const [storyCaption, setStoryCaption]     = useState('');
+  const [postingStory, setPostingStory]     = useState(false);
+  const [storyResult, setStoryResult]       = useState<{ url?: string; error?: string } | null>(null);
+  const [storyDragOver, setStoryDragOver]   = useState(false);
+  const storyImageRef = useRef<HTMLInputElement>(null);
 
   // Remove "R$", espaços e pontos de milhar antes de parsear
   const parsePrice = (v: string) =>
@@ -258,7 +268,72 @@ export default function VideosPage() {
     }
   }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
-  const isPosting = postingX || postingIg;
+  // ── Handle story image ───────────────────────────────────────────────────
+  const handleStoryImage = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Selecione uma imagem (JPG, PNG, WebP)');
+      return;
+    }
+    if (file.size > 30 * 1024 * 1024) {
+      alert('Imagem muito grande (máx. 30 MB).');
+      return;
+    }
+    setStoryImageFile(file);
+    setStoryImagePreview(URL.createObjectURL(file));
+    setStoryResult(null);
+  }, []);
+
+  // Auto-fill caption when product is loaded
+  useEffect(() => {
+    if (effectiveProduct) {
+      const price = fmtPrice(effectiveProduct.finalPrice);
+      const discount = effectiveProduct.discountPct > 0 ? ` (-${effectiveProduct.discountPct}%)` : '';
+      setStoryCaption(`🔥 ${effectiveProduct.title.slice(0, 80)}\n💰 ${price}${discount}\n👉 Link na bio!`);
+    }
+  }, [effectiveProduct]);
+
+  // ── Post Story ───────────────────────────────────────────────────────────
+  const handlePostStory = useCallback(async () => {
+    if (storyType === 'image' && !storyImageFile) {
+      alert('Adicione uma imagem para o Story');
+      return;
+    }
+    if (storyType === 'video' && !hasVideo) {
+      alert('Faça upload de um vídeo primeiro');
+      return;
+    }
+
+    setPostingStory(true);
+    setStoryResult(null);
+
+    const form = new FormData();
+
+    if (storyType === 'video') {
+      if (videoFile) {
+        form.append('media', videoFile);
+      } else {
+        form.append('mediaUrl', videoLinkInput.trim());
+      }
+      form.append('mediaType', 'video');
+    } else {
+      form.append('media', storyImageFile!);
+      form.append('mediaType', 'image');
+    }
+
+    if (storyCaption.trim()) form.append('caption', storyCaption.trim());
+
+    try {
+      const res  = await fetchWithAuth('/api/instagram/publish-story', { method: 'POST', body: form });
+      const data = await res.json();
+      setStoryResult(res.ok ? { url: data.postId } : { error: data.error || 'Erro ao publicar Story' });
+    } catch (err: any) {
+      setStoryResult({ error: err.message });
+    } finally {
+      setPostingStory(false);
+    }
+  }, [storyType, storyImageFile, videoFile, videoLinkInput, hasVideo, storyCaption]);
+
+  const isPosting = postingX || postingIg || postingStory;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -770,11 +845,149 @@ export default function VideosPage() {
               )}
             </div>
 
+            {/* ── Instagram Stories ──────────────────────────────────── */}
+            <div className="rounded-xl border-2 border-pink-500/30 bg-gradient-to-br from-purple-900/10 via-pink-900/10 to-orange-900/10 p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">✨</span>
+                <span className="text-sm font-bold text-text-primary">Instagram Stories</span>
+                <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-orange-400 text-white">
+                  VIA POSTFOR.ME
+                </span>
+              </div>
+              <p className="text-xs text-text-muted mb-3">
+                Publica imagem ou vídeo como Story (1080×1920). Suporte a vídeo e imagem.
+              </p>
+
+              {/* Story type selector */}
+              <div className="flex gap-2 mb-3">
+                {([
+                  { value: 'video', label: '📹 Vídeo', desc: 'usa o vídeo carregado' },
+                  { value: 'image', label: '🖼️ Imagem', desc: 'upload de foto' },
+                ] as { value: 'video' | 'image'; label: string; desc: string }[]).map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => { setStoryType(opt.value); setStoryResult(null); }}
+                    className={`flex-1 py-2 px-3 rounded-lg border text-xs font-semibold transition-all text-center ${
+                      storyType === opt.value
+                        ? 'border-pink-500 bg-pink-500/10 text-pink-400'
+                        : 'border-border text-text-muted hover:border-pink-500/40'
+                    }`}
+                  >
+                    <div>{opt.label}</div>
+                    <div className="font-normal text-[10px] mt-0.5 opacity-70">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Image upload area (only for image stories) */}
+              {storyType === 'image' && (
+                <div className="mb-3">
+                  {!storyImageFile ? (
+                    <div
+                      onDragOver={e => { e.preventDefault(); setStoryDragOver(true); }}
+                      onDragLeave={() => setStoryDragOver(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setStoryDragOver(false);
+                        const f = e.dataTransfer.files[0];
+                        if (f) handleStoryImage(f);
+                      }}
+                      onClick={() => storyImageRef.current?.click()}
+                      className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all py-6 ${
+                        storyDragOver
+                          ? 'border-pink-500 bg-pink-500/10'
+                          : 'border-border hover:border-pink-500/60 hover:bg-surface-hover'
+                      }`}
+                    >
+                      <span className="text-3xl mb-2">🖼️</span>
+                      <p className="text-xs font-semibold text-text-primary">Arraste a imagem aqui</p>
+                      <p className="text-[11px] text-text-muted mt-1">JPG • PNG • WebP — ideal 1080×1920</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={storyImagePreview}
+                        alt="preview"
+                        className="w-full rounded-xl object-cover border border-border"
+                        style={{ maxHeight: 180 }}
+                      />
+                      <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border border-border">
+                        <p className="text-xs text-text-primary font-medium truncate">{storyImageFile.name}</p>
+                        <button
+                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryResult(null); }}
+                          className="ml-3 text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded"
+                        >Trocar</button>
+                      </div>
+                    </div>
+                  )}
+                  <input
+                    ref={storyImageRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleStoryImage(f); e.target.value = ''; }}
+                  />
+                </div>
+              )}
+
+              {/* Video story status */}
+              {storyType === 'video' && !hasVideo && (
+                <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2 mb-3">
+                  ⚠️ Faça upload de um vídeo (seção à esquerda) para publicar como Story
+                </p>
+              )}
+              {storyType === 'video' && hasVideo && (
+                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2 mb-3">
+                  ✓ Vídeo pronto — será publicado como Story
+                </p>
+              )}
+
+              {/* Caption */}
+              <div className="mb-3">
+                <label className="block text-[11px] font-medium text-text-muted mb-1">
+                  Legenda <span className="opacity-60">(opcional)</span>
+                </label>
+                <textarea
+                  value={storyCaption}
+                  onChange={e => setStoryCaption(e.target.value)}
+                  rows={3}
+                  placeholder="Ex: 🔥 Oferta imperdível! Corre na bio 👇"
+                  className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
+                />
+              </div>
+
+              {/* Publish button */}
+              <button
+                onClick={handlePostStory}
+                disabled={
+                  isPosting ||
+                  (storyType === 'image' && !storyImageFile) ||
+                  (storyType === 'video' && !hasVideo)
+                }
+                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 text-white font-bold text-sm hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 shadow-lg shadow-pink-500/20"
+              >
+                {postingStory ? (
+                  <><svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Publicando Story...</>
+                ) : '✨ Publicar Story'}
+              </button>
+
+              {storyResult && (
+                <div className={`mt-2 p-2 rounded-lg text-xs ${storyResult.error ? 'bg-red-500/10 border border-red-500/20 text-red-400' : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'}`}>
+                  {storyResult.error
+                    ? <span>✗ {storyResult.error}</span>
+                    : <span>✓ Story publicado com sucesso! (ID: {storyResult.url})</span>
+                  }
+                </div>
+              )}
+            </div>
+
             {/* Caption */}
             {effectiveProduct && (
               <div className="rounded-xl border border-border p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">📝 Legenda Instagram</p>
+                  <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">📝 Legenda Reels</p>
                   <button
                     onClick={() => { navigator.clipboard.writeText(buildCaption(effectiveProduct!, paymentMethod, installments)); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
                     className="text-xs text-purple-400 hover:text-purple-300 border border-purple-500/30 px-2 py-1 rounded transition-colors"

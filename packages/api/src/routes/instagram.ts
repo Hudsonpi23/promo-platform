@@ -20,7 +20,8 @@ import { prisma } from '../lib/prisma.js';
 import { enqueueInstagramJob, listJobs, cancelJob } from '../services/instagramQueue.js';
 import { analyzeOfferForInstagram } from '../services/instagramAI.js';
 import { generateCarousel } from '../services/instagramCarousel.js';
-import { listConnectedAccounts, generateInstagramCaption, publishCarousel } from '../services/postforme.js';
+import { listConnectedAccounts, generateInstagramCaption, publishCarousel, publishStory } from '../services/postforme.js';
+import { uploadFromBuffer } from '../services/cloudinary.js';
 import { generateAffiliateUrl } from '../services/mlAffiliate.js';
 import { getAmazonProductByUrl } from '../services/amazonApi.js';
 import { InstagramJobStatus } from '@prisma/client';
@@ -743,4 +744,96 @@ export async function instagramRoutes(fastify: FastifyInstance) {
       recent,
     });
   });
+
+  // ── POST /api/instagram/publish-story ─────────────────────────────────────────
+  // Publica imagem ou vídeo como Instagram Story via Postfor.me
+  // Body: multipart/form-data
+  //   media     : File (imagem JPG/PNG ou vídeo MP4) — opcional se mediaUrl fornecida
+  //   mediaUrl  : string — URL pública alternativa ao arquivo
+  //   caption   : string (opcional)
+  //   mediaType : 'image' | 'video' (opcional, auto-detectado pelo mimetype)
+  fastify.post(
+    '/publish-story',
+    { preHandler: authGuard },
+    async (request, reply) => {
+      const accountId = ACCOUNT_ID();
+      if (!accountId) {
+        return reply.status(400).send({ error: 'Conta Instagram não configurada (POSTFORME_INSTAGRAM_ACCOUNT_ID)' });
+      }
+
+      let mediaBuffer: Buffer | null = null;
+      let mediaMime = 'image/jpeg';
+      let caption = '';
+      let mediaUrlFromField = '';
+      let mediaTypeField = '';
+
+      try {
+        const parts = request.parts();
+        for await (const part of parts) {
+          if (part.type === 'file' && part.fieldname === 'media') {
+            const chunks: Buffer[] = [];
+            for await (const chunk of part.file) chunks.push(chunk as Buffer);
+            mediaBuffer = Buffer.concat(chunks);
+            mediaMime = part.mimetype || 'image/jpeg';
+          } else if (part.type === 'field') {
+            const val = (part as any).value as string;
+            if (part.fieldname === 'caption')   caption          = val;
+            if (part.fieldname === 'mediaUrl')  mediaUrlFromField = val;
+            if (part.fieldname === 'mediaType') mediaTypeField    = val;
+          }
+        }
+      } catch {
+        // JSON body fallback (quando enviado sem arquivo)
+        const body = request.body as any || {};
+        caption          = body.caption   || '';
+        mediaUrlFromField = body.mediaUrl  || '';
+        mediaTypeField    = body.mediaType || '';
+      }
+
+      // Determinar tipo de mídia
+      const isVideo = mediaTypeField === 'video' || mediaMime.startsWith('video/');
+      const resourceType = isVideo ? 'video' : 'image';
+
+      let publicMediaUrl = mediaUrlFromField;
+
+      // Se recebeu arquivo, faz upload para o Cloudinary
+      if (mediaBuffer && mediaBuffer.length > 0) {
+        const folder = `promo-platform/stories/${resourceType}`;
+        const uploadResult = await uploadFromBuffer(mediaBuffer, {
+          folder,
+          resourceType,
+          tags: ['story', 'instagram'],
+          publicId: `story_${Date.now()}`,
+        });
+
+        if (!uploadResult.success || !uploadResult.url) {
+          return reply.status(500).send({ error: `Falha no upload: ${uploadResult.error}` });
+        }
+        publicMediaUrl = uploadResult.url;
+        console.log(`[Story] Upload Cloudinary OK: ${publicMediaUrl}`);
+      }
+
+      if (!publicMediaUrl) {
+        return reply.status(400).send({ error: 'Forneça um arquivo de mídia ou uma URL pública (mediaUrl)' });
+      }
+
+      // Publicar Story via Postfor.me
+      const result = await publishStory({
+        mediaUrl: publicMediaUrl,
+        caption:  caption || undefined,
+        instagramAccountId: accountId,
+      });
+
+      if (!result.success) {
+        return reply.status(500).send({ error: result.error || 'Falha ao publicar Story' });
+      }
+
+      return reply.send({
+        success:  true,
+        postId:   result.postId,
+        status:   result.status,
+        mediaUrl: publicMediaUrl,
+      });
+    },
+  );
 }

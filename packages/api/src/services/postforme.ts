@@ -187,6 +187,42 @@ export async function publishReel(params: PublishReelParams): Promise<PublishCar
   }
 }
 
+// ── Publicar Story ─────────────────────────────────────────────────────────────
+
+export interface PublishStoryParams {
+  mediaUrl: string;
+  caption?: string;
+  instagramAccountId: string;
+}
+
+export async function publishStory(params: PublishStoryParams): Promise<PublishCarouselResult> {
+  try {
+    if (!params.mediaUrl) {
+      return { success: false, error: 'URL da mídia obrigatória para Story' };
+    }
+
+    const payload: CreateSocialPostParams = {
+      caption: params.caption || '',
+      social_accounts: [params.instagramAccountId],
+      media: [{ url: params.mediaUrl }],
+      platform_configurations: {
+        instagram: {
+          placement: 'stories',
+        },
+      },
+    };
+
+    console.log('[Postfor.me] Publicando Story...');
+    const response = await postformeRequest<PostForMePostResponse>('POST', '/v1/social-posts', payload);
+    console.log(`[Postfor.me] ✅ Story criado: ${response.id} (status: ${response.status})`);
+
+    return { success: true, postId: response.id, status: response.status };
+  } catch (err: any) {
+    console.error('[Postfor.me] Erro no Story:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
 // ── Status de Post ─────────────────────────────────────────────────────────────
 
 export async function getPostStatus(postId: string): Promise<PostForMePostResponse | null> {
