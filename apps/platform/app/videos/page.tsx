@@ -238,6 +238,11 @@ export default function VideosPage() {
   const dragStateRef      = useRef<DragState | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
+  // ── Product image draggable position (0–1 fractions of canvas) ──
+  const [productImagePos, setProductImagePos] = useState({ x: 0.5, y: 0.40 });
+  const [isDraggingProduct, setIsDraggingProduct] = useState(false);
+  const productDragRef = useRef<{ startCX: number; startCY: number; startPX: number; startPY: number } | null>(null);
+
   // ── Share to Instagram ────────────────────────────────────────────────
   const [isMobile, setIsMobile]         = useState(false);
   const [sharing, setSharing]           = useState(false);
@@ -373,7 +378,8 @@ export default function VideosPage() {
   // ── Canvas helpers shared between preview and final render ───────────────
   // Renders background + product image/price onto ctx; returns the bottom-Y of the product block
   const drawStoryBase = useCallback(async (
-    ctx: CanvasRenderingContext2D, img: HTMLImageElement, W: number, H: number, s: StoryStyleConfig
+    ctx: CanvasRenderingContext2D, img: HTMLImageElement, W: number, H: number, s: StoryStyleConfig,
+    imgPos: { x: number; y: number } = { x: 0.5, y: 0.40 }
   ): Promise<void> => {
     const fontStr = (sz: number, wt = 'bold') =>
       `${wt} ${sz}px ${s.fontFamily !== 'sans-serif' ? `'${s.fontFamily}', ` : ''}sans-serif`;
@@ -404,10 +410,12 @@ export default function VideosPage() {
     // Dark overlay to keep text readable
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
     ctx.fillRect(0, 0, W, H);
-    const pad = 36, maxImgH = H*0.40, maxImgW = W*0.80;
+    const pad = 36, maxImgH = H*0.42, maxImgW = W*0.82;
     const ratio = Math.min(maxImgW/img.width, maxImgH/img.height);
     const dw = img.width*ratio, dh = img.height*ratio;
-    const dx = (W-dw)/2, dy = H*0.22;
+    // imgPos.x/y are the CENTRE of the product card (0–1 fractions)
+    const dx = imgPos.x * W - dw / 2;
+    const dy = imgPos.y * H - dh / 2;
     ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=60; ctx.shadowOffsetY=20;
     ctx.fillStyle='#ffffff'; roundRect(dx-pad,dy-pad,dw+pad*2,dh+pad*2,40); ctx.fill();
     ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
@@ -507,7 +515,7 @@ export default function VideosPage() {
         if (storyStyle.fontFamily!=='sans-serif') {
           try { await document.fonts.load(`bold ${storyStyle.headlineSize}px '${storyStyle.fontFamily}'`); } catch {}
         }
-        await drawStoryBase(ctx,img,W,H,storyStyle);
+        await drawStoryBase(ctx,img,W,H,storyStyle,productImagePos);
         URL.revokeObjectURL(url);
         canvas.toBlob(blob => resolve(blob?URL.createObjectURL(blob):''),'image/jpeg',0.75);
       };
@@ -530,7 +538,7 @@ export default function VideosPage() {
         }
         const fontStr = (sz:number,wt='bold') =>
           `${wt} ${sz}px ${s.fontFamily!=='sans-serif'?`'${s.fontFamily}', `:''}sans-serif`;
-        await drawStoryBase(ctx,img,W,H,s);
+        await drawStoryBase(ctx,img,W,H,s,productImagePos);
         const sharedOpts = { boxOpacity:s.boxOpacity, boxRadius:s.boxRadius, W };
         drawTextAtPos(ctx, storyHeadline,    storyTextPositions.headline.x*W,    storyTextPositions.headline.y*H,
           { blockCfg:blockConfigs.headline,    sizeMap:BLOCK_SIZES.headline,    ...sharedOpts });
@@ -549,7 +557,7 @@ export default function VideosPage() {
       img.onerror=()=>{ URL.revokeObjectURL(url); resolve(file); };
       img.src=url;
     });
-  }, [effectiveProduct, storyHeadline, storySubheadline, storyPrice, storyCta, storyStyle, storyTextPositions, blockConfigs, drawStoryBase, drawTextAtPos]);
+  }, [effectiveProduct, storyHeadline, storySubheadline, storyPrice, storyCta, storyStyle, storyTextPositions, blockConfigs, productImagePos, drawStoryBase, drawTextAtPos]);
 
   const handleStoryImage = useCallback(async (file: File) => {
     rawStoryFileRef.current = file;
@@ -596,7 +604,7 @@ export default function VideosPage() {
       setStoryBgPreview(bgUrl);
     }, 600);
     return () => clearTimeout(t);
-  }, [storyStyle, renderStoryBackground]);
+  }, [storyStyle, productImagePos, renderStoryBackground]);
 
   // Auto-regenerate final image when style/text/positions change (debounced)
   useEffect(() => {
@@ -612,7 +620,7 @@ export default function VideosPage() {
       }
     }, 900);
     return () => clearTimeout(t);
-  }, [storyStyle, storyHeadline, storySubheadline, storyPrice, storyCta, storyTextPositions, blockConfigs, formatImageForStory]);
+  }, [storyStyle, storyHeadline, storySubheadline, storyPrice, storyCta, storyTextPositions, blockConfigs, productImagePos, formatImageForStory]);
 
   // Sync block colors when a named background preset changes
   useEffect(() => {
@@ -656,9 +664,15 @@ export default function VideosPage() {
   }, [storyTextPositions]);
 
   const handleDragMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const { cx, cy } = getClientXY(e);
+    // Product image drag
+    if (productDragRef.current) {
+      e.preventDefault();
+      handleProductDragMove(cx, cy);
+      return;
+    }
     if (!dragStateRef.current || !previewContainerRef.current) return;
     e.preventDefault();
-    const { cx, cy } = getClientXY(e);
     const rect = previewContainerRef.current.getBoundingClientRect();
     const dx = (cx - dragStateRef.current.startCX) / rect.width;
     const dy = (cy - dragStateRef.current.startCY) / rect.height;
@@ -668,11 +682,45 @@ export default function VideosPage() {
       ...prev,
       [dragStateRef.current!.block]: { x: newX, y: newY },
     }));
-  }, []);
+  }, [handleProductDragMove]);
 
   const handleDragEnd = useCallback(() => {
     dragStateRef.current = null;
     setIsDragging(null);
+    handleProductDragEnd();
+  }, [handleProductDragEnd]);
+
+  // ── Product image drag handlers ──────────────────────────────────────────
+  const handleProductDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    const el = previewContainerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    productDragRef.current = {
+      startCX: clientX, startCY: clientY,
+      startPX: productImagePos.x, startPY: productImagePos.y,
+    };
+    setIsDraggingProduct(true);
+    if ('preventDefault' in e) e.preventDefault();
+  }, [productImagePos]);
+
+  const handleProductDragMove = useCallback((clientX: number, clientY: number) => {
+    if (!productDragRef.current || !previewContainerRef.current) return;
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const { startCX, startCY, startPX, startPY } = productDragRef.current;
+    const dx = (clientX - startCX) / rect.width;
+    const dy = (clientY - startCY) / rect.height;
+    setProductImagePos({
+      x: Math.min(0.95, Math.max(0.05, startPX + dx)),
+      y: Math.min(0.90, Math.max(0.05, startPY + dy)),
+    });
+  }, []);
+
+  const handleProductDragEnd = useCallback(() => {
+    productDragRef.current = null;
+    setIsDraggingProduct(false);
   }, []);
 
   const snapBlock = (block: keyof StoryTextPositions, xSnap: number | null, ySnap: number | null) => {
@@ -1357,7 +1405,7 @@ export default function VideosPage() {
                         onMouseLeave={handleDragEnd}
                         onTouchMove={handleDragMove}
                         onTouchEnd={handleDragEnd}
-                        className={`relative overflow-hidden rounded-xl border-2 mx-auto select-none ${isDragging ? 'border-pink-500 cursor-grabbing' : 'border-pink-500/40 cursor-default'}`}
+                        className={`relative overflow-hidden rounded-xl border-2 mx-auto select-none ${isDragging || isDraggingProduct ? 'border-pink-500 cursor-grabbing' : 'border-pink-500/40 cursor-default'}`}
                         style={{ width: '100%', aspectRatio: '9/16', maxWidth: 240, touchAction: 'none' }}
                       >
                         {/* Fixed Manu background — always visible */}
@@ -1368,6 +1416,30 @@ export default function VideosPage() {
                         {storyBgPreview && (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={storyBgPreview} alt="product layer" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+                        )}
+
+                        {/* ── Draggable product image handle ── */}
+                        {rawStoryFileRef.current && (
+                          <div
+                            onMouseDown={handleProductDragStart}
+                            onTouchStart={handleProductDragStart}
+                            className={`absolute z-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                              isDraggingProduct
+                                ? 'border-cyan-400 bg-cyan-400/10 cursor-grabbing'
+                                : 'border-white/40 bg-white/5 cursor-grab hover:border-cyan-400/70 hover:bg-cyan-400/10'
+                            }`}
+                            style={{
+                              left:      `${productImagePos.x * 100}%`,
+                              top:       `${productImagePos.y * 100}%`,
+                              transform: 'translate(-50%, -50%)',
+                              width:  '76%',
+                              height: '44%',
+                              touchAction: 'none',
+                              userSelect: 'none',
+                            }}
+                          >
+                            <span className="text-[9px] text-white/70 font-bold select-none drop-shadow pointer-events-none">⤢ arrastar imagem</span>
+                          </div>
                         )}
 
                         {/* Generating overlay */}
@@ -1468,12 +1540,45 @@ export default function VideosPage() {
                             </div>
                           </div>
                         ))}
-                        <button
-                          onClick={() => setStoryTextPositions(DEFAULT_TEXT_POSITIONS)}
-                          className="w-full py-1 rounded-lg border border-border text-[9px] text-text-muted hover:border-pink-500/40 transition-colors"
-                        >
-                          ↩ Resetar posições
-                        </button>
+                        {/* Image position snap controls */}
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-semibold w-16 flex-shrink-0 text-cyan-400">Imagem</span>
+                          <div className="flex gap-1 flex-1">
+                            {[
+                              { label: '⬆ Topo',  y: 0.25, x: null },
+                              { label: '⬛ Meio',  y: 0.42, x: null },
+                              { label: '⬇ Base',  y: 0.65, x: null },
+                              { label: '◀ Esq',   y: null,  x: 0.30 },
+                              { label: '⬛ Cent',  y: null,  x: 0.50 },
+                              { label: '▶ Dir',   y: null,  x: 0.70 },
+                            ].map(snap => (
+                              <button key={snap.label}
+                                onClick={() => setProductImagePos(prev => ({
+                                  x: snap.x !== null ? snap.x : prev.x,
+                                  y: snap.y !== null ? snap.y : prev.y,
+                                }))}
+                                className="flex-1 py-0.5 rounded text-[8px] border border-border text-text-muted hover:border-cyan-500/40 hover:text-text-primary transition-colors"
+                              >
+                                {snap.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setProductImagePos({ x: 0.5, y: 0.40 })}
+                            className="flex-1 py-1 rounded-lg border border-border text-[9px] text-cyan-400 hover:border-cyan-500/40 transition-colors"
+                          >
+                            ↩ Resetar imagem
+                          </button>
+                          <button
+                            onClick={() => setStoryTextPositions(DEFAULT_TEXT_POSITIONS)}
+                            className="flex-1 py-1 rounded-lg border border-border text-[9px] text-text-muted hover:border-pink-500/40 transition-colors"
+                          >
+                            ↩ Resetar textos
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}
