@@ -123,6 +123,15 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
     return `${creativePhrase.trim()}\n\n${baseText}`;
   };
 
+  // X (Twitter) counts every URL as exactly 23 chars (t.co shortening)
+  // This is the correct way to count tweet length
+  const getXCharCount = (text: string) => {
+    const URL_REGEX = /https?:\/\/\S+/g;
+    const X_URL_LENGTH = 23;
+    const replaced = text.replace(URL_REGEX, '_'.repeat(X_URL_LENGTH));
+    return replaced.length;
+  };
+
   // Carrega o preview real do servidor
   const loadPreview = async (offerId: string, offer: any) => {
     setCreativePhrase('');
@@ -949,8 +958,8 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                     className="w-full px-4 py-3 rounded-xl bg-background border border-yellow-500/40 text-text-primary font-mono text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500/50 resize-none leading-relaxed"
                   />
                   <div className="flex items-center justify-between">
-                    <span className={cn('text-xs font-medium', previewEditText.length > 280 ? 'text-red-400' : previewEditText.length > 240 ? 'text-yellow-400' : 'text-green-400')}>
-                      {previewEditText.length}/280 chars {previewEditText.length > 280 ? `(${previewEditText.length - 280} a mais — o X vai rejeitar)` : '✅'}
+                    <span className={cn('text-xs font-medium', getXCharCount(previewEditText) > 280 ? 'text-red-400' : getXCharCount(previewEditText) > 240 ? 'text-yellow-400' : 'text-green-400')}>
+                      {getXCharCount(previewEditText)}/280 chars (X) {getXCharCount(previewEditText) > 280 ? `(${getXCharCount(previewEditText) - 280} a mais — o X vai rejeitar)` : '✅'}
                     </span>
                     <button
                       onClick={() => setPreviewEditing(false)}
@@ -1014,11 +1023,11 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                       )}
                     </div>
                     {(() => {
-                      const fullLen = getFullPreviewText(previewModal.previewText).length;
+                      const fullXLen = getXCharCount(getFullPreviewText(previewModal.previewText));
                       return (
                         <div className="flex items-center justify-between mt-2">
-                          <span className={cn('text-xs font-medium', fullLen > 280 ? 'text-red-400' : fullLen > 240 ? 'text-yellow-400' : 'text-green-400')}>
-                            {fullLen}/280 chars {fullLen > 280 ? `(${fullLen - 280} a mais)` : '✅'}
+                          <span className={cn('text-xs font-medium', fullXLen > 280 ? 'text-red-400' : fullXLen > 240 ? 'text-yellow-400' : 'text-green-400')}>
+                            {fullXLen}/280 chars (X) {fullXLen > 280 ? `(${fullXLen - 280} a mais — use ✏️ Editar Tudo)` : '✅ Pode postar!'}
                           </span>
                           <div className="flex gap-3">
                             <button
@@ -1066,7 +1075,8 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                   !!postingToX ||
                   generatingAiPhrase ||
                   (previewEditing ? previewEditText.trim().length < 5 : !previewModal.previewText) ||
-                  (!previewEditing && getFullPreviewText(previewModal.previewText).length > 280)
+                  (!previewEditing && getXCharCount(getFullPreviewText(previewModal.previewText)) > 280) ||
+                  (previewEditing && getXCharCount(previewEditText) > 280)
                 }
                 className={cn(
                   'flex-1 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed',
