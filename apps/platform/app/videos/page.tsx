@@ -70,6 +70,43 @@ const STORY_PRESETS: StoryStyleConfig[] = [
   },
 ];
 
+// ── Text style presets (Instagram-style) ───────────────────────────────────
+const TEXT_STYLE_PRESETS = [
+  { id: 'strong',  name: 'Strong',  fontFamily: 'Montserrat', fontWeight: '800', shadowBlur: 8,  shadowColor: 'rgba(0,0,0,0.7)', letterSpacing: 1,    uppercase: true  },
+  { id: 'modern',  name: 'Modern',  fontFamily: 'Inter',      fontWeight: '700', shadowBlur: 0,  shadowColor: 'transparent',     letterSpacing: 0,    uppercase: false },
+  { id: 'promo',   name: 'Promo',   fontFamily: 'Poppins',    fontWeight: '800', shadowBlur: 6,  shadowColor: 'rgba(0,0,0,0.5)', letterSpacing: -0.5, uppercase: true  },
+  { id: 'neon',    name: 'Neon',    fontFamily: 'sans-serif', fontWeight: '800', shadowBlur: 18, shadowColor: '#00cfff',         letterSpacing: 2,    uppercase: true  },
+  { id: 'classic', name: 'Classic', fontFamily: 'Poppins',    fontWeight: '600', shadowBlur: 6,  shadowColor: 'rgba(0,0,0,0.4)', letterSpacing: 0.5,  uppercase: false },
+  { id: 'minimal', name: 'Minimal', fontFamily: 'Inter',      fontWeight: '400', shadowBlur: 0,  shadowColor: 'transparent',     letterSpacing: 1.5,  uppercase: false },
+] as const;
+type TextStylePresetId = typeof TEXT_STYLE_PRESETS[number]['id'];
+
+const TEXT_MODES = [
+  { id: 'box',       icon: '[A]', label: 'Caixa'       },
+  { id: 'bg',        icon: '▬A',  label: 'Fundo full'  },
+  { id: 'highlight', icon: '▌A',  label: 'Destaque'    },
+  { id: 'plain',     icon: 'A',   label: 'Sem fundo'   },
+] as const;
+type TextMode = typeof TEXT_MODES[number]['id'];
+
+const BLOCK_SIZES = {
+  headline:    { S: 38, M: 52, L: 68 },
+  subheadline: { S: 26, M: 36, L: 48 },
+  cta:         { S: 30, M: 42, L: 56 },
+} as const;
+type BlockSizeKey = keyof typeof BLOCK_SIZES;
+
+const QUICK_COLORS = ['#ffffff', '#f0c040', '#ff4444', '#40ff80', '#00cfff', '#ff69b4', '#000000'];
+
+interface TextBlockConfig { stylePresetId: TextStylePresetId; mode: TextMode; color: string; size: 'S'|'M'|'L' }
+interface AllBlockConfigs  { headline: TextBlockConfig; subheadline: TextBlockConfig; cta: TextBlockConfig }
+
+const DEFAULT_BLOCK_CONFIGS: AllBlockConfigs = {
+  headline:    { stylePresetId: 'strong',  mode: 'box', color: '#ffffff', size: 'M' },
+  subheadline: { stylePresetId: 'modern',  mode: 'box', color: '#ffffff', size: 'M' },
+  cta:         { stylePresetId: 'promo',   mode: 'box', color: '#f0c040', size: 'M' },
+};
+
 // ── Story text positioning ──────────────────────────────────────────────────
 interface TextBlockPos   { x: number; y: number }   // 0–1 fractions of canvas
 interface StoryTextPositions { headline: TextBlockPos; subheadline: TextBlockPos; cta: TextBlockPos }
@@ -190,6 +227,7 @@ export default function VideosPage() {
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [openStorySections, setOpenStorySections] = useState<Set<string>>(new Set(['text', 'style']));
   const toggleStorySection = (id: string) => setOpenStorySections(s => { const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+  const [blockConfigs, setBlockConfigs] = useState<AllBlockConfigs>(DEFAULT_BLOCK_CONFIGS);
   const [storyTextPositions, setStoryTextPositions] = useState<StoryTextPositions>(DEFAULT_TEXT_POSITIONS);
   const [storyBgPreview, setStoryBgPreview]       = useState('');
   const [isDragging, setIsDragging]               = useState<string | null>(null);
@@ -376,17 +414,25 @@ export default function VideosPage() {
     ctx.fillText('@manudaspromocoes',W/2,H-68);
   }, [effectiveProduct]);
 
-  // Draws a single text block centred at canvas position (cx, cy)
+  // Draws a single text block centred at (cx, cy) using per-block TextBlockConfig
   const drawTextAtPos = useCallback((
     ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number,
-    opts: { size: number; color: string; boxBg?: string; boxAlpha?: number; radius?: number;
-            fontStr: (sz: number, wt?: string) => string; W: number }
+    opts: { blockCfg: TextBlockConfig; sizeMap: { S:number; M:number; L:number };
+            boxColor: string; boxOpacity: number; boxRadius: number; W: number }
   ) => {
     if (!text.trim()) return;
-    const { size, color, boxBg, boxAlpha=0.55, radius=20, fontStr: fs, W } = opts;
-    const lh = size*1.38, pad = 32, maxW = W-80;
-    ctx.font = fs(size); ctx.textAlign = 'center';
-    const words = text.split(' ');
+    const { blockCfg, sizeMap, boxColor, boxOpacity, boxRadius, W } = opts;
+    const preset  = TEXT_STYLE_PRESETS.find(p => p.id === blockCfg.stylePresetId) ?? TEXT_STYLE_PRESETS[0];
+    const size    = sizeMap[blockCfg.size];
+    const actual  = preset.uppercase ? text.toUpperCase() : text;
+    const lh = size * 1.38, pad = 28, maxW = W - 80;
+
+    const fontStr = `${preset.fontWeight} ${size}px ${preset.fontFamily !== 'sans-serif' ? `'${preset.fontFamily}', ` : ''}sans-serif`;
+    ctx.font = fontStr; ctx.textAlign = 'center';
+    if ('letterSpacing' in ctx) (ctx as any).letterSpacing = `${preset.letterSpacing}px`;
+
+    // Word wrap
+    const words = actual.split(' ');
     const lines: string[] = [];
     let cur = '';
     for (const wd of words) {
@@ -394,19 +440,44 @@ export default function VideosPage() {
       if (ctx.measureText(t).width > maxW) { if (cur) lines.push(cur); cur = wd; } else cur = t;
     }
     if (cur) lines.push(cur);
-    const totalH = lines.length*lh, boxH = totalH+pad*2, boxY = cy-boxH/2;
-    if (boxBg) {
-      ctx.fillStyle = `rgba(${hexToRgbStr(boxBg)},${boxAlpha})`;
+
+    const totalH = lines.length * lh, boxH = totalH + pad * 2, boxY = cy - boxH / 2;
+
+    // Apply shadow/glow
+    if (preset.shadowBlur > 0) { ctx.shadowBlur = preset.shadowBlur; ctx.shadowColor = preset.shadowColor; }
+
+    // Background mode
+    const mode = blockCfg.mode;
+    const rgb  = hexToRgbStr(boxColor.startsWith('#') ? boxColor : '#000000');
+    if (mode === 'bg') {
+      ctx.fillStyle = `rgba(${rgb},${boxOpacity})`;
+      ctx.fillRect(40, boxY, W - 80, boxH);
+    } else if (mode === 'box') {
+      ctx.fillStyle = `rgba(${rgb},${boxOpacity})`;
+      const bx = 40, bw = W - 80, r = boxRadius;
       ctx.beginPath();
-      const bx=40, bw=W-80;
-      ctx.moveTo(bx+radius,boxY); ctx.lineTo(bx+bw-radius,boxY); ctx.arcTo(bx+bw,boxY,bx+bw,boxY+radius,radius);
-      ctx.lineTo(bx+bw,boxY+boxH-radius); ctx.arcTo(bx+bw,boxY+boxH,bx+bw-radius,boxY+boxH,radius);
-      ctx.lineTo(bx+radius,boxY+boxH); ctx.arcTo(bx,boxY+boxH,bx,boxY+boxH-radius,radius);
-      ctx.lineTo(bx,boxY+radius); ctx.arcTo(bx,boxY,bx+radius,boxY,radius);
+      ctx.moveTo(bx+r,boxY); ctx.lineTo(bx+bw-r,boxY); ctx.arcTo(bx+bw,boxY,bx+bw,boxY+r,r);
+      ctx.lineTo(bx+bw,boxY+boxH-r); ctx.arcTo(bx+bw,boxY+boxH,bx+bw-r,boxY+boxH,r);
+      ctx.lineTo(bx+r,boxY+boxH); ctx.arcTo(bx,boxY+boxH,bx,boxY+boxH-r,r);
+      ctx.lineTo(bx,boxY+r); ctx.arcTo(bx,boxY,bx+r,boxY,r);
       ctx.closePath(); ctx.fill();
+    } else if (mode === 'highlight') {
+      const hlRgb = hexToRgbStr(blockCfg.color.startsWith('#') ? blockCfg.color : '#f0c040');
+      lines.forEach((line, i) => {
+        const lw = ctx.measureText(line).width + 24;
+        ctx.fillStyle = `rgba(${hlRgb},0.30)`;
+        ctx.fillRect(cx - lw/2, boxY + pad * 0.4 + i * lh, lw, size * 1.25);
+      });
     }
-    ctx.fillStyle = color;
-    lines.forEach((line,i) => ctx.fillText(line, cx, boxY+pad+(i+0.85)*lh));
+    // Plain = no background
+
+    // Draw text
+    ctx.fillStyle = blockCfg.color;
+    lines.forEach((line, i) => ctx.fillText(line, cx, boxY + pad + (i + 0.85) * lh));
+
+    // Reset
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
+    if ('letterSpacing' in ctx) (ctx as any).letterSpacing = '0px';
   }, []);
 
   // ── Background-only canvas render → blob URL (for the interactive preview) ──
@@ -444,13 +515,13 @@ export default function VideosPage() {
         const fontStr = (sz:number,wt='bold') =>
           `${wt} ${sz}px ${s.fontFamily!=='sans-serif'?`'${s.fontFamily}', `:''}sans-serif`;
         await drawStoryBase(ctx,img,W,H,s);
-        const tOpts = { radius:s.boxRadius, fontStr, W };
+        const sharedOpts = { boxColor:s.boxColor, boxOpacity:s.boxOpacity, boxRadius:s.boxRadius, W };
         drawTextAtPos(ctx, storyHeadline,    storyTextPositions.headline.x*W,    storyTextPositions.headline.y*H,
-          { size:s.headlineSize,    color:s.textPrimaryColor,   boxBg:s.boxColor, boxAlpha:s.boxOpacity,               ...tOpts });
+          { blockCfg:blockConfigs.headline,    sizeMap:BLOCK_SIZES.headline,    ...sharedOpts });
         drawTextAtPos(ctx, storySubheadline, storyTextPositions.subheadline.x*W, storyTextPositions.subheadline.y*H,
-          { size:s.subheadlineSize, color:s.textSecondaryColor, boxBg:s.boxColor, boxAlpha:s.boxOpacity*0.8,            ...tOpts });
+          { blockCfg:blockConfigs.subheadline, sizeMap:BLOCK_SIZES.subheadline, ...sharedOpts });
         drawTextAtPos(ctx, storyCta,         storyTextPositions.cta.x*W,         storyTextPositions.cta.y*H,
-          { size:s.ctaSize,         color:s.ctaColor,           boxBg:s.boxColor, boxAlpha:Math.min(s.boxOpacity*1.1,0.85), ...tOpts });
+          { blockCfg:blockConfigs.cta,         sizeMap:BLOCK_SIZES.cta,         ...sharedOpts });
         URL.revokeObjectURL(url);
         canvas.toBlob(blob=>{
           if(!blob){resolve(file);return;}
@@ -460,7 +531,7 @@ export default function VideosPage() {
       img.onerror=()=>{ URL.revokeObjectURL(url); resolve(file); };
       img.src=url;
     });
-  }, [effectiveProduct, storyHeadline, storySubheadline, storyCta, storyStyle, storyTextPositions, drawStoryBase, drawTextAtPos]);
+  }, [effectiveProduct, storyHeadline, storySubheadline, storyCta, storyStyle, storyTextPositions, blockConfigs, drawStoryBase, drawTextAtPos]);
 
   const handleStoryImage = useCallback(async (file: File) => {
     rawStoryFileRef.current = file;
@@ -522,7 +593,18 @@ export default function VideosPage() {
       }
     }, 900);
     return () => clearTimeout(t);
-  }, [storyStyle, storyHeadline, storySubheadline, storyCta, storyTextPositions, formatImageForStory]);
+  }, [storyStyle, storyHeadline, storySubheadline, storyCta, storyTextPositions, blockConfigs, formatImageForStory]);
+
+  // Sync block colors when a named background preset changes
+  useEffect(() => {
+    if (storyStyle.presetName === 'Custom') return;
+    setBlockConfigs(prev => ({
+      headline:    { ...prev.headline,    color: storyStyle.textPrimaryColor },
+      subheadline: { ...prev.subheadline, color: storyStyle.textSecondaryColor },
+      cta:         { ...prev.cta,         color: storyStyle.ctaColor },
+    }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyStyle.presetName]);
 
   // Load Google Fonts for canvas
   useEffect(() => {
@@ -1284,39 +1366,51 @@ export default function VideosPage() {
                         <div className="absolute bottom-2 left-0 right-0 text-center text-[7px] text-white/30 font-semibold pointer-events-none">@manudaspromocoes</div>
 
                         {/* ── Draggable text blocks ── */}
-                        {([
-                          { block: 'headline'    as const, text: storyHeadline,    color: storyStyle.textPrimaryColor,   size: storyStyle.headlineSize    },
-                          { block: 'subheadline' as const, text: storySubheadline, color: storyStyle.textSecondaryColor, size: storyStyle.subheadlineSize },
-                          { block: 'cta'         as const, text: storyCta,         color: storyStyle.ctaColor,           size: storyStyle.ctaSize         },
-                        ]).map(({ block, text, color, size }) => {
+                        {(['headline', 'subheadline', 'cta'] as const).map(block => {
+                          const text = block==='headline' ? storyHeadline : block==='subheadline' ? storySubheadline : storyCta;
                           if (!text.trim()) return null;
-                          const pos = storyTextPositions[block];
+                          const cfg     = blockConfigs[block];
+                          const preset  = TEXT_STYLE_PRESETS.find(p => p.id === cfg.stylePresetId) ?? TEXT_STYLE_PRESETS[0];
+                          const sizeMap = BLOCK_SIZES[block];
+                          const pos     = storyTextPositions[block];
                           const previewW = previewContainerRef.current?.offsetWidth || 220;
-                          const scaledFont = Math.max(8, Math.round(size * (previewW / 1080)));
-                          const bgRgb = hexToRgbStr(storyStyle.boxColor);
+                          const sc      = previewW / 1080;
+                          const scaledFont = Math.max(7, Math.round(sizeMap[cfg.size] * sc));
+                          const bgRgb   = hexToRgbStr(storyStyle.boxColor.startsWith('#') ? storyStyle.boxColor : '#000000');
+                          const displayText = preset.uppercase ? text.toUpperCase() : text;
+
+                          // Background style based on mode
+                          const modeBg: React.CSSProperties =
+                            cfg.mode === 'bg'        ? { backgroundColor: `rgba(${bgRgb},${storyStyle.boxOpacity})` }
+                            : cfg.mode === 'box'     ? { backgroundColor: `rgba(${bgRgb},${storyStyle.boxOpacity})`, borderRadius: `${storyStyle.boxRadius * sc}px` }
+                            : cfg.mode === 'highlight' ? { backgroundColor: `rgba(${hexToRgbStr(cfg.color.startsWith('#')?cfg.color:'#f0c040')},0.28)` }
+                            : {};
+
                           return (
                             <div
                               key={block}
                               onMouseDown={e => handleDragStart(block, e)}
                               onTouchStart={e => handleDragStart(block, e)}
-                              className={`absolute max-w-[90%] text-center font-bold cursor-grab active:cursor-grabbing z-10 transition-shadow ${isDragging===block ? 'ring-2 ring-white/60 shadow-lg' : 'hover:ring-1 hover:ring-white/40'}`}
+                              className={`absolute max-w-[90%] text-center cursor-grab active:cursor-grabbing z-10 ${isDragging===block ? 'ring-2 ring-white/60 shadow-lg' : 'hover:ring-1 hover:ring-white/30'}`}
                               style={{
                                 left: `${pos.x * 100}%`,
                                 top:  `${pos.y * 100}%`,
                                 transform: 'translate(-50%, -50%)',
                                 fontSize: `${scaledFont}px`,
-                                color,
-                                backgroundColor: `rgba(${bgRgb},${storyStyle.boxOpacity})`,
-                                borderRadius: `${storyStyle.boxRadius * (previewW/1080)}px`,
-                                padding: `${4*(previewW/1080)}px ${10*(previewW/1080)}px`,
+                                fontFamily: preset.fontFamily === 'sans-serif' ? 'sans-serif' : `'${preset.fontFamily}', sans-serif`,
+                                fontWeight: preset.fontWeight,
+                                letterSpacing: `${preset.letterSpacing * sc}px`,
+                                textShadow: preset.shadowBlur > 0 ? `0 0 ${preset.shadowBlur * sc}px ${preset.shadowColor}` : 'none',
+                                color: cfg.color,
+                                padding: `${4*sc}px ${10*sc}px`,
                                 lineHeight: 1.38,
                                 userSelect: 'none',
                                 touchAction: 'none',
-                                whiteSpace: 'pre-wrap',
-                                wordBreak: 'break-word',
+                                whiteSpace: 'nowrap',
+                                ...modeBg,
                               }}
                             >
-                              {text}
+                              {displayText}
                             </div>
                           );
                         })}
@@ -1437,62 +1531,14 @@ export default function VideosPage() {
                           </div>
                         </div>
 
-                        {/* Text colors */}
+                        {/* Cor do preço */}
                         <div>
-                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Cores do texto</p>
-                          <div className="grid grid-cols-2 gap-2">
-                            {([
-                              { label: 'Principal',   key: 'textPrimaryColor'   },
-                              { label: 'Secundário',  key: 'textSecondaryColor' },
-                              { label: 'CTA',         key: 'ctaColor'           },
-                              { label: 'Preço',       key: 'priceColor'         },
-                            ] as { label: string; key: keyof StoryStyleConfig }[]).map(({ label, key }) => (
-                              <div key={key as string} className="flex items-center gap-2">
-                                <input type="color" value={storyStyle[key] as string}
-                                  onChange={e => setStoryStyle(s => ({...s, [key]: e.target.value, presetName: 'Custom'}))}
-                                  className="w-8 h-8 rounded cursor-pointer border-0 p-0 flex-shrink-0" />
-                                <label className="text-[10px] text-text-muted">{label}</label>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Font */}
-                        <div>
-                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Fonte</p>
-                          <div className="flex gap-1.5 flex-wrap">
-                            {(['sans-serif', 'Poppins', 'Inter', 'Montserrat'] as const).map(f => (
-                              <button key={f}
-                                onClick={() => setStoryStyle(s => ({...s, fontFamily: f, presetName: 'Custom'}))}
-                                className={`px-2.5 py-1.5 rounded-lg border text-[10px] font-semibold transition-all ${
-                                  storyStyle.fontFamily === f
-                                    ? 'border-pink-500 bg-pink-500/10 text-pink-400'
-                                    : 'border-border text-text-muted hover:border-pink-400/40'
-                                }`}
-                                style={{ fontFamily: f === 'sans-serif' ? 'sans-serif' : f }}
-                              >
-                                {f === 'sans-serif' ? 'Padrão' : f}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Tamanhos */}
-                        <div>
-                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Tamanho da fonte</p>
-                          <div className="space-y-2">
-                            {([
-                              { label: 'Headline',    key: 'headlineSize',    min: 32, max: 80 },
-                              { label: 'Subheadline', key: 'subheadlineSize', min: 24, max: 60 },
-                              { label: 'CTA',         key: 'ctaSize',         min: 28, max: 70 },
-                            ] as { label: string; key: 'headlineSize' | 'subheadlineSize' | 'ctaSize'; min: number; max: number }[]).map(({ label, key, min, max }) => (
-                              <div key={key} className="flex items-center gap-2">
-                                <label className="text-[10px] text-text-muted w-20 flex-shrink-0">{label} {storyStyle[key]}px</label>
-                                <input type="range" min={min} max={max} value={storyStyle[key]}
-                                  onChange={e => setStoryStyle(s => ({...s, [key]: parseInt(e.target.value), presetName: 'Custom'}))}
-                                  className="flex-1 accent-pink-500" />
-                              </div>
-                            ))}
+                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Cor do preço</p>
+                          <div className="flex items-center gap-2">
+                            <input type="color" value={storyStyle.priceColor}
+                              onChange={e => setStoryStyle(s => ({...s, priceColor: e.target.value, presetName: 'Custom'}))}
+                              className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+                            <span className="text-[10px] text-text-muted">Aparece abaixo da imagem do produto</span>
                           </div>
                         </div>
 
@@ -1511,34 +1557,85 @@ export default function VideosPage() {
                     )}
                   </div>
 
-                  {/* ── ✏️ Texto do Story ── */}
-                  <div className="rounded-xl border border-border bg-background/40 p-3 space-y-2">
-                    <p className="text-[11px] font-bold text-text-primary uppercase tracking-wider">✏️ Texto do Story</p>
-                    <div>
-                      <label className="block text-[10px] text-pink-400 font-semibold mb-1">
-                        Headline <span className="text-text-muted font-normal">(gancho principal — para no scroll)</span>
-                      </label>
-                      <input type="text" value={storyHeadline} onChange={e => setStoryHeadline(e.target.value)}
-                        placeholder="Ex: 💀 ESSE TÊNIS TÁ DIFERENTE"
-                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-text-muted font-semibold mb-1">
-                        Subheadline <span className="font-normal opacity-70">(reforço / comparação de preço)</span>
-                      </label>
-                      <input type="text" value={storySubheadline} onChange={e => setStorySubheadline(e.target.value)}
-                        placeholder="Ex: DE R$ 389 → R$ 199 (-49%)"
-                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] text-yellow-400 font-semibold mb-1">
-                        CTA <span className="text-text-muted font-normal">(chamada para ação)</span>
-                      </label>
-                      <input type="text" value={storyCta} onChange={e => setStoryCta(e.target.value)}
-                        placeholder="Ex: 🔥 CORRE QUE ACABA"
-                        className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500" />
-                    </div>
-                  </div>
+                  {/* ── ✏️ Texto do Story — editor visual por bloco ── */}
+                  {([
+                    { block: 'headline'    as const, label: 'HEADLINE',    hint: 'gancho principal', labelColor: 'text-pink-400',   text: storyHeadline,    setText: setStoryHeadline,    ph: '💀 ESSE TÊNIS TÁ DIFERENTE' },
+                    { block: 'subheadline' as const, label: 'SUBHEADLINE', hint: 'comparação',       labelColor: 'text-blue-400',   text: storySubheadline, setText: setStorySubheadline, ph: 'DE R$ 389 → R$ 199' },
+                    { block: 'cta'         as const, label: 'CTA',         hint: 'ação',             labelColor: 'text-yellow-400', text: storyCta,         setText: setStoryCta,         ph: '🔥 CORRE QUE ACABA' },
+                  ]).map(({ block, label, hint, labelColor, text, setText, ph }) => {
+                    const cfg = blockConfigs[block];
+                    const activePreset = TEXT_STYLE_PRESETS.find(p => p.id === cfg.stylePresetId) ?? TEXT_STYLE_PRESETS[0];
+                    const updateCfg = (patch: Partial<TextBlockConfig>) =>
+                      setBlockConfigs(prev => ({ ...prev, [block]: { ...prev[block], ...patch } }));
+                    return (
+                      <div key={block} className="rounded-xl border border-border bg-background/40 p-3 space-y-2">
+                        {/* Header */}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[10px] font-black uppercase tracking-widest ${labelColor}`}>{label}</span>
+                          <span className="text-[10px] text-text-muted opacity-60">({hint})</span>
+                        </div>
+                        {/* Text input */}
+                        <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder={ph}
+                          className="w-full px-3 py-1.5 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500"
+                          style={{ fontFamily: activePreset.fontFamily === 'sans-serif' ? 'sans-serif' : `'${activePreset.fontFamily}', sans-serif`, fontWeight: activePreset.fontWeight }} />
+                        {/* Style presets */}
+                        <div className="flex gap-1 overflow-x-auto pb-0.5">
+                          {TEXT_STYLE_PRESETS.map(preset => (
+                            <button key={preset.id}
+                              onClick={() => updateCfg({ stylePresetId: preset.id })}
+                              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-[10px] border transition-all ${
+                                cfg.stylePresetId === preset.id
+                                  ? 'border-pink-500 bg-pink-500/15 text-pink-400'
+                                  : 'border-border text-text-muted hover:border-pink-400/40 hover:text-text-primary'
+                              }`}
+                              style={{ fontFamily: preset.fontFamily==='sans-serif'?'sans-serif':`'${preset.fontFamily}',sans-serif`, fontWeight: preset.fontWeight, letterSpacing:`${preset.letterSpacing}px`, textTransform: preset.uppercase?'uppercase':'none' }}
+                            >
+                              {preset.name}
+                            </button>
+                          ))}
+                        </div>
+                        {/* Mode + Color + Size */}
+                        <div className="flex items-center gap-2">
+                          {/* Modes */}
+                          <div className="flex gap-0.5">
+                            {TEXT_MODES.map(mode => (
+                              <button key={mode.id} title={mode.label}
+                                onClick={() => updateCfg({ mode: mode.id })}
+                                className={`w-7 h-7 rounded text-[10px] font-bold flex items-center justify-center border transition-all ${
+                                  cfg.mode === mode.id
+                                    ? 'border-pink-500 bg-pink-500/15 text-pink-400'
+                                    : 'border-border text-text-muted hover:border-pink-400/40'
+                                }`}
+                              >{mode.icon}</button>
+                            ))}
+                          </div>
+                          {/* Color swatches */}
+                          <div className="flex gap-1 flex-1 items-center">
+                            {QUICK_COLORS.map(c => (
+                              <button key={c}
+                                onClick={() => updateCfg({ color: c })}
+                                className={`w-4 h-4 rounded-full flex-shrink-0 border-2 transition-all ${cfg.color===c?'border-pink-500 scale-125':'border-transparent hover:border-white/40'}`}
+                                style={{ background: c, outline: c==='#ffffff'?'1px solid rgba(255,255,255,0.2)':'none' }}
+                              />
+                            ))}
+                            <input type="color" value={cfg.color} onChange={e => updateCfg({ color: e.target.value })}
+                              className="w-4 h-4 rounded cursor-pointer border-0 p-0 flex-shrink-0" />
+                          </div>
+                          {/* Size S/M/L */}
+                          <div className="flex gap-0.5 flex-shrink-0">
+                            {(['S','M','L'] as const).map(s => (
+                              <button key={s}
+                                onClick={() => updateCfg({ size: s })}
+                                className={`w-6 h-6 rounded text-[9px] font-bold border transition-all ${
+                                  cfg.size===s ? 'border-pink-500 bg-pink-500/15 text-pink-400' : 'border-border text-text-muted hover:border-pink-400/40'
+                                }`}
+                              >{s}</button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </>
               )}
 
