@@ -70,6 +70,22 @@ const STORY_PRESETS: StoryStyleConfig[] = [
   },
 ];
 
+// ── Story text positioning ──────────────────────────────────────────────────
+interface TextBlockPos   { x: number; y: number }   // 0–1 fractions of canvas
+interface StoryTextPositions { headline: TextBlockPos; subheadline: TextBlockPos; cta: TextBlockPos }
+interface DragState { block: keyof StoryTextPositions; startCX: number; startCY: number; startPX: number; startPY: number }
+
+const DEFAULT_TEXT_POSITIONS: StoryTextPositions = {
+  headline:    { x: 0.5, y: 0.08 },
+  subheadline: { x: 0.5, y: 0.72 },
+  cta:         { x: 0.5, y: 0.87 },
+};
+
+function hexToRgbStr(hex: string): string {
+  const h = hex.replace('#', '');
+  return `${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)}`;
+}
+
 // ── Price formatter ────────────────────────────────────────────────────────
 function fmtPrice(v?: number | null): string {
   if (!v) return '—';
@@ -174,6 +190,11 @@ export default function VideosPage() {
   const [storyStyle, setStoryStyle]               = useState<StoryStyleConfig>(STORY_PRESETS[0]);
   const [showStylePanel, setShowStylePanel]       = useState(false);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [storyTextPositions, setStoryTextPositions] = useState<StoryTextPositions>(DEFAULT_TEXT_POSITIONS);
+  const [storyBgPreview, setStoryBgPreview]       = useState('');
+  const [isDragging, setIsDragging]               = useState<string | null>(null);
+  const dragStateRef      = useRef<DragState | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Share to Instagram ────────────────────────────────────────────────
   const [isMobile, setIsMobile]         = useState(false);
@@ -339,194 +360,158 @@ export default function VideosPage() {
     }
   }, [hasVideo, videoFile, videoLinkInput, effectiveProduct, paymentMethod, installments]);
 
-  // ── Handle story image ────────────────────────────────────────────────────
-  // Converte imagem para 9:16 (1080×1920) aplicando o storyStyle ativo
-  const formatImageForStory = useCallback((file: File): Promise<File> => {
-    return new Promise((resolve) => {
-      const W = 1080, H = 1920;
-      const img = new Image();
-      const objectUrl = URL.createObjectURL(file);
+  // ── Canvas helpers shared between preview and final render ───────────────
+  // Renders background + product image/price onto ctx; returns the bottom-Y of the product block
+  const drawStoryBase = useCallback(async (
+    ctx: CanvasRenderingContext2D, img: HTMLImageElement, W: number, H: number, s: StoryStyleConfig
+  ): Promise<void> => {
+    const fontStr = (sz: number, wt = 'bold') =>
+      `${wt} ${sz}px ${s.fontFamily !== 'sans-serif' ? `'${s.fontFamily}', ` : ''}sans-serif`;
+    const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath();
+      ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
+      ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+      ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
+      ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
+    };
+    if (s.bgType === 'gradient') {
+      const g = ctx.createLinearGradient(0,0,0,H);
+      g.addColorStop(0,s.bgGradient[0]); g.addColorStop(1,s.bgGradient[1]);
+      ctx.fillStyle = g;
+    } else { ctx.fillStyle = s.bgColor; }
+    ctx.fillRect(0,0,W,H);
+    const glow = ctx.createRadialGradient(W/2,H*0.42,0,W/2,H*0.42,W*0.9);
+    glow.addColorStop(0,'rgba(255,255,255,0.04)'); glow.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle = glow; ctx.fillRect(0,0,W,H);
+    const pad = 36, maxImgH = H*0.40, maxImgW = W*0.80;
+    const ratio = Math.min(maxImgW/img.width, maxImgH/img.height);
+    const dw = img.width*ratio, dh = img.height*ratio;
+    const dx = (W-dw)/2, dy = H*0.22;
+    ctx.shadowColor='rgba(0,0,0,0.5)'; ctx.shadowBlur=60; ctx.shadowOffsetY=20;
+    ctx.fillStyle='#ffffff'; roundRect(dx-pad,dy-pad,dw+pad*2,dh+pad*2,40); ctx.fill();
+    ctx.shadowColor='transparent'; ctx.shadowBlur=0; ctx.shadowOffsetY=0;
+    ctx.drawImage(img,dx,dy,dw,dh);
+    let belowY = dy+dh+pad+56;
+    const prodPrice = effectiveProduct ? fmtPrice(effectiveProduct.finalPrice) : null;
+    const prodTitle = effectiveProduct?.title;
+    if (prodPrice) {
+      ctx.font=fontStr(72); ctx.fillStyle=s.priceColor; ctx.textAlign='center';
+      ctx.fillText(prodPrice,W/2,belowY); belowY+=84;
+    }
+    if (prodTitle) {
+      ctx.font=fontStr(34,'600'); ctx.fillStyle=s.textSecondaryColor; ctx.textAlign='center';
+      const mc=52, l1=prodTitle.slice(0,mc), l2=prodTitle.length>mc?prodTitle.slice(mc,mc*2)+'…':'';
+      ctx.fillText(l1,W/2,belowY);
+      if (l2) { ctx.fillText(l2,W/2,belowY+44); belowY+=44; }
+    }
+    ctx.font=fontStr(38,'600'); ctx.fillStyle='rgba(255,255,255,0.30)'; ctx.textAlign='center';
+    ctx.fillText('@manudaspromocoes',W/2,H-68);
+  }, [effectiveProduct]);
 
+  // Draws a single text block centred at canvas position (cx, cy)
+  const drawTextAtPos = useCallback((
+    ctx: CanvasRenderingContext2D, text: string, cx: number, cy: number,
+    opts: { size: number; color: string; boxBg?: string; boxAlpha?: number; radius?: number;
+            fontStr: (sz: number, wt?: string) => string; W: number }
+  ) => {
+    if (!text.trim()) return;
+    const { size, color, boxBg, boxAlpha=0.55, radius=20, fontStr: fs, W } = opts;
+    const lh = size*1.38, pad = 32, maxW = W-80;
+    ctx.font = fs(size); ctx.textAlign = 'center';
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let cur = '';
+    for (const wd of words) {
+      const t = cur ? `${cur} ${wd}` : wd;
+      if (ctx.measureText(t).width > maxW) { if (cur) lines.push(cur); cur = wd; } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    const totalH = lines.length*lh, boxH = totalH+pad*2, boxY = cy-boxH/2;
+    if (boxBg) {
+      ctx.fillStyle = `rgba(${hexToRgbStr(boxBg)},${boxAlpha})`;
+      ctx.beginPath();
+      const bx=40, bw=W-80;
+      ctx.moveTo(bx+radius,boxY); ctx.lineTo(bx+bw-radius,boxY); ctx.arcTo(bx+bw,boxY,bx+bw,boxY+radius,radius);
+      ctx.lineTo(bx+bw,boxY+boxH-radius); ctx.arcTo(bx+bw,boxY+boxH,bx+bw-radius,boxY+boxH,radius);
+      ctx.lineTo(bx+radius,boxY+boxH); ctx.arcTo(bx,boxY+boxH,bx,boxY+boxH-radius,radius);
+      ctx.lineTo(bx,boxY+radius); ctx.arcTo(bx,boxY,bx+radius,boxY,radius);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = color;
+    lines.forEach((line,i) => ctx.fillText(line, cx, boxY+pad+(i+0.85)*lh));
+  }, []);
+
+  // ── Background-only canvas render → blob URL (for the interactive preview) ──
+  const renderStoryBackground = useCallback((file: File): Promise<string> => {
+    return new Promise(resolve => {
+      const W=1080, H=1920, img=new Image(), url=URL.createObjectURL(file);
       img.onload = async () => {
-        const canvas = document.createElement('canvas');
-        canvas.width  = W;
-        canvas.height = H;
-        const ctx = canvas.getContext('2d')!;
-        const s   = storyStyle;
+        const canvas=document.createElement('canvas');
+        canvas.width=W; canvas.height=H;
+        const ctx=canvas.getContext('2d')!;
+        if (storyStyle.fontFamily!=='sans-serif') {
+          try { await document.fonts.load(`bold ${storyStyle.headlineSize}px '${storyStyle.fontFamily}'`); } catch {}
+        }
+        await drawStoryBase(ctx,img,W,H,storyStyle);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(blob => resolve(blob?URL.createObjectURL(blob):''),'image/jpeg',0.75);
+      };
+      img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(''); };
+      img.src = url;
+    });
+  }, [storyStyle, drawStoryBase]);
 
-        // Load custom font if needed
-        if (s.fontFamily !== 'sans-serif') {
+  // ── Full canvas render (background + text at free positions) ─────────────
+  const formatImageForStory = useCallback((file: File): Promise<File> => {
+    return new Promise(resolve => {
+      const W=1080, H=1920, img=new Image(), url=URL.createObjectURL(file);
+      img.onload = async () => {
+        const canvas=document.createElement('canvas');
+        canvas.width=W; canvas.height=H;
+        const ctx=canvas.getContext('2d')!;
+        const s=storyStyle;
+        if (s.fontFamily!=='sans-serif') {
           try { await document.fonts.load(`bold ${s.headlineSize}px '${s.fontFamily}'`); } catch {}
         }
-
-        const fontStr = (size: number, weight = 'bold') =>
-          `${weight} ${size}px ${s.fontFamily !== 'sans-serif' ? `'${s.fontFamily}', ` : ''}sans-serif`;
-
-        // ── Background ──────────────────────────────────────────────────
-        if (s.bgType === 'gradient') {
-          const grad = ctx.createLinearGradient(0, 0, 0, H);
-          grad.addColorStop(0, s.bgGradient[0]);
-          grad.addColorStop(1, s.bgGradient[1]);
-          ctx.fillStyle = grad;
-        } else {
-          ctx.fillStyle = s.bgColor;
-        }
-        ctx.fillRect(0, 0, W, H);
-
-        // Subtle center glow
-        const glow = ctx.createRadialGradient(W/2, H * 0.4, 0, W/2, H * 0.4, W * 0.9);
-        glow.addColorStop(0, 'rgba(255,255,255,0.04)');
-        glow.addColorStop(1, 'rgba(0,0,0,0)');
-        ctx.fillStyle = glow;
-        ctx.fillRect(0, 0, W, H);
-
-        // ── Helper: rounded rect ─────────────────────────────────────────
-        const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
-          ctx.beginPath();
-          ctx.moveTo(x+r, y);
-          ctx.lineTo(x+w-r, y);   ctx.arcTo(x+w, y,   x+w, y+r,   r);
-          ctx.lineTo(x+w, y+h-r); ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
-          ctx.lineTo(x+r, y+h);   ctx.arcTo(x,   y+h, x,   y+h-r, r);
-          ctx.lineTo(x,   y+r);   ctx.arcTo(x,   y,   x+r, y,     r);
-          ctx.closePath();
-        };
-
-        // ── Helper: draw text block with optional box, returns bottomY ──
-        const drawTextBlock = (
-          text: string, topY: number,
-          opts: { size: number; color: string; boxBg?: string; boxAlpha?: number; pad?: number; lh?: number; w?: string; }
-        ): number => {
-          if (!text.trim()) return topY;
-          const { size, color, boxBg, boxAlpha = 0.55, pad = 36, lh = size * 1.38, w = 'bold' } = opts;
-          const maxW = W - 80;
-
-          ctx.font = fontStr(size, w);
-          ctx.textAlign = 'center';
-
-          // Word-wrap
-          const words  = text.split(' ');
-          const lines: string[] = [];
-          let cur = '';
-          for (const word of words) {
-            const test = cur ? `${cur} ${word}` : word;
-            if (ctx.measureText(test).width > maxW) { if (cur) lines.push(cur); cur = word; }
-            else cur = test;
-          }
-          if (cur) lines.push(cur);
-
-          const totalH = lines.length * lh + pad * 1.2;
-
-          if (boxBg) {
-            const hex = boxBg.startsWith('#') ? boxBg : '#000000';
-            const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
-            ctx.fillStyle = `rgba(${r},${g},${b},${boxAlpha})`;
-            roundRect(40, topY - pad * 0.4, W - 80, totalH, s.boxRadius);
-            ctx.fill();
-          }
-
-          ctx.fillStyle = color;
-          lines.forEach((line, i) => ctx.fillText(line, W/2, topY + i * lh + pad * 0.6));
-          return topY + totalH + 16;
-        };
-
-        // ── Layout ───────────────────────────────────────────────────────
-        let curY = 130;
-
-        // Headline (above image)
-        if (storyHeadline.trim()) {
-          curY = drawTextBlock(storyHeadline, curY, {
-            size: s.headlineSize, color: s.textPrimaryColor,
-            boxBg: s.boxColor, boxAlpha: s.boxOpacity,
-          }) + 20;
-        }
-
-        // Product image in white card
-        const maxImgH = storyHeadline.trim() ? H * 0.38 : H * 0.45;
-        const maxImgW = W * 0.80;
-        const ratio   = Math.min(maxImgW / img.width, maxImgH / img.height);
-        const dw = img.width  * ratio;
-        const dh = img.height * ratio;
-        const dx = (W - dw) / 2;
-        const dy = curY + 10;
-        const pad = 36;
-
-        ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 60; ctx.shadowOffsetY = 20;
-        ctx.fillStyle = '#ffffff';
-        roundRect(dx - pad, dy - pad, dw + pad*2, dh + pad*2, 40);
-        ctx.fill();
-        ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
-        ctx.drawImage(img, dx, dy, dw, dh);
-
-        // Price + title below image
-        let belowY = dy + dh + pad + 60;
-        const prodPrice = effectiveProduct ? fmtPrice(effectiveProduct.finalPrice) : null;
-        const prodTitle = effectiveProduct?.title;
-
-        if (prodPrice) {
-          ctx.font = fontStr(72); ctx.fillStyle = s.priceColor; ctx.textAlign = 'center';
-          ctx.fillText(prodPrice, W/2, belowY); belowY += 84;
-        }
-        if (prodTitle) {
-          ctx.font = fontStr(34, '600'); ctx.fillStyle = s.textSecondaryColor; ctx.textAlign = 'center';
-          const mc = 52;
-          const l1 = prodTitle.slice(0, mc);
-          const l2 = prodTitle.length > mc ? prodTitle.slice(mc, mc * 2) + '…' : '';
-          ctx.fillText(l1, W/2, belowY);
-          if (l2) { ctx.fillText(l2, W/2, belowY + 44); belowY += 44; }
-          belowY += 52;
-        }
-
-        // Subheadline (below price area)
-        if (storySubheadline.trim()) {
-          belowY = drawTextBlock(storySubheadline, belowY + 8, {
-            size: s.subheadlineSize, color: s.textSecondaryColor,
-            boxBg: s.boxColor, boxAlpha: s.boxOpacity * 0.75,
-          }) + 12;
-        }
-
-        // CTA (anchored near bottom if there's room)
-        if (storyCta.trim()) {
-          const ctaY = Math.max(belowY + 8, H - 310);
-          drawTextBlock(storyCta, ctaY, {
-            size: s.ctaSize, color: s.ctaColor,
-            boxBg: s.boxColor, boxAlpha: Math.min(s.boxOpacity * 1.1, 0.85),
-          });
-        }
-
-        // Watermark
-        ctx.font = fontStr(38, '600');
-        ctx.fillStyle = 'rgba(255,255,255,0.32)';
-        ctx.textAlign = 'center';
-        ctx.fillText('@manudaspromocoes', W/2, H - 68);
-
-        URL.revokeObjectURL(objectUrl);
-        canvas.toBlob(blob => {
-          if (!blob) { resolve(file); return; }
-          resolve(new File([blob], 'story_1080x1920.jpg', { type: 'image/jpeg' }));
-        }, 'image/jpeg', 0.93);
+        const fontStr = (sz:number,wt='bold') =>
+          `${wt} ${sz}px ${s.fontFamily!=='sans-serif'?`'${s.fontFamily}', `:''}sans-serif`;
+        await drawStoryBase(ctx,img,W,H,s);
+        const tOpts = { radius:s.boxRadius, fontStr, W };
+        drawTextAtPos(ctx, storyHeadline,    storyTextPositions.headline.x*W,    storyTextPositions.headline.y*H,
+          { size:s.headlineSize,    color:s.textPrimaryColor,   boxBg:s.boxColor, boxAlpha:s.boxOpacity,               ...tOpts });
+        drawTextAtPos(ctx, storySubheadline, storyTextPositions.subheadline.x*W, storyTextPositions.subheadline.y*H,
+          { size:s.subheadlineSize, color:s.textSecondaryColor, boxBg:s.boxColor, boxAlpha:s.boxOpacity*0.8,            ...tOpts });
+        drawTextAtPos(ctx, storyCta,         storyTextPositions.cta.x*W,         storyTextPositions.cta.y*H,
+          { size:s.ctaSize,         color:s.ctaColor,           boxBg:s.boxColor, boxAlpha:Math.min(s.boxOpacity*1.1,0.85), ...tOpts });
+        URL.revokeObjectURL(url);
+        canvas.toBlob(blob=>{
+          if(!blob){resolve(file);return;}
+          resolve(new File([blob],'story_1080x1920.jpg',{type:'image/jpeg'}));
+        },'image/jpeg',0.93);
       };
-
-      img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
-      img.src = objectUrl;
+      img.onerror=()=>{ URL.revokeObjectURL(url); resolve(file); };
+      img.src=url;
     });
-  }, [effectiveProduct, storyHeadline, storySubheadline, storyCta, storyStyle]);
+  }, [effectiveProduct, storyHeadline, storySubheadline, storyCta, storyStyle, storyTextPositions, drawStoryBase, drawTextAtPos]);
 
   const handleStoryImage = useCallback(async (file: File) => {
-    rawStoryFileRef.current = file;  // guarda original para re-converter com nova legenda
-    if (!file.type.startsWith('image/')) {
-      alert('Selecione uma imagem (JPG, PNG, WebP)');
-      return;
-    }
-    if (file.size > 30 * 1024 * 1024) {
-      alert('Imagem muito grande (máx. 30 MB).');
-      return;
-    }
+    rawStoryFileRef.current = file;
+    if (!file.type.startsWith('image/')) { alert('Selecione uma imagem (JPG, PNG, WebP)'); return; }
+    if (file.size > 30*1024*1024) { alert('Imagem muito grande (máx. 30 MB).'); return; }
     setStoryResult(null);
-    // Converte para 9:16 automaticamente
-    const formatted = await formatImageForStory(file);
-    setStoryImageFile(formatted);
-    setStoryImagePreview(URL.createObjectURL(formatted));
-  }, [formatImageForStory]);
+    setIsGeneratingPreview(true);
+    try {
+      const [formatted, bgUrl] = await Promise.all([
+        formatImageForStory(file),
+        renderStoryBackground(file),
+      ]);
+      setStoryImageFile(formatted);
+      setStoryImagePreview(URL.createObjectURL(formatted));
+      setStoryBgPreview(bgUrl);
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  }, [formatImageForStory, renderStoryBackground]);
 
   // Detecta se é dispositivo móvel
   useEffect(() => {
@@ -545,7 +530,17 @@ export default function VideosPage() {
     }
   }, [effectiveProduct]);
 
-  // Auto-regenerate preview when style/text changes (debounced)
+  // Auto-regenerate bg preview when style/product changes (debounced)
+  useEffect(() => {
+    if (!rawStoryFileRef.current) return;
+    const t = setTimeout(async () => {
+      const bgUrl = await renderStoryBackground(rawStoryFileRef.current!);
+      setStoryBgPreview(bgUrl);
+    }, 600);
+    return () => clearTimeout(t);
+  }, [storyStyle, renderStoryBackground]);
+
+  // Auto-regenerate final image when style/text/positions change (debounced)
   useEffect(() => {
     if (!rawStoryFileRef.current) return;
     const t = setTimeout(async () => {
@@ -557,9 +552,9 @@ export default function VideosPage() {
       } finally {
         setIsGeneratingPreview(false);
       }
-    }, 700);
+    }, 900);
     return () => clearTimeout(t);
-  }, [storyStyle, storyHeadline, storySubheadline, storyCta, formatImageForStory]);
+  }, [storyStyle, storyHeadline, storySubheadline, storyCta, storyTextPositions, formatImageForStory]);
 
   // Load Google Fonts for canvas
   useEffect(() => {
@@ -571,6 +566,54 @@ export default function VideosPage() {
     link.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;600;700;800&family=Montserrat:wght@400;600;700;800&display=swap';
     document.head.appendChild(link);
   }, []);
+
+  // ── Drag handlers for the interactive story preview ──────────────────────
+  const getClientXY = (e: React.MouseEvent | React.TouchEvent) => {
+    if ('touches' in e) return { cx: e.touches[0].clientX, cy: e.touches[0].clientY };
+    return { cx: (e as React.MouseEvent).clientX, cy: (e as React.MouseEvent).clientY };
+  };
+
+  const handleDragStart = useCallback((block: keyof StoryTextPositions, e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const { cx, cy } = getClientXY(e);
+    dragStateRef.current = {
+      block,
+      startCX: cx, startCY: cy,
+      startPX: storyTextPositions[block].x,
+      startPY: storyTextPositions[block].y,
+    };
+    setIsDragging(block);
+  }, [storyTextPositions]);
+
+  const handleDragMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!dragStateRef.current || !previewContainerRef.current) return;
+    e.preventDefault();
+    const { cx, cy } = getClientXY(e);
+    const rect = previewContainerRef.current.getBoundingClientRect();
+    const dx = (cx - dragStateRef.current.startCX) / rect.width;
+    const dy = (cy - dragStateRef.current.startCY) / rect.height;
+    const newX = Math.max(0.05, Math.min(0.95, dragStateRef.current.startPX + dx));
+    const newY = Math.max(0.02, Math.min(0.97, dragStateRef.current.startPY + dy));
+    setStoryTextPositions(prev => ({
+      ...prev,
+      [dragStateRef.current!.block]: { x: newX, y: newY },
+    }));
+  }, []);
+
+  const handleDragEnd = useCallback(() => {
+    dragStateRef.current = null;
+    setIsDragging(null);
+  }, []);
+
+  const snapBlock = (block: keyof StoryTextPositions, xSnap: number | null, ySnap: number | null) => {
+    setStoryTextPositions(prev => ({
+      ...prev,
+      [block]: {
+        x: xSnap !== null ? xSnap : prev[block].x,
+        y: ySnap !== null ? ySnap : prev[block].y,
+      },
+    }));
+  };
 
   // ── Post Story ───────────────────────────────────────────────────────────
   const handlePostStory = useCallback(async () => {
@@ -1244,41 +1287,136 @@ export default function VideosPage() {
                       onDragLeave={() => setStoryDragOver(false)}
                       onDrop={e => { e.preventDefault(); setStoryDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleStoryImage(f); }}
                       onClick={() => storyImageRef.current?.click()}
-                      className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all py-7 ${storyDragOver ? 'border-pink-500 bg-pink-500/10' : 'border-border hover:border-pink-500/60 hover:bg-surface-hover'}`}
+                      className={`border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all py-8 ${storyDragOver ? 'border-pink-500 bg-pink-500/10' : 'border-border hover:border-pink-500/60 hover:bg-surface-hover'}`}
                     >
                       <span className="text-3xl mb-2">🖼️</span>
                       <p className="text-xs font-semibold text-text-primary">Arraste a imagem aqui</p>
                       <p className="text-[11px] text-text-muted mt-1">Qualquer formato → convertido para 9:16</p>
                     </div>
                   ) : (
-                    <div className="flex gap-3 items-start">
-                      {/* Preview 9:16 */}
-                      <div className="relative rounded-xl overflow-hidden border-2 border-pink-500/40 bg-black flex-shrink-0" style={{ width: 90, height: 160 }}>
+                    /* ── Interactive Story Editor Preview ── */
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-emerald-400 text-xs">✓</span>
+                          <span className="text-xs font-semibold text-emerald-400">Editor interativo — arraste os textos</span>
+                        </div>
+                        <button
+                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryBgPreview(''); setStoryResult(null); rawStoryFileRef.current=null; setStoryTextPositions(DEFAULT_TEXT_POSITIONS); }}
+                          className="text-[10px] text-red-400 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
+                        >Trocar</button>
+                      </div>
+
+                      {/* ── 9:16 Interactive preview canvas ── */}
+                      <div
+                        ref={previewContainerRef}
+                        onMouseMove={handleDragMove}
+                        onMouseUp={handleDragEnd}
+                        onMouseLeave={handleDragEnd}
+                        onTouchMove={handleDragMove}
+                        onTouchEnd={handleDragEnd}
+                        className={`relative overflow-hidden rounded-xl border-2 mx-auto select-none ${isDragging ? 'border-pink-500 cursor-grabbing' : 'border-pink-500/40 cursor-default'}`}
+                        style={{ width: '100%', aspectRatio: '9/16', maxWidth: 240, touchAction: 'none' }}
+                      >
+                        {/* Background image */}
+                        {storyBgPreview ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={storyBgPreview} alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+                        ) : (
+                          <div className="absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(${storyStyle.bgGradient[0]}, ${storyStyle.bgGradient[1]})` }} />
+                        )}
+
+                        {/* Generating overlay */}
                         {isGeneratingPreview && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/75 z-10">
-                            <svg className="animate-spin w-5 h-5 text-pink-400" viewBox="0 0 24 24" fill="none">
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 pointer-events-none">
+                            <svg className="animate-spin w-6 h-6 text-pink-400" viewBox="0 0 24 24" fill="none">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                             </svg>
                           </div>
                         )}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={storyImagePreview} alt="preview" className="w-full h-full object-cover" />
-                        <div className="absolute bottom-1 left-0 right-0 flex justify-center">
-                          <span className="text-[8px] bg-black/70 text-white px-1.5 py-0.5 rounded-full">9:16</span>
-                        </div>
+
+                        {/* Horizontal guide lines */}
+                        <div className="absolute left-0 right-0 border-t border-dashed border-white/15 pointer-events-none" style={{ top: '33%' }} />
+                        <div className="absolute left-0 right-0 border-t border-dashed border-white/15 pointer-events-none" style={{ top: '66%' }} />
+
+                        {/* Watermark indicator */}
+                        <div className="absolute bottom-2 left-0 right-0 text-center text-[7px] text-white/30 font-semibold pointer-events-none">@manudaspromocoes</div>
+
+                        {/* ── Draggable text blocks ── */}
+                        {([
+                          { block: 'headline'    as const, text: storyHeadline,    color: storyStyle.textPrimaryColor,   size: storyStyle.headlineSize    },
+                          { block: 'subheadline' as const, text: storySubheadline, color: storyStyle.textSecondaryColor, size: storyStyle.subheadlineSize },
+                          { block: 'cta'         as const, text: storyCta,         color: storyStyle.ctaColor,           size: storyStyle.ctaSize         },
+                        ]).map(({ block, text, color, size }) => {
+                          if (!text.trim()) return null;
+                          const pos = storyTextPositions[block];
+                          const previewW = previewContainerRef.current?.offsetWidth || 220;
+                          const scaledFont = Math.max(8, Math.round(size * (previewW / 1080)));
+                          const bgRgb = hexToRgbStr(storyStyle.boxColor);
+                          return (
+                            <div
+                              key={block}
+                              onMouseDown={e => handleDragStart(block, e)}
+                              onTouchStart={e => handleDragStart(block, e)}
+                              className={`absolute max-w-[90%] text-center font-bold cursor-grab active:cursor-grabbing z-10 transition-shadow ${isDragging===block ? 'ring-2 ring-white/60 shadow-lg' : 'hover:ring-1 hover:ring-white/40'}`}
+                              style={{
+                                left: `${pos.x * 100}%`,
+                                top:  `${pos.y * 100}%`,
+                                transform: 'translate(-50%, -50%)',
+                                fontSize: `${scaledFont}px`,
+                                color,
+                                backgroundColor: `rgba(${bgRgb},${storyStyle.boxOpacity})`,
+                                borderRadius: `${storyStyle.boxRadius * (previewW/1080)}px`,
+                                padding: `${4*(previewW/1080)}px ${10*(previewW/1080)}px`,
+                                lineHeight: 1.38,
+                                userSelect: 'none',
+                                touchAction: 'none',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {text}
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="flex-1 space-y-1.5 pt-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-emerald-400 text-xs">✓</span>
-                          <span className="text-xs font-semibold text-emerald-400">Convertida (9:16)</span>
-                        </div>
-                        <p className="text-[10px] text-text-muted">1080 × 1920 px</p>
-                        {isGeneratingPreview && <p className="text-[10px] text-pink-400 animate-pulse">Atualizando preview...</p>}
+
+                      {/* ── Snap controls ── */}
+                      <div className="rounded-lg border border-border bg-background/40 p-2 space-y-1.5">
+                        <p className="text-[9px] font-bold text-text-muted uppercase tracking-wider">📍 Posicionamento rápido</p>
+                        {([
+                          { block: 'headline'    as const, label: 'Headline',    color: 'text-pink-400'   },
+                          { block: 'subheadline' as const, label: 'Subheadline', color: 'text-blue-400'   },
+                          { block: 'cta'         as const, label: 'CTA',         color: 'text-yellow-400' },
+                        ]).map(({ block, label, color }) => (
+                          <div key={block} className="flex items-center gap-1.5">
+                            <span className={`text-[9px] font-semibold w-16 flex-shrink-0 ${color}`}>{label}</span>
+                            <div className="flex gap-1 flex-1">
+                              {[
+                                { label: '⬆ Topo',  y: 0.07,  x: null },
+                                { label: '⬛ Meio',  y: 0.50,  x: null },
+                                { label: '⬇ Base',  y: 0.90,  x: null },
+                                { label: '◀ Esq',   y: null,  x: 0.15 },
+                                { label: '⬛ Cent',  y: null,  x: 0.50 },
+                                { label: '▶ Dir',   y: null,  x: 0.85 },
+                              ].map(snap => (
+                                <button key={snap.label}
+                                  onClick={() => snapBlock(block, snap.x, snap.y)}
+                                  className="flex-1 py-0.5 rounded text-[8px] border border-border text-text-muted hover:border-pink-500/40 hover:text-text-primary transition-colors"
+                                >
+                                  {snap.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                         <button
-                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryResult(null); rawStoryFileRef.current = null; }}
-                          className="text-[10px] text-red-400 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
-                        >Trocar imagem</button>
+                          onClick={() => setStoryTextPositions(DEFAULT_TEXT_POSITIONS)}
+                          className="w-full py-1 rounded-lg border border-border text-[9px] text-text-muted hover:border-pink-500/40 transition-colors"
+                        >
+                          ↩ Resetar posições
+                        </button>
                       </div>
                     </div>
                   )}
