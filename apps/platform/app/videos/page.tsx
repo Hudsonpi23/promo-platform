@@ -215,6 +215,7 @@ export default function VideosPage() {
   const [storyType, setStoryType]                 = useState<'video' | 'image'>('video');
   const [storyImageFile, setStoryImageFile]       = useState<File | null>(null);
   const [storyImagePreview, setStoryImagePreview] = useState('');
+  const [rawProductPreview, setRawProductPreview] = useState(''); // raw product img URL for live preview
   const [postingStory, setPostingStory]           = useState(false);
   const [storyResult, setStoryResult]             = useState<{ url?: string; error?: string } | null>(null);
   const [storyDragOver, setStoryDragOver]         = useState(false);
@@ -564,6 +565,8 @@ export default function VideosPage() {
     if (!file.type.startsWith('image/')) { alert('Selecione uma imagem (JPG, PNG, WebP)'); return; }
     if (file.size > 30*1024*1024) { alert('Imagem muito grande (máx. 30 MB).'); return; }
     setStoryResult(null);
+    // Show raw product image instantly for live CSS overlay
+    setRawProductPreview(URL.createObjectURL(file));
     setIsGeneratingPreview(true);
     try {
       const [formatted, bgUrl] = await Promise.all([
@@ -1385,7 +1388,7 @@ export default function VideosPage() {
                           <span className="text-xs font-semibold text-emerald-400">Editor interativo — arraste os textos</span>
                         </div>
                         <button
-                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryBgPreview(''); setStoryResult(null); rawStoryFileRef.current=null; setStoryTextPositions(DEFAULT_TEXT_POSITIONS); }}
+                          onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryBgPreview(''); setRawProductPreview(''); setStoryResult(null); rawStoryFileRef.current=null; setStoryTextPositions(DEFAULT_TEXT_POSITIONS); }}
                           className="text-[10px] text-red-400 border border-red-500/20 px-2 py-1 rounded hover:bg-red-500/10 transition-colors"
                         >Trocar</button>
                       </div>
@@ -1405,21 +1408,41 @@ export default function VideosPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/manu-story-bg.png" alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
                         <div className="absolute inset-0 pointer-events-none bg-black/30" />
-                        {/* Product-layer rendered on canvas (rendered background with product card) */}
+                        {/* Canvas layer — only for price/title/watermark (below the live product card) */}
                         {storyBgPreview && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={storyBgPreview} alt="product layer" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+                          <img src={storyBgPreview} alt="bg layer" className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-60" />
                         )}
 
-                        {/* ── Draggable product image handle ── */}
-                        {rawStoryFileRef.current && (
+                        {/* ── Live CSS product card — moves instantly during drag ── */}
+                        {rawProductPreview && (
+                          <div
+                            className="absolute pointer-events-none z-10"
+                            style={{
+                              left:      `${productImagePos.x * 100}%`,
+                              top:       `${productImagePos.y * 100}%`,
+                              transform: 'translate(-50%, -50%)',
+                              width:  '76%',
+                              height: '44%',
+                            }}
+                          >
+                            {/* White card */}
+                            <div className="w-full h-full bg-white rounded-2xl shadow-2xl overflow-hidden flex items-center justify-center p-2">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={rawProductPreview} alt="produto" className="max-w-full max-h-full object-contain" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ── Drag handle — on top of the live product card ── */}
+                        {rawProductPreview && (
                           <div
                             onMouseDown={handleProductDragStart}
                             onTouchStart={handleProductDragStart}
-                            className={`absolute z-10 border-2 border-dashed rounded-xl flex flex-col items-center justify-center gap-0.5 transition-colors ${
+                            className={`absolute z-20 rounded-xl flex flex-col items-end justify-start p-1 transition-colors ${
                               isDraggingProduct
-                                ? 'border-cyan-400 bg-cyan-400/10 cursor-grabbing'
-                                : 'border-white/40 bg-white/5 cursor-grab hover:border-cyan-400/70 hover:bg-cyan-400/10'
+                                ? 'bg-cyan-400/20 cursor-grabbing ring-2 ring-cyan-400'
+                                : 'bg-transparent cursor-grab hover:bg-cyan-400/10 hover:ring-1 hover:ring-cyan-400/60'
                             }`}
                             style={{
                               left:      `${productImagePos.x * 100}%`,
@@ -1431,7 +1454,7 @@ export default function VideosPage() {
                               userSelect: 'none',
                             }}
                           >
-                            <span className="text-[9px] text-white/70 font-bold select-none drop-shadow pointer-events-none">⤢ arrastar imagem</span>
+                            <span className="text-[8px] text-white/80 font-bold bg-black/40 rounded px-1 py-0.5 select-none">⤢ mover</span>
                           </div>
                         )}
 
