@@ -384,15 +384,26 @@ export default function VideosPage() {
       ctx.lineTo(x+r,y+h); ctx.arcTo(x,y+h,x,y+h-r,r);
       ctx.lineTo(x,y+r); ctx.arcTo(x,y,x+r,y,r); ctx.closePath();
     };
-    if (s.bgType === 'gradient') {
-      const g = ctx.createLinearGradient(0,0,0,H);
-      g.addColorStop(0,s.bgGradient[0]); g.addColorStop(1,s.bgGradient[1]);
-      ctx.fillStyle = g;
-    } else { ctx.fillStyle = s.bgColor; }
-    ctx.fillRect(0,0,W,H);
-    const glow = ctx.createRadialGradient(W/2,H*0.42,0,W/2,H*0.42,W*0.9);
-    glow.addColorStop(0,'rgba(255,255,255,0.04)'); glow.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0,0,W,H);
+    // ── Fixed Manu background (always) ──
+    try {
+      const bgImg = await new Promise<HTMLImageElement>((res, rej) => {
+        const i = new window.Image(); i.crossOrigin = 'anonymous';
+        i.onload = () => res(i); i.onerror = rej;
+        i.src = '/manu-story-bg.png';
+      });
+      // Cover-fill: scale to cover W×H keeping aspect ratio
+      const scale = Math.max(W / bgImg.width, H / bgImg.height);
+      const bw = bgImg.width * scale, bh = bgImg.height * scale;
+      ctx.drawImage(bgImg, (W - bw) / 2, (H - bh) / 2, bw, bh);
+    } catch {
+      // Fallback: gradient if image fails to load
+      const g = ctx.createLinearGradient(0, 0, 0, H);
+      g.addColorStop(0, '#0a1628'); g.addColorStop(1, '#0d2240');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    }
+    // Dark overlay to keep text readable
+    ctx.fillStyle = 'rgba(0,0,0,0.30)';
+    ctx.fillRect(0, 0, W, H);
     const pad = 36, maxImgH = H*0.40, maxImgW = W*0.80;
     const ratio = Math.min(maxImgW/img.width, maxImgH/img.height);
     const dw = img.width*ratio, dh = img.height*ratio;
@@ -1349,12 +1360,14 @@ export default function VideosPage() {
                         className={`relative overflow-hidden rounded-xl border-2 mx-auto select-none ${isDragging ? 'border-pink-500 cursor-grabbing' : 'border-pink-500/40 cursor-default'}`}
                         style={{ width: '100%', aspectRatio: '9/16', maxWidth: 240, touchAction: 'none' }}
                       >
-                        {/* Background image */}
-                        {storyBgPreview ? (
+                        {/* Fixed Manu background — always visible */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/manu-story-bg.png" alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+                        <div className="absolute inset-0 pointer-events-none bg-black/30" />
+                        {/* Product-layer rendered on canvas (rendered background with product card) */}
+                        {storyBgPreview && (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={storyBgPreview} alt="bg" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-                        ) : (
-                          <div className="absolute inset-0 pointer-events-none" style={{ background: `linear-gradient(${storyStyle.bgGradient[0]}, ${storyStyle.bgGradient[1]})` }} />
+                          <img src={storyBgPreview} alt="product layer" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
                         )}
 
                         {/* Generating overlay */}
@@ -1483,17 +1496,17 @@ export default function VideosPage() {
                         <button key={preset.presetName}
                           onClick={() => setStoryStyle(preset)}
                           title={preset.presetName}
-                          className={`py-2 px-1 rounded-lg border text-[9px] font-bold transition-all text-center leading-tight ${
+                          className={`py-2 px-1 rounded-lg border text-[9px] font-bold transition-all text-center leading-tight relative overflow-hidden ${
                             storyStyle.presetName === preset.presetName
                               ? 'border-pink-500 ring-1 ring-pink-500/50 scale-105'
-                              : 'border-transparent hover:border-white/20 hover:scale-105'
+                              : 'border-white/10 hover:border-white/30 hover:scale-105'
                           }`}
-                          style={{
-                            background: `linear-gradient(135deg, ${preset.bgGradient[0]}, ${preset.bgGradient[1]})`,
-                            color: preset.textPrimaryColor,
-                          }}
+                          style={{ backgroundImage: 'url(/manu-story-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}
                         >
-                          {preset.presetName}
+                          <span className="relative z-10 drop-shadow-lg" style={{ color: preset.textPrimaryColor }}>
+                            {preset.presetName}
+                          </span>
+                          <span className="absolute inset-0" style={{ background: `rgba(0,0,0,0.45)` }} />
                         </button>
                       ))}
                     </div>
@@ -1501,25 +1514,6 @@ export default function VideosPage() {
                     {/* Advanced editor */}
                     {showStylePanel && (
                       <div className="space-y-3 pt-1 border-t border-border">
-                        {/* Background */}
-                        <div>
-                          <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Fundo (gradiente)</p>
-                          <div className="flex gap-3 items-center">
-                            <div className="flex items-center gap-1.5">
-                              <label className="text-[10px] text-text-muted">Topo</label>
-                              <input type="color" value={storyStyle.bgGradient[0]}
-                                onChange={e => setStoryStyle(s => ({...s, bgGradient: [e.target.value, s.bgGradient[1]], bgColor: e.target.value, presetName: 'Custom'}))}
-                                className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <label className="text-[10px] text-text-muted">Base</label>
-                              <input type="color" value={storyStyle.bgGradient[1]}
-                                onChange={e => setStoryStyle(s => ({...s, bgGradient: [s.bgGradient[0], e.target.value], presetName: 'Custom'}))}
-                                className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
-                            </div>
-                          </div>
-                        </div>
-
                         {/* Box */}
                         <div>
                           <p className="text-[10px] font-semibold text-text-muted mb-1.5 uppercase tracking-wider">Caixa de texto</p>
