@@ -1095,19 +1095,30 @@ export default function VideosPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={storyImagePreview}
-                        alt="preview"
-                        className="w-full rounded-xl object-cover border border-border"
-                        style={{ maxHeight: 180 }}
-                      />
-                      <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border border-border">
-                        <p className="text-xs text-text-primary font-medium truncate">{storyImageFile.name}</p>
+                      {/* Badge de confirmação */}
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                        <span className="text-emerald-400 text-sm">✓</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-emerald-400">Convertida para Stories (9:16)</p>
+                          <p className="text-[10px] text-text-muted">1080 × 1920 px — pronta para Instagram</p>
+                        </div>
                         <button
                           onClick={() => { setStoryImageFile(null); setStoryImagePreview(''); setStoryResult(null); }}
-                          className="ml-3 text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded"
+                          className="text-xs text-red-400 hover:text-red-300 border border-red-500/20 px-2 py-1 rounded whitespace-nowrap"
                         >Trocar</button>
+                      </div>
+                      {/* Preview em proporção 9:16 real */}
+                      <div className="relative mx-auto rounded-xl overflow-hidden border-2 border-pink-500/30 bg-black"
+                        style={{ width: '100%', aspectRatio: '9/16', maxWidth: 160 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={storyImagePreview}
+                          alt="preview story"
+                          className="absolute inset-0 w-full h-full object-contain"
+                        />
+                        <div className="absolute bottom-1 left-0 right-0 flex justify-center">
+                          <span className="text-[9px] bg-black/60 text-white px-2 py-0.5 rounded-full">9:16</span>
+                        </div>
                       </div>
                     </div>
                   )}
