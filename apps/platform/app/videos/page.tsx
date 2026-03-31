@@ -109,6 +109,7 @@ export default function VideosPage() {
   const [storyResult, setStoryResult]       = useState<{ url?: string; error?: string } | null>(null);
   const [storyDragOver, setStoryDragOver]   = useState(false);
   const storyImageRef = useRef<HTMLInputElement>(null);
+  const rawStoryFileRef = useRef<File | null>(null);
 
   // ── Share to Instagram ────────────────────────────────────────────────
   const [isMobile, setIsMobile]         = useState(false);
@@ -357,6 +358,32 @@ export default function VideosPage() {
           }
         }
 
+        // Legenda digitada pelo usuário — gravada na imagem em destaque
+        if (storyCaption.trim()) {
+          const captionLines = storyCaption.trim().split('\n').slice(0, 4);
+          const blockH = captionLines.length * 58 + 48;
+          const blockY = H - 200 - blockH;
+
+          // Fundo semitransparente para a legenda
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          const bx = 40, bw = W - 80, br = 24;
+          ctx.beginPath();
+          ctx.moveTo(bx + br, blockY);
+          ctx.lineTo(bx + bw - br, blockY); ctx.arcTo(bx+bw, blockY, bx+bw, blockY+br, br);
+          ctx.lineTo(bx+bw, blockY+blockH-br); ctx.arcTo(bx+bw, blockY+blockH, bx+bw-br, blockY+blockH, br);
+          ctx.lineTo(bx+br, blockY+blockH); ctx.arcTo(bx, blockY+blockH, bx, blockY+blockH-br, br);
+          ctx.lineTo(bx, blockY+br); ctx.arcTo(bx, blockY, bx+br, blockY, br);
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.font = 'bold 44px sans-serif';
+          ctx.fillStyle = '#ffffff';
+          ctx.textAlign = 'center';
+          captionLines.forEach((line, i) => {
+            ctx.fillText(line, W/2, blockY + 52 + i * 58);
+          });
+        }
+
         // Marca Manu na parte inferior
         ctx.font = 'bold 40px sans-serif';
         ctx.fillStyle = 'rgba(255,255,255,0.4)';
@@ -372,9 +399,10 @@ export default function VideosPage() {
       img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
       img.src = objectUrl;
     });
-  }, [effectiveProduct]);
+  }, [effectiveProduct, storyCaption]);
 
   const handleStoryImage = useCallback(async (file: File) => {
+    rawStoryFileRef.current = file;  // guarda original para re-converter com nova legenda
     if (!file.type.startsWith('image/')) {
       alert('Selecione uma imagem (JPG, PNG, WebP)');
       return;
@@ -1147,7 +1175,7 @@ export default function VideosPage() {
               {/* Caption */}
               <div className="mb-3">
                 <label className="block text-[11px] font-medium text-text-muted mb-1">
-                  Legenda <span className="opacity-60">(opcional)</span>
+                  Legenda <span className="opacity-60 text-pink-400 font-semibold">(será gravada na imagem)</span>
                 </label>
                 <textarea
                   value={storyCaption}
@@ -1156,6 +1184,20 @@ export default function VideosPage() {
                   placeholder="Ex: 🔥 Oferta imperdível! Corre na bio 👇"
                   className="w-full px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-xs placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none"
                 />
+                {storyImageFile && (
+                  <button
+                    onClick={async () => {
+                      const rawFile = rawStoryFileRef.current;
+                      if (!rawFile) return;
+                      const formatted = await formatImageForStory(rawFile);
+                      setStoryImageFile(formatted);
+                      setStoryImagePreview(URL.createObjectURL(formatted));
+                    }}
+                    className="mt-1.5 w-full py-1.5 rounded-lg bg-pink-600/20 border border-pink-500/40 text-pink-300 text-xs font-semibold hover:bg-pink-600/40 transition-all"
+                  >
+                    🔄 Atualizar imagem com o texto acima
+                  </button>
+                )}
               </div>
 
               {/* Publish button */}
