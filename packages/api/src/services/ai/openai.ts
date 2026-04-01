@@ -1,10 +1,11 @@
 /**
- * 🤖 OpenAI Service - Base para todos os agentes de IA
- * 
- * TODOS os agentes usam:
- * - MESMA API KEY (OPENAI_API_KEY)
- * - MESMO MODELO (GPT-4.1)
- * - PROMPTS DIFERENTES
+ * 🤖 AI Service via OpenRouter — Gemini Flash (custo-eficiente)
+ *
+ * Usa OpenRouter como gateway unificado para todos os modelos.
+ * Troca o modelo por qualquer outro disponível no OpenRouter sem mudar código.
+ *
+ * Variável de ambiente necessária no Render:
+ *   OPENROUTER_API_KEY=sk-or-v1-...
  */
 
 // ==================== TYPES ====================
@@ -15,10 +16,10 @@ export interface AIMessage {
 }
 
 export interface AICompletionOptions {
-  temperature?: number;       // 0.0 - 2.0 (default: 0.7)
-  maxTokens?: number;         // Máximo de tokens na resposta
+  temperature?: number;
+  maxTokens?: number;
   responseFormat?: 'text' | 'json';
-  model?: string;             // Modelo específico (default: gpt-4.1)
+  model?: string;
   agent?: 'ORCHESTRATOR' | 'FACEBOOK' | 'INSTAGRAM' | 'X' | 'TELEGRAM' | 'WHATSAPP';
 }
 
@@ -34,21 +35,22 @@ export interface AICompletionResult {
 
 // ==================== CONFIG ====================
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions';
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
-// 🤖 v2.0: Modelos por agente
+// Modelos por agente — todos via OpenRouter
+// gemini-2.0-flash: rápido e barato (~$0.10/M tokens input)
+// gemini-2.5-pro-preview-03-25: mais capaz, para tarefas complexas
 export const OPENAI_MODELS = {
-  ORCHESTRATOR: process.env.OPENAI_MODEL_ORCHESTRATOR || 'gpt-4.1',
-  FACEBOOK: process.env.OPENAI_MODEL_FACEBOOK || 'gpt-4.1',
-  INSTAGRAM: process.env.OPENAI_MODEL_INSTAGRAM || 'gpt-4.1',
-  X: process.env.OPENAI_MODEL_X || 'gpt-4.1',
-  TELEGRAM: process.env.OPENAI_MODEL_TELEGRAM || 'gpt-4.1',
-  WHATSAPP: process.env.OPENAI_MODEL_WHATSAPP || 'gpt-4.1',
-  DEFAULT: 'gpt-4.1',
+  ORCHESTRATOR: process.env.OPENAI_MODEL_ORCHESTRATOR || 'google/gemini-2.5-pro-preview-03-25',
+  FACEBOOK:     process.env.OPENAI_MODEL_FACEBOOK     || 'google/gemini-2.0-flash',
+  INSTAGRAM:    process.env.OPENAI_MODEL_INSTAGRAM    || 'google/gemini-2.0-flash',
+  X:            process.env.OPENAI_MODEL_X            || 'google/gemini-2.0-flash',
+  TELEGRAM:     process.env.OPENAI_MODEL_TELEGRAM     || 'google/gemini-2.0-flash',
+  WHATSAPP:     process.env.OPENAI_MODEL_WHATSAPP     || 'google/gemini-2.0-flash',
+  DEFAULT:      'google/gemini-2.0-flash',
 };
 
-// 🤖 v2.0: Configurações de tokens e temperatura
 export const OPENAI_CONFIG = {
   MAX_TOKENS_ORCHESTRATOR: parseInt(process.env.OPENAI_MAX_TOKENS_ORCHESTRATOR || '4096'),
   MAX_TOKENS_POST: parseInt(process.env.OPENAI_MAX_TOKENS_POST || '2048'),
@@ -59,7 +61,7 @@ export const OPENAI_CONFIG = {
 // ==================== HELPERS ====================
 
 export function isOpenAIConfigured(): boolean {
-  return Boolean(OPENAI_API_KEY && OPENAI_API_KEY.startsWith('sk-'));
+  return Boolean(OPENROUTER_API_KEY && OPENROUTER_API_KEY.startsWith('sk-or-'));
 }
 
 // ==================== MAIN FUNCTION ====================
@@ -76,7 +78,7 @@ export async function createCompletion(
   options: AICompletionOptions = {}
 ): Promise<AICompletionResult> {
   if (!isOpenAIConfigured()) {
-    throw new Error('OpenAI não configurada. Defina OPENAI_API_KEY no ambiente.');
+    throw new Error('OpenRouter não configurado. Defina OPENROUTER_API_KEY no Render.');
   }
 
   const {
@@ -102,21 +104,23 @@ export async function createCompletion(
     body.response_format = { type: 'json_object' };
   }
 
-  console.log(`[OpenAI] Chamando modelo ${selectedModel} com ${messages.length} mensagens...`);
+  console.log(`[AI] Chamando ${selectedModel} via OpenRouter (${messages.length} msgs)...`);
 
-  const response = await fetch(OPENAI_API_URL, {
+  const response = await fetch(AI_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
+      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+      'HTTP-Referer': 'https://promo-platform.vercel.app',
+      'X-Title': 'Manu das Promoções',
     },
     body: JSON.stringify(body),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error(`[OpenAI] Erro ${response.status}: ${errorText}`);
-    throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+    console.error(`[AI] Erro ${response.status}: ${errorText}`);
+    throw new Error(`OpenRouter API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json() as {
@@ -132,14 +136,14 @@ export async function createCompletion(
   const result: AICompletionResult = {
     content: data.choices[0]?.message?.content || '',
     usage: {
-      promptTokens: data.usage.prompt_tokens,
-      completionTokens: data.usage.completion_tokens,
-      totalTokens: data.usage.total_tokens,
+      promptTokens: data.usage?.prompt_tokens || 0,
+      completionTokens: data.usage?.completion_tokens || 0,
+      totalTokens: data.usage?.total_tokens || 0,
     },
     model: data.model,
   };
 
-  console.log(`[OpenAI] ✅ Resposta recebida (${result.usage.totalTokens} tokens)`);
+  console.log(`[AI] ✅ Resposta recebida (${result.usage.totalTokens} tokens) — modelo: ${result.model}`);
 
   return result;
 }
