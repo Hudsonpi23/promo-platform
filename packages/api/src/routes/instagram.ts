@@ -836,4 +836,85 @@ export async function instagramRoutes(fastify: FastifyInstance) {
       });
     },
   );
+
+  // ── POST /api/instagram/publish-agent ────────────────────────────────────────
+  // Endpoint para agentes de IA (OpenClaw). Usa secret simples em vez de sessão.
+  fastify.post(
+    '/publish-agent',
+    async (req: FastifyRequest<{ Body: { url: string; theme?: string; imageUrl?: string; secret: string } }>, reply) => {
+      try {
+        const { url, theme, imageUrl: customImageUrl, secret } = req.body || {};
+
+        if (secret !== 'promo2026') {
+          return reply.status(403).send({ error: 'Acesso negado' });
+        }
+        if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
+
+        const accountIdToUse = ACCOUNT_ID();
+        if (!accountIdToUse) {
+          return reply.status(400).send({ error: 'Conta Instagram não configurada.' });
+        }
+
+        const isAmazon = url.includes('amazon.com') || url.includes('amzn');
+        const isML = url.includes('mercadolivre.com') || url.includes('mercadolibre.com');
+        if (!isAmazon && !isML) {
+          return reply.status(400).send({ error: 'Use uma URL da Amazon ou do Mercado Livre' });
+        }
+
+        let productData: any = null;
+        if (isAmazon) {
+          const prod = await getAmazonProductByUrl(url);
+          if (prod) productData = {
+            title: prod.title,
+            finalPrice: prod.finalPrice,
+            originalPrice: (prod as any).originalPrice ?? null,
+            discountPct: (prod as any).discountPct ?? 0,
+            imageUrl: prod.images?.primary ?? null,
+            affiliateUrl: prod.affiliateUrl ?? url,
+          };
+        } else {
+          productData = await fetchMLProduct(url);
+        }
+
+        if (!productData?.title) {
+          return reply.status(404).send({ error: 'Produto não encontrado.' });
+        }
+
+        const carouselResult = await generateCarousel({
+          title: productData.title,
+          price: productData.finalPrice,
+          originalPrice: productData.originalPrice ?? undefined,
+          discountPct: productData.discountPct ?? undefined,
+          imageUrl: customImageUrl || productData.imageUrl || undefined,
+          affiliateUrl: productData.affiliateUrl ?? url,
+          theme: (theme as any) ?? 'light',
+        });
+
+        if (!carouselResult.success || carouselResult.slideUrls.length < 2) {
+          return reply.status(500).send({ error: 'Falha ao gerar slides do carrossel' });
+        }
+
+        const caption = `${productData.title}\n\nDE R$ ${productData.originalPrice ?? productData.finalPrice} → R$ ${productData.finalPrice}\n\n🔗 Link na bio`;
+
+        const publishResult = await publishCarousel({
+          caption,
+          slideUrls: carouselResult.slideUrls,
+          accountId: accountIdToUse,
+        });
+
+        if (!publishResult.success) {
+          return reply.status(500).send({ error: publishResult.error || 'Falha ao publicar' });
+        }
+
+        return reply.send({
+          success: true,
+          postId: publishResult.postId,
+          message: 'Carrossel publicado com sucesso no Instagram',
+        });
+      } catch (err: any) {
+        console.error('[publish-agent] erro:', err);
+        return reply.status(500).send({ error: err.message || 'Erro interno' });
+      }
+    },
+  );
 }
