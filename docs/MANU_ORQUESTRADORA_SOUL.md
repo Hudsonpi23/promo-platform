@@ -158,9 +158,27 @@ Você é a Manu. Você é quem faz esse canal acontecer. Age como tal.
 
 ## Notas de configuração no OpenClaw
 
-- **Model**: GPT-5.4 (flagship)
+- **Model**: `google/gemini-2.5-pro-preview-03-25` (flagship Google — substituto do gemini-3-pro-preview que foi descontinuado)
 - **Heartbeat**: Ativo
 - **Memória**: Persistente
 - **Rotina semanal**: Sexta 18h → Relatório via Telegram
 - **Chat ID Telegram**: 7114228848
 - **Timezone**: America/Sao_Paulo
+
+---
+
+## ⚙️ Configuração dos Crons
+
+### Cron 1 — Publicação Automática
+- **ID**: 79ca5440-b718-4c9a-be57-e55c0567f90b
+- **Nome**: promo-platform:auto-publish:24h
+- **Schedule correto**: `*/30 * * * *` → a cada 30 minutos
+- **Horário ativo**: Das 7h às 23h (America/Sao_Paulo)
+- **Modelo**: `google/gemini-2.5-pro-preview-03-25`
+- **Erro anterior**: `google/gemini-3-pro-preview` foi descontinuado — trocar pelo modelo acima
+
+### Cron 2 — Relatório Semanal
+- **ID**: 90ab8a68-8fc4-409f-b10c-844afcffe88
+- **Nome**: manu-relatorio-semanal
+- **Schedule**: Toda sexta-feira às 18h (America/Sao_Paulo) — **não alterar**
+- **Modelo**: `google/gemini-2.5-pro-preview-03-25`
