@@ -882,7 +882,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
 
         const carouselResult = await generateCarousel({
           title: productData.title,
-          price: productData.finalPrice,
+          finalPrice: productData.finalPrice,
           originalPrice: productData.originalPrice ?? undefined,
           discountPct: productData.discountPct ?? undefined,
           imageUrl: customImageUrl || productData.imageUrl || undefined,
@@ -890,7 +890,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           theme: (theme as any) ?? 'light',
         });
 
-        if (!carouselResult.success || carouselResult.slideUrls.length < 2) {
+        if (!carouselResult.success || !carouselResult.slideUrls || carouselResult.slideUrls.length < 2) {
           return reply.status(500).send({ error: 'Falha ao gerar slides do carrossel' });
         }
 
@@ -899,7 +899,7 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         const publishResult = await publishCarousel({
           caption,
           slideUrls: carouselResult.slideUrls,
-          accountId: accountIdToUse,
+          instagramAccountId: accountIdToUse,
         });
 
         if (!publishResult.success) {
