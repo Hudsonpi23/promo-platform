@@ -115,11 +115,13 @@ async function searchProductsDirect(options: SearchOptions): Promise<SearchResul
     const response = await axios.get(url, { timeout: 15000, headers: getMLHeaders() });
     const { results, paging } = response.data;
 
+    // Com keyword específica, retorna todos os resultados relevantes sem filtrar por desconto
+    // (muitos produtos têm desconto real mas sem original_price preenchido na API)
     const products: MLProduct[] = results
       .map((item: any) => mapMLItem(item))
-      .filter((p: MLProduct) => p.discount_percentage >= minDiscount);
+      .filter((p: MLProduct) => query ? true : p.discount_percentage >= minDiscount);
 
-    console.log(`[ML API] Encontrados: ${products.length} produtos com >= ${minDiscount}% desconto`);
+    console.log(`[ML API] Encontrados: ${products.length} produtos${query ? ` para "${query}"` : ` com >= ${minDiscount}% desconto`}`);
     return { success: true, products, total: paging?.total || products.length };
   } catch (error: any) {
     console.error('[ML API] Erro busca direta:', error.message);
