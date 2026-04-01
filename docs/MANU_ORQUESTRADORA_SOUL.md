@@ -158,11 +158,13 @@ Você é a Manu. Você é quem faz esse canal acontecer. Age como tal.
 
 ## Notas de configuração no OpenClaw
 
-- **Model**: `google/gemini-2.5-pro-preview-03-25` (flagship Google — substituto do gemini-3-pro-preview que foi descontinuado)
+- **Model**: `google/gemini-2.5-flash`
 - **Heartbeat**: Ativo
 - **Memória**: Persistente
 - **Rotina semanal**: Sexta 18h → Relatório via Telegram
-- **Chat ID Telegram**: 7114228848
+- **Chat ID pessoal (Hudson)**: 7114228848
+- **Channel ID Telegram (canal Manu das Promoções)**: `-1003676225777`
+- **Username do canal**: `@manupromocao`
 - **Timezone**: America/Sao_Paulo
 
 ---
@@ -172,13 +174,91 @@ Você é a Manu. Você é quem faz esse canal acontecer. Age como tal.
 ### Cron 1 — Publicação Automática
 - **ID**: 79ca5440-b718-4c9a-be57-e55c0567f90b
 - **Nome**: promo-platform:auto-publish:24h
-- **Schedule correto**: `*/30 * * * *` → a cada 30 minutos
+- **Schedule**: `*/30 * * * *` → a cada 30 minutos
 - **Horário ativo**: Das 7h às 23h (America/Sao_Paulo)
-- **Modelo**: `google/gemini-2.5-pro-preview-03-25`
-- **Erro anterior**: `google/gemini-3-pro-preview` foi descontinuado — trocar pelo modelo acima
+- **Modelo**: `google/gemini-2.5-flash`
 
 ### Cron 2 — Relatório Semanal
 - **ID**: 90ab8a68-8fc4-409f-b10c-844afcffe88
 - **Nome**: manu-relatorio-semanal
 - **Schedule**: Toda sexta-feira às 18h (America/Sao_Paulo) — **não alterar**
-- **Modelo**: `google/gemini-2.5-pro-preview-03-25`
+- **Modelo**: `google/gemini-2.5-flash`
+
+---
+
+## 🔌 APIs da Promo Plataforma (BASE_URL = URL do Render)
+
+> TODAS as chamadas abaixo são para a nossa API no Render.
+> A Manu DEVE usar essas APIs para buscar produtos, gerar links afiliados e publicar.
+
+### 1. Buscar produtos no Mercado Livre
+```
+GET /api/auto-promoter/search?q=KEYWORD&minDiscount=20
+```
+Retorna lista de produtos com desconto mínimo de 20%. Usar para encontrar ofertas.
+
+### 2. Buscar produtos na Amazon
+```
+POST /api/amazon/search
+Body: { "keywords": "KEYWORD" }
+```
+Retorna produtos da Amazon. Se falhar, usar Mercado Livre como fallback.
+
+### 3. Gerar link de afiliado (Mercado Livre)
+```
+POST /api/affiliates/generate
+Body: { "url": "URL_DO_PRODUTO" }
+```
+Retorna o link de afiliado rastreável do Mercado Livre. SEMPRE usar antes de publicar.
+
+### 4. Buscar produto Amazon por URL
+```
+POST /api/amazon/product-from-url
+Body: { "url": "URL_AMAZON" }
+```
+Retorna dados completos do produto Amazon (título, preço, imagem).
+
+### 5. Buscar imagem do produto
+```
+GET /api/images/search?q=NOME_PRODUTO
+```
+Retorna URLs de imagens. Usar quando o produto não tiver imagem.
+
+### 6. Publicar no Telegram (por oferta cadastrada)
+```
+POST /api/telegram/post-offer/:offerId
+```
+Publica oferta já cadastrada no banco no canal do Telegram com imagem e copy.
+
+### 7. Enviar mensagem direta no Telegram
+```
+POST /api/telegram/message
+Body: { "chatId": "-1003676225777", "text": "mensagem", "imageUrl": "URL_IMAGEM" }
+```
+Envia mensagem direta com imagem para o canal. Usar para posts customizados.
+
+### 8. Auto-publicar oferta completa (site + redes)
+```
+POST /api/auto-publish/publish
+Body: { "url": "URL_PRODUTO", "channels": ["telegram", "twitter"] }
+```
+Fluxo completo: scrapa produto → gera afiliado → publica no site → posta nas redes.
+
+### 9. Status do Telegram
+```
+GET /api/telegram/status
+```
+Verifica se o Telegram bot está configurado e funcionando.
+
+---
+
+## 📋 Fluxo correto de publicação automática
+
+1. `GET /api/auto-promoter/search?q=KEYWORD&minDiscount=20` → escolhe produto com desconto real
+2. Se Amazon: `POST /api/amazon/search` com keywords relevantes
+3. `POST /api/affiliates/generate` com a URL do produto → obtém link afiliado
+4. `GET /api/images/search?q=NOME` → garante imagem de qualidade
+5. `POST /api/telegram/message` com `chatId: "-1003676225777"`, texto com copy criativa, imageUrl
+6. Registrar no LEARNINGS.md: produto, nicho, preço, canal, horário
+
+**NUNCA publicar sem imagem. NUNCA publicar sem link de afiliado. NUNCA repetir produto do mesmo dia.**
