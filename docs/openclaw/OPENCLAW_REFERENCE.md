@@ -141,7 +141,7 @@ openclaw secrets reload                    # recarregar chaves
 
 ## 7. APIs da Promo Platform que a Manu deve usar
 
-**Base URL:** URL do Render (API)
+**Base URL:** `https://promo-platform-api.onrender.com`
 
 ### Busca de produtos
 ```
@@ -270,6 +270,7 @@ OpenClaw (VPS)
 
 - **Dashboard OpenClaw:** `https://openclaw-bebw.srv1537266.hstgr.cloud`
 - **OpenRouter (modelos):** `https://openrouter.ai/keys`
-- **Render (API):** `https://dashboard.render.com`
+- **Render API (BASE_URL):** `https://promo-platform-api.onrender.com`
+- **Render Dashboard:** `https://dashboard.render.com`
 - **Canal Telegram:** `https://t.me/manupromocao`
 - **Documentação oficial OpenClaw:** `https://docs.openclaw.ai`
