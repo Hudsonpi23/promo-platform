@@ -41,14 +41,15 @@ const AI_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 // Modelos por agente — todos via OpenRouter
 // gemini-2.0-flash: rápido e barato (~$0.10/M tokens input)
 // gemini-2.5-pro-preview-03-25: mais capaz, para tarefas complexas
+// Usando google/gemini-2.5-flash para todos os agentes — modelo único, barato e eficiente
 export const OPENAI_MODELS = {
-  ORCHESTRATOR: process.env.OPENAI_MODEL_ORCHESTRATOR || 'google/gemini-2.5-pro-preview-03-25',
-  FACEBOOK:     process.env.OPENAI_MODEL_FACEBOOK     || 'google/gemini-2.0-flash',
-  INSTAGRAM:    process.env.OPENAI_MODEL_INSTAGRAM    || 'google/gemini-2.0-flash',
-  X:            process.env.OPENAI_MODEL_X            || 'google/gemini-2.0-flash',
-  TELEGRAM:     process.env.OPENAI_MODEL_TELEGRAM     || 'google/gemini-2.0-flash',
-  WHATSAPP:     process.env.OPENAI_MODEL_WHATSAPP     || 'google/gemini-2.0-flash',
-  DEFAULT:      'google/gemini-2.0-flash',
+  ORCHESTRATOR: process.env.OPENAI_MODEL_ORCHESTRATOR || 'google/gemini-2.5-flash',
+  FACEBOOK:     process.env.OPENAI_MODEL_FACEBOOK     || 'google/gemini-2.5-flash',
+  INSTAGRAM:    process.env.OPENAI_MODEL_INSTAGRAM    || 'google/gemini-2.5-flash',
+  X:            process.env.OPENAI_MODEL_X            || 'google/gemini-2.5-flash',
+  TELEGRAM:     process.env.OPENAI_MODEL_TELEGRAM     || 'google/gemini-2.5-flash',
+  WHATSAPP:     process.env.OPENAI_MODEL_WHATSAPP     || 'google/gemini-2.5-flash',
+  DEFAULT:      'google/gemini-2.5-flash',
 };
 
 export const OPENAI_CONFIG = {
