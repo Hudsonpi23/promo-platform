@@ -105,7 +105,9 @@ async function searchProductsDirect(options: SearchOptions): Promise<SearchResul
     if (category) url += `category=${category}&`;
     if (maxPrice) url += `price=*-${maxPrice}&`;
     if (minPrice) url += `price=${minPrice}-*&`;
-    if (minDiscount > 0) url += `discount=${minDiscount}-100&`;
+    // Quando há keyword, o ML ignora o q= se discount= estiver presente.
+    // Filtramos por desconto no JS (linha abaixo) em vez da URL.
+    if (minDiscount > 0 && !query) url += `discount=${minDiscount}-100&`;
     url += `limit=${limit}&offset=${offset}&sort=${sort}`;
 
     console.log(`[ML API] Busca direta: ${url}`);
