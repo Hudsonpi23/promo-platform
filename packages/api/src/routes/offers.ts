@@ -708,6 +708,7 @@ export async function offersRoutes(app: FastifyInstance) {
         storeName: offer.store?.name,
         category: offer.niche?.name,
         trackingUrl: offer.affiliateUrl,
+        couponCode: offer.couponCode || undefined,
       });
 
       copyText = copies.telegram;
