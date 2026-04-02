@@ -295,6 +295,7 @@ export async function scraperRoutes(app: FastifyInstance) {
             productData = await scrapeMagaluHTTP($);
           } else if (store === 'amazon') {
             productData = await scrapeAmazonHTTP($);
+            console.log('[Scraper] Amazon HTTP retornou:', productData ? 'objeto válido' : 'UNDEFINED/NULL');
           } else {
             // Scraping genérico
             productData = await scrapeGenericHTTP($);
@@ -302,8 +303,15 @@ export async function scraperRoutes(app: FastifyInstance) {
           
           // Validação de segurança: garantir que productData existe
           if (!productData || typeof productData !== 'object') {
+            console.error('[Scraper] ERRO: productData inválido após scraping:', productData);
             throw new Error('Scraping retornou dados inválidos');
           }
+          
+          console.log('[Scraper] productData válido:', {
+            title: productData.title?.substring(0, 50),
+            finalPrice: productData.finalPrice,
+            store
+          });
         } catch (httpError: any) {
           console.error('[Scraper] Erro no scraping HTTP:', httpError.message);
           throw new Error(`Falha no scraping: ${httpError.message}`);

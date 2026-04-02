@@ -109,6 +109,8 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
     $('h1').first().text().trim() ||
     $('[data-feature-name="title"] span').first().text().trim() || '';
 
+  console.log('[Amazon HTTP] Título extraído:', title.substring(0, 80));
+
   // ── Preço final ───────────────────────────────────────────────────────────
   // Amazon tem vários formatos dependendo do produto/promoção
   const priceSelectors = [
@@ -132,6 +134,8 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
     if (val && val !== '0') { finalPriceText = val; break; }
   }
 
+  console.log('[Amazon HTTP] Preço texto extraído:', finalPriceText);
+
   // Limpar e converter: "R$ 1.299,90" → 1299.90
   let finalPrice = 0;
   if (finalPriceText) {
@@ -149,6 +153,8 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
     const fraction = $('.a-price-fraction').first().text().replace(/\D/g, '') || '00';
     if (whole) finalPrice = parseFloat(`${whole}.${fraction}`) || 0;
   }
+
+  console.log('[Amazon HTTP] Preço final:', finalPrice);
 
   // ── Preço original (riscado) ──────────────────────────────────────────────
   const originalPriceSelectors = [
@@ -220,9 +226,7 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
   });
   if (mainImage && !images.includes(mainImage)) images.unshift(mainImage);
 
-  console.log('[Amazon HTTP] title:', title?.substring(0, 50), '| price:', finalPrice, '| orig:', originalPrice);
-
-  return {
+  const result = {
     title,
     finalPrice,
     originalPrice,
@@ -230,6 +234,17 @@ export async function scrapeAmazonHTTP($: cheerio.CheerioAPI) {
     mainImage,
     images: images.slice(0, 10),
   };
+
+  console.log('[Amazon HTTP] Resultado final:', {
+    title: title?.substring(0, 50),
+    finalPrice,
+    originalPrice,
+    discount,
+    hasImage: !!mainImage,
+    imageCount: result.images.length
+  });
+
+  return result;
 }
 
 export async function scrapeGenericHTTP($: cheerio.CheerioAPI) {
