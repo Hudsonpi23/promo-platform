@@ -17,6 +17,7 @@ interface TelegramResponse {
 interface SendMessageOptions {
   text: string;
   imageUrl?: string;
+  chatId?: string;
   parseMode?: 'HTML' | 'Markdown' | 'MarkdownV2';
   disableWebPagePreview?: boolean;
 }
@@ -55,7 +56,7 @@ export async function sendTelegramMessage(
     // Se tem imagem, envia como foto com caption
     if (options.imageUrl) {
       console.log('[Telegram] Enviando foto com caption. Tamanho do caption:', options.text.length);
-      return await sendTelegramPhoto(options.imageUrl, options.text);
+      return await sendTelegramPhoto(options.imageUrl, options.text, options.chatId);
     }
 
     // Senão, envia só texto usando axios
@@ -86,7 +87,7 @@ export async function sendTelegramMessage(
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     
     const response = await axios.post(url, {
-      chat_id: TELEGRAM_CHAT_ID,
+      chat_id: options.chatId || TELEGRAM_CHAT_ID,
       text: options.text,
       // SEM parse_mode - texto simples
       disable_web_page_preview: options.disableWebPagePreview ?? false,
@@ -125,7 +126,7 @@ export async function sendTelegramMessage(
 /**
  * Envia foto com caption para o canal
  */
-export async function sendTelegramPhoto(photoUrl: string, caption: string): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean; photoMessageId?: number }> {
+export async function sendTelegramPhoto(photoUrl: string, caption: string, chatId?: string): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean; photoMessageId?: number }> {
   if (!isTelegramConfigured()) {
     return { success: false, error: 'Telegram não configurado' };
   }
@@ -197,7 +198,7 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string): Prom
     // SEM parse_mode - texto simples (Telegram processa melhor assim)
     
     const payload = {
-      chat_id: TELEGRAM_CHAT_ID,
+      chat_id: chatId || TELEGRAM_CHAT_ID,
       photo: photoUrl,
       caption: finalCaption,
       // SEM parse_mode - texto simples em MAIÚSCULAS
