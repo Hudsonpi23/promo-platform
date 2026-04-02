@@ -100,7 +100,7 @@ export async function scraperRoutes(app: FastifyInstance) {
             return {
               success: true,
               store,
-              ...productData,
+              data: productData,
             };
           }
           console.log('[Scraper] Amazon API não retornou dados, fallback para scraping...');
