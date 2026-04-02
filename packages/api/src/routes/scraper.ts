@@ -299,6 +299,11 @@ export async function scraperRoutes(app: FastifyInstance) {
             // Scraping genérico
             productData = await scrapeGenericHTTP($);
           }
+          
+          // Validação de segurança: garantir que productData existe
+          if (!productData || typeof productData !== 'object') {
+            throw new Error('Scraping retornou dados inválidos');
+          }
         } catch (httpError: any) {
           console.error('[Scraper] Erro no scraping HTTP:', httpError.message);
           throw new Error(`Falha no scraping: ${httpError.message}`);
