@@ -119,7 +119,15 @@ async function searchProductsDirect(options: SearchOptions): Promise<SearchResul
     // (muitos produtos têm desconto real mas sem original_price preenchido na API)
     const products: MLProduct[] = results
       .map((item: any) => mapMLItem(item))
-      .filter((p: MLProduct) => query ? true : p.discount_percentage >= minDiscount);
+      .filter((p: MLProduct) => {
+        if (!query) return p.discount_percentage >= minDiscount;
+        
+        // Se houver query, priorizamos a categoria de calçados/tênis se a palavra 'tênis' estiver presente
+        const isFootwear = p.category_id?.includes('MLB1276') || p.category_id?.includes('MLB1430') || p.title.toLowerCase().includes('tênis');
+        if (query.toLowerCase().includes('tênis') && !isFootwear) return false;
+        
+        return true;
+      });
 
     console.log(`[ML API] Encontrados: ${products.length} produtos${query ? ` para "${query}"` : ` com >= ${minDiscount}% desconto`}`);
     return { success: true, products, total: paging?.total || products.length };
@@ -282,7 +290,7 @@ export async function searchByCategory(
 export function generateAffiliateUrl(permalink: string): string {
   // Formato: adiciona parâmetros de rastreamento
   const separator = permalink.includes('?') ? '&' : '?';
-  return `${permalink}${separator}matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
+  return `${permalink}${separator}_CustId_=${AFFILIATE_TAG}`;
 }
 
 /**

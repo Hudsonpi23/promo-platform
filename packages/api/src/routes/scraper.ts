@@ -6,6 +6,7 @@ import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
 import { scrapeMercadoLivreHTTP, scrapeMagaluHTTP, scrapeAmazonHTTP, scrapeGenericHTTP } from './scraper-http.js';
 import { isAmazonApiConfigured, getAmazonProductByUrl } from '../services/amazonApi.js';
+import { generateAffiliateUrl } from '../services/mlAffiliate.js';
 
 export async function scraperRoutes(app: FastifyInstance) {
   // POST /scraper/product - Extrair dados de uma URL de produto
@@ -326,9 +327,16 @@ export async function scraperRoutes(app: FastifyInstance) {
           }
         }
 
-        // URL afiliada: para URLs sociais usar resolvedUrl (link do produto com matt_word/matt_tool)
-        // Para URLs diretas usar a URL original
-        productData.affiliateUrl = productData.affiliateUrl || resolvedUrl || url;
+        // Gerar link de afiliado baseado na loja
+        if (store === 'mercadolivre') {
+          productData.affiliateUrl = generateAffiliateUrl(resolvedUrl || url);
+          console.log('[Scraper] Link de afiliado ML gerado:', productData.affiliateUrl);
+        } else if (productData.affiliateUrl) {
+          // Usar o link de afiliado já retornado pela API (Amazon)
+        } else {
+          // Fallback: usar URL original
+          productData.affiliateUrl = resolvedUrl || url;
+        }
 
         // Converter link Amazon em link de afiliado automaticamente
         if (store === 'amazon' && productData.affiliateUrl) {

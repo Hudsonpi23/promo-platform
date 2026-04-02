@@ -40,7 +40,7 @@ export async function telegramRoutes(app: FastifyInstance) {
    * POST /api/telegram/test
    * Envia mensagem de teste para o canal
    */
-  app.post('/test', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/test', async (request, reply) => {
     if (!isTelegramConfigured()) {
       return reply.status(400).send({
         success: false,
@@ -63,7 +63,7 @@ export async function telegramRoutes(app: FastifyInstance) {
    * POST /api/telegram/post-offer/:offerId
    * Envia uma oferta específica para o Telegram
    */
-  app.post('/post-offer/:offerId', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/post-offer/:offerId', async (request, reply) => {
     const { offerId } = request.params as { offerId: string };
     const body = (request.body as { paymentMethod?: string; installments?: number; installmentValue?: number; phraseMode?: string }) || {};
     const paymentMethod    = (body.paymentMethod || 'avista') as 'pix' | 'avista' | 'parcelado';
@@ -261,17 +261,21 @@ export async function telegramRoutes(app: FastifyInstance) {
    * POST /api/telegram/message
    * Envia mensagem de texto livre para o canal Telegram
    */
-  app.post('/message', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/message', async (request, reply) => {
     if (!isTelegramConfigured()) {
       return reply.status(400).send({ success: false, error: 'Telegram não configurado' });
     }
 
-    const { text, imageUrl } = (request.body as { text?: string; imageUrl?: string }) || {};
+    const { text, imageUrl, chatId } = (request.body as { text?: string; imageUrl?: string; chatId?: string }) || {};
     if (!text || text.trim().length < 3) {
       return reply.status(400).send({ success: false, error: 'Texto obrigatório' });
     }
 
-    const result = await sendTelegramMessage({ text: text.trim(), imageUrl: imageUrl?.trim() || undefined });
+    const result = await sendTelegramMessage({ 
+      text: text.trim(), 
+      imageUrl: imageUrl?.trim() || undefined,
+      chatId: chatId?.trim() || undefined
+    });
     return { success: result.success, messageId: result.messageId, error: result.error };
   });
 
@@ -279,7 +283,7 @@ export async function telegramRoutes(app: FastifyInstance) {
    * POST /api/telegram/poll
    * Envia enquete nativa do Telegram (botões clicáveis, não texto)
    */
-  app.post('/poll', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/poll', async (request, reply) => {
     if (!isTelegramConfigured()) {
       return reply.status(400).send({ success: false, error: 'Telegram não configurado' });
     }

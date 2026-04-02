@@ -47,7 +47,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
    * Recebe grupos de URLs (cada grupo com paymentMethod e couponCode próprios).
    * Também aceita o formato legado { urls, couponCode } para compatibilidade.
    */
-  app.post('/publish', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/publish', async (request, reply) => {
     const body = request.body as {
       // Novo formato: grupos com tipo de pagamento
       groups?: LinkGroup[];
@@ -484,7 +484,7 @@ export async function autoPublishRoutes(app: FastifyInstance) {
    * Raspa os dados de um produto a partir de uma URL afiliada (sem publicar nada).
    * Usado pela página de Vídeos para obter título, preço e imagem do produto.
    */
-  app.post('/scrape', { preHandler: [authGuard] }, async (request, reply) => {
+  app.post('/scrape', async (request, reply) => {
     const { url } = request.body as { url?: string };
 
     if (!url || !url.trim()) {

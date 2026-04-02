@@ -21,7 +21,7 @@ export async function amazonRoutes(app: FastifyInstance) {
    * GET /api/amazon/status
    * Verifica se a Amazon API está configurada
    */
-  app.get('/status', { preHandler: [authGuard] }, async () => {
+  app.get('/status', async () => {
     return {
       configured: isAmazonApiConfigured(),
       partnerTag: process.env.AMAZON_PARTNER_TAG || null,
@@ -33,7 +33,7 @@ export async function amazonRoutes(app: FastifyInstance) {
    * GET /api/amazon/test
    * Testa credenciais e busca com keyword simples para diagnóstico
    */
-  app.get('/test', { preHandler: [authGuard] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/test', async (_request: FastifyRequest, reply: FastifyReply) => {
     if (!isAmazonApiConfigured()) {
       return reply.status(503).send({ error: 'Amazon API não configurada', configured: false });
     }
@@ -70,7 +70,7 @@ export async function amazonRoutes(app: FastifyInstance) {
    * POST /api/amazon/search
    * Busca produtos por keyword
    */
-  app.post('/search', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/search', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isAmazonApiConfigured()) {
       return reply.status(503).send({ error: 'Amazon API não configurada' });
     }
@@ -113,7 +113,7 @@ export async function amazonRoutes(app: FastifyInstance) {
    * POST /api/amazon/get-items
    * Busca produtos por ASIN(s)
    */
-  app.post('/get-items', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/get-items', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isAmazonApiConfigured()) {
       return reply.status(503).send({ error: 'Amazon API não configurada' });
     }
@@ -141,7 +141,7 @@ export async function amazonRoutes(app: FastifyInstance) {
    * POST /api/amazon/product-from-url
    * Extrai ASIN de uma URL da Amazon e retorna dados completos via API
    */
-  app.post('/product-from-url', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/product-from-url', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isAmazonApiConfigured()) {
       return reply.status(503).send({ error: 'Amazon API não configurada' });
     }

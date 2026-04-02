@@ -37,6 +37,12 @@ export class MercadoLivreScraper {
     console.log('[Scraper] Iniciando navegador Chromium...');
     this.browser = await chromium.launch({
       headless: true, // Invisível (sem janela)
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+      ],
     });
     console.log('[Scraper] Navegador iniciado!');
   }

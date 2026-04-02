@@ -409,7 +409,7 @@ export async function affiliatesRoutes(app: FastifyInstance) {
    * POST /api/affiliates/resolve-link
    * Resolve o link final de uma oferta (baseado no programa e modo)
    */
-  app.post('/resolve-link', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/resolve-link', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = z.object({
         offerId: z.string().optional(),
@@ -648,7 +648,7 @@ export async function affiliatesRoutes(app: FastifyInstance) {
    * POST /api/affiliates/search-ml
    * Busca produtos no Mercado Livre com links de afiliado
    */
-  app.post('/search-ml', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/search-ml', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = request.body as {
         keywords?: string;
