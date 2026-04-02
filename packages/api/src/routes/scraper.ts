@@ -313,11 +313,17 @@ export async function scraperRoutes(app: FastifyInstance) {
       try {
 
         // Validar se conseguiu extrair dados mínimos
-        if (!productData.title || productData.title.trim().length === 0) {
+        if (!productData || !productData.title || productData.title.trim().length === 0) {
+          if (store === 'amazon') {
+            throw new Error('Amazon bloqueou o scraping. Use a API oficial da Amazon ou cole os dados manualmente.');
+          }
           throw new Error('Não foi possível extrair o título do produto. A página pode não ser uma página de produto válida.');
         }
 
         if (!productData.finalPrice || productData.finalPrice <= 0) {
+          if (store === 'amazon') {
+            throw new Error('Não foi possível extrair o preço. Amazon pode ter bloqueado o acesso. Tente novamente ou cole os dados manualmente.');
+          }
           throw new Error('Não foi possível extrair o preço do produto.');
         }
 
