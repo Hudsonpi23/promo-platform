@@ -286,11 +286,11 @@ export async function searchByCategory(
 
 /**
  * Gera URL de afiliado a partir do permalink
+ * Formato OFICIAL do Mercado Livre: matt_word + matt_tool
  */
 export function generateAffiliateUrl(permalink: string): string {
-  // Formato: adiciona parâmetros de rastreamento
   const separator = permalink.includes('?') ? '&' : '?';
-  return `${permalink}${separator}_CustId_=${AFFILIATE_TAG}`;
+  return `${permalink}${separator}matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
 }
 
 /**
