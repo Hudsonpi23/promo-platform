@@ -288,11 +288,12 @@ export async function searchByCategory(
  * Gera URL de afiliado a partir do permalink
  * Formato OFICIAL do Mercado Livre: matt_word + matt_tool
  * 
- * REGRAS CRÍTICAS:
+ * REGRAS CRÍTICAS ATUALIZADAS:
  * 1. Remove fragmentos (#) - tudo após # é removido
- * 2. Verifica presença de parâmetros (?)
- * 3. Adiciona matt_word e matt_tool corretamente
- * 4. Nunca usa ? duas vezes
+ * 2. Remove TODOS os parâmetros existentes (?) - limpa completamente
+ * 3. Reconstrói URL do ZERO com APENAS matt_word e matt_tool
+ * 4. NUNCA permite duplicação de parâmetros
+ * 5. Remove lixo de navegação (pdp_filters, tracking, etc)
  */
 export function generateAffiliateUrl(permalink: string): string {
   // 1. Remove fragmento (#) e tudo após ele
@@ -301,17 +302,11 @@ export function generateAffiliateUrl(permalink: string): string {
   // 2. Remove espaços em branco no início/fim
   cleanUrl = cleanUrl.trim();
   
-  // 3. Verifica se já existe ? na URL
-  const hasQueryParams = cleanUrl.includes('?');
+  // 3. CRÍTICO: Remove TODOS os parâmetros existentes (tudo após ?)
+  cleanUrl = cleanUrl.split('?')[0];
   
-  // 4. Adiciona parâmetros corretamente
-  if (hasQueryParams) {
-    // URL já tem parâmetros, usa &
-    return `${cleanUrl}&matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
-  } else {
-    // URL não tem parâmetros, usa ?
-    return `${cleanUrl}?matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
-  }
+  // 4. Reconstrói link DO ZERO com APENAS os parâmetros de afiliado
+  return `${cleanUrl}?matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
 }
 
 /**
