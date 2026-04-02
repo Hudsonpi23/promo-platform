@@ -361,9 +361,15 @@ export async function scraperRoutes(app: FastifyInstance) {
         if (store === 'amazon' && productData.affiliateUrl) {
           try {
             const amazonUrl = new URL(productData.affiliateUrl);
-            const cleanUrl = new URL(`https://www.amazon.com.br${amazonUrl.pathname}`);
+            // Forçar ASIN para maiúsculo: /dp/b0d8jy97z5 → /dp/B0D8JY97Z5
+            const pathname = amazonUrl.pathname.replace(
+              /\/dp\/([a-zA-Z0-9]+)/i,
+              (_, asin) => `/dp/${asin.toUpperCase()}`
+            );
+            const cleanUrl = new URL(`https://www.amazon.com.br${pathname}`);
             cleanUrl.searchParams.set('tag', 'manudaspromoc-20');
             productData.affiliateUrl = cleanUrl.toString();
+            console.log('[Scraper] Link afiliado Amazon gerado:', productData.affiliateUrl);
           } catch {
             const base = productData.affiliateUrl;
             productData.affiliateUrl = base.includes('?')
