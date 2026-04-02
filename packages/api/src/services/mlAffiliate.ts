@@ -287,10 +287,31 @@ export async function searchByCategory(
 /**
  * Gera URL de afiliado a partir do permalink
  * Formato OFICIAL do Mercado Livre: matt_word + matt_tool
+ * 
+ * REGRAS CRÍTICAS:
+ * 1. Remove fragmentos (#) - tudo após # é removido
+ * 2. Verifica presença de parâmetros (?)
+ * 3. Adiciona matt_word e matt_tool corretamente
+ * 4. Nunca usa ? duas vezes
  */
 export function generateAffiliateUrl(permalink: string): string {
-  const separator = permalink.includes('?') ? '&' : '?';
-  return `${permalink}${separator}matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
+  // 1. Remove fragmento (#) e tudo após ele
+  let cleanUrl = permalink.split('#')[0];
+  
+  // 2. Remove espaços em branco no início/fim
+  cleanUrl = cleanUrl.trim();
+  
+  // 3. Verifica se já existe ? na URL
+  const hasQueryParams = cleanUrl.includes('?');
+  
+  // 4. Adiciona parâmetros corretamente
+  if (hasQueryParams) {
+    // URL já tem parâmetros, usa &
+    return `${cleanUrl}&matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
+  } else {
+    // URL não tem parâmetros, usa ?
+    return `${cleanUrl}?matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
+  }
 }
 
 /**
