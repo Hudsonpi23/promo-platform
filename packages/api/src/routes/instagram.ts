@@ -120,8 +120,10 @@ async function fetchMLProduct(url: string) {
       ]);
       const prod = prodRes.data;
       const listing = itemsRes.data.results?.[0];
-      const price = listing?.price ?? prod.buy_box_winner?.price;
-      const origPrice = listing?.original_price ?? null;
+      // buy_box_winner é o preço oficial exibido no ML — tem prioridade sobre listing.price
+      // listing.price pode ser de outro vendedor com preço diferente
+      const price = prod.buy_box_winner?.price ?? listing?.price;
+      const origPrice = prod.buy_box_winner?.original_price ?? listing?.original_price ?? null;
       const thumb = (prod.pictures?.[0]?.url || listing?.thumbnail || '').replace('http://', 'https://');
       info = {
         title: prod.name || listing?.title,

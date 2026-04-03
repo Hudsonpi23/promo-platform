@@ -86,9 +86,8 @@ export function calculateWithCoupon(input: CouponInput): CouponResult {
     couponMaxSavings = null,
   } = input;
 
-  // 1️⃣ Base para aplicar o cupom:
-  //   - Se priceBeforeCoupon foi fornecido, usa diretamente (preço já conhecido, ex: ML).
-  //   - Caso contrário, recalcula a partir do originalPrice e adDiscountPct.
+  // 1️⃣ Preço base para o cupom = priceBeforeCoupon (preço listado/final já com desconto).
+  //    Nunca recalculamos o desconto do anúncio — o finalPrice DO SITE é o que vale.
   const d1 = adDiscountPct / 100;
   const priceAfterAdDiscount = priceBeforeCoupon != null
     ? round2(priceBeforeCoupon)
