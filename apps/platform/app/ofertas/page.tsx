@@ -1457,6 +1457,16 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                 placeholder="https://mercadolivre.com/sec/2RaCjWg"
                 className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              {form.affiliateUrl && (form.affiliateUrl.includes('mercadolivre') || form.affiliateUrl.includes('mercadolibre') || form.affiliateUrl.includes('meli.la')) && !form.affiliateUrl.includes('matt_word') && (
+                <p className="mt-2 text-xs text-yellow-500 flex items-center gap-1">
+                  ⚠️ Substitua pelo seu link de afiliado oficial do Mercado Livre (gerado no portal de afiliados com <strong>matt_word</strong>).
+                </p>
+              )}
+              {form.affiliateUrl && (form.affiliateUrl.includes('mercadolivre') || form.affiliateUrl.includes('mercadolibre') || form.affiliateUrl.includes('meli.la')) && form.affiliateUrl.includes('matt_word') && (
+                <p className="mt-2 text-xs text-green-500 flex items-center gap-1">
+                  ✅ Link de afiliado do ML detectado. Será usado exatamente como está.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm text-text-secondary mb-2">
