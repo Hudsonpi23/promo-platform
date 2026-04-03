@@ -200,7 +200,7 @@ export async function scraperRoutes(app: FastifyInstance) {
               success: false,
               error: {
                 code: 'SOCIAL_LINK_NOT_FOUND',
-                message: 'Não foi possível encontrar o link do produto nesta página. Use a URL direta do produto.',
+                message: 'Este é um link de perfil/compartilhamento, não de produto. Cole a URL direta do produto no ML (ex: mercadolivre.com.br/nome-produto/p/MLB123?matt_word=...)',
               },
             });
           }
