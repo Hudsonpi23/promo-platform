@@ -567,11 +567,29 @@ export async function affiliatesRoutes(app: FastifyInstance) {
           const prod = prodResp.data;
           const listing = itemsResp.data.results?.[0];
 
-          // buy_box_winner = preço oficial exibido no site ML (prioridade máxima)
-          // listing.price pode ser de outro vendedor com preço diferente
-          const price = prod.buy_box_winner?.price ?? listing?.price ?? null;
-          const originalPrice = prod.buy_box_winner?.original_price ?? listing?.original_price ?? null;
-          const discount = originalPrice && originalPrice > price
+          // buy_box_winner só tem item_id, não price — precisamos buscar o item vencedor
+          const buyBoxItemId = prod.buy_box_winner?.item_id;
+          let price: number | null = null;
+          let originalPrice: number | null = null;
+          let winnerItemId: string | null = listing?.item_id || null;
+
+          if (buyBoxItemId) {
+            try {
+              const bbResp = await axios.get(`https://api.mercadolibre.com/items/${buyBoxItemId}`, { timeout: 8000, headers });
+              price = bbResp.data.price ?? null;
+              originalPrice = bbResp.data.original_price ?? null;
+              winnerItemId = buyBoxItemId;
+            } catch {
+              // fallback ao listing
+              price = listing?.price ?? null;
+              originalPrice = listing?.original_price ?? null;
+            }
+          } else {
+            price = listing?.price ?? null;
+            originalPrice = listing?.original_price ?? null;
+          }
+
+          const discount = originalPrice && price && originalPrice > price
             ? Math.round(((originalPrice - price) / originalPrice) * 100)
             : 0;
 
@@ -579,7 +597,7 @@ export async function affiliatesRoutes(app: FastifyInstance) {
 
           productInfo = {
             id: productCatalogId,
-            item_id: listing?.item_id || null,
+            item_id: winnerItemId,
             title: prod.name,
             price,
             original_price: originalPrice,
@@ -838,7 +856,9 @@ export async function affiliatesRoutes(app: FastifyInstance) {
  * - https://www.mercadolivre.com.br/MLB-1234567890
  */
 function extractMLItemId(url: string): string | null {
-  const match = url.match(/MLB[- ]?\d{8,14}/i);
+  // Remove segmentos /p/MLB... (catalog IDs) para não confundi-los com item IDs
+  const withoutCatalog = url.replace(/\/p\/MLB\d+/gi, '');
+  const match = withoutCatalog.match(/MLB[- ]?\d{8,14}/i);
   if (match) {
     return match[0].replace(/-/g, '').replace(/ /g, '');
   }

@@ -38,7 +38,9 @@ async function getOffer(id: string) {
 }
 
 function extractMLItemId(url: string): string | null {
-  const match = url.match(/MLB-?(\d+)/i);
+  // Remove segmentos /p/MLB... (catalog IDs) para não confundi-los com item IDs
+  const withoutCatalog = url.replace(/\/p\/MLB\d+/gi, '');
+  const match = withoutCatalog.match(/MLB-?(\d+)/i);
   return match ? `MLB${match[1]}` : null;
 }
 
@@ -120,16 +122,32 @@ async function fetchMLProduct(url: string) {
       ]);
       const prod = prodRes.data;
       const listing = itemsRes.data.results?.[0];
-      // buy_box_winner é o preço oficial exibido no ML — tem prioridade sobre listing.price
-      // listing.price pode ser de outro vendedor com preço diferente
-      const price = prod.buy_box_winner?.price ?? listing?.price;
-      const origPrice = prod.buy_box_winner?.original_price ?? listing?.original_price ?? null;
+
+      // buy_box_winner só tem item_id, não price — buscar o item vencedor para obter o preço real
+      const buyBoxItemId = prod.buy_box_winner?.item_id;
+      let price: number | null = null;
+      let origPrice: number | null = null;
+
+      if (buyBoxItemId) {
+        try {
+          const bbRes = await axios.get(`https://api.mercadolibre.com/items/${buyBoxItemId}`, { timeout: 8000, headers });
+          price = bbRes.data.price ?? null;
+          origPrice = bbRes.data.original_price ?? null;
+        } catch {
+          price = listing?.price ?? null;
+          origPrice = listing?.original_price ?? null;
+        }
+      } else {
+        price = listing?.price ?? null;
+        origPrice = listing?.original_price ?? null;
+      }
+
       const thumb = (prod.pictures?.[0]?.url || listing?.thumbnail || '').replace('http://', 'https://');
       info = {
         title: prod.name || listing?.title,
         finalPrice: price,
         originalPrice: origPrice,
-        discountPct: origPrice && origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
+        discountPct: origPrice && price && origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
         imageUrl: thumb,
         affiliateUrl,
         source: 'mercadolivre',
