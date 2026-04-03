@@ -111,7 +111,7 @@ function generateTelegramCopy(input: CopyInputData): string {
   const paymentLine = buildPaymentLine(input);
   const couponLine = buildCouponLine(input);
   const flashLine = buildFlashLine(input);
-  const url = (input.trackingUrl || '').toLowerCase();
+  const url = input.trackingUrl || '';
 
   const parts: string[] = [];
 
@@ -151,7 +151,7 @@ function generateSiteCopy(input: CopyInputData): string {
 }
 
 function generateXCopy(input: CopyInputData): string {
-  const url = (input.trackingUrl || '').toLowerCase();
+  const url = input.trackingUrl || '';
   const priceNow = formatPrice(input.price);
   const titleMax = 90;
 
