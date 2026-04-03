@@ -6,6 +6,7 @@ import { sendError, Errors } from '../lib/errors.js';
 import { processOffer, calculateScore } from '../services/offerScoring.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
 import { detectNicheSlug as detectNicheSlugShared, resolveNicheFromTitle } from '../services/nicheDetector.js';
+import { generateAffiliateUrl } from '../services/mlAffiliate.js';
 
 // ── Mapeamento de palavras-chave → slug de nicho ──────────────────────────────
 // Ordem importa: os nichos mais específicos devem vir ANTES dos genéricos
@@ -272,9 +273,14 @@ export async function offersRoutes(app: FastifyInstance) {
       // Converter link Amazon em afiliado ao salvar a oferta
       let offerAffiliateUrl = body.affiliateUrl || '';
       if (offerAffiliateUrl && offerAffiliateUrl.toLowerCase().includes('amazon')) {
+        // Amazon: adicionar tag de afiliado + ASIN maiúsculo
         try {
           const amazonUrl = new URL(offerAffiliateUrl);
-          const cleanUrl = new URL(`https://www.amazon.com.br${amazonUrl.pathname}`);
+          const pathname = amazonUrl.pathname.replace(
+            /\/dp\/([a-zA-Z0-9]+)/i,
+            (_, asin) => `/dp/${asin.toUpperCase()}`
+          );
+          const cleanUrl = new URL(`https://www.amazon.com.br${pathname}`);
           cleanUrl.searchParams.set('tag', 'manudaspromoc-20');
           offerAffiliateUrl = cleanUrl.toString();
         } catch {
@@ -282,6 +288,10 @@ export async function offersRoutes(app: FastifyInstance) {
             ? `${offerAffiliateUrl}&tag=manudaspromoc-20`
             : `${offerAffiliateUrl}?tag=manudaspromoc-20`;
         }
+      } else if (offerAffiliateUrl && offerAffiliateUrl.toLowerCase().includes('mercadolivre')) {
+        // Mercado Livre: aplicar generateAffiliateUrl para garantir matt_word e matt_tool
+        offerAffiliateUrl = generateAffiliateUrl(offerAffiliateUrl);
+        console.log('[Offers] Link afiliado ML gerado ao salvar oferta:', offerAffiliateUrl);
       }
 
       const offer = await prisma.offer.create({
