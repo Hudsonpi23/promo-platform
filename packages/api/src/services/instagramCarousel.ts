@@ -138,9 +138,13 @@ export interface CarouselInput {
   theme?: CarouselTheme;
   /** Código do cupom de desconto (ex: "FILA10") */
   couponCode?: string | null;
-  /** Percentual de desconto do cupom (ex: 10 para 10%) */
+  /** Tipo do cupom: 'percent' (%) ou 'fixed' (R$ fixo) */
+  couponType?: 'percent' | 'fixed' | null;
+  /** Desconto percentual do cupom (ex: 10 para 10%) — usar quando couponType = 'percent' */
   couponDiscountPct?: number | null;
-  /** Limite máximo de economia do cupom em R$ (ex: 50). Null = sem limite. */
+  /** Desconto em valor fixo R$ (ex: 30) — usar quando couponType = 'fixed' */
+  couponFixedValue?: number | null;
+  /** Limite máximo de economia do cupom em R$ (só para tipo %). Null = sem limite. */
   couponMaxSavings?: number | null;
 }
 
@@ -693,7 +697,13 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
   drawBg(ctx, c);
   await drawManuWatermark(ctx, 0.25);
 
-  const hasCoupon = !!(input.couponCode && input.couponDiscountPct && input.couponDiscountPct > 0);
+  const resolvedCouponType = input.couponType ?? 'percent';
+  const hasCoupon = !!(
+    input.couponCode && (
+      (resolvedCouponType === 'percent' && input.couponDiscountPct && input.couponDiscountPct > 0) ||
+      (resolvedCouponType === 'fixed'   && input.couponFixedValue  && input.couponFixedValue  > 0)
+    )
+  );
 
   // ── Calcula valores com ou sem cupom ───────────────────────────────────────
   let displayFinalPrice = input.finalPrice;
@@ -707,7 +717,9 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
       originalPrice: input.originalPrice ?? input.finalPrice,
       adDiscountPct: input.discountPct ?? 0,
       couponCode: input.couponCode!,
-      couponDiscountPct: input.couponDiscountPct!,
+      couponType: resolvedCouponType,
+      couponDiscountPct: input.couponDiscountPct ?? null,
+      couponFixedValue: input.couponFixedValue ?? null,
       couponMaxSavings: input.couponMaxSavings ?? null,
     });
     displayFinalPrice = couponResult.finalPrice;
@@ -763,10 +775,13 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
     ctx.fillStyle = c.ctaText;
     ctx.fillText(code, W / 2, badgeY + badgeH / 2);
 
-    // "copie e use no checkout" abaixo do badge
+    // Descrição do tipo de desconto
+    const couponTypeLabel = resolvedCouponType === 'fixed'
+      ? `↑  ${formatBRL(input.couponFixedValue!)} de desconto — copie e use no checkout`
+      : `↑  ${input.couponDiscountPct}% OFF — copie e use no checkout`;
     ctx.font = '26px sans-serif';
     ctx.fillStyle = c.subText;
-    ctx.fillText('↑  copie e use no checkout', W / 2, badgeY + badgeH + 34);
+    ctx.fillText(couponTypeLabel, W / 2, badgeY + badgeH + 34);
 
     drawDivider(ctx, 430, c);
 

@@ -259,10 +259,12 @@ export function generateInstagramCaption(params: {
   affiliateUrl?: string;
   nicheName?: string;
   couponCode?: string | null;
+  couponType?: 'percent' | 'fixed' | null;
   couponDiscountPct?: number | null;
+  couponFixedValue?: number | null;
   couponMaxSavings?: number | null;
 }): string {
-  const { title, finalPrice, originalPrice, discountPct, installments, installmentValue, paymentMethod, affiliateUrl, nicheName, couponCode, couponDiscountPct, couponMaxSavings } = params;
+  const { title, finalPrice, originalPrice, discountPct, installments, installmentValue, paymentMethod, affiliateUrl, nicheName, couponCode, couponType, couponDiscountPct, couponFixedValue, couponMaxSavings } = params;
 
   const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: v % 1 !== 0 ? 2 : 0 });
@@ -275,23 +277,34 @@ export function generateInstagramCaption(params: {
   lines.push('');
 
   // Desconto + preço (com ou sem cupom)
-  const hasCoupon = !!(couponCode && couponDiscountPct && couponDiscountPct > 0);
+  const resolvedCouponType = couponType ?? 'percent';
+  const hasCoupon = !!(
+    couponCode && (
+      (resolvedCouponType === 'percent' && couponDiscountPct && couponDiscountPct > 0) ||
+      (resolvedCouponType === 'fixed'   && couponFixedValue  && couponFixedValue  > 0)
+    )
+  );
 
   if (hasCoupon) {
-    // Importa inline para não criar dependência circular
     const { calculateWithCoupon } = require('./couponCalculator.js');
     const couponResult = calculateWithCoupon({
       originalPrice: originalPrice ?? finalPrice,
       adDiscountPct: discountPct ?? 0,
       couponCode: couponCode!,
-      couponDiscountPct: couponDiscountPct!,
+      couponType: resolvedCouponType,
+      couponDiscountPct: couponDiscountPct ?? null,
+      couponFixedValue: couponFixedValue ?? null,
       couponMaxSavings: couponMaxSavings ?? null,
     });
     lines.push(`🔥 De ${formatBRL(originalPrice ?? finalPrice)} por ${formatBRL(couponResult.finalPrice)} (${couponResult.totalDiscountPct}% OFF real com cupom)`);
     lines.push('');
-    lines.push(`🎟️ Use o cupom: ${couponCode!.toUpperCase()}`);
-    if (couponResult.couponWasCapped) {
-      lines.push(`   ⚠️ Cupom limitado a ${formatBRL(couponMaxSavings!)}`);
+    if (resolvedCouponType === 'fixed') {
+      lines.push(`🎟️ Cupom: ${couponCode!.toUpperCase()} — ${formatBRL(couponFixedValue!)} de desconto`);
+    } else {
+      lines.push(`🎟️ Use o cupom: ${couponCode!.toUpperCase()} (${couponDiscountPct}% OFF)`);
+      if (couponResult.couponWasCapped) {
+        lines.push(`   ⚠️ Cupom limitado a ${formatBRL(couponMaxSavings!)}`);
+      }
     }
   } else if (discountPct && discountPct > 0 && originalPrice && originalPrice > finalPrice) {
     lines.push(`🔥 De ${formatBRL(originalPrice)} por apenas ${formatBRL(finalPrice)} (-${discountPct}% OFF)`);

@@ -111,7 +111,9 @@ export default function InstagramPage() {
   const [customImageUrl, setCustomImageUrl] = useState('');
   const [imagePreviewOk, setImagePreviewOk] = useState<boolean | null>(null);
   const [couponCode, setCouponCode] = useState('');
+  const [couponType, setCouponType] = useState<'percent' | 'fixed'>('percent');
   const [couponDiscountPct, setCouponDiscountPct] = useState('');
+  const [couponFixedValue, setCouponFixedValue] = useState('');
   const [couponMaxSavings, setCouponMaxSavings] = useState('');
   const [generatingSlides, setGeneratingSlides] = useState(false);
   const [slides, setSlides] = useState<SlidesPreview | null>(null);
@@ -218,11 +220,18 @@ export default function InstagramPage() {
 
   function buildCouponPayload() {
     const code = couponCode.trim().toUpperCase();
+    if (!code) return {};
+    if (couponType === 'fixed') {
+      const val = parseFloat(couponFixedValue);
+      if (!val || val <= 0) return {};
+      return { couponCode: code, couponType: 'fixed' as const, couponFixedValue: val };
+    }
     const pct = parseFloat(couponDiscountPct);
+    if (!pct || pct <= 0) return {};
     const max = parseFloat(couponMaxSavings);
-    if (!code || !pct || pct <= 0) return {};
     return {
       couponCode: code,
+      couponType: 'percent' as const,
       couponDiscountPct: pct,
       ...(max > 0 ? { couponMaxSavings: max } : {}),
     };
@@ -309,7 +318,9 @@ export default function InstagramPage() {
     setCustomImageUrl('');
     setImagePreviewOk(null);
     setCouponCode('');
+    setCouponType('percent');
     setCouponDiscountPct('');
+    setCouponFixedValue('');
     setCouponMaxSavings('');
     setSlides(null);
     setCaption('');
@@ -524,8 +535,26 @@ export default function InstagramPage() {
                 <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">opcional</span>
               </div>
               <p className="text-gray-400 text-xs mb-4">
-                Se o produto tiver cupom, preencha abaixo. O desconto real será calculado automaticamente e aparecerá no Slide 3.
+                Se o produto tiver cupom, preencha abaixo. O desconto real é calculado automaticamente e aparece no Slide 3.
               </p>
+
+              {/* Tipo do cupom */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {(['percent', 'fixed'] as const).map(t => (
+                  <button
+                    key={t}
+                    onClick={() => { setCouponType(t); setSlides(null); }}
+                    className={`py-2.5 rounded-xl text-sm font-bold border-2 transition-all ${
+                      couponType === t
+                        ? 'border-amber-500 bg-amber-950/40 text-amber-300'
+                        : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500'
+                    }`}
+                  >
+                    {t === 'percent' ? '% Percentual' : 'R$ Valor fixo'}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div>
                   <label className="text-gray-400 text-xs mb-1 block">Código do cupom</label>
@@ -538,50 +567,78 @@ export default function InstagramPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-gray-400 text-xs mb-1 block">Desconto do cupom (%)</label>
+                  {couponType === 'percent' ? (
+                    <>
+                      <label className="text-gray-400 text-xs mb-1 block">Desconto (%)</label>
+                      <input
+                        type="number"
+                        placeholder="Ex: 10"
+                        min={1} max={99}
+                        value={couponDiscountPct}
+                        onChange={e => { setCouponDiscountPct(e.target.value); setSlides(null); }}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <label className="text-gray-400 text-xs mb-1 block">Valor do cupom (R$)</label>
+                      <input
+                        type="number"
+                        placeholder="Ex: 30"
+                        min={0.01} step={0.01}
+                        value={couponFixedValue}
+                        onChange={e => { setCouponFixedValue(e.target.value); setSlides(null); }}
+                        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+                      />
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Limite máximo — só para cupom % */}
+              {couponType === 'percent' && (
+                <div>
+                  <label className="text-gray-400 text-xs mb-1 block">Limite máximo de economia (R$) — opcional</label>
                   <input
                     type="number"
-                    placeholder="Ex: 10"
-                    min={1}
-                    max={99}
-                    value={couponDiscountPct}
-                    onChange={e => { setCouponDiscountPct(e.target.value); setSlides(null); }}
+                    placeholder="Ex: 50 (se o cupom for até R$50)"
+                    min={0}
+                    value={couponMaxSavings}
+                    onChange={e => { setCouponMaxSavings(e.target.value); setSlides(null); }}
                     className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
                   />
                 </div>
-              </div>
-              <div>
-                <label className="text-gray-400 text-xs mb-1 block">Limite máximo de economia (R$) — opcional</label>
-                <input
-                  type="number"
-                  placeholder="Ex: 50 (se o cupom for até R$50)"
-                  min={0}
-                  value={couponMaxSavings}
-                  onChange={e => { setCouponMaxSavings(e.target.value); setSlides(null); }}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
-                />
-              </div>
+              )}
 
               {/* Preview do cálculo em tempo real */}
-              {couponCode.trim() && parseFloat(couponDiscountPct) > 0 && product && (
+              {couponCode.trim() && product && (
+                (couponType === 'percent' && parseFloat(couponDiscountPct) > 0) ||
+                (couponType === 'fixed'   && parseFloat(couponFixedValue)  > 0)
+              ) && (
                 <div className="mt-4 bg-amber-950/30 border border-amber-700/40 rounded-xl px-4 py-3">
                   <p className="text-amber-400 text-xs font-bold mb-1">💡 Cálculo automático</p>
                   {(() => {
-                    const d1 = product.discountPct / 100;
-                    const d2 = parseFloat(couponDiscountPct) / 100;
-                    const priceAfterAd = product.originalPrice ? product.originalPrice * (1 - d1) : product.finalPrice;
-                    let couponSaving = Math.round(priceAfterAd * d2 * 100) / 100;
-                    const maxS = parseFloat(couponMaxSavings);
-                    const wasCapped = maxS > 0 && couponSaving > maxS;
-                    if (wasCapped) couponSaving = maxS;
-                    const finalP = Math.round((priceAfterAd - couponSaving) * 100) / 100;
                     const origP = product.originalPrice ?? product.finalPrice;
+                    const priceAfterAd = product.originalPrice
+                      ? Math.round(product.originalPrice * (1 - product.discountPct / 100) * 100) / 100
+                      : product.finalPrice;
+                    let couponSaving = 0;
+                    let wasCapped = false;
+                    if (couponType === 'percent') {
+                      couponSaving = Math.round(priceAfterAd * (parseFloat(couponDiscountPct) / 100) * 100) / 100;
+                      const maxS = parseFloat(couponMaxSavings);
+                      if (maxS > 0 && couponSaving > maxS) { couponSaving = maxS; wasCapped = true; }
+                    } else {
+                      couponSaving = Math.min(parseFloat(couponFixedValue), priceAfterAd);
+                    }
+                    const finalP = Math.round((priceAfterAd - couponSaving) * 100) / 100;
                     const totalPct = Math.round(((origP - finalP) / origP) * 100);
                     return (
                       <div className="space-y-0.5 text-xs text-amber-300/80">
                         <p>{fmtPrice(origP)} → <strong className="text-amber-300">{fmtPrice(finalP)}</strong> ({totalPct}% OFF real)</p>
                         <p>Economia total: <strong className="text-green-400">{fmtPrice(origP - finalP)}</strong></p>
-                        {wasCapped && <p className="text-orange-400">⚠️ Cupom limitado a {fmtPrice(maxS)} (cálculo ajustado)</p>}
+                        {couponType === 'fixed' && <p className="text-amber-400/70">Cupom de {fmtPrice(parseFloat(couponFixedValue))} aplicado sobre {fmtPrice(priceAfterAd)}</p>}
+                        {wasCapped && <p className="text-orange-400">⚠️ Cupom limitado a {fmtPrice(parseFloat(couponMaxSavings))} (cálculo ajustado)</p>}
                       </div>
                     );
                   })()}

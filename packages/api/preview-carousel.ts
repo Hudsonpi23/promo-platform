@@ -17,8 +17,9 @@ async function main() {
     affiliateUrl: 'https://www.mercadolivre.com.br/produto/fila-renno',
     theme: 'medium',
     offerId: 'preview-coupon',
-    couponCode: 'FILA10',
-    couponDiscountPct: 10,
+    couponCode: 'PROMO30',
+    couponType: 'fixed',
+    couponFixedValue: 30,
   });
 
   if (!result.success) {

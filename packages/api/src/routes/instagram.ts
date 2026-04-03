@@ -247,9 +247,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/publish-now',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string; imageUrl?: string; couponCode?: string; couponDiscountPct?: number; couponMaxSavings?: number } }>, reply) => {
+    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string; imageUrl?: string; couponCode?: string; couponType?: 'percent' | 'fixed'; couponDiscountPct?: number; couponFixedValue?: number; couponMaxSavings?: number } }>, reply) => {
       try {
-        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme, imageUrl: customImageUrl, couponCode, couponDiscountPct, couponMaxSavings } = req.body || {};
+        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme, imageUrl: customImageUrl, couponCode, couponType, couponDiscountPct, couponFixedValue, couponMaxSavings } = req.body || {};
         if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
         const accountIdToUse = accountId || ACCOUNT_ID();
@@ -298,7 +298,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
             affiliateUrl: productData.affiliateUrl,
             theme: (theme as any) || 'dark',
             couponCode: couponCode || null,
+            couponType: couponType ?? null,
             couponDiscountPct: couponDiscountPct ?? null,
+            couponFixedValue: couponFixedValue ?? null,
             couponMaxSavings: couponMaxSavings ?? null,
           });
           if (!carouselResult.success || !carouselResult.slideUrls?.length) {
@@ -315,7 +317,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           discountPct: productData.discountPct ?? 0,
           affiliateUrl: productData.affiliateUrl,
           couponCode: couponCode || null,
+          couponType: couponType ?? null,
           couponDiscountPct: couponDiscountPct ?? null,
+          couponFixedValue: couponFixedValue ?? null,
           couponMaxSavings: couponMaxSavings ?? null,
         });
 
@@ -382,8 +386,8 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/preview-slides',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; theme?: string; imageUrl?: string; couponCode?: string; couponDiscountPct?: number; couponMaxSavings?: number } }>, reply) => {
-      const { url, theme, imageUrl: customImageUrl, couponCode, couponDiscountPct, couponMaxSavings } = req.body || {};
+    async (req: FastifyRequest<{ Body: { url: string; theme?: string; imageUrl?: string; couponCode?: string; couponType?: 'percent' | 'fixed'; couponDiscountPct?: number; couponFixedValue?: number; couponMaxSavings?: number } }>, reply) => {
+      const { url, theme, imageUrl: customImageUrl, couponCode, couponType, couponDiscountPct, couponFixedValue, couponMaxSavings } = req.body || {};
       if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
       const isAmazon = url.includes('amazon.com') || url.includes('amzn');
@@ -427,7 +431,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         affiliateUrl: productData.affiliateUrl,
         theme: (theme as any) || 'dark',
         couponCode: couponCode || null,
+        couponType: couponType ?? null,
         couponDiscountPct: couponDiscountPct ?? null,
+        couponFixedValue: couponFixedValue ?? null,
         couponMaxSavings: couponMaxSavings ?? null,
       });
 
@@ -442,7 +448,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         discountPct: productData.discountPct ?? 0,
         affiliateUrl: productData.affiliateUrl,
         couponCode: couponCode || null,
+        couponType: couponType ?? null,
         couponDiscountPct: couponDiscountPct ?? null,
+        couponFixedValue: couponFixedValue ?? null,
         couponMaxSavings: couponMaxSavings ?? null,
       });
 
