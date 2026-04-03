@@ -567,8 +567,10 @@ export async function affiliatesRoutes(app: FastifyInstance) {
           const prod = prodResp.data;
           const listing = itemsResp.data.results?.[0];
 
-          const price = listing?.price || null;
-          const originalPrice = listing?.original_price || null;
+          // buy_box_winner = preço oficial exibido no site ML (prioridade máxima)
+          // listing.price pode ser de outro vendedor com preço diferente
+          const price = prod.buy_box_winner?.price ?? listing?.price ?? null;
+          const originalPrice = prod.buy_box_winner?.original_price ?? listing?.original_price ?? null;
           const discount = originalPrice && originalPrice > price
             ? Math.round(((originalPrice - price) / originalPrice) * 100)
             : 0;
