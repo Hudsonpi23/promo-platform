@@ -60,6 +60,9 @@ export default function OfertasPage() {
   const [previewEditText, setPreviewEditText] = useState('');
   const [creativePhrase, setCreativePhrase] = useState('');
   const [generatingAiPhrase, setGeneratingAiPhrase] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponType, setCouponType] = useState<'percent' | 'fixed'>('percent');
+  const [couponValue, setCouponValue] = useState('');
 
   const generateAiPhrase = async (offer: any) => {
     setGeneratingAiPhrase(true);
@@ -117,10 +120,30 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
     }
   };
 
+  const getCouponLine = () => {
+    const code = couponCode.trim().toUpperCase();
+    const val = parseFloat(couponValue);
+    if (!code || !val || val <= 0) return '';
+    if (couponType === 'percent') {
+      return `CUPOM #${code} ➡️ Aplicar ${val}% OFF.`;
+    }
+    return `CUPOM #${code} ➡️ R$${val.toFixed(0)} de desconto.`;
+  };
+
   const getFullPreviewText = (baseText: string | null) => {
     if (!baseText) return '';
-    if (!creativePhrase.trim()) return baseText;
-    return `${creativePhrase.trim()}\n\n${baseText}`;
+    const couponLine = getCouponLine();
+    let text = baseText;
+    if (couponLine) {
+      const linkMatch = text.match(/(👉\s*https?:\/\/\S+)/);
+      if (linkMatch) {
+        text = text.replace(linkMatch[0], `${couponLine}\n${linkMatch[0]}`);
+      } else {
+        text = `${text}\n${couponLine}`;
+      }
+    }
+    if (!creativePhrase.trim()) return text;
+    return `${creativePhrase.trim()}\n\n${text}`;
   };
 
   // X (Twitter) counts every URL as exactly 23 chars (t.co shortening)
@@ -937,7 +960,7 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                 🐦 Preview do Post no X
                 {previewEditing && <span className="ml-2 text-xs text-yellow-400 font-normal">✏️ Modo Edição</span>}
               </h2>
-              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
+              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); setCouponCode(''); setCouponValue(''); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
             </div>
 
             {/* Corpo */}
@@ -1008,19 +1031,56 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                   {/* Separador */}
                   <div className="border-t border-border/50" />
 
+                  {/* Cupom de desconto */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-text-primary">🎟️ Inserir Cupom <span className="text-text-muted font-normal">(opcional)</span></label>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      {(['percent', 'fixed'] as const).map(t => (
+                        <button
+                          key={t}
+                          onClick={() => setCouponType(t)}
+                          className={`py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                            couponType === t
+                              ? 'border-amber-500 bg-amber-950/40 text-amber-300'
+                              : 'border-border bg-background text-text-muted hover:border-text-muted'
+                          }`}
+                        >
+                          {t === 'percent' ? '% Percentual' : 'R$ Valor fixo'}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={couponCode}
+                        onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                        placeholder="Código do cupom"
+                        className="px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm font-mono tracking-wider uppercase focus:outline-none focus:border-amber-500 placeholder:text-text-muted/50"
+                      />
+                      <input
+                        type="number"
+                        value={couponValue}
+                        onChange={e => setCouponValue(e.target.value)}
+                        placeholder={couponType === 'percent' ? 'Ex: 15' : 'Ex: 30'}
+                        min={0}
+                        className="px-3 py-2 rounded-lg bg-background border border-border text-text-primary text-sm focus:outline-none focus:border-amber-500 placeholder:text-text-muted/50"
+                      />
+                    </div>
+                    {getCouponLine() && (
+                      <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg px-3 py-2">
+                        <p className="text-xs text-amber-300 font-mono">{getCouponLine()}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Separador */}
+                  <div className="border-t border-border/50" />
+
                   {/* Preview combinado */}
                   <div>
                     <p className="text-xs text-text-muted mb-2">Preview final:</p>
                     <div className="bg-background rounded-xl border border-border p-4 font-mono text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
-                      {creativePhrase.trim() ? (
-                        <>
-                          <span className="text-purple-400">{creativePhrase.trim()}</span>
-                          {'\n\n'}
-                          {previewModal.previewText}
-                        </>
-                      ) : (
-                        previewModal.previewText
-                      )}
+                      {getFullPreviewText(previewModal.previewText)}
                     </div>
                     {(() => {
                       const fullXLen = getXCharCount(getFullPreviewText(previewModal.previewText));
@@ -1054,7 +1114,7 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
             {/* Botões */}
             <div className="p-5 border-t border-border flex gap-3">
               <button
-                onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); }}
+                onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); setCouponCode(''); setCouponValue(''); }}
                 className="flex-1 py-2 rounded-lg border border-border text-text-muted hover:text-text-primary transition-all"
               >
                 Cancelar
