@@ -6,7 +6,6 @@ import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
 import { scrapeMercadoLivreHTTP, scrapeMagaluHTTP, scrapeAmazonHTTP, scrapeGenericHTTP } from './scraper-http.js';
 import { isAmazonApiConfigured, getAmazonProductByUrl } from '../services/amazonApi.js';
-import { generateAffiliateUrl } from '../services/mlAffiliate.js';
 
 export async function scraperRoutes(app: FastifyInstance) {
   // POST /scraper/product - Extrair dados de uma URL de produto
@@ -346,10 +345,10 @@ export async function scraperRoutes(app: FastifyInstance) {
           }
         }
 
-        // Gerar link de afiliado baseado na loja
+        // Link de afiliado por loja
         if (store === 'mercadolivre') {
-          productData.affiliateUrl = generateAffiliateUrl(resolvedUrl || url);
-          console.log('[Scraper] Link de afiliado ML gerado:', productData.affiliateUrl);
+          // ML: usar URL exatamente como recebida — afiliado já vem do gerador oficial
+          productData.affiliateUrl = resolvedUrl || url;
         } else if (productData.affiliateUrl) {
           // Usar o link de afiliado já retornado pela API (Amazon)
         } else {

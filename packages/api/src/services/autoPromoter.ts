@@ -19,27 +19,15 @@ import { chromium, Browser } from 'playwright';
 // ==================== CONVERSÃO DE LINK DE AFILIADO ====================
 
 /**
- * Converte uma URL normal do Mercado Livre para link de afiliado
- * Adiciona os parâmetros matt_tool e matt_word
+ * ML: retorna URL exatamente como recebida — afiliado gerado pelo portal oficial do ML
+ * Amazon: mantém lógica de adição de tag
  */
 export function convertToAffiliateUrl(url: string): string {
-  // Se já é um link de afiliado (formato /sec/), retorna como está
-  if (url.includes('/sec/') || url.includes('matt_tool=') || url.includes('matt_word=')) {
-    console.log('[Affiliate] URL já é link de afiliado');
+  // ML: não modificar — link de afiliado vem do portal oficial
+  if (url.includes('mercadolivre.com.br') || url.includes('mercadolibre.com')) {
     return url;
   }
-  
-  // Se é uma URL do Mercado Livre, adiciona parâmetros de afiliado
-  // ORDEM CORRETA: matt_word PRIMEIRO, matt_tool DEPOIS
-  if (url.includes('mercadolivre.com.br') || url.includes('mercadolibre.com')) {
-    const separator = url.includes('?') ? '&' : '?';
-    const affiliateUrl = `${url}${separator}matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
-    console.log('[Affiliate] ✅ Convertido para link de afiliado');
-    console.log('[Affiliate] Tag:', AFFILIATE_TAG);
-    return affiliateUrl;
-  }
-  
-  // Se não é URL do ML, retorna como está
+  // Outros: retornar como está
   return url;
 }
 
@@ -105,17 +93,9 @@ function generatePromoText(product: MLProduct): string {
 }
 
 /**
- * Encurta URL do Mercado Livre para usar só o ID do produto
- * ORDEM CORRETA: matt_word primeiro, matt_tool depois
+ * ML: retorna URL exatamente como recebida — sem encurtamento ou modificação
  */
 function shortenMLUrl(url: string): string {
-  // Extrai MLB ID para criar URL mais curta
-  const mlbMatch = url.match(/(MLB-?\d+)/i);
-  if (mlbMatch) {
-    const mlbId = mlbMatch[1].replace('-', '');
-    // ORDEM CORRETA: matt_word PRIMEIRO, matt_tool DEPOIS
-    return `https://produto.mercadolivre.com.br/${mlbId}?matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
-  }
   return url;
 }
 

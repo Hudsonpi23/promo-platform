@@ -22,7 +22,6 @@ import { analyzeOfferForInstagram } from '../services/instagramAI.js';
 import { generateCarousel } from '../services/instagramCarousel.js';
 import { listConnectedAccounts, generateInstagramCaption, publishCarousel, publishStory } from '../services/postforme.js';
 import { uploadFromBuffer } from '../services/cloudinary.js';
-import { generateAffiliateUrl } from '../services/mlAffiliate.js';
 import { getAmazonProductByUrl } from '../services/amazonApi.js';
 import { InstagramJobStatus } from '@prisma/client';
 import { getMLToken } from './mlAuth.js';
@@ -104,7 +103,7 @@ async function findOrCreateOffer(productData: any, storeId: string, nicheId: str
 
 /** Busca dados de produto via URL do Mercado Livre */
 async function fetchMLProduct(url: string) {
-  const affiliateUrl = generateAffiliateUrl(url);
+  const affiliateUrl = url; // ML: usar URL exatamente como recebida — afiliado gerado pelo portal oficial do ML
   const itemId = extractMLItemId(url);
   const catalogId = extractMLProductId(url);
   const headers: Record<string, string> = { Accept: 'application/json' };

@@ -6,7 +6,6 @@ import { sendError, Errors } from '../lib/errors.js';
 import { processOffer, calculateScore } from '../services/offerScoring.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
 import { detectNicheSlug as detectNicheSlugShared, resolveNicheFromTitle } from '../services/nicheDetector.js';
-import { generateAffiliateUrl } from '../services/mlAffiliate.js';
 
 // ── Mapeamento de palavras-chave → slug de nicho ──────────────────────────────
 // Ordem importa: os nichos mais específicos devem vir ANTES dos genéricos
@@ -289,9 +288,7 @@ export async function offersRoutes(app: FastifyInstance) {
             : `${offerAffiliateUrl}?tag=manudaspromoc-20`;
         }
       } else if (offerAffiliateUrl && offerAffiliateUrl.toLowerCase().includes('mercadolivre')) {
-        // Mercado Livre: aplicar generateAffiliateUrl para garantir matt_word e matt_tool
-        offerAffiliateUrl = generateAffiliateUrl(offerAffiliateUrl);
-        console.log('[Offers] Link afiliado ML gerado ao salvar oferta:', offerAffiliateUrl);
+        // ML: usar URL exatamente como recebida — afiliado gerado pelo portal oficial do ML
       }
 
       const offer = await prisma.offer.create({
