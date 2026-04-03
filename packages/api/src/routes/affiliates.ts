@@ -13,7 +13,7 @@ import axios from 'axios';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
-import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, searchProducts, searchDeals, getHighQualityImageUrl } from '../services/mlAffiliate.js';
+import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice } from '../services/mlAffiliate.js';
 import { getMLToken } from './mlAuth.js';
 
 // ==================== SCHEMAS ====================
@@ -558,57 +558,46 @@ export async function affiliatesRoutes(app: FastifyInstance) {
       }
 
       if (productCatalogId) {
+        // Playwright scraping = fonte de verdade para o preço (o que o usuário vê no site)
+        const scraped = await scrapeMLPrice(productUrl);
+
+        // API do catálogo para metadados (imagem, título, etc)
+        let catalogTitle: string | null = scraped.title;
+        let mainPicture = '';
+        let listingData: any = null;
+
         try {
           const [prodResp, itemsResp] = await Promise.all([
             axios.get(`https://api.mercadolibre.com/products/${productCatalogId}`, { timeout: 8000, headers }),
             axios.get(`https://api.mercadolibre.com/products/${productCatalogId}/items?limit=1`, { timeout: 8000, headers }),
           ]);
-
           const prod = prodResp.data;
-          const listing = itemsResp.data.results?.[0];
+          listingData = itemsResp.data.results?.[0];
+          catalogTitle = catalogTitle || prod.name || listingData?.title;
+          mainPicture = prod.pictures?.[0]?.url || '';
+        } catch (err: any) {
+          console.warn('[Affiliate Generate] Catálogo API falhou (usando scraping):', err.message);
+        }
 
-          // buy_box_winner só tem item_id, não price — precisamos buscar o item vencedor
-          const buyBoxItemId = prod.buy_box_winner?.item_id;
-          let price: number | null = null;
-          let originalPrice: number | null = null;
-          let winnerItemId: string | null = listing?.item_id || null;
+        const price = scraped.price ?? listingData?.price ?? null;
+        const originalPrice = scraped.originalPrice ?? listingData?.original_price ?? null;
+        const discount = originalPrice && price && originalPrice > price
+          ? Math.round(((originalPrice - price) / originalPrice) * 100)
+          : 0;
 
-          if (buyBoxItemId) {
-            try {
-              const bbResp = await axios.get(`https://api.mercadolibre.com/items/${buyBoxItemId}`, { timeout: 8000, headers });
-              price = bbResp.data.price ?? null;
-              originalPrice = bbResp.data.original_price ?? null;
-              winnerItemId = buyBoxItemId;
-            } catch {
-              // fallback ao listing
-              price = listing?.price ?? null;
-              originalPrice = listing?.original_price ?? null;
-            }
-          } else {
-            price = listing?.price ?? null;
-            originalPrice = listing?.original_price ?? null;
-          }
-
-          const discount = originalPrice && price && originalPrice > price
-            ? Math.round(((originalPrice - price) / originalPrice) * 100)
-            : 0;
-
-          const mainPicture = prod.pictures?.[0]?.url || '';
-
+        if (price) {
           productInfo = {
             id: productCatalogId,
-            item_id: winnerItemId,
-            title: prod.name,
+            item_id: listingData?.item_id || null,
+            title: catalogTitle || 'Produto Mercado Livre',
             price,
             original_price: originalPrice,
             discount_percentage: discount,
             thumbnail: mainPicture.replace('http://', 'https://'),
-            free_shipping: listing?.shipping?.free_shipping || false,
-            condition: listing?.condition || 'new',
-            category_id: listing?.category_id || null,
+            free_shipping: listingData?.shipping?.free_shipping || false,
+            condition: listingData?.condition || 'new',
+            category_id: listingData?.category_id || null,
           };
-        } catch (err: any) {
-          console.warn('[Affiliate Generate] Erro ao buscar produto do catálogo:', err.message);
         }
       }
 

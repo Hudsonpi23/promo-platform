@@ -420,6 +420,88 @@ export async function extractProductImage(productUrl: string): Promise<string | 
 }
 
 /**
+ * Extrai preço, preço original e título direto da página do ML via Playwright.
+ * Retorna os valores que o usuário de fato vê no site.
+ */
+export interface MLScrapedPrice {
+  price: number | null;
+  originalPrice: number | null;
+  title: string | null;
+}
+
+export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice> {
+  let page: Page | null = null;
+  try {
+    const b = await initBrowser();
+    page = await b.newPage();
+    await page.setViewportSize({ width: 1280, height: 720 });
+    console.log(`[Playwright-Price] Acessando: ${productUrl}`);
+
+    await page.goto(productUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForTimeout(3000);
+
+    let price: number | null = null;
+    let originalPrice: number | null = null;
+    let title: string | null = null;
+
+    // Título
+    try {
+      title = await page.locator('h1.ui-pdp-title').first().textContent({ timeout: 3000 });
+    } catch {}
+
+    // Preço atual — seletor principal do ML
+    const priceSelectors = [
+      '.ui-pdp-price__second-line .andes-money-amount__fraction',
+      'span.andes-money-amount__fraction',
+    ];
+    for (const sel of priceSelectors) {
+      if (price) break;
+      try {
+        const els = await page.locator(sel).all();
+        for (const el of els) {
+          const txt = await el.textContent({ timeout: 2000 });
+          if (txt) {
+            const num = parseFloat(txt.replace(/\./g, '').replace(',', '.'));
+            if (!isNaN(num) && num > 0) {
+              if (!price) price = num;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    // Preço original (riscado)
+    try {
+      const origEl = await page.locator('.ui-pdp-price__original-value .andes-money-amount__fraction').first();
+      const origTxt = await origEl.textContent({ timeout: 2000 });
+      if (origTxt) {
+        const num = parseFloat(origTxt.replace(/\./g, '').replace(',', '.'));
+        if (!isNaN(num) && num > 0) originalPrice = num;
+      }
+    } catch {}
+
+    // Centavos do preço original
+    if (originalPrice) {
+      try {
+        const centsEl = await page.locator('.ui-pdp-price__original-value .andes-money-amount__cents').first();
+        const centsTxt = await centsEl.textContent({ timeout: 1000 });
+        if (centsTxt) {
+          originalPrice += parseFloat(centsTxt) / 100;
+        }
+      } catch {}
+    }
+
+    console.log(`[Playwright-Price] price=${price}, originalPrice=${originalPrice}, title=${title?.substring(0, 50)}`);
+    return { price, originalPrice, title };
+  } catch (error: any) {
+    console.error('[Playwright-Price] Erro:', error.message);
+    return { price: null, originalPrice: null, title: null };
+  } finally {
+    if (page) await page.close();
+  }
+}
+
+/**
  * Extrai imagem de alta qualidade (formato 2X)
  */
 export function getHighQualityImageUrl(thumbnailUrl: string): string {
@@ -467,6 +549,7 @@ export default {
   searchByCategory,
   generateAffiliateUrl,
   extractProductImage,
+  scrapeMLPrice,
   getHighQualityImageUrl,
   closeBrowser,
   ML_CATEGORIES,

@@ -25,6 +25,7 @@ import { uploadFromBuffer } from '../services/cloudinary.js';
 import { getAmazonProductByUrl } from '../services/amazonApi.js';
 import { InstagramJobStatus } from '@prisma/client';
 import { getMLToken } from './mlAuth.js';
+import { scrapeMLPrice } from '../services/mlAffiliate.js';
 
 const ACCOUNT_ID = () => process.env.POSTFORME_INSTAGRAM_ACCOUNT_ID || '';
 
@@ -115,44 +116,40 @@ async function fetchMLProduct(url: string) {
   let info: any = null;
 
   if (catalogId) {
+    // Playwright scraping = fonte de verdade para o preço (o que o usuário vê no ML)
+    const scraped = await scrapeMLPrice(url);
+
+    let catalogTitle: string | null = scraped.title;
+    let thumb = '';
+    let listingData: any = null;
+
     try {
       const [prodRes, itemsRes] = await Promise.all([
         axios.get(`https://api.mercadolibre.com/products/${catalogId}`, { timeout: 8000, headers }),
         axios.get(`https://api.mercadolibre.com/products/${catalogId}/items?limit=1`, { timeout: 8000, headers }),
       ]);
       const prod = prodRes.data;
-      const listing = itemsRes.data.results?.[0];
+      listingData = itemsRes.data.results?.[0];
+      catalogTitle = catalogTitle || prod.name || listingData?.title;
+      thumb = (prod.pictures?.[0]?.url || listingData?.thumbnail || '').replace('http://', 'https://');
+    } catch {
+      console.warn('[Instagram fetchMLProduct] Catálogo API falhou, usando scraping');
+    }
 
-      // buy_box_winner só tem item_id, não price — buscar o item vencedor para obter o preço real
-      const buyBoxItemId = prod.buy_box_winner?.item_id;
-      let price: number | null = null;
-      let origPrice: number | null = null;
+    const price = scraped.price ?? listingData?.price ?? null;
+    const origPrice = scraped.originalPrice ?? listingData?.original_price ?? null;
 
-      if (buyBoxItemId) {
-        try {
-          const bbRes = await axios.get(`https://api.mercadolibre.com/items/${buyBoxItemId}`, { timeout: 8000, headers });
-          price = bbRes.data.price ?? null;
-          origPrice = bbRes.data.original_price ?? null;
-        } catch {
-          price = listing?.price ?? null;
-          origPrice = listing?.original_price ?? null;
-        }
-      } else {
-        price = listing?.price ?? null;
-        origPrice = listing?.original_price ?? null;
-      }
-
-      const thumb = (prod.pictures?.[0]?.url || listing?.thumbnail || '').replace('http://', 'https://');
+    if (price) {
       info = {
-        title: prod.name || listing?.title,
+        title: catalogTitle || 'Produto Mercado Livre',
         finalPrice: price,
         originalPrice: origPrice,
-        discountPct: origPrice && price && origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
+        discountPct: origPrice && origPrice > price ? Math.round(((origPrice - price) / origPrice) * 100) : 0,
         imageUrl: thumb,
         affiliateUrl,
         source: 'mercadolivre',
       };
-    } catch { /* fallback para itemId */ }
+    }
   }
 
   if (!info && itemId) {
