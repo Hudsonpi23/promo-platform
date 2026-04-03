@@ -716,6 +716,9 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
     couponResult = calculateWithCoupon({
       originalPrice: input.originalPrice ?? input.finalPrice,
       adDiscountPct: input.discountPct ?? 0,
+      // finalPrice É o preço já com desconto do anúncio aplicado (ex: preço listado no ML).
+      // O cupom deve ser subtraído DESSE valor, não de um valor recalculado.
+      priceBeforeCoupon: input.finalPrice,
       couponCode: input.couponCode!,
       couponType: resolvedCouponType,
       couponDiscountPct: input.couponDiscountPct ?? null,

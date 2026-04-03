@@ -40,20 +40,21 @@ console.log('\n📣 CTA gerado:');
 console.log(t2.cta);
 
 console.log('\n═══════════════════════════════════════════════');
-console.log('  TESTE 3 — Tênis Fila real (anúncio 45% + cupom 10%)');
+console.log('  TESTE 3 — Nescafé ML real (listado R$599, cupom R$120 fixo)');
+console.log('  Correto: R$599 - R$120 = R$479');
 console.log('═══════════════════════════════════════════════');
 const t3 = calculateWithCoupon({
-  originalPrice: 392.43,
-  adDiscountPct: 45,
-  couponCode: 'FILA10',
-  couponDiscountPct: 10,
+  originalPrice: 974.99,
+  adDiscountPct: 38,
+  priceBeforeCoupon: 599,   // preço já listado no ML — cupom se aplica aqui
+  couponCode: 'MANUVIP120',
+  couponType: 'fixed',
+  couponFixedValue: 120,
 });
-console.log(`Preço original:        ${t3.originalPrice}`);
-console.log(`Após desconto anúncio: R$ ${t3.priceAfterAdDiscount}`);
-console.log(`Economia do cupom:     R$ ${t3.couponSavings}`);
-console.log(`Preço final:           R$ ${t3.finalPrice}`);
-console.log(`Desconto total real:   ${t3.totalDiscountPct}% OFF`);
+console.log(`Preço original:          R$ ${t3.originalPrice}`);
+console.log(`Preço listado (ML):      R$ ${t3.priceAfterAdDiscount}`);
+console.log(`Economia do cupom:       R$ ${t3.couponSavings}`);
+console.log(`Preço final consumidor:  R$ ${t3.finalPrice}  (esperado: R$479)`);
+console.log(`Desconto total real:     ${t3.totalDiscountPct}% OFF`);
 console.log('\n📣 CTA gerado:');
 console.log(t3.cta);
-console.log('\n📊 Linha de slide:');
-console.log(t3.slideLine);

@@ -290,6 +290,8 @@ export function generateInstagramCaption(params: {
     const couponResult = calculateWithCoupon({
       originalPrice: originalPrice ?? finalPrice,
       adDiscountPct: discountPct ?? 0,
+      // finalPrice já é o preço com desconto do anúncio — cupom se aplica sobre ele
+      priceBeforeCoupon: finalPrice,
       couponCode: couponCode!,
       couponType: resolvedCouponType,
       couponDiscountPct: couponDiscountPct ?? null,

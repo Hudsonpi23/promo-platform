@@ -15,10 +15,16 @@
 export type CouponType = 'percent' | 'fixed';
 
 export interface CouponInput {
-  /** Preço original do produto (sem nenhum desconto) */
+  /** Preço original do produto (sem nenhum desconto — usado para calcular % total e exibição) */
   originalPrice: number;
   /** Desconto do anúncio em % (ex: 30 para 30%). 0 se não houver. */
   adDiscountPct: number;
+  /**
+   * Preço JÁ descontado pelo anúncio (ex: preço listado no ML).
+   * Quando fornecido, substitui o cálculo interno (originalPrice × (1-adDiscountPct)).
+   * Use sempre que o preço após o desconto já seja conhecido com precisão.
+   */
+  priceBeforeCoupon?: number | null;
   /** Código do cupom (ex: "FILA10") */
   couponCode: string;
   /**
@@ -72,6 +78,7 @@ export function calculateWithCoupon(input: CouponInput): CouponResult {
   const {
     originalPrice,
     adDiscountPct,
+    priceBeforeCoupon,
     couponCode,
     couponType,
     couponDiscountPct,
@@ -79,14 +86,20 @@ export function calculateWithCoupon(input: CouponInput): CouponResult {
     couponMaxSavings = null,
   } = input;
 
-  // 1️⃣ Aplica desconto do anúncio sobre o preço original
+  // 1️⃣ Base para aplicar o cupom:
+  //   - Se priceBeforeCoupon foi fornecido, usa diretamente (preço já conhecido, ex: ML).
+  //   - Caso contrário, recalcula a partir do originalPrice e adDiscountPct.
   const d1 = adDiscountPct / 100;
-  const priceAfterAdDiscount = round2(originalPrice * (1 - d1));
+  const priceAfterAdDiscount = priceBeforeCoupon != null
+    ? round2(priceBeforeCoupon)
+    : round2(originalPrice * (1 - d1));
 
   let couponSavings = 0;
   let couponWasCapped = false;
 
-  if (couponType === 'percent') {
+  const resolvedType: CouponType = couponType ?? 'percent';
+
+  if (resolvedType === 'percent') {
     // 2️⃣-A Cupom %: calcula sobre o preço já reduzido (desconto composto)
     const d2 = (couponDiscountPct ?? 0) / 100;
     couponSavings = round2(priceAfterAdDiscount * d2);
@@ -98,7 +111,6 @@ export function calculateWithCoupon(input: CouponInput): CouponResult {
     }
   } else {
     // 2️⃣-B Cupom R$ fixo: valor subtraído diretamente
-    // Garante que o cupom não gere preço negativo
     couponSavings = Math.min(round2(couponFixedValue ?? 0), priceAfterAdDiscount);
   }
 
@@ -111,7 +123,7 @@ export function calculateWithCoupon(input: CouponInput): CouponResult {
 
   // 5️⃣ Gera CTA e linha de slide
   let couponDesc: string;
-  if (couponType === 'fixed') {
+  if (resolvedType === 'fixed') {
     couponDesc = `${formatBRL(couponFixedValue ?? 0)} de desconto`;
   } else {
     couponDesc = `${couponDiscountPct}% OFF`;
@@ -135,7 +147,7 @@ export function calculateWithCoupon(input: CouponInput): CouponResult {
     totalDiscountPct,
     couponWasCapped,
     couponCode: couponCode.toUpperCase(),
-    couponType,
+    couponType: resolvedType,
     cta,
     slideLine,
   };
