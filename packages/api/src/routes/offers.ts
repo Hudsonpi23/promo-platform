@@ -213,6 +213,7 @@ export async function offersRoutes(app: FastifyInstance) {
         const storeMap: Record<string, string> = {
           'mercadolivre': 'mercadolivre',
           'mercadolibre': 'mercadolivre',
+          'meli.la': 'mercadolivre', // link encurtado do ML
           'amazon': 'amazon',
           'magazineluiza': 'magalu',
           'magalu': 'magalu',
@@ -270,7 +271,7 @@ export async function offersRoutes(app: FastifyInstance) {
       const finalImageUrl = bodyWithAI.mainImage || body.imageUrl;
 
       // Converter link Amazon em afiliado ao salvar a oferta
-      let offerAffiliateUrl = body.affiliateUrl || '';
+      let offerAffiliateUrl = body.affiliateUrl?.trim() || 'https://www.mercadolivre.com.br';
       if (offerAffiliateUrl && offerAffiliateUrl.toLowerCase().includes('amazon')) {
         // Amazon: adicionar tag de afiliado + ASIN maiúsculo
         try {
