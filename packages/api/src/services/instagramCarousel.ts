@@ -24,6 +24,7 @@ try {
 } catch (_e) { /* canvas não disponível */ }
 
 import { uploadFromBuffer } from './cloudinary.js';
+import { calculateWithCoupon } from './couponCalculator.js';
 
 const W = 1080;
 const H = 1080;
@@ -135,6 +136,12 @@ export interface CarouselInput {
   affiliateUrl?: string;
   offerId?: string;
   theme?: CarouselTheme;
+  /** Código do cupom de desconto (ex: "FILA10") */
+  couponCode?: string | null;
+  /** Percentual de desconto do cupom (ex: 10 para 10%) */
+  couponDiscountPct?: number | null;
+  /** Limite máximo de economia do cupom em R$ (ex: 50). Null = sem limite. */
+  couponMaxSavings?: number | null;
 }
 
 export interface CarouselResult {
@@ -427,9 +434,9 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   const priceShock = getPriceShock(input.finalPrice, input.originalPrice, input.discountPct);
 
   // ── Imagem do produto (área central) ──────────────────────────────────────
-  const imgSize = 460;
+  const imgSize = 720;
   const imgX = (W - imgSize) / 2;
-  const imgY = 200;
+  const imgY = 170;
 
   const productImg = input.imageUrl ? await loadImageSafe(input.imageUrl) : null;
 
@@ -477,35 +484,38 @@ async function generateSlide1(input: CarouselInput, c: ThemeColors): Promise<Buf
   }
 
   // ── Headline viral (TOPO — antes da imagem) ────────────────────────────────
-  const headlineFont = 'bold 52px sans-serif';
+  const headlineFont = 'bold 42px sans-serif';
   const headlineLines = wrapText(ctx, hook.headline, W - 80, headlineFont);
   const displayHeadlineLines = headlineLines.slice(0, 2);
-  const headlineH = displayHeadlineLines.length * 64;
-  const headlineY = (imgY - headlineH) / 2 + 20;
+  const headlineH = displayHeadlineLines.length * 54;
+  const headlineY = Math.max(20, (imgY - headlineH) / 2);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = c.text;
   ctx.font = headlineFont;
   displayHeadlineLines.forEach((line, i) => {
-    ctx.fillText(line, W / 2, headlineY + i * 64);
+    ctx.fillText(line, W / 2, headlineY + i * 54);
   });
 
-  // Sub-headline
-  ctx.font = '32px sans-serif';
-  ctx.fillStyle = c.subText;
-  ctx.fillText(hook.sub, W / 2, headlineY + displayHeadlineLines.length * 64 + 10);
+  // Sub-headline (só exibe se houver espaço antes da imagem)
+  const subY = headlineY + displayHeadlineLines.length * 54 + 8;
+  if (subY < imgY - 12) {
+    ctx.font = '26px sans-serif';
+    ctx.fillStyle = c.subText;
+    ctx.fillText(hook.sub, W / 2, subY);
+  }
 
   // ── Price shock (ABAIXO DA IMAGEM) ─────────────────────────────────────────
-  const priceY = imgY + imgSize + 52;
-  const priceShockFont = 'bold 54px sans-serif';
+  const priceY = imgY + imgSize + 38;
+  const priceShockFont = 'bold 50px sans-serif';
   const priceShockLines = wrapText(ctx, priceShock, W - 80, priceShockFont);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = c.accent;
   ctx.font = priceShockFont;
   priceShockLines.slice(0, 2).forEach((line, i) => {
-    ctx.fillText(line, W / 2, priceY + i * 64);
+    ctx.fillText(line, W / 2, priceY + i * 58);
   });
 
   // Swipe hint
@@ -675,8 +685,7 @@ async function generateSlide2(input: CarouselInput, c: ThemeColors): Promise<Buf
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }
 
-// ── SLIDE 3: Ganho + Urgência ──────────────────────────────────────────────────
-// "+R$X NO SEU BOLSO" + CTA agressivo
+// ── SLIDE 3: Ganho + Cupom (se houver) + Urgência ─────────────────────────────
 
 async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buffer> {
   const canvas = createCanvas(W, H);
@@ -684,61 +693,162 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
   drawBg(ctx, c);
   await drawManuWatermark(ctx, 0.25);
 
-  const saving = (input.originalPrice && input.originalPrice > input.finalPrice)
-    ? input.originalPrice - input.finalPrice
-    : null;
+  const hasCoupon = !!(input.couponCode && input.couponDiscountPct && input.couponDiscountPct > 0);
 
-  // Ícone de dinheiro
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = '96px sans-serif';
-  ctx.fillText('💸', W / 2, 120);
+  // ── Calcula valores com ou sem cupom ───────────────────────────────────────
+  let displayFinalPrice = input.finalPrice;
+  let displaySaving = (input.originalPrice && input.originalPrice > input.finalPrice)
+    ? input.originalPrice - input.finalPrice : null;
+  let displayDiscountPct = input.discountPct ?? 0;
+  let couponResult: ReturnType<typeof calculateWithCoupon> | null = null;
 
-  // ── Bloco de economia (se tiver) ──────────────────────────────────────────
-  if (saving && saving > 0) {
-    const savingsHook = getSavingsHook(saving, input.finalPrice);
-
-    const mainFont = 'bold 62px sans-serif';
-    const mainLines = wrapText(ctx, savingsHook.main, W - 80, mainFont);
-    ctx.font = mainFont;
-    ctx.fillStyle = c.accent;
-    mainLines.slice(0, 2).forEach((line, i) => {
-      ctx.fillText(line, W / 2, 240 + i * 76);
+  if (hasCoupon) {
+    couponResult = calculateWithCoupon({
+      originalPrice: input.originalPrice ?? input.finalPrice,
+      adDiscountPct: input.discountPct ?? 0,
+      couponCode: input.couponCode!,
+      couponDiscountPct: input.couponDiscountPct!,
+      couponMaxSavings: input.couponMaxSavings ?? null,
     });
-
-    ctx.font = 'bold 38px sans-serif';
-    ctx.fillStyle = c.text;
-    ctx.fillText(savingsHook.sub, W / 2, 240 + mainLines.slice(0, 2).length * 76 + 20);
-  } else {
-    // Sem saving — foca no preço final
-    ctx.font = 'bold 54px sans-serif';
-    ctx.fillStyle = c.accent;
-    ctx.fillText('OFERTA POR TEMPO LIMITADO ⚡', W / 2, 240);
-    ctx.font = 'bold 88px sans-serif';
-    ctx.fillStyle = c.text;
-    ctx.fillText(formatBRL(input.finalPrice), W / 2, 350);
+    displayFinalPrice = couponResult.finalPrice;
+    displaySaving = couponResult.totalSavingsAmount;
+    displayDiscountPct = couponResult.totalDiscountPct;
   }
 
-  drawDivider(ctx, 500, c);
-
-  // Preço resumido
-  ctx.font = 'bold 64px sans-serif';
-  ctx.fillStyle = c.accent;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(formatBRL(input.finalPrice), W / 2, 585);
 
-  if (input.discountPct && input.discountPct > 0) {
+  if (hasCoupon && couponResult) {
+    // ══ LAYOUT COM CUPOM ══════════════════════════════════════════════════════
+
+    // Emoji topo
+    ctx.font = '72px sans-serif';
+    ctx.fillText('🎟️', W / 2, 90);
+
+    // Título cupom
+    ctx.font = 'bold 44px sans-serif';
+    ctx.fillStyle = c.text;
+    ctx.fillText('USE O CUPOM E ECONOMIZE MAIS!', W / 2, 170);
+
+    drawDivider(ctx, 220, c);
+
+    // Badge do código do cupom — destaque máximo
+    const code = couponResult.couponCode;
+    const codeFont = 'bold 72px sans-serif';
+    ctx.font = codeFont;
+    const codeW = ctx.measureText(code).width;
+    const badgeW = Math.max(codeW + 80, 600);
+    const badgeH = 110;
+    const badgeX = (W - badgeW) / 2;
+    const badgeY = 250;
+
+    // Fundo do badge (acento)
+    const badgeGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW, badgeY);
+    badgeGrad.addColorStop(0, c.ctaBg1);
+    badgeGrad.addColorStop(1, c.ctaBg2);
+    ctx.fillStyle = badgeGrad;
+    roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 20);
+    ctx.fill();
+
+    // Borda tracejada decorativa
+    ctx.strokeStyle = c.ctaText + '60';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 5]);
+    roundRect(ctx, badgeX + 6, badgeY + 6, badgeW - 12, badgeH - 12, 16);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Código
+    ctx.font = codeFont;
+    ctx.fillStyle = c.ctaText;
+    ctx.fillText(code, W / 2, badgeY + badgeH / 2);
+
+    // "copie e use no checkout" abaixo do badge
+    ctx.font = '26px sans-serif';
+    ctx.fillStyle = c.subText;
+    ctx.fillText('↑  copie e use no checkout', W / 2, badgeY + badgeH + 34);
+
+    drawDivider(ctx, 430, c);
+
+    // Comparação de preços
+    const origPrice = input.originalPrice ?? input.finalPrice;
+    ctx.font = 'bold 44px sans-serif';
+    ctx.fillStyle = c.subText;
+    ctx.fillText(formatBRL(origPrice), W / 2, 500);
+    // Linha riscada
+    const origW = ctx.measureText(formatBRL(origPrice)).width;
+    ctx.strokeStyle = c.strikeFg;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - origW / 2 - 8, 500);
+    ctx.lineTo(W / 2 + origW / 2 + 8, 500);
+    ctx.stroke();
+
+    ctx.font = '36px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.fillText('↓', W / 2, 558);
+
+    ctx.font = 'bold 88px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.fillText(formatBRL(displayFinalPrice), W / 2, 650);
+
     ctx.font = 'bold 38px sans-serif';
-    ctx.fillStyle = c.accentAlt;
-    ctx.fillText(`-${input.discountPct}% de desconto real`, W / 2, 660);
+    ctx.fillStyle = c.savingText;
+    ctx.fillText(`${displayDiscountPct}% OFF REAL ✅`, W / 2, 720);
+
+    if (couponResult.couponWasCapped) {
+      ctx.font = '24px sans-serif';
+      ctx.fillStyle = c.strikeFg;
+      ctx.fillText(`⚠️ cupom limitado a ${formatBRL(input.couponMaxSavings!)}`, W / 2, 764);
+    }
+
+    drawDivider(ctx, 810, c);
+
+  } else {
+    // ══ LAYOUT SEM CUPOM (original) ═══════════════════════════════════════════
+
+    ctx.font = '96px sans-serif';
+    ctx.fillText('💸', W / 2, 120);
+
+    if (displaySaving && displaySaving > 0) {
+      const savingsHook = getSavingsHook(displaySaving, displayFinalPrice);
+      const mainFont = 'bold 62px sans-serif';
+      const mainLines = wrapText(ctx, savingsHook.main, W - 80, mainFont);
+      ctx.font = mainFont;
+      ctx.fillStyle = c.accent;
+      mainLines.slice(0, 2).forEach((line, i) => {
+        ctx.fillText(line, W / 2, 240 + i * 76);
+      });
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillStyle = c.text;
+      ctx.fillText(savingsHook.sub, W / 2, 240 + mainLines.slice(0, 2).length * 76 + 20);
+    } else {
+      ctx.font = 'bold 54px sans-serif';
+      ctx.fillStyle = c.accent;
+      ctx.fillText('OFERTA POR TEMPO LIMITADO ⚡', W / 2, 240);
+      ctx.font = 'bold 88px sans-serif';
+      ctx.fillStyle = c.text;
+      ctx.fillText(formatBRL(displayFinalPrice), W / 2, 350);
+    }
+
+    drawDivider(ctx, 500, c);
+
+    ctx.font = 'bold 64px sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.fillText(formatBRL(displayFinalPrice), W / 2, 585);
+
+    if (displayDiscountPct > 0) {
+      ctx.font = 'bold 38px sans-serif';
+      ctx.fillStyle = c.accentAlt;
+      ctx.fillText(`-${displayDiscountPct}% de desconto real`, W / 2, 660);
+    }
+
+    drawDivider(ctx, 730, c);
   }
 
-  drawDivider(ctx, 730, c);
-
-  // ── CTA AGRESSIVO ──────────────────────────────────────────────────────────
-  const ctaText = getUrgencyCTA(input.finalPrice);
-  const ctaY = 800;
+  // ── CTA AGRESSIVO (comum a ambos os layouts) ───────────────────────────────
+  const ctaText = getUrgencyCTA(displayFinalPrice);
+  const ctaY = hasCoupon ? 850 : 800;
   const ctaW = 900;
   const ctaH = 100;
   const ctaX = (W - ctaW) / 2;
@@ -763,12 +873,10 @@ async function generateSlide3(input: CarouselInput, c: ThemeColors): Promise<Buf
     ctx.fillText(ctaLines[0] || ctaText, W / 2, ctaY + ctaH / 2);
   }
 
-  // Linha "SE SUMIR, NÃO VOLTA" abaixo do CTA
   ctx.font = 'bold 28px sans-serif';
   ctx.fillStyle = c.strikeFg;
-  ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('⚠️  SE SUMIR, NÃO VOLTA', W / 2, 940);
+  ctx.fillText('⚠️  SE SUMIR, NÃO VOLTA', W / 2, ctaY + ctaH + 50);
 
   return canvas.toBuffer('image/jpeg', { quality: 0.97 });
 }

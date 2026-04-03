@@ -258,8 +258,11 @@ export function generateInstagramCaption(params: {
   paymentMethod?: 'pix' | 'parcelado' | 'normal' | null;
   affiliateUrl?: string;
   nicheName?: string;
+  couponCode?: string | null;
+  couponDiscountPct?: number | null;
+  couponMaxSavings?: number | null;
 }): string {
-  const { title, finalPrice, originalPrice, discountPct, installments, installmentValue, paymentMethod, affiliateUrl, nicheName } = params;
+  const { title, finalPrice, originalPrice, discountPct, installments, installmentValue, paymentMethod, affiliateUrl, nicheName, couponCode, couponDiscountPct, couponMaxSavings } = params;
 
   const formatBRL = (v: number) =>
     v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: v % 1 !== 0 ? 2 : 0 });
@@ -271,8 +274,26 @@ export function generateInstagramCaption(params: {
   lines.push(`🛍️ ${shortTitle}`);
   lines.push('');
 
-  // Desconto + preço
-  if (discountPct && discountPct > 0 && originalPrice && originalPrice > finalPrice) {
+  // Desconto + preço (com ou sem cupom)
+  const hasCoupon = !!(couponCode && couponDiscountPct && couponDiscountPct > 0);
+
+  if (hasCoupon) {
+    // Importa inline para não criar dependência circular
+    const { calculateWithCoupon } = require('./couponCalculator.js');
+    const couponResult = calculateWithCoupon({
+      originalPrice: originalPrice ?? finalPrice,
+      adDiscountPct: discountPct ?? 0,
+      couponCode: couponCode!,
+      couponDiscountPct: couponDiscountPct!,
+      couponMaxSavings: couponMaxSavings ?? null,
+    });
+    lines.push(`🔥 De ${formatBRL(originalPrice ?? finalPrice)} por ${formatBRL(couponResult.finalPrice)} (${couponResult.totalDiscountPct}% OFF real com cupom)`);
+    lines.push('');
+    lines.push(`🎟️ Use o cupom: ${couponCode!.toUpperCase()}`);
+    if (couponResult.couponWasCapped) {
+      lines.push(`   ⚠️ Cupom limitado a ${formatBRL(couponMaxSavings!)}`);
+    }
+  } else if (discountPct && discountPct > 0 && originalPrice && originalPrice > finalPrice) {
     lines.push(`🔥 De ${formatBRL(originalPrice)} por apenas ${formatBRL(finalPrice)} (-${discountPct}% OFF)`);
   } else {
     lines.push(`💰 Por apenas ${formatBRL(finalPrice)}`);

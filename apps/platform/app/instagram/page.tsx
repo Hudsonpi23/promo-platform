@@ -110,6 +110,9 @@ export default function InstagramPage() {
   const [theme, setTheme] = useState<'dark' | 'medium' | 'light'>('dark');
   const [customImageUrl, setCustomImageUrl] = useState('');
   const [imagePreviewOk, setImagePreviewOk] = useState<boolean | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscountPct, setCouponDiscountPct] = useState('');
+  const [couponMaxSavings, setCouponMaxSavings] = useState('');
   const [generatingSlides, setGeneratingSlides] = useState(false);
   const [slides, setSlides] = useState<SlidesPreview | null>(null);
   const [caption, setCaption] = useState('');
@@ -213,6 +216,18 @@ export default function InstagramPage() {
 
   // ── Passo 2: Gerar slides (preview) ──────────────────────────────────────────
 
+  function buildCouponPayload() {
+    const code = couponCode.trim().toUpperCase();
+    const pct = parseFloat(couponDiscountPct);
+    const max = parseFloat(couponMaxSavings);
+    if (!code || !pct || pct <= 0) return {};
+    return {
+      couponCode: code,
+      couponDiscountPct: pct,
+      ...(max > 0 ? { couponMaxSavings: max } : {}),
+    };
+  }
+
   async function handleGenerateSlides() {
     setGeneratingSlides(true);
     setSlides(null);
@@ -220,7 +235,7 @@ export default function InstagramPage() {
     try {
       const res = await fetchWithAuth('/api/instagram/preview-slides', {
         method: 'POST',
-        body: JSON.stringify({ url: url.trim(), theme, imageUrl: customImageUrl.trim() || undefined }),
+        body: JSON.stringify({ url: url.trim(), theme, imageUrl: customImageUrl.trim() || undefined, ...buildCouponPayload() }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Erro ao gerar slides.'); return; }
@@ -248,6 +263,7 @@ export default function InstagramPage() {
           slideUrls: slides?.slideUrls?.length ? slides.slideUrls : undefined,
           theme,
           imageUrl: customImageUrl.trim() || undefined,
+          ...buildCouponPayload(),
         }),
       });
       const data = await res.json();
@@ -292,6 +308,9 @@ export default function InstagramPage() {
     setProduct(null);
     setCustomImageUrl('');
     setImagePreviewOk(null);
+    setCouponCode('');
+    setCouponDiscountPct('');
+    setCouponMaxSavings('');
     setSlides(null);
     setCaption('');
     setPublishResult(null);
@@ -494,6 +513,78 @@ export default function InstagramPage() {
                   />
                   {imagePreviewOk === false && <p className="text-red-400 text-xs mt-1">❌ URL inválida ou imagem não carregou</p>}
                   {imagePreviewOk === true && <p className="text-green-400 text-xs mt-1">✅ Imagem ok — será usada no carrossel</p>}
+                </div>
+              )}
+            </div>
+
+            {/* Cupom de desconto */}
+            <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-bold text-white">🎟️ Cupom de desconto</h3>
+                <span className="text-xs bg-gray-700 text-gray-400 px-2 py-0.5 rounded-full">opcional</span>
+              </div>
+              <p className="text-gray-400 text-xs mb-4">
+                Se o produto tiver cupom, preencha abaixo. O desconto real será calculado automaticamente e aparecerá no Slide 3.
+              </p>
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="text-gray-400 text-xs mb-1 block">Código do cupom</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: FILA10"
+                    value={couponCode}
+                    onChange={e => { setCouponCode(e.target.value.toUpperCase()); setSlides(null); }}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 font-mono tracking-widest uppercase transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-xs mb-1 block">Desconto do cupom (%)</label>
+                  <input
+                    type="number"
+                    placeholder="Ex: 10"
+                    min={1}
+                    max={99}
+                    value={couponDiscountPct}
+                    onChange={e => { setCouponDiscountPct(e.target.value); setSlides(null); }}
+                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-gray-400 text-xs mb-1 block">Limite máximo de economia (R$) — opcional</label>
+                <input
+                  type="number"
+                  placeholder="Ex: 50 (se o cupom for até R$50)"
+                  min={0}
+                  value={couponMaxSavings}
+                  onChange={e => { setCouponMaxSavings(e.target.value); setSlides(null); }}
+                  className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500 transition-colors"
+                />
+              </div>
+
+              {/* Preview do cálculo em tempo real */}
+              {couponCode.trim() && parseFloat(couponDiscountPct) > 0 && product && (
+                <div className="mt-4 bg-amber-950/30 border border-amber-700/40 rounded-xl px-4 py-3">
+                  <p className="text-amber-400 text-xs font-bold mb-1">💡 Cálculo automático</p>
+                  {(() => {
+                    const d1 = product.discountPct / 100;
+                    const d2 = parseFloat(couponDiscountPct) / 100;
+                    const priceAfterAd = product.originalPrice ? product.originalPrice * (1 - d1) : product.finalPrice;
+                    let couponSaving = Math.round(priceAfterAd * d2 * 100) / 100;
+                    const maxS = parseFloat(couponMaxSavings);
+                    const wasCapped = maxS > 0 && couponSaving > maxS;
+                    if (wasCapped) couponSaving = maxS;
+                    const finalP = Math.round((priceAfterAd - couponSaving) * 100) / 100;
+                    const origP = product.originalPrice ?? product.finalPrice;
+                    const totalPct = Math.round(((origP - finalP) / origP) * 100);
+                    return (
+                      <div className="space-y-0.5 text-xs text-amber-300/80">
+                        <p>{fmtPrice(origP)} → <strong className="text-amber-300">{fmtPrice(finalP)}</strong> ({totalPct}% OFF real)</p>
+                        <p>Economia total: <strong className="text-green-400">{fmtPrice(origP - finalP)}</strong></p>
+                        {wasCapped && <p className="text-orange-400">⚠️ Cupom limitado a {fmtPrice(maxS)} (cálculo ajustado)</p>}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
             </div>

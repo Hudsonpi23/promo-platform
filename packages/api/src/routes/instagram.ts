@@ -247,9 +247,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/publish-now',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string; imageUrl?: string } }>, reply) => {
+    async (req: FastifyRequest<{ Body: { url: string; caption?: string; slideUrls?: string[]; accountId?: string; theme?: string; imageUrl?: string; couponCode?: string; couponDiscountPct?: number; couponMaxSavings?: number } }>, reply) => {
       try {
-        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme, imageUrl: customImageUrl } = req.body || {};
+        const { url, caption: customCaption, slideUrls: preGenerated, accountId, theme, imageUrl: customImageUrl, couponCode, couponDiscountPct, couponMaxSavings } = req.body || {};
         if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
         const accountIdToUse = accountId || ACCOUNT_ID();
@@ -297,6 +297,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
             fallbackImageUrl: customImageUrl ? productData.imageUrl : null,
             affiliateUrl: productData.affiliateUrl,
             theme: (theme as any) || 'dark',
+            couponCode: couponCode || null,
+            couponDiscountPct: couponDiscountPct ?? null,
+            couponMaxSavings: couponMaxSavings ?? null,
           });
           if (!carouselResult.success || !carouselResult.slideUrls?.length) {
             return reply.status(500).send({ error: `Falha ao gerar slides: ${carouselResult.error || 'erro desconhecido'}` });
@@ -311,6 +314,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
           originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
           discountPct: productData.discountPct ?? 0,
           affiliateUrl: productData.affiliateUrl,
+          couponCode: couponCode || null,
+          couponDiscountPct: couponDiscountPct ?? null,
+          couponMaxSavings: couponMaxSavings ?? null,
         });
 
         // 4. Publicar via Postfor.me — ponto crítico, sem try/catch aqui
@@ -376,8 +382,8 @@ export async function instagramRoutes(fastify: FastifyInstance) {
   fastify.post(
     '/preview-slides',
     { preHandler: authGuard },
-    async (req: FastifyRequest<{ Body: { url: string; theme?: string; imageUrl?: string } }>, reply) => {
-      const { url, theme, imageUrl: customImageUrl } = req.body || {};
+    async (req: FastifyRequest<{ Body: { url: string; theme?: string; imageUrl?: string; couponCode?: string; couponDiscountPct?: number; couponMaxSavings?: number } }>, reply) => {
+      const { url, theme, imageUrl: customImageUrl, couponCode, couponDiscountPct, couponMaxSavings } = req.body || {};
       if (!url) return reply.status(400).send({ error: 'URL obrigatória' });
 
       const isAmazon = url.includes('amazon.com') || url.includes('amzn');
@@ -420,6 +426,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         fallbackImageUrl: customImageUrl ? productData.imageUrl : null,
         affiliateUrl: productData.affiliateUrl,
         theme: (theme as any) || 'dark',
+        couponCode: couponCode || null,
+        couponDiscountPct: couponDiscountPct ?? null,
+        couponMaxSavings: couponMaxSavings ?? null,
       });
 
       if (!carouselResult.success || !carouselResult.slideUrls?.length) {
@@ -432,6 +441,9 @@ export async function instagramRoutes(fastify: FastifyInstance) {
         originalPrice: productData.originalPrice ? Number(productData.originalPrice) : null,
         discountPct: productData.discountPct ?? 0,
         affiliateUrl: productData.affiliateUrl,
+        couponCode: couponCode || null,
+        couponDiscountPct: couponDiscountPct ?? null,
+        couponMaxSavings: couponMaxSavings ?? null,
       });
 
       return reply.send({
