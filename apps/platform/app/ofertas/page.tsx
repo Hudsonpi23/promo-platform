@@ -1587,22 +1587,17 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
               />
               {!form.affiliateUrl && (
                 <p className="mt-2 text-xs text-blue-400 flex items-center gap-1">
-                  💡 <span><strong>Mercado Livre:</strong> busque o produto com o link direto, depois cole aqui o link <strong>meli.la</strong> ou o link completo com <strong>matt_word</strong> gerado no portal de afiliados.</span>
+                  💡 <span><strong>Mercado Livre:</strong> cole a URL do produto. O link oficial de afiliado (meli.la) será gerado automaticamente.</span>
                 </p>
               )}
               {form.affiliateUrl && form.affiliateUrl.includes('meli.la') && (
                 <p className="mt-2 text-xs text-green-500 flex items-center gap-1">
-                  ✅ Link curto meli.la detectado. Afiliado confirmado — será usado exatamente como está.
+                  ✅ Link oficial meli.la detectado — afiliado confirmado.
                 </p>
               )}
-              {form.affiliateUrl && (form.affiliateUrl.includes('mercadolivre') || form.affiliateUrl.includes('mercadolibre')) && !form.affiliateUrl.includes('meli.la') && !form.affiliateUrl.includes('matt_word') && (
-                <p className="mt-2 text-xs text-yellow-500 flex items-center gap-1">
-                  ⚠️ Link do ML sem afiliado. Use o link <strong>meli.la</strong> ou o link completo com <strong>matt_word</strong> gerado no portal de afiliados.
-                </p>
-              )}
-              {form.affiliateUrl && (form.affiliateUrl.includes('mercadolivre') || form.affiliateUrl.includes('mercadolibre')) && !form.affiliateUrl.includes('meli.la') && form.affiliateUrl.includes('matt_word') && (
-                <p className="mt-2 text-xs text-green-500 flex items-center gap-1">
-                  ✅ Link de afiliado do ML confirmado. Será usado exatamente como está.
+              {form.affiliateUrl && (form.affiliateUrl.includes('mercadolivre') || form.affiliateUrl.includes('mercadolibre')) && !form.affiliateUrl.includes('meli.la') && (
+                <p className="mt-2 text-xs text-blue-400 flex items-center gap-1">
+                  🔗 URL do ML detectada — o link oficial de afiliado será gerado automaticamente ao publicar.
                 </p>
               )}
             </div>

@@ -328,6 +328,16 @@ export async function twitterRoutes(app: FastifyInstance) {
       return reply.status(404).send({ success: false, error: 'Oferta não encontrada' });
     }
 
+    // Tentar gerar link oficial do ML se a URL salva é do ML
+    let trackingUrl = offer.affiliateUrl || '';
+    if (trackingUrl.includes('mercadolivre') && !trackingUrl.includes('meli.la') && !trackingUrl.includes('/social/')) {
+      const { createOfficialAffiliateLink } = await import('../services/mlAffiliate.js');
+      const official = await createOfficialAffiliateLink(trackingUrl);
+      if (official?.shortUrl) {
+        trackingUrl = official.shortUrl;
+      }
+    }
+
     const copies = generateCopies({
       title: offer.title,
       price: Number(offer.finalPrice),
@@ -336,7 +346,7 @@ export async function twitterRoutes(app: FastifyInstance) {
       advertiserName: offer.store?.name,
       storeName: offer.store?.name,
       category: null,
-      trackingUrl: offer.affiliateUrl || '',
+      trackingUrl,
       paymentMethod,
       installments,
       installmentValue,

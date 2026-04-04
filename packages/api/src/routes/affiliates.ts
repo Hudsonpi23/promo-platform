@@ -13,7 +13,7 @@ import axios from 'axios';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
-import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice } from '../services/mlAffiliate.js';
+import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, createOfficialAffiliateLink, isMLSessionConfigured, getMLSession, setMLSession, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice } from '../services/mlAffiliate.js';
 import { getMLToken } from './mlAuth.js';
 
 // ==================== SCHEMAS ====================
@@ -544,7 +544,8 @@ export async function affiliatesRoutes(app: FastifyInstance) {
         });
       }
 
-      const affiliateUrl = generateAffiliateUrl(productUrl);
+      const officialLink = await createOfficialAffiliateLink(productUrl);
+      const affiliateUrl = officialLink?.shortUrl || generateAffiliateUrl(productUrl);
 
       const itemId = extractMLItemId(productUrl);
       const productCatalogId = extractMLProductId(productUrl);
@@ -640,6 +641,12 @@ export async function affiliatesRoutes(app: FastifyInstance) {
           affiliate_url: affiliateUrl,
           affiliate_tag: AFFILIATE_TAG,
           affiliate_tool: AFFILIATE_TOOL,
+          official_link: officialLink ? {
+            short_url: officialLink.shortUrl,
+            long_url: officialLink.longUrl,
+            text: officialLink.text,
+            regex: officialLink.regex,
+          } : null,
           product: productInfo,
           tweet_suggestion: tweetSuggestion,
         },
@@ -732,6 +739,91 @@ export async function affiliatesRoutes(app: FastifyInstance) {
     } catch (err: any) {
       return reply.status(500).send({ error: err.message });
     }
+  });
+
+  // ==================== SESSÃO ML (Cookies para Link Oficial) ====================
+
+  /**
+   * GET /api/affiliates/ml-session
+   * Retorna status da sessão ML (sem expor os cookies completos)
+   */
+  app.get('/ml-session', { preHandler: [authGuard] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    const session = getMLSession();
+    const configured = isMLSessionConfigured();
+
+    return reply.send({
+      success: true,
+      data: {
+        configured,
+        cookieLength: session.cookie.length,
+        hasCsrfToken: !!session.csrfToken,
+        cookiePreview: configured
+          ? session.cookie.substring(0, 50) + '...'
+          : null,
+      },
+    });
+  });
+
+  /**
+   * POST /api/affiliates/ml-session
+   * Atualiza os cookies e CSRF token da sessão ML
+   */
+  app.post('/ml-session', { preHandler: [authGuard] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = z.object({
+        cookie: z.string().min(50, 'Cookie muito curto'),
+        csrfToken: z.string().min(10, 'CSRF token muito curto'),
+      }).parse(request.body);
+
+      setMLSession(body.cookie, body.csrfToken);
+
+      return reply.send({
+        success: true,
+        message: 'Sessão ML atualizada com sucesso',
+        data: {
+          configured: true,
+          cookieLength: body.cookie.length,
+        },
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
+      }
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * POST /api/affiliates/ml-session/test
+   * Testa se a sessão ML está funcionando (gera link para um produto de teste)
+   */
+  app.post('/ml-session/test', { preHandler: [authGuard] }, async (_request: FastifyRequest, reply: FastifyReply) => {
+    if (!isMLSessionConfigured()) {
+      return reply.status(400).send({
+        success: false,
+        error: { code: 'SESSION_NOT_CONFIGURED', message: 'Sessão ML não configurada. Atualize os cookies primeiro.' },
+      });
+    }
+
+    const testUrl = 'https://www.mercadolivre.com.br/tenis-oakley-masculino-flak-365-ii-lite/up/MLBU3508865160';
+    const result = await createOfficialAffiliateLink(testUrl);
+
+    if (result) {
+      return reply.send({
+        success: true,
+        message: 'Sessão ML funcionando! Link oficial gerado.',
+        data: {
+          short_url: result.shortUrl,
+          long_url: result.longUrl,
+          text: result.text,
+        },
+      });
+    }
+
+    return reply.status(401).send({
+      success: false,
+      error: { code: 'SESSION_EXPIRED', message: 'Sessão ML expirada. Atualize os cookies.' },
+    });
   });
 
   // ==================== SEED DE PROGRAMAS POPULARES ====================

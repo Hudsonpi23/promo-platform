@@ -285,38 +285,186 @@ export async function searchByCategory(
 // ==================== GERAÇÃO DE LINKS DE AFILIADO ====================
 
 /**
- * Gera URL de afiliado a partir do permalink
- * Formato OFICIAL do Mercado Livre: matt_word + matt_tool
- * 
- * REGRAS CRÍTICAS ATUALIZADAS:
- * 1. Remove fragmentos (#) - tudo após # é removido
- * 2. Remove TODOS os parâmetros existentes (?) - limpa completamente
- * 3. Reconstrói URL do ZERO com APENAS matt_word e matt_tool
- * 4. NUNCA permite duplicação de parâmetros
- * 5. Remove lixo de navegação (pdp_filters, tracking, etc)
+ * Fallback: gera URL de afiliado via concatenação local.
+ * AVISO: Links gerados assim NÃO são oficiais do ML e podem falhar no tracking.
+ * Usar createOfficialAffiliateLink() sempre que possível.
  */
 export function generateAffiliateUrl(permalink: string): string {
-  // 1. Remove fragmento (#) e tudo após ele
-  let cleanUrl = permalink.split('#')[0];
-  
-  // 2. Remove espaços em branco no início/fim
-  cleanUrl = cleanUrl.trim();
-  
-  // 3. CRÍTICO: Remove TODOS os parâmetros existentes (tudo após ?)
-  cleanUrl = cleanUrl.split('?')[0];
-  
-  // 4. Reconstrói link DO ZERO com APENAS os parâmetros de afiliado
+  let cleanUrl = permalink.split('#')[0].trim().split('?')[0];
   return `${cleanUrl}?matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
 }
 
+// ==================== LINK OFICIAL DO ML (via createLink API) ====================
+
+export interface MLOfficialLink {
+  shortUrl: string;
+  longUrl: string;
+  text: string;
+  regex: string;
+  created: boolean;
+}
+
+let _mlSessionCookie = process.env.ML_SESSION_COOKIE || '';
+let _mlCsrfToken = process.env.ML_CSRF_TOKEN || '';
+
+export function getMLSession() {
+  return { cookie: _mlSessionCookie, csrfToken: _mlCsrfToken };
+}
+
+export function setMLSession(cookie: string, csrfToken: string) {
+  _mlSessionCookie = cookie;
+  _mlCsrfToken = csrfToken;
+}
+
+export function isMLSessionConfigured(): boolean {
+  return !!_mlSessionCookie && !!_mlCsrfToken;
+}
+
+function mergeCookies(oldCookieStr: string, setCookieHeaders: string[]): string {
+  const cookieMap: Record<string, string> = {};
+
+  if (oldCookieStr) {
+    oldCookieStr.split(';').forEach(c => {
+      const [key, ...val] = c.trim().split('=');
+      if (key) cookieMap[key] = val.join('=');
+    });
+  }
+
+  for (const sc of setCookieHeaders) {
+    const cookiePart = sc.split(';')[0];
+    const [key, ...val] = cookiePart.trim().split('=');
+    if (key) cookieMap[key] = val.join('=');
+  }
+
+  return Object.keys(cookieMap).map(k => `${k}=${cookieMap[k]}`).join('; ');
+}
+
+async function refreshMLCookies(): Promise<void> {
+  if (!_mlSessionCookie) return;
+
+  try {
+    const res = await fetch('https://www.mercadolivre.com.br/afiliados/linkbuilder', {
+      headers: {
+        'cookie': _mlSessionCookie,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+      },
+      redirect: 'manual',
+    });
+
+    const setCookies = res.headers.getSetCookie?.() || [];
+    if (setCookies.length > 0) {
+      _mlSessionCookie = mergeCookies(_mlSessionCookie, setCookies);
+      console.log(`[ML-Session] Cookies refreshed (${setCookies.length} Set-Cookie headers merged)`);
+    }
+
+    const html = await res.text();
+    const csrfMatch = html.match(/name="csrf[_-]?token"[^>]*value="([^"]+)"/i)
+      || html.match(/"csrfToken"\s*:\s*"([^"]+)"/);
+    if (csrfMatch) {
+      _mlCsrfToken = csrfMatch[1];
+      console.log('[ML-Session] CSRF token updated from page');
+    }
+  } catch (err: any) {
+    console.warn('[ML-Session] Cookie refresh failed:', err.message);
+  }
+}
+
 /**
- * Gera URL curta de afiliado (formato /sec/)
- * Nota: Este formato requer geração via painel, aqui usamos o formato longo
+ * Gera link de afiliado OFICIAL do ML via API interna createLink.
+ * Retorna short_url (meli.la/...) e long_url (/social/...?ref=SIGNED).
+ * Se a sessão não está configurada ou expirou, retorna null (usar fallback).
  */
-export function generateShortAffiliateUrl(itemId: string): string {
-  // Para URLs curtas /sec/, precisaríamos do Playwright
-  // Por agora, retornamos URL longa com tracking
-  return `https://www.mercadolivre.com.br/p/${itemId}?matt_word=${AFFILIATE_TAG}&matt_tool=${AFFILIATE_TOOL}`;
+export async function createOfficialAffiliateLink(productUrl: string): Promise<MLOfficialLink | null> {
+  if (!isMLSessionConfigured()) {
+    console.warn('[ML-Link] Sessão ML não configurada — usando fallback local');
+    return null;
+  }
+
+  try {
+    await refreshMLCookies();
+
+    let cleanUrl = productUrl.split('#')[0].trim();
+
+    // URLs de catálogo (/p/MLB...) não são aceitas pelo createLink.
+    // Converter para permalink do item via API do ML.
+    const catalogMatch = cleanUrl.match(/\/p\/(MLB\d+)/i);
+    if (catalogMatch) {
+      try {
+        const itemsResp = await axios.get(
+          `${ML_API_BASE}/products/${catalogMatch[1]}/items?limit=1`,
+          { timeout: 8000, headers: getMLHeaders() }
+        );
+        const permalink = itemsResp.data.results?.[0]?.permalink;
+        if (permalink) {
+          console.log(`[ML-Link] Catálogo ${catalogMatch[1]} → ${permalink.substring(0, 80)}`);
+          cleanUrl = permalink;
+        }
+      } catch (err: any) {
+        console.warn(`[ML-Link] Falha ao resolver catálogo ${catalogMatch[1]}:`, err.message);
+      }
+    }
+
+    const res = await fetch('https://www.mercadolivre.com.br/affiliate-program/api/v2/affiliates/createLink', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json, text/plain, */*',
+        'content-type': 'application/json',
+        'origin': 'https://www.mercadolivre.com.br',
+        'referer': 'https://www.mercadolivre.com.br/afiliados/linkbuilder',
+        'x-csrf-token': _mlCsrfToken,
+        'cookie': _mlSessionCookie,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({
+        urls: [cleanUrl],
+        tag: AFFILIATE_TAG,
+      }),
+    });
+
+    const setCookies = res.headers.getSetCookie?.() || [];
+    if (setCookies.length > 0) {
+      _mlSessionCookie = mergeCookies(_mlSessionCookie, setCookies);
+    }
+
+    if (res.status === 401 || res.status === 403) {
+      console.error('[ML-Link] Sessão expirada (401/403) — necessário atualizar cookies');
+      return null;
+    }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[ML-Link] Erro ${res.status}:`, errText);
+      return null;
+    }
+
+    const data = await res.json() as any;
+
+    if (data.status === 200 && data.urls?.length > 0) {
+      const link = data.urls[0];
+
+      if (link.error_code) {
+        console.warn(`[ML-Link] createLink error ${link.error_code}: ${link.message}`);
+        return null;
+      }
+
+      if (link.short_url) {
+        console.log(`[ML-Link] Link oficial gerado: ${link.short_url}`);
+        return {
+          shortUrl: link.short_url,
+          longUrl: link.long_url,
+          text: link.text || '',
+          regex: link.regex || '',
+          created: link.created,
+        };
+      }
+    }
+
+    console.warn('[ML-Link] Resposta inesperada:', JSON.stringify(data).substring(0, 200));
+    return null;
+  } catch (err: any) {
+    console.error('[ML-Link] Erro ao gerar link oficial:', err.message);
+    return null;
+  }
 }
 
 // ==================== EXTRAÇÃO DE IMAGEM COM PLAYWRIGHT ====================
@@ -603,6 +751,10 @@ export default {
   searchDeals,
   searchByCategory,
   generateAffiliateUrl,
+  createOfficialAffiliateLink,
+  isMLSessionConfigured,
+  getMLSession,
+  setMLSession,
   extractProductImage,
   scrapeMLPrice,
   getHighQualityImageUrl,

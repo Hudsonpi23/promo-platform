@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/api';
+import { fetchWithAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 interface ChannelConfig {
@@ -31,7 +32,7 @@ interface Store {
 }
 
 export default function ConfigPage() {
-  const [activeTab, setActiveTab] = useState<'canais' | 'nichos' | 'lojas'>('canais');
+  const [activeTab, setActiveTab] = useState<'canais' | 'nichos' | 'lojas' | 'ml-session'>('canais');
 
   // Buscar dados
   const { data: channels, mutate: mutateChannels } = useSWR<ChannelConfig[]>(
@@ -50,6 +51,62 @@ export default function ConfigPage() {
   // Estados para formulários
   const [newNiche, setNewNiche] = useState({ name: '', slug: '', icon: '' });
   const [newStore, setNewStore] = useState({ name: '', slug: '' });
+
+  // ML Session state
+  const [mlCookie, setMlCookie] = useState('');
+  const [mlCsrf, setMlCsrf] = useState('');
+  const [mlStatus, setMlStatus] = useState<{ configured: boolean; cookieLength: number; cookiePreview?: string } | null>(null);
+  const [mlSaving, setMlSaving] = useState(false);
+  const [mlTesting, setMlTesting] = useState(false);
+  const [mlTestResult, setMlTestResult] = useState<{ success: boolean; message: string; shortUrl?: string } | null>(null);
+
+  useEffect(() => {
+    if (activeTab === 'ml-session') {
+      fetchWithAuth('/api/affiliates/ml-session')
+        .then(r => r.json())
+        .then(d => { if (d.success) setMlStatus(d.data); })
+        .catch(() => {});
+    }
+  }, [activeTab]);
+
+  const saveMLSession = async () => {
+    if (!mlCookie || !mlCsrf) return;
+    setMlSaving(true);
+    try {
+      const res = await fetchWithAuth('/api/affiliates/ml-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cookie: mlCookie, csrfToken: mlCsrf }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMlStatus({ configured: true, cookieLength: mlCookie.length });
+        setMlCookie('');
+        setMlCsrf('');
+        setMlTestResult({ success: true, message: 'Cookies salvos com sucesso!' });
+      }
+    } catch {
+      setMlTestResult({ success: false, message: 'Erro ao salvar cookies' });
+    }
+    setMlSaving(false);
+  };
+
+  const testMLSession = async () => {
+    setMlTesting(true);
+    setMlTestResult(null);
+    try {
+      const res = await fetchWithAuth('/api/affiliates/ml-session/test', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setMlTestResult({ success: true, message: 'Funcionando! Link gerado.', shortUrl: data.data.short_url });
+      } else {
+        setMlTestResult({ success: false, message: data.error?.message || 'Sessao expirada' });
+      }
+    } catch {
+      setMlTestResult({ success: false, message: 'Erro ao testar sessao' });
+    }
+    setMlTesting(false);
+  };
 
   // Salvar canal
   const saveChannel = async (channel: string, config: Record<string, any>) => {
@@ -93,6 +150,7 @@ export default function ConfigPage() {
     { id: 'canais', label: '📡 Canais', icon: '📡' },
     { id: 'nichos', label: '🏷️ Nichos', icon: '🏷️' },
     { id: 'lojas', label: '🏪 Lojas', icon: '🏪' },
+    { id: 'ml-session', label: '🔗 ML Afiliado', icon: '🔗' },
   ];
 
   return (
@@ -293,7 +351,6 @@ export default function ConfigPage() {
 
       {activeTab === 'lojas' && (
         <div className="space-y-6">
-          {/* Criar Loja */}
           <div className="bg-surface rounded-xl border border-border p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">Criar Loja</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -327,16 +384,11 @@ export default function ConfigPage() {
               </div>
             </div>
           </div>
-
-          {/* Lista de Lojas */}
           <div className="bg-surface rounded-xl border border-border p-6">
             <h3 className="text-lg font-semibold text-text-primary mb-4">Lojas Cadastradas</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {stores?.map((store) => (
-                <div
-                  key={store.id}
-                  className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border"
-                >
+                <div key={store.id} className="flex items-center gap-3 p-4 rounded-lg bg-background border border-border">
                   <span className="text-2xl">🏪</span>
                   <div>
                     <p className="font-medium text-text-primary">{store.name}</p>
@@ -344,6 +396,89 @@ export default function ConfigPage() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'ml-session' && (
+        <div className="space-y-6">
+          {/* Status */}
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-2xl">🔗</span>
+              <h3 className="text-lg font-semibold text-text-primary">Mercado Livre — Link Oficial de Afiliado</h3>
+            </div>
+            <p className="text-sm text-text-secondary mb-4">
+              Para gerar links oficiais (meli.la) que rastreiam comissões corretamente, a plataforma precisa dos cookies da sua sessão no ML.
+            </p>
+
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-background border border-border mb-4">
+              <div className={cn('w-3 h-3 rounded-full', mlStatus?.configured ? 'bg-green-500' : 'bg-red-500')} />
+              <div>
+                <p className="font-medium text-text-primary">
+                  {mlStatus?.configured ? 'Sessão ML ativa' : 'Sessão ML não configurada'}
+                </p>
+                {mlStatus?.configured && (
+                  <p className="text-xs text-text-muted">Cookie: {mlStatus.cookieLength} chars</p>
+                )}
+              </div>
+              {mlStatus?.configured && (
+                <button
+                  onClick={testMLSession}
+                  disabled={mlTesting}
+                  className="ml-auto px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white text-sm font-medium transition-all disabled:opacity-50"
+                >
+                  {mlTesting ? 'Testando...' : 'Testar Sessao'}
+                </button>
+              )}
+            </div>
+
+            {mlTestResult && (
+              <div className={cn('p-3 rounded-lg text-sm mb-4', mlTestResult.success ? 'bg-green-500/10 text-green-400 border border-green-500/30' : 'bg-red-500/10 text-red-400 border border-red-500/30')}>
+                <p className="font-medium">{mlTestResult.message}</p>
+                {mlTestResult.shortUrl && (
+                  <p className="mt-1 text-xs">Link gerado: <a href={mlTestResult.shortUrl} target="_blank" rel="noopener noreferrer" className="underline">{mlTestResult.shortUrl}</a></p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Atualizar cookies */}
+          <div className="bg-surface rounded-xl border border-border p-6">
+            <h3 className="text-lg font-semibold text-text-primary mb-2">Atualizar Cookies</h3>
+            <p className="text-sm text-text-secondary mb-4">
+              No Chrome, acesse <code className="bg-background px-2 py-0.5 rounded text-xs">mercadolivre.com.br/afiliados/linkbuilder</code>, gere um link, depois F12 &gt; Network &gt; clique em <code className="bg-background px-2 py-0.5 rounded text-xs">createLink</code> &gt; Headers &gt; copie Cookie e x-csrf-token.
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Cookie (Request Headers)</label>
+                <textarea
+                  value={mlCookie}
+                  onChange={(e) => setMlCookie(e.target.value)}
+                  placeholder="Cole aqui o valor completo do Cookie..."
+                  rows={3}
+                  className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">x-csrf-token</label>
+                <input
+                  type="text"
+                  value={mlCsrf}
+                  onChange={(e) => setMlCsrf(e.target.value)}
+                  placeholder="Cole aqui o x-csrf-token..."
+                  className="w-full px-4 py-2 rounded-lg bg-background border border-border text-text-primary focus:outline-none focus:ring-2 focus:ring-primary text-sm font-mono"
+                />
+              </div>
+              <button
+                onClick={saveMLSession}
+                disabled={mlSaving || !mlCookie || !mlCsrf}
+                className="px-6 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium transition-all disabled:opacity-50"
+              >
+                {mlSaving ? 'Salvando...' : 'Salvar e Ativar'}
+              </button>
             </div>
           </div>
         </div>
