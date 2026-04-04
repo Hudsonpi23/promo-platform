@@ -33,9 +33,49 @@ Categorias (rodar na ordem, avançar a cada rajada):
 eletronicos → games → celulares → informatica → eletrodomesticos → cozinha → moda → esportes → beleza → livros → relogios → pet → ferramentas → alimentos → veiculos-acessorios → casa → volta ao início
 
 MODO B — BUSCA ESPECÍFICA (query)
-Usar o parâmetro "query" para buscar termos de ALTA CONVERSÃO.
+Usar o parâmetro "query" para buscar termos variados — mistura tech, moda, beleza, casa, pet, etc.
 Queries (rodar na ordem, avançar a cada rajada):
-"smart tv 4k" → "fone bluetooth" → "air fryer" → "funko pop" → "manga" → "playstation 5" → "echo dot alexa" → "whey protein" → "perfume importado" → "skincare facial" → "smartwatch" → "teclado mecânico gamer" → "cafeteira expresso" → "tênis nike" → "ração golden cachorro" → "ração gato premium" → "furadeira parafusadeira" → "kindle" → "cadeira gamer" → "mouse gamer" → "mochila notebook" → "relógio casio" → "creme hidratante" → "cerveja artesanal" → "suporte celular carro" → "câmera segurança wifi" → "aspirador robô" → "panela elétrica" → "protetor solar" → "controle ps5" → "headset gamer" → "bicicleta ergométrica" → "kit maquiagem" → "óculos sol" → "livro bestseller" → "acessório pet gato" → volta ao início
+
+TECH & GAMES:
+"smart tv 4k" → "fone bluetooth" → "playstation 5" → "echo dot alexa" → "smartwatch" → "teclado mecânico gamer" → "kindle" → "cadeira gamer" → "mouse gamer" → "controle ps5" → "headset gamer" → "notebook gamer" → "tablet samsung" → "carregador turbo" → "câmera segurança wifi" → "chromecast" →
+
+MODA MASCULINA:
+"bermuda masculina" → "camiseta masculina" → "tênis nike masculino" → "calça jeans masculina" → "short masculino" → "mochila notebook" → "óculos sol masculino" → "relógio casio" → "chinelo masculino" →
+
+MODA FEMININA:
+"camiseta feminina" → "vestido feminino" → "short feminino" → "calça legging feminina" → "tênis feminino" → "bolsa feminina" → "sandália feminina" → "óculos sol feminino" →
+
+MODA FITNESS:
+"roupa academia feminina" → "legging fitness" → "top fitness feminino" → "bermuda academia masculina" → "camiseta dry fit" → "tênis corrida" →
+
+BELEZA & SKINCARE:
+"skincare facial" → "sérum vitamina c" → "protetor solar facial" → "creme hidratante facial" → "perfume importado feminino" → "perfume importado masculino" → "kit maquiagem" → "base líquida" → "batom" → "shampoo profissional" → "desodorante" → "escova secadora" →
+
+CASA & COZINHA:
+"air fryer" → "cafeteira expresso" → "aspirador robô" → "panela elétrica" → "jogo de panelas" → "liquidificador" → "organizador casa" → "lençol" → "toalha banho" →
+
+ESPORTE & FITNESS:
+"whey protein" → "creatina" → "bicicleta ergométrica" → "esteira" → "haltere" → "garrafa térmica" →
+
+LIVROS & COLECIONÁVEIS:
+"manga one piece" → "funko pop" → "livro bestseller" → "kindle" → "manga demon slayer" →
+
+PET (CÃES E GATOS):
+"ração golden cachorro" → "ração gato premium" → "cama pet" → "brinquedo cachorro" → "arranhador gato" →
+
+VEÍCULOS & FERRAMENTAS:
+"suporte celular carro" → "furadeira parafusadeira" → "tapete carro" → "organizador porta-malas" →
+
+ALIMENTOS & BEBIDAS:
+"cerveja artesanal" → "café especial" → "kit chocolate" →
+
+MERCADO / SUPERMERCADO (produtos do dia-a-dia):
+"ketchup hellmanns" → "maionese hellmanns" → "azeite extra virgem" → "molho de tomate" → "nescafé" → "leite ninho" → "nutella" → "biscoito oreo" → "detergente ype" → "sabão omo" → "amaciante downy" → "papel higiênico" → "desinfetante" → "sabonete dove" → "pasta de dente colgate" → "fralda pampers" → "absorvente" → "álcool gel" → "esponja scotch brite" →
+
+HIGIENE & CUIDADO PESSOAL:
+"aparelho barbear gillette" → "creme barbear" → "escova dental elétrica" → "fio dental" → "algodão" → "cotonete" →
+
+volta ao início
 
 Lembrar o último nicho E a última query usados (em daily_log.md) e avançar.
 
