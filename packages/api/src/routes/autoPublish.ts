@@ -4,20 +4,185 @@ import { prisma } from '../lib/prisma.js';
 import { nanoid } from 'nanoid';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { z } from 'zod';
 import {
   scrapeMercadoLivreHTTP,
   scrapeMagaluHTTP,
   scrapeAmazonHTTP,
   scrapeGenericHTTP,
 } from './scraper-http.js';
-import { sendTelegramMessage, isTelegramConfigured } from '../services/telegram.js';
-import { postOfferToTwitter } from '../services/twitter.js';
+import { sendTelegramMessage, sendTelegramPhoto, isTelegramConfigured } from '../services/telegram.js';
+import { postOfferToTwitter, isTwitterConfigured, postTweetWithImage } from '../services/twitter.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
 import { isAmazonApiConfigured, getAmazonProductByUrl } from '../services/amazonApi.js';
 import { uploadFromUrl } from '../services/cloudinary.js';
 import { resolveNicheFromTitle } from '../services/nicheDetector.js';
+import {
+  searchMLViaCookies,
+  buildReadyTelegramText,
+  simplifyTitle,
+  createOfficialAffiliateLink,
+  generateAffiliateUrl,
+  type MLBrowseProduct,
+} from '../services/mlAffiliate.js';
 
 const SITE_URL = process.env.SITE_URL || 'https://www.manu-promocoes.com.br';
+
+// ==================== ANTI-REPETIÇÃO SERVER-SIDE ====================
+
+interface PostedProduct {
+  title: string;
+  affiliateUrl: string;
+  timestamp: number;
+}
+
+const postedToday: PostedProduct[] = [];
+let lastCleanupDate = new Date().toDateString();
+
+function cleanupPostedToday() {
+  const today = new Date().toDateString();
+  if (today !== lastCleanupDate) {
+    postedToday.length = 0;
+    lastCleanupDate = today;
+    console.log('[Burst] Limpeza diária: lista de produtos postados resetada');
+  }
+}
+
+function isDuplicate(product: MLBrowseProduct): boolean {
+  cleanupPostedToday();
+  const titleNorm = product.title.toLowerCase().trim();
+  return postedToday.some(p =>
+    p.title.toLowerCase().trim() === titleNorm ||
+    (product.affiliateUrl && p.affiliateUrl === product.affiliateUrl)
+  );
+}
+
+function markAsPosted(product: MLBrowseProduct) {
+  cleanupPostedToday();
+  postedToday.push({
+    title: product.title,
+    affiliateUrl: product.affiliateUrl || '',
+    timestamp: Date.now(),
+  });
+}
+
+// ==================== FRASES DE HUMOR (SERVER-SIDE) ====================
+
+const HUMOR: Record<string, string[]> = {
+  tv: [
+    'Seu vizinho vai achar que você abriu um cinema 😂🍿',
+    'Prepare a pipoca porque essa TV pede maratona 🍿😎',
+    'Essa TV é tão boa que até o gato vai parar pra assistir 🐱📺',
+    'Cinema em casa sem precisar sair do sofá 🎬🛋️',
+  ],
+  monitor: [
+    'Seu setup vai ficar tão bonito que dá pra chorar 😭🖥️',
+    'Produtividade ou game? Com esse monitor, os dois 🎮💼',
+  ],
+  fone: [
+    'Vizinho barulhento? Problema resolvido 😂🎧',
+    'Você vai esquecer que o mundo existe 🎧✨',
+    'Com esse fone, até o silêncio faz playlist 🎶😂',
+    'Modo "não me perturbe" ativado automaticamente 😎🎶',
+  ],
+  celular: [
+    'Seu celular antigo mandou dizer que aceita aposentadoria 😂📱',
+    'Foto boa assim nem precisa de filtro 📸😎',
+    'Bateria que dura mais que segunda-feira 🔋😂',
+    'Com esse Galaxy, até as selfies do meu gato vão ficar profissionais 📸🐱',
+  ],
+  notebook: [
+    'Leve que nem papel, potente que nem foguete 🚀💻',
+    'Home office com esse notebook é outra vida 😎💻',
+    'Seu notebook atual acabou de pedir demissão 😂💻',
+  ],
+  game: [
+    'Sua vida social pode sofrer efeitos colaterais 😂🎮',
+    'Avisa a família que você vai sumir por uns dias 🎮😂',
+    'Inimigo vai pedir desculpa quando ver esse setup 😎🕹️',
+  ],
+  cadeira: [
+    'Sua coluna mandou dizer: "obrigada!" 😂🪑',
+    'Conforto nível "não quero mais levantar" 🪑😎',
+  ],
+  cozinha: [
+    'Chef Manu aprova essa oferta 👨‍🍳🔥',
+    'Cozinhar com esse preço é receita de felicidade 😂🍳',
+    'Até quem queima água vai querer testar 😂🔥',
+  ],
+  esporte: [
+    'Faltou motivação? Faltou era esse preço 😂💪',
+    'Seu eu fitness agradece essa oferta 🏃‍♂️🔥',
+  ],
+  pet: [
+    'Seu pet merece e seu bolso também 🐶😂',
+    'Mimado com desconto é o melhor tipo de mimado 🐱💕',
+  ],
+  beleza: [
+    'Skincare com desconto é autocuidado inteligente 💆‍♀️💰',
+    'Sua pele vai agradecer e seu bolso também ✨😂',
+  ],
+  moda: [
+    'Estilo sem gastar uma fortuna? Toma! 😎👗',
+    'Moda com desconto é outfit sem culpa 💃😂',
+  ],
+  geral: [
+    'Esse preço tá tão bom que parece bug 😂🔥',
+    'Corre que daqui a pouco alguém acorda 😂⚡',
+    'Promoção assim eu até acordo mais cedo 😴💰',
+    'Preço bom assim dá vontade de comprar dois 😂🛒',
+    'Se tá barato eu não julgo, eu compro 😂🛍️',
+    'Minha carteira pediu pra eu não mostrar isso 😂💸',
+    'Esse desconto deveria ser crime 🚨😂',
+    'Quem disse que coisa boa não cai do céu? 😂🎁',
+  ],
+};
+
+function pickHumor(title: string): string {
+  const pick = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+  const t = title.toLowerCase();
+  if (t.includes('tv') || t.includes('televisão') || t.includes('smart tv')) return pick(HUMOR.tv);
+  if (t.includes('monitor')) return pick(HUMOR.monitor);
+  if (t.includes('fone') || t.includes('headset') || t.includes('earphone') || t.includes('airpod') || t.includes('jbl')) return pick(HUMOR.fone);
+  if (t.includes('celular') || t.includes('iphone') || t.includes('galaxy') || t.includes('smartphone')) return pick(HUMOR.celular);
+  if (t.includes('notebook') || t.includes('laptop') || t.includes('macbook')) return pick(HUMOR.notebook);
+  if (t.includes('playstation') || t.includes('xbox') || t.includes('nintendo') || t.includes('game')) return pick(HUMOR.game);
+  if (t.includes('cadeira') || t.includes('escritório')) return pick(HUMOR.cadeira);
+  if (t.includes('air fryer') || t.includes('cafeteira') || t.includes('liquidificador') || t.includes('panela') || t.includes('fogão') || t.includes('geladeira') || t.includes('microondas')) return pick(HUMOR.cozinha);
+  if (t.includes('tênis') || t.includes('bicicleta') || t.includes('esteira') || t.includes('halter') || t.includes('academia')) return pick(HUMOR.esporte);
+  if (t.includes('pet') || t.includes('ração') || t.includes('cachorro') || t.includes('gato') || t.includes('arranhador')) return pick(HUMOR.pet);
+  if (t.includes('skincare') || t.includes('sérum') || t.includes('protetor solar') || t.includes('perfume') || t.includes('escova')) return pick(HUMOR.beleza);
+  if (t.includes('camiseta') || t.includes('bermuda') || t.includes('vestido') || t.includes('calça') || t.includes('bolsa') || t.includes('legging') || t.includes('roupa')) return pick(HUMOR.moda);
+  return pick(HUMOR.geral);
+}
+
+// ==================== MODO ALTERNADO (niche/query) ====================
+
+const NICHES_ROTATION = [
+  'eletronicos', 'games', 'celulares', 'informatica', 'eletrodomesticos',
+  'cozinha', 'moda', 'esportes', 'beleza', 'livros',
+  'relogios', 'pet', 'ferramentas', 'alimentos', 'casa',
+];
+
+const QUERIES_ROTATION = [
+  'smart tv 4k', 'fone bluetooth', 'playstation 5', 'echo dot alexa',
+  'smartwatch', 'teclado mecânico gamer', 'kindle', 'cadeira gamer',
+  'mouse gamer', 'controle ps5', 'headset gamer', 'notebook gamer',
+  'tablet samsung', 'carregador turbo', 'câmera segurança wifi',
+  'bermuda masculina', 'camiseta masculina', 'tênis nike masculino',
+  'vestido feminino', 'calça legging feminina', 'bolsa feminina',
+  'roupa academia feminina', 'tênis corrida', 'skincare facial',
+  'sérum vitamina c', 'protetor solar facial', 'perfume importado feminino',
+  'escova secadora', 'air fryer', 'cafeteira expresso', 'aspirador robô',
+  'jogo de panelas', 'whey protein', 'creatina', 'ração golden cachorro',
+];
+
+let burstState = {
+  lastMode: 'query' as 'niche' | 'query',
+  nicheIndex: 0,
+  queryIndex: 0,
+  burstCountToday: 0,
+};
 
 interface PublishResult {
   url: string;
@@ -620,5 +785,257 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       console.error('[AutoPublish/scrape] Erro:', err.message);
       return reply.status(500).send({ error: `Falha ao acessar o produto: ${err.message}` });
     }
+  });
+
+  // ==================== BURST — Publicação automática server-side ====================
+
+  /**
+   * POST /api/auto-publish/burst
+   * Endpoint único que faz tudo: busca produtos no ML, filtra duplicados,
+   * posta no X e Telegram, registra anti-repetição.
+   * A Manu só precisa chamar este endpoint.
+   *
+   * Body: { secret, mode?, niche?, query?, count? }
+   * - mode: "niche" | "query" | "auto" (auto = alterna automaticamente)
+   * - count: quantos produtos postar (default 2)
+   */
+  app.post('/burst', async (request, reply) => {
+    const schema = z.object({
+      secret: z.string(),
+      mode: z.enum(['niche', 'query', 'auto']).default('auto'),
+      niche: z.string().optional(),
+      query: z.string().optional(),
+      count: z.number().min(1).max(5).default(2),
+    });
+
+    try {
+      const body = schema.parse(request.body);
+
+      if (body.secret !== 'promo2026') {
+        return reply.status(403).send({ success: false, error: 'Invalid secret' });
+      }
+
+      cleanupPostedToday();
+
+      // Determinar modo e parâmetro de busca
+      let searchMode: 'niche' | 'query';
+      let searchNiche: string | undefined;
+      let searchQuery: string | undefined;
+
+      if (body.mode === 'auto') {
+        searchMode = burstState.lastMode === 'niche' ? 'query' : 'niche';
+      } else {
+        searchMode = body.mode;
+      }
+
+      if (searchMode === 'niche') {
+        searchNiche = body.niche || NICHES_ROTATION[burstState.nicheIndex % NICHES_ROTATION.length];
+        burstState.nicheIndex = (burstState.nicheIndex + 1) % NICHES_ROTATION.length;
+      } else {
+        searchQuery = body.query || QUERIES_ROTATION[burstState.queryIndex % QUERIES_ROTATION.length];
+        burstState.queryIndex = (burstState.queryIndex + 1) % QUERIES_ROTATION.length;
+      }
+
+      burstState.lastMode = searchMode;
+      burstState.burstCountToday++;
+
+      console.log(`[Burst] #${burstState.burstCountToday} | Modo: ${searchMode} | ${searchMode === 'niche' ? `Nicho: ${searchNiche}` : `Query: ${searchQuery}`} | Count: ${body.count}`);
+
+      // 1. Buscar produtos
+      const browseResult = await searchMLViaCookies({
+        query: searchQuery,
+        niche: searchNiche,
+        dealsOnly: true,
+        limit: 10,
+      });
+
+      if (!browseResult.success || browseResult.products.length === 0) {
+        return reply.send({
+          success: false,
+          error: 'Nenhum produto encontrado',
+          mode: searchMode,
+          searchParam: searchNiche || searchQuery,
+          burstNumber: burstState.burstCountToday,
+        });
+      }
+
+      // 1b. Gerar links de afiliado para os produtos
+      const productsWithLinks = await Promise.all(
+        browseResult.products.map(async (p) => {
+          if (!p.productUrl) return p;
+          try {
+            const official = await createOfficialAffiliateLink(p.productUrl);
+            return {
+              ...p,
+              affiliateUrl: official?.shortUrl || generateAffiliateUrl(p.productUrl),
+              officialLink: official ? { shortUrl: official.shortUrl, longUrl: official.longUrl } : null,
+            };
+          } catch {
+            return { ...p, affiliateUrl: generateAffiliateUrl(p.productUrl) };
+          }
+        })
+      );
+
+      // 2. Filtrar duplicados e selecionar os melhores
+      const candidates = productsWithLinks
+        .filter(p => !isDuplicate(p))
+        .filter(p => p.affiliateUrl && p.affiliateUrl.includes('meli.la'))
+        .filter(p => p.imageUrl)
+        .sort((a, b) => b.discountPercent - a.discountPercent)
+        .slice(0, body.count);
+
+      if (candidates.length === 0) {
+        return reply.send({
+          success: false,
+          error: 'Todos os produtos já foram postados hoje (duplicados)',
+          mode: searchMode,
+          searchParam: searchNiche || searchQuery,
+          totalFound: browseResult.products.length,
+          burstNumber: burstState.burstCountToday,
+        });
+      }
+
+      console.log(`[Burst] ${candidates.length} produto(s) selecionados de ${browseResult.products.length} encontrados`);
+
+      // 3. Postar cada produto
+      const results: Array<{
+        title: string;
+        affiliateUrl: string;
+        humor: string;
+        discountPercent: number;
+        price: number | null;
+        twitter: { success: boolean; error?: string; tweetId?: string };
+        telegram: { success: boolean; error?: string; messageId?: number };
+      }> = [];
+
+      for (let i = 0; i < candidates.length; i++) {
+        const product = candidates[i];
+        const humor = pickHumor(product.title);
+
+        console.log(`[Burst] Postando ${i + 1}/${candidates.length}: "${simplifyTitle(product.title)}" (${product.discountPercent}% OFF)`);
+
+        // 3a. Postar no X/Twitter
+        let twitterResult: { success: boolean; error?: string; tweetId?: string } = { success: false, error: 'Twitter não configurado' };
+        if (isTwitterConfigured()) {
+          try {
+            const titleShort = simplifyTitle(product.title);
+            const parts: string[] = [humor, ''];
+            parts.push(titleShort);
+
+            if (product.originalPrice && product.price && product.originalPrice > product.price) {
+              const pct = product.pixDiscount || product.discountPercent;
+              const pixSuffix = product.pixDiscount ? ' no Pix' : '';
+              parts.push(`De R$${product.originalPrice.toFixed(2)} por R$${product.price.toFixed(2)} (-${pct}%${pixSuffix})`);
+            } else if (product.price) {
+              parts.push(`Por R$${product.price.toFixed(2)}`);
+            }
+
+            if (product.installmentQty && product.installmentAmount) {
+              const noInterest = product.installmentNoInterest ? ' sem juros' : '';
+              parts.push(`ou ${product.installmentQty}x de R$${product.installmentAmount.toFixed(2)}${noInterest}`);
+            }
+
+            if (product.freeShipping) parts.push('Frete Grátis ✅');
+            if (product.couponText) parts.push(`🏷️ ${product.couponText}`);
+
+            parts.push('');
+            parts.push(`👉 ${product.affiliateUrl}`);
+
+            let tweetText = parts.join('\n');
+            if (tweetText.length > 280) {
+              tweetText = tweetText.substring(0, 277) + '...';
+            }
+
+            const res = product.imageUrl
+              ? await postTweetWithImage(tweetText, product.imageUrl)
+              : { success: false, error: 'Sem imagem' };
+
+            twitterResult = { success: res.success, error: res.error, tweetId: (res as any).tweetId };
+          } catch (e: any) {
+            twitterResult = { success: false, error: e.message };
+          }
+        }
+
+        // 3b. Postar no Telegram
+        let telegramResult: { success: boolean; error?: string; messageId?: number } = { success: false, error: 'Telegram não configurado' };
+        if (isTelegramConfigured()) {
+          try {
+            const telegramText = buildReadyTelegramText(product, humor);
+            const res = await sendTelegramPhoto(product.imageUrl, telegramText);
+            telegramResult = { success: res.success, error: res.error, messageId: res.messageId || res.photoMessageId };
+          } catch (e: any) {
+            telegramResult = { success: false, error: e.message };
+          }
+        }
+
+        markAsPosted(product);
+
+        results.push({
+          title: simplifyTitle(product.title),
+          affiliateUrl: product.affiliateUrl || '',
+          humor,
+          discountPercent: product.discountPercent,
+          price: product.price,
+          twitter: twitterResult,
+          telegram: telegramResult,
+        });
+
+        // Pausa entre produtos (não após o último)
+        if (i < candidates.length - 1) {
+          console.log(`[Burst] Aguardando 60s antes do próximo produto...`);
+          await new Promise(resolve => setTimeout(resolve, 60_000));
+        }
+      }
+
+      const successCount = results.filter(r => r.twitter.success || r.telegram.success).length;
+
+      console.log(`[Burst] Rajada #${burstState.burstCountToday} concluída: ${successCount}/${results.length} produtos postados`);
+
+      return reply.send({
+        success: true,
+        burstNumber: burstState.burstCountToday,
+        mode: searchMode,
+        searchParam: searchNiche || searchQuery,
+        nextMode: searchMode === 'niche' ? 'query' : 'niche',
+        nextParam: searchMode === 'niche'
+          ? QUERIES_ROTATION[burstState.queryIndex % QUERIES_ROTATION.length]
+          : NICHES_ROTATION[burstState.nicheIndex % NICHES_ROTATION.length],
+        productsFound: browseResult.products.length,
+        productsPosted: results.length,
+        results,
+        postedTodayTotal: postedToday.length,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return reply.status(400).send({ success: false, error: 'Dados inválidos', details: error.errors });
+      }
+      console.error('[Burst] Erro:', error);
+      return reply.status(500).send({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/auto-publish/burst/status
+   * Retorna estado atual do sistema de burst (para diagnóstico)
+   */
+  app.get('/burst/status', async (_request, reply) => {
+    cleanupPostedToday();
+    return reply.send({
+      success: true,
+      burstState: {
+        lastMode: burstState.lastMode,
+        nicheIndex: burstState.nicheIndex,
+        currentNiche: NICHES_ROTATION[burstState.nicheIndex % NICHES_ROTATION.length],
+        queryIndex: burstState.queryIndex,
+        currentQuery: QUERIES_ROTATION[burstState.queryIndex % QUERIES_ROTATION.length],
+        burstCountToday: burstState.burstCountToday,
+      },
+      postedToday: postedToday.map(p => ({
+        title: p.title,
+        affiliateUrl: p.affiliateUrl,
+        postedAt: new Date(p.timestamp).toISOString(),
+      })),
+      postedTodayCount: postedToday.length,
+    });
   });
 }

@@ -171,10 +171,44 @@ Body: {
 POST /api/telegram/post-offer/:offerId
 ```
 
+### Publicação no Instagram (para agentes — sem sessão)
+```
+POST /api/instagram/publish-agent
+Body: {
+  "url": "URL_PRODUTO_ML_OU_AMAZON",
+  "theme": "light",
+  "secret": "promo2026"
+}
+```
+> ✅ A Promo Platform API já possui internamente:
+>   - POSTFORME_API_KEY (chave de acesso ao Postfor.me)
+>   - POSTFORME_INSTAGRAM_ACCOUNT_ID (ID da conta oficial da Manu no Instagram)
+> A Manu NÃO precisa informar essas credenciais — a API cuida tudo automaticamente.
+> NUNCA use /publish-now (exige sessão de login → erro UNAUTHORIZED).
+
 ### Publicação completa (site + redes)
 ```
 POST /api/auto-publish/publish
 Body: { "url": "URL_PRODUTO", "channels": ["telegram"] }
+```
+
+### Rajada automática (PRINCIPAL — substitui o fluxo multi-passo)
+```
+POST /api/auto-publish/burst
+Body: {
+  "secret": "promo2026",
+  "mode": "auto",   // "auto" | "niche" | "query"
+  "count": 2,       // produtos por rajada (1-5)
+  "niche": "...",    // opcional, se mode="niche"
+  "query": "..."     // opcional, se mode="query"
+}
+```
+> O servidor faz TUDO: busca, filtra duplicados, gera humor, posta no X e Telegram.
+> A Manu só precisa chamar este endpoint 1x por rajada.
+
+### Status do dia
+```
+GET /api/auto-publish/burst/status
 ```
 
 ### Status e diagnóstico
