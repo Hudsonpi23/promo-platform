@@ -10,6 +10,7 @@
  */
 
 import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { chromium, Browser, Page } from 'playwright';
 import { getMLToken } from '../routes/mlAuth.js';
 
@@ -729,6 +730,264 @@ export function getHighQualityImageUrl(thumbnailUrl: string): string {
   return url;
 }
 
+// ==================== BUSCA VIA COOKIES (scraping autenticado) ====================
+
+export interface MLBrowseProduct {
+  title: string;
+  price: number | null;
+  originalPrice: number | null;
+  discountPercent: number;
+  imageUrl: string;
+  productUrl: string;
+  freeShipping: boolean;
+  couponText: string | null;
+}
+
+export interface MLBrowseResult {
+  success: boolean;
+  query: string;
+  products: MLBrowseProduct[];
+  total: number;
+  source: 'cookies' | 'api_fallback';
+  error?: string;
+}
+
+const ML_NICHE_CATEGORIES: Record<string, string> = {
+  'eletronicos': 'MLB1000',
+  'celulares': 'MLB1051',
+  'informatica': 'MLB1648',
+  'games': 'MLB1144',
+  'eletrodomesticos': 'MLB1574',
+  'moveis': 'MLB1574',
+  'esportes': 'MLB1276',
+  'moda': 'MLB1430',
+  'beleza': 'MLB1246',
+  'brinquedos': 'MLB1132',
+  'bebes': 'MLB1196',
+  'pet': 'MLB1071',
+  'ferramentas': 'MLB1500',
+  'saude': 'MLB1953',
+  'construcao': 'MLB1500',
+};
+
+/**
+ * Busca produtos no ML via scraping autenticado (com cookies da sessão do usuário).
+ * Navega diretamente no site do ML como um browser logado, parseando o HTML.
+ * Ideal quando a API oficial falha ou retorna dados incompletos.
+ */
+export async function searchMLViaCookies(options: {
+  query?: string;
+  niche?: string;
+  dealsOnly?: boolean;
+  limit?: number;
+}): Promise<MLBrowseResult> {
+  const { query, niche, dealsOnly = false, limit = 20 } = options;
+
+  if (!isMLSessionConfigured()) {
+    return { success: false, query: query || niche || '', products: [], total: 0, source: 'cookies', error: 'Sessão ML não configurada' };
+  }
+
+  try {
+    await refreshMLCookies();
+
+    let url: string;
+    const searchTerm = query || niche || '';
+
+    if (dealsOnly && !query) {
+      const catId = niche ? ML_NICHE_CATEGORIES[niche.toLowerCase()] : null;
+      url = catId
+        ? `https://www.mercadolivre.com.br/ofertas?category=${catId}`
+        : 'https://www.mercadolivre.com.br/ofertas';
+    } else if (query) {
+      url = `https://lista.mercadolivre.com.br/${encodeURIComponent(query)}`;
+      if (dealsOnly) url += '_Desde_MercadoL%C3%ADder_NoIndex_True';
+    } else if (niche && ML_NICHE_CATEGORIES[niche.toLowerCase()]) {
+      url = `https://www.mercadolivre.com.br/ofertas?category=${ML_NICHE_CATEGORIES[niche.toLowerCase()]}`;
+    } else {
+      url = `https://lista.mercadolivre.com.br/${encodeURIComponent(niche || 'ofertas do dia')}`;
+    }
+
+    console.log(`[ML-Browse] Buscando: ${url}`);
+
+    const resp = await fetch(url, {
+      headers: {
+        'cookie': _mlSessionCookie,
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-language': 'pt-BR,pt;q=0.9',
+      },
+      redirect: 'follow',
+    });
+
+    if (!resp.ok) {
+      return { success: false, query: searchTerm, products: [], total: 0, source: 'cookies', error: `HTTP ${resp.status}` };
+    }
+
+    const html = await resp.text();
+    const $ = cheerio.load(html);
+
+    const products: MLBrowseProduct[] = [];
+
+    // Seletores do ML para cards de resultado de busca
+    const cardSelectors = [
+      'li.ui-search-layout__item',
+      'li.promotion-item',
+      'div.andes-card[data-testid]',
+      'li[class*="search-layout"]',
+      'div.poly-card',
+    ];
+
+    let cards: cheerio.Cheerio<any> | null = null;
+    for (const sel of cardSelectors) {
+      const found = $(sel);
+      if (found.length > 0) {
+        cards = found;
+        console.log(`[ML-Browse] Seletor "${sel}" encontrou ${found.length} cards`);
+        break;
+      }
+    }
+
+    if (cards && cards.length > 0) {
+      cards.slice(0, limit).each((_i, el) => {
+        const card = $(el);
+        const product = parseProductCard($, card);
+        if (product && product.title && product.productUrl) {
+          products.push(product);
+        }
+      });
+    }
+
+    // Fallback: tentar extrair do __PRELOADED_STATE__ JSON embutido no HTML
+    if (products.length === 0) {
+      const stateMatch = html.match(/__PRELOADED_STATE__\s*=\s*({[\s\S]*?});?\s*<\/script>/);
+      if (stateMatch) {
+        try {
+          const state = JSON.parse(stateMatch[1]);
+          const results = state?.initialState?.results || state?.results || [];
+          for (const item of results.slice(0, limit)) {
+            const price = item.price?.amount || item.prices?.prices?.[0]?.amount || null;
+            const origPrice = item.original_price?.amount || item.prices?.reference_prices?.[0]?.amount || null;
+            const discount = origPrice && price && origPrice > price
+              ? Math.round(((origPrice - price) / origPrice) * 100)
+              : 0;
+
+            products.push({
+              title: item.title || '',
+              price,
+              originalPrice: origPrice,
+              discountPercent: discount,
+              imageUrl: item.thumbnail || item.pictures?.[0]?.url || '',
+              productUrl: item.permalink || '',
+              freeShipping: item.shipping?.free_shipping || false,
+              couponText: null,
+            });
+          }
+          console.log(`[ML-Browse] Extraídos ${products.length} produtos do __PRELOADED_STATE__`);
+        } catch {
+          console.warn('[ML-Browse] Falha ao parsear __PRELOADED_STATE__');
+        }
+      }
+    }
+
+    // Fallback 2: regex bruto para links de produto
+    if (products.length === 0) {
+      const linkRegex = /href="(https:\/\/www\.mercadolivre\.com\.br\/[^"]+\/p\/MLB\d+[^"]*)"/g;
+      const itemRegex = /href="(https:\/\/(?:www|produto)\.mercadolivre\.com\.br\/[^"]*MLB[- ]\d+[^"]*)"/g;
+      const allLinks = new Set<string>();
+
+      let match;
+      while ((match = linkRegex.exec(html)) !== null) allLinks.add(match[1]);
+      while ((match = itemRegex.exec(html)) !== null) allLinks.add(match[1]);
+
+      for (const link of [...allLinks].slice(0, limit)) {
+        products.push({
+          title: decodeURIComponent(link.split('/')[3] || '').replace(/-/g, ' '),
+          price: null,
+          originalPrice: null,
+          discountPercent: 0,
+          imageUrl: '',
+          productUrl: link.split('?')[0],
+          freeShipping: false,
+          couponText: null,
+        });
+      }
+      if (products.length > 0) {
+        console.log(`[ML-Browse] Fallback regex: ${products.length} links extraídos`);
+      }
+    }
+
+    const setCookies = resp.headers.getSetCookie?.() || [];
+    if (setCookies.length > 0) {
+      _mlSessionCookie = mergeCookies(_mlSessionCookie, setCookies);
+    }
+
+    console.log(`[ML-Browse] Total: ${products.length} produtos para "${searchTerm}"`);
+    return {
+      success: true,
+      query: searchTerm,
+      products,
+      total: products.length,
+      source: 'cookies',
+    };
+  } catch (err: any) {
+    console.error('[ML-Browse] Erro:', err.message);
+    return { success: false, query: query || niche || '', products: [], total: 0, source: 'cookies', error: err.message };
+  }
+}
+
+function parseProductCard($: cheerio.CheerioAPI, card: cheerio.Cheerio<any>): MLBrowseProduct | null {
+  try {
+    const linkEl = card.find('a[href*="mercadolivre.com.br"]').first();
+    const productUrl = (linkEl.attr('href') || '').split('#')[0].split('?')[0];
+
+    const titleEl = card.find('h2, h3, [class*="title"], [class*="item__title"]').first();
+    const title = titleEl.text().trim() || linkEl.attr('title') || '';
+
+    let price: number | null = null;
+    let originalPrice: number | null = null;
+
+    const priceEl = card.find('[class*="price__fraction"], [class*="money-amount__fraction"]');
+    if (priceEl.length > 0) {
+      const priceText = priceEl.first().text().replace(/\./g, '').trim();
+      const centsEl = card.find('[class*="money-amount__cents"]').first();
+      const cents = centsEl.text().trim();
+      price = parseFloat(priceText + (cents ? '.' + cents : ''));
+    }
+
+    const origEl = card.find('[class*="original-value"] [class*="fraction"], s [class*="fraction"]');
+    if (origEl.length > 0) {
+      const origText = origEl.first().text().replace(/\./g, '').trim();
+      originalPrice = parseFloat(origText) || null;
+    }
+
+    const discount = originalPrice && price && originalPrice > price
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : 0;
+
+    const imgEl = card.find('img[src*="mlstatic"], img[data-src*="mlstatic"]').first();
+    const imageUrl = imgEl.attr('src') || imgEl.attr('data-src') || '';
+
+    const freeShipping = card.text().toLowerCase().includes('frete grátis')
+      || card.find('[class*="free-shipping"], [class*="shipping--free"]').length > 0;
+
+    const couponEl = card.find('[class*="coupon"], [class*="highlight__label"]');
+    const couponText = couponEl.length > 0 ? couponEl.first().text().trim() : null;
+
+    return {
+      title,
+      price: isNaN(price as number) ? null : price,
+      originalPrice: isNaN(originalPrice as number) ? null : originalPrice,
+      discountPercent: discount,
+      imageUrl: imageUrl.replace('http://', 'https://'),
+      productUrl,
+      freeShipping,
+      couponText,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ==================== CATEGORIAS POPULARES ====================
 
 export const ML_CATEGORIES = {
@@ -755,6 +1014,7 @@ export default {
   isMLSessionConfigured,
   getMLSession,
   setMLSession,
+  searchMLViaCookies,
   extractProductImage,
   scrapeMLPrice,
   getHighQualityImageUrl,

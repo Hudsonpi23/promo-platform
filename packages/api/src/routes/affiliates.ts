@@ -13,7 +13,7 @@ import axios from 'axios';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
-import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, createOfficialAffiliateLink, isMLSessionConfigured, getMLSession, setMLSession, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice } from '../services/mlAffiliate.js';
+import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, createOfficialAffiliateLink, isMLSessionConfigured, getMLSession, setMLSession, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice, searchMLViaCookies } from '../services/mlAffiliate.js';
 import { getMLToken } from './mlAuth.js';
 
 // ==================== SCHEMAS ====================
@@ -823,6 +823,126 @@ export async function affiliatesRoutes(app: FastifyInstance) {
     return reply.status(401).send({
       success: false,
       error: { code: 'SESSION_EXPIRED', message: 'Sessão ML expirada. Atualize os cookies.' },
+    });
+  });
+
+  // ==================== BUSCA ML VIA COOKIES (para Manu/OpenClaw) ====================
+
+  /**
+   * POST /api/affiliates/ml-browse
+   * Busca produtos no ML via scraping autenticado (cookies da sessão).
+   * Fallback robusto quando a API oficial falha.
+   * Ideal para Manu navegar por nichos no ML.
+   *
+   * Body: { query?, niche?, dealsOnly?, limit?, generateLinks? }
+   * Nichos: eletronicos, celulares, informatica, games, moda, bebes, pet, etc.
+   */
+  app.post('/ml-browse', async (request: FastifyRequest, reply: FastifyReply) => {
+    try {
+      const body = z.object({
+        query: z.string().optional(),
+        niche: z.string().optional(),
+        dealsOnly: z.boolean().default(false),
+        limit: z.number().min(1).max(50).default(20),
+        generateLinks: z.boolean().default(false),
+      }).parse(request.body);
+
+      if (!body.query && !body.niche) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'MISSING_PARAMS', message: 'Informe query ou niche' },
+        });
+      }
+
+      if (!isMLSessionConfigured()) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: 'SESSION_NOT_CONFIGURED', message: 'Sessão ML não configurada. Atualize os cookies em /config → ML Afiliado.' },
+        });
+      }
+
+      const result = await searchMLViaCookies({
+        query: body.query,
+        niche: body.niche,
+        dealsOnly: body.dealsOnly,
+        limit: body.limit,
+      });
+
+      if (!result.success) {
+        return reply.status(502).send({
+          success: false,
+          error: { code: 'BROWSE_FAILED', message: result.error || 'Falha no scraping' },
+        });
+      }
+
+      let products = result.products;
+
+      if (body.generateLinks && products.length > 0) {
+        const withLinks = await Promise.all(
+          products.slice(0, 10).map(async (p) => {
+            if (!p.productUrl) return { ...p, affiliateUrl: null };
+            const official = await createOfficialAffiliateLink(p.productUrl);
+            return {
+              ...p,
+              affiliateUrl: official?.shortUrl || generateAffiliateUrl(p.productUrl),
+              officialLink: official ? { shortUrl: official.shortUrl, longUrl: official.longUrl } : null,
+            };
+          })
+        );
+        products = withLinks as any;
+      }
+
+      return reply.send({
+        success: true,
+        data: {
+          query: result.query,
+          source: result.source,
+          total: result.total,
+          products,
+          available_niches: [
+            'eletronicos', 'celulares', 'informatica', 'games',
+            'eletrodomesticos', 'moveis', 'esportes', 'moda',
+            'beleza', 'brinquedos', 'bebes', 'pet',
+            'ferramentas', 'saude', 'construcao',
+          ],
+        },
+      });
+    } catch (error: any) {
+      console.error('[ML-Browse] Erro na rota:', error);
+      if (error.name === 'ZodError') {
+        return sendError(reply, Errors.VALIDATION_ERROR(error.errors));
+      }
+      return sendError(reply, error);
+    }
+  });
+
+  /**
+   * GET /api/affiliates/ml-browse/niches
+   * Lista nichos disponíveis para busca
+   */
+  app.get('/ml-browse/niches', async (_request: FastifyRequest, reply: FastifyReply) => {
+    return reply.send({
+      success: true,
+      data: {
+        niches: [
+          { key: 'eletronicos', label: 'Eletrônicos', categoryId: 'MLB1000' },
+          { key: 'celulares', label: 'Celulares', categoryId: 'MLB1051' },
+          { key: 'informatica', label: 'Informática', categoryId: 'MLB1648' },
+          { key: 'games', label: 'Games', categoryId: 'MLB1144' },
+          { key: 'eletrodomesticos', label: 'Eletrodomésticos', categoryId: 'MLB1574' },
+          { key: 'moveis', label: 'Móveis e Decoração', categoryId: 'MLB1574' },
+          { key: 'esportes', label: 'Esportes e Fitness', categoryId: 'MLB1276' },
+          { key: 'moda', label: 'Moda', categoryId: 'MLB1430' },
+          { key: 'beleza', label: 'Beleza e Saúde', categoryId: 'MLB1246' },
+          { key: 'brinquedos', label: 'Brinquedos', categoryId: 'MLB1132' },
+          { key: 'bebes', label: 'Bebês', categoryId: 'MLB1196' },
+          { key: 'pet', label: 'Pet Shop', categoryId: 'MLB1071' },
+          { key: 'ferramentas', label: 'Ferramentas', categoryId: 'MLB1500' },
+          { key: 'saude', label: 'Saúde', categoryId: 'MLB1953' },
+          { key: 'construcao', label: 'Construção', categoryId: 'MLB1500' },
+        ],
+        sessionConfigured: isMLSessionConfigured(),
+      },
     });
   });
 
