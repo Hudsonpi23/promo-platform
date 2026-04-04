@@ -6,6 +6,89 @@ import { generateCopies } from '../services/aiCopyGenerator.js';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 
+const HUMOR_PHRASES: Record<string, string[]> = {
+  tv: [
+    'Seu vizinho vai achar que você abriu um cinema 😂🍿',
+    'Prepare a pipoca porque essa TV pede maratona 🍿😎',
+    'Essa TV é tão boa que até o gato vai parar pra assistir 🐱📺',
+  ],
+  monitor: [
+    'Seu setup vai ficar tão bonito que dá pra chorar 😭🖥️',
+    'Produtividade ou game? Com esse monitor, os dois 🎮💼',
+    'Seu chefe vai pensar que você trabalha melhor assim 😂🖥️',
+  ],
+  fone: [
+    'Vizinho barulhento? Problema resolvido 😂🎧',
+    'Você vai esquecer que o mundo existe 🎧✨',
+    'Modo "não me perturbe" ativado automaticamente 😎🎶',
+  ],
+  celular: [
+    'Seu celular antigo mandou dizer que aceita aposentadoria 😂📱',
+    'Foto boa assim nem precisa de filtro 📸😎',
+    'Bateria que dura mais que segunda-feira 🔋😂',
+  ],
+  notebook: [
+    'Leve que nem papel, potente que nem foguete 🚀💻',
+    'Home office com esse notebook é outra vida 😎💻',
+    'Seu notebook atual acabou de pedir demissão 😂💻',
+  ],
+  game: [
+    'Sua vida social pode sofrer efeitos colaterais 😂🎮',
+    'Avisa a família que você vai sumir por uns dias 🎮😂',
+    'Inimigo vai pedir desculpa quando ver esse setup 😎🕹️',
+  ],
+  cadeira: [
+    'Sua coluna mandou dizer: "obrigada!" 😂🪑',
+    'Conforto nível "não quero mais levantar" 🪑😎',
+  ],
+  cozinha: [
+    'Chef Manu aprova essa oferta 👨‍🍳🔥',
+    'Cozinhar com esse preço é receita de felicidade 😂🍳',
+  ],
+  esporte: [
+    'Faltou motivação? Faltou era esse preço 😂💪',
+    'Seu eu fitness agradece essa oferta 🏃‍♂️🔥',
+  ],
+  bebe: [
+    'O bebê não entende o preço mas você sim 😂👶',
+    'Papai/Mamãe esperto(a) economiza assim 👶💰',
+  ],
+  pet: [
+    'Seu pet merece e seu bolso também 🐶😂',
+    'Mimado com desconto é o melhor tipo de mimado 🐱💕',
+  ],
+  geral: [
+    'Esse preço tá tão bom que parece bug 😂🔥',
+    'Corre que daqui a pouco alguém acorda 😂⚡',
+    'Promoção assim eu até acordo mais cedo 😴💰',
+    'Preço bom assim dá vontade de comprar dois 😂🛒',
+    'Se tá barato eu não julgo, eu compro 😂🛍️',
+    'Minha carteira pediu pra eu não mostrar isso 😂💸',
+    'Esse desconto deveria ser crime 🚨😂',
+    'Quem disse que coisa boa não cai do céu? 😂🎁',
+  ],
+};
+
+function pickHumorPhrase(title: string): string {
+  const t = title.toLowerCase();
+  if (t.includes('tv') || t.includes('televisão') || t.includes('smart tv')) return pick(HUMOR_PHRASES.tv);
+  if (t.includes('monitor')) return pick(HUMOR_PHRASES.monitor);
+  if (t.includes('fone') || t.includes('headset') || t.includes('earphone') || t.includes('airpod')) return pick(HUMOR_PHRASES.fone);
+  if (t.includes('celular') || t.includes('iphone') || t.includes('samsung galaxy') || t.includes('smartphone')) return pick(HUMOR_PHRASES.celular);
+  if (t.includes('notebook') || t.includes('laptop') || t.includes('macbook')) return pick(HUMOR_PHRASES.notebook);
+  if (t.includes('console') || t.includes('playstation') || t.includes('xbox') || t.includes('nintendo') || t.includes('jogo') || t.includes('game')) return pick(HUMOR_PHRASES.game);
+  if (t.includes('cadeira') || t.includes('escritório')) return pick(HUMOR_PHRASES.cadeira);
+  if (t.includes('air fryer') || t.includes('cafeteira') || t.includes('liquidificador') || t.includes('panela') || t.includes('fogão') || t.includes('geladeira')) return pick(HUMOR_PHRASES.cozinha);
+  if (t.includes('tênis') || t.includes('bicicleta') || t.includes('esteira') || t.includes('halter')) return pick(HUMOR_PHRASES.esporte);
+  if (t.includes('bebê') || t.includes('carrinho') || t.includes('berço') || t.includes('fralda')) return pick(HUMOR_PHRASES.bebe);
+  if (t.includes('pet') || t.includes('ração') || t.includes('cachorro') || t.includes('gato')) return pick(HUMOR_PHRASES.pet);
+  return pick(HUMOR_PHRASES.geral);
+}
+
+function pick(arr: string[]): string {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 export async function twitterRoutes(app: FastifyInstance) {
   /**
    * GET /api/twitter/status
@@ -72,6 +155,99 @@ export async function twitterRoutes(app: FastifyInstance) {
         });
       }
       throw error;
+    }
+  });
+
+  /**
+   * POST /api/twitter/post-agent
+   * Rota para agentes (Manu/OpenClaw) postarem no X sem sessão de login.
+   * Aceita produto direto do ml-browse com geração automática de humor.
+   */
+  app.post('/post-agent', async (request, reply) => {
+    const schema = z.object({
+      secret: z.string(),
+      title: z.string().min(1),
+      price: z.number().optional(),
+      originalPrice: z.number().optional(),
+      discountPercent: z.number().optional(),
+      affiliateUrl: z.string().min(1),
+      imageUrl: z.string().url().optional(),
+      freeShipping: z.boolean().optional(),
+      couponText: z.string().optional().nullable(),
+      customHumor: z.string().optional(),
+    });
+
+    try {
+      const body = schema.parse(request.body);
+
+      if (body.secret !== 'promo2026') {
+        return reply.status(403).send({ success: false, error: 'Invalid secret' });
+      }
+
+      if (!isTwitterConfigured()) {
+        return reply.status(500).send({ success: false, error: 'Twitter API não configurada' });
+      }
+
+      const humor = body.customHumor || pickHumorPhrase(body.title);
+
+      const titleShort = body.title.length > 70
+        ? body.title.substring(0, 67) + '...'
+        : body.title;
+
+      const parts: string[] = [];
+      parts.push(humor);
+      parts.push('');
+      parts.push(titleShort);
+
+      if (body.originalPrice && body.price && body.originalPrice > body.price && body.discountPercent) {
+        parts.push(`De R$${body.originalPrice.toFixed(2)} por R$${body.price.toFixed(2)} (-${Math.round(body.discountPercent)}%)`);
+      } else if (body.price) {
+        parts.push(`Por R$${body.price.toFixed(2)}`);
+      }
+
+      if (body.freeShipping) parts.push('Frete Grátis ✅');
+      if (body.couponText) parts.push(`🏷️ ${body.couponText}`);
+
+      parts.push('');
+      parts.push(`👉 ${body.affiliateUrl}`);
+
+      let tweetText = parts.join('\n');
+
+      if (tweetText.length > 280) {
+        const shorterTitle = body.title.substring(0, 45) + '...';
+        const compact: string[] = [humor, '', shorterTitle];
+        if (body.price) compact.push(`R$${body.price.toFixed(2)}${body.discountPercent ? ` (-${Math.round(body.discountPercent)}%)` : ''}`);
+        compact.push('', `👉 ${body.affiliateUrl}`);
+        tweetText = compact.join('\n');
+      }
+
+      if (tweetText.length > 280) {
+        tweetText = tweetText.substring(0, 277) + '...';
+      }
+
+      console.log(`[Twitter post-agent] Tweet (${tweetText.length} chars): ${tweetText.substring(0, 80)}...`);
+
+      const result = body.imageUrl
+        ? await postTweetWithImage(tweetText, body.imageUrl)
+        : await postTweet(tweetText);
+
+      if (!result.success) {
+        return reply.status(400).send({ success: false, error: result.error });
+      }
+
+      return {
+        success: true,
+        tweetId: result.tweetId,
+        tweetUrl: result.tweetUrl,
+        tweetText,
+        humorUsed: humor,
+      };
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return reply.status(400).send({ success: false, error: 'Dados inválidos', details: error.errors });
+      }
+      console.error('[Twitter post-agent] Erro:', error);
+      return reply.status(500).send({ success: false, error: error.message });
     }
   });
 
