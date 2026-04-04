@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { isTwitterConfigured, postOfferToTwitter, postTweet, generateTweetText, postTweetWithImage } from '../services/twitter.js';
 import { generateCopies } from '../services/aiCopyGenerator.js';
+import { simplifyTitle } from '../services/mlAffiliate.js';
 import { z } from 'zod';
 import { nanoid } from 'nanoid';
 
@@ -76,9 +77,9 @@ function pickHumorPhrase(title: string): string {
   if (t.includes('fone') || t.includes('headset') || t.includes('earphone') || t.includes('airpod')) return pick(HUMOR_PHRASES.fone);
   if (t.includes('celular') || t.includes('iphone') || t.includes('samsung galaxy') || t.includes('smartphone')) return pick(HUMOR_PHRASES.celular);
   if (t.includes('notebook') || t.includes('laptop') || t.includes('macbook')) return pick(HUMOR_PHRASES.notebook);
-  if (t.includes('console') || t.includes('playstation') || t.includes('xbox') || t.includes('nintendo') || t.includes('jogo') || t.includes('game')) return pick(HUMOR_PHRASES.game);
+  if (t.includes('console') || t.includes('playstation') || t.includes('xbox') || t.includes('nintendo') || t.includes('game')) return pick(HUMOR_PHRASES.game);
   if (t.includes('cadeira') || t.includes('escritório')) return pick(HUMOR_PHRASES.cadeira);
-  if (t.includes('air fryer') || t.includes('cafeteira') || t.includes('liquidificador') || t.includes('panela') || t.includes('fogão') || t.includes('geladeira')) return pick(HUMOR_PHRASES.cozinha);
+  if (t.includes('air fryer') || t.includes('cafeteira') || t.includes('liquidificador') || t.includes('panela') || t.includes('fogão') || t.includes('geladeira') || t.includes('taça') || t.includes('jogo') || t.includes('pote') || t.includes('assadeira') || t.includes('copo') || t.includes('frigideira') || t.includes('chaleira') || t.includes('microondas') || t.includes('batedeira')) return pick(HUMOR_PHRASES.cozinha);
   if (t.includes('tênis') || t.includes('bicicleta') || t.includes('esteira') || t.includes('halter')) return pick(HUMOR_PHRASES.esporte);
   if (t.includes('bebê') || t.includes('carrinho') || t.includes('berço') || t.includes('fralda')) return pick(HUMOR_PHRASES.bebe);
   if (t.includes('pet') || t.includes('ração') || t.includes('cachorro') || t.includes('gato')) return pick(HUMOR_PHRASES.pet);
@@ -196,9 +197,7 @@ export async function twitterRoutes(app: FastifyInstance) {
 
       const humor = body.customHumor || pickHumorPhrase(body.title);
 
-      const titleShort = body.title.length > 65
-        ? body.title.substring(0, 62) + '...'
-        : body.title;
+      const titleShort = simplifyTitle(body.title);
 
       const parts: string[] = [];
       parts.push(humor);

@@ -806,6 +806,61 @@ export function getHighQualityImageUrl(thumbnailUrl: string): string {
   return url;
 }
 
+// ==================== SIMPLIFICAÇÃO DE TÍTULOS ====================
+
+const NOISE_PATTERNS = [
+  /\bprocessador\s+\S+(\s+\S+){0,3}/gi,
+  /\bsuper\s+upscaling\b/gi,
+  /\bupscaling\b/gi,
+  /\bgoogle\s+cast\b/gi,
+  /\bcontrole\s+(ai\s+)?smart\s+magic\b/gi,
+  /\bwebos\s*\d*/gi,
+  /\bger\d+\b/gi,
+  /\b(com\s+)?comando\s+de\s+voz\b/gi,
+  /\bthinq\s*(ai)?\b/gi,
+  /\boled\s+evo\b/gi,
+  /\bprofissional\b/gi,
+  /\bzer[oa]\s+frame\b/gi,
+  /\b\d+hz\b/gi,
+  /\bfull\s+hd\b/gi,
+  /\bnanocell\b/gi,
+  /\bqled\b/gi,
+  /\bprocessador\b.*$/gi,
+  /\bintegrado\b/gi,
+  /\bbuilt\s*in\b/gi,
+  /\bcontrole\s+remoto\b/gi,
+  /\bmodelo\s+\d+\b/gi,
+  /\bawz\b/gi,
+  /\bpsb\b/gi,
+  /\b[A-Z]{2,}\d{4,}[A-Z]*\b/g,
+  /\b\d{2}[A-Za-z]{2,}\d{3,}[A-Za-z]*\b/g,
+  /\b[A-Za-z]{2,3}-?\d{2,}-?[A-Za-z]{1,2}\b/g,
+];
+
+export function simplifyTitle(title: string): string {
+  let clean = title;
+
+  for (const pattern of NOISE_PATTERNS) {
+    clean = clean.replace(pattern, '');
+  }
+
+  clean = clean
+    .replace(/\s*,\s*/g, ', ')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s*,\s*,/g, ',')
+    .replace(/,\s*$/g, '')
+    .replace(/^\s*,\s*/g, '')
+    .trim();
+
+  if (clean.length > 80) {
+    const cut = clean.substring(0, 80);
+    const lastSpace = cut.lastIndexOf(' ');
+    clean = lastSpace > 40 ? cut.substring(0, lastSpace) : cut;
+  }
+
+  return clean;
+}
+
 // ==================== BUSCA VIA COOKIES (scraping autenticado) ====================
 
 export interface MLBrowseProduct {
@@ -851,7 +906,7 @@ export function buildReadyPostAgent(p: MLBrowseProduct, humor: string): Record<s
 
 export function buildReadyTelegramText(p: MLBrowseProduct, humor: string): string {
   const lines: string[] = [humor, ''];
-  lines.push(`🔥 ${p.title}`);
+  lines.push(`🔥 ${simplifyTitle(p.title)}`);
   lines.push('');
 
   if (p.originalPrice && p.price && p.originalPrice > p.price) {
@@ -1241,4 +1296,5 @@ export default {
   AFFILIATE_TAG,
   buildReadyPostAgent,
   buildReadyTelegramText,
+  simplifyTitle,
 };
