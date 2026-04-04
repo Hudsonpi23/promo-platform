@@ -152,11 +152,6 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string, chatI
     console.warn('[Telegram] ⚠️ URL pode não ser uma imagem válida:', photoUrl.substring(0, 100));
   }
   
-  if (photoUrl.includes('mlstatic.com')) {
-    photoUrl = photoUrl.replace(/\.webp(\?.*)?$/, '.jpg').replace('D_Q_NP_2X_', 'D_NQ_NP_');
-    console.log('[Telegram] URL ML normalizada para JPG:', photoUrl.substring(0, 100));
-  }
-
   console.log('[Telegram] ✅ URL da foto validada:', photoUrl.substring(0, 100));
 
   // VALIDAÇÃO: Garantir que tem caption
