@@ -63,6 +63,8 @@ export default function OfertasPage() {
   const [couponCode, setCouponCode] = useState('');
   const [couponType, setCouponType] = useState<'percent' | 'fixed'>('percent');
   const [couponValue, setCouponValue] = useState('');
+  const [autoCoupon, setAutoCoupon] = useState<{ available: boolean; percentage: number | null; savings: number | null; isAutomatic: boolean } | null>(null);
+  const [loadingAutoCoupon, setLoadingAutoCoupon] = useState(false);
 
   const generateAiPhrase = async (offer: any) => {
     setGeneratingAiPhrase(true);
@@ -123,11 +125,23 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
   const getCouponLine = () => {
     const code = couponCode.trim().toUpperCase();
     const val = parseFloat(couponValue);
-    if (!code || !val || val <= 0) return '';
-    if (couponType === 'percent') {
-      return `CUPOM #${code} ➡️ Aplicar ${val}% OFF.`;
+    // Manual coupon takes priority
+    if (code && val && val > 0) {
+      if (couponType === 'percent') {
+        return `CUPOM #${code} ➡️ Aplicar ${val}% OFF.`;
+      }
+      return `CUPOM #${code} ➡️ R$${val.toFixed(0)} de desconto.`;
     }
-    return `CUPOM #${code} ➡️ R$${val.toFixed(0)} de desconto.`;
+    // Auto-detected coupon from product page
+    if (autoCoupon?.available) {
+      if (autoCoupon.percentage && autoCoupon.percentage > 0) {
+        return `🎟️ Cupom automático de ${autoCoupon.percentage}% OFF no checkout — só clicar em Aplicar!`;
+      }
+      if (autoCoupon.savings && autoCoupon.savings > 0) {
+        return `🎟️ Cupom automático de R$${autoCoupon.savings.toFixed(0)} OFF no checkout — só clicar em Aplicar!`;
+      }
+    }
+    return '';
   };
 
   const getFullPreviewText = (baseText: string | null) => {
@@ -155,10 +169,42 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
     return replaced.length;
   };
 
+  // Detecta cupom automático via scraping da URL do ML
+  const detectAutoCoupon = async (affiliateUrl: string | null) => {
+    if (!affiliateUrl) return;
+    const isML = affiliateUrl.includes('mercadolivre') || affiliateUrl.includes('mercadolibre') || affiliateUrl.includes('meli.la');
+    if (!isML) return;
+
+    setLoadingAutoCoupon(true);
+    try {
+      const res = await fetchWithAuth('/api/affiliates/generate', {
+        method: 'POST',
+        body: JSON.stringify({ url: affiliateUrl }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.product?.coupon?.available) {
+        setAutoCoupon(data.data.product.coupon);
+      } else {
+        setAutoCoupon(null);
+      }
+    } catch {
+      setAutoCoupon(null);
+    } finally {
+      setLoadingAutoCoupon(false);
+    }
+  };
+
   // Carrega o preview real do servidor
   const loadPreview = async (offerId: string, offer: any) => {
     setCreativePhrase('');
+    setCouponCode('');
+    setCouponValue('');
+    setAutoCoupon(null);
     setPreviewModal({ offerId, offer, previewText: null, loadingPreview: true });
+
+    // Detectar cupom automático em paralelo
+    detectAutoCoupon(offer.affiliateUrl);
+
     try {
       const pm = cardPayment[offerId] || 'avista';
       const inst = cardInstallments[offerId] ?? 12;
@@ -960,7 +1006,7 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                 🐦 Preview do Post no X
                 {previewEditing && <span className="ml-2 text-xs text-yellow-400 font-normal">✏️ Modo Edição</span>}
               </h2>
-              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); setCouponCode(''); setCouponValue(''); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
+              <button onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); setCouponCode(''); setCouponValue(''); setAutoCoupon(null); }} className="text-text-muted hover:text-text-primary text-xl">✕</button>
             </div>
 
             {/* Corpo */}
@@ -1031,9 +1077,31 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
                   {/* Separador */}
                   <div className="border-t border-border/50" />
 
-                  {/* Cupom de desconto */}
+                  {/* Cupom automático detectado */}
+                  {loadingAutoCoupon && (
+                    <div className="bg-blue-950/30 border border-blue-700/40 rounded-lg px-3 py-2">
+                      <p className="text-xs text-blue-300">🔍 Detectando cupom automático do produto...</p>
+                    </div>
+                  )}
+                  {autoCoupon?.available && !couponCode.trim() && (
+                    <div className="bg-green-950/30 border border-green-700/40 rounded-lg px-3 py-3 space-y-1">
+                      <p className="text-xs font-bold text-green-300">🎟️ Cupom automático detectado!</p>
+                      <p className="text-xs text-green-200">
+                        {autoCoupon.percentage ? `${autoCoupon.percentage}% OFF` : `R$ ${autoCoupon.savings?.toFixed(0)} OFF`}
+                        {' '}— aplicação automática no checkout (1 clique)
+                      </p>
+                      {autoCoupon.savings && (
+                        <p className="text-xs text-green-400/80">Economia estimada: R$ {autoCoupon.savings.toFixed(2)}</p>
+                      )}
+                      <p className="text-[10px] text-green-400/60 mt-1">Será incluído automaticamente no post</p>
+                    </div>
+                  )}
+
+                  {/* Cupom manual (código) */}
                   <div className="space-y-2">
-                    <label className="text-xs font-semibold text-text-primary">🎟️ Inserir Cupom <span className="text-text-muted font-normal">(opcional)</span></label>
+                    <label className="text-xs font-semibold text-text-primary">
+                      🏷️ Cupom com código <span className="text-text-muted font-normal">(manual — sobrepõe o automático)</span>
+                    </label>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       {(['percent', 'fixed'] as const).map(t => (
                         <button
@@ -1114,7 +1182,7 @@ Gere uma frase ÚNICA e ORIGINAL que se conecte especificamente com "${title.sub
             {/* Botões */}
             <div className="p-5 border-t border-border flex gap-3">
               <button
-                onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); setCouponCode(''); setCouponValue(''); }}
+                onClick={() => { setPreviewModal(null); setPreviewEditing(false); setCreativePhrase(''); setCouponCode(''); setCouponValue(''); setAutoCoupon(null); }}
                 className="flex-1 py-2 rounded-lg border border-border text-text-muted hover:text-text-primary transition-all"
               >
                 Cancelar

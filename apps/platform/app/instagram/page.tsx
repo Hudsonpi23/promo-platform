@@ -196,14 +196,28 @@ export default function InstagramPage() {
         };
       } else {
         const p = data.data?.product;
-        if (p?.title) prod = {
-          title: p.title,
-          finalPrice: p.price ?? 0,
-          originalPrice: p.original_price ?? null,
-          discountPct: p.discount_percentage ?? 0,
-          imageUrl: p.thumbnail ?? null,
-          source: 'mercadolivre',
-        };
+        if (p?.title) {
+          prod = {
+            title: p.title,
+            finalPrice: p.price ?? 0,
+            originalPrice: p.original_price ?? null,
+            discountPct: p.discount_percentage ?? 0,
+            imageUrl: p.thumbnail ?? null,
+            source: 'mercadolivre',
+          };
+          // Auto-fill coupon if detected from product page
+          if (p.coupon?.available && !couponCode.trim()) {
+            if (p.coupon.percentage && p.coupon.percentage > 0) {
+              setCouponType('percent');
+              setCouponDiscountPct(String(p.coupon.percentage));
+              setCouponCode('AUTOMÁTICO');
+            } else if (p.coupon.savings && p.coupon.savings > 0) {
+              setCouponType('fixed');
+              setCouponFixedValue(String(p.coupon.savings));
+              setCouponCode('AUTOMÁTICO');
+            }
+          }
+        }
       }
 
       if (!prod) { setError('Produto não encontrado nessa URL. Tente outra.'); return; }

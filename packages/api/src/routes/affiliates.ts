@@ -597,6 +597,7 @@ export async function affiliatesRoutes(app: FastifyInstance) {
             free_shipping: listingData?.shipping?.free_shipping || false,
             condition: listingData?.condition || 'new',
             category_id: listingData?.category_id || null,
+            coupon: scraped.coupon || null,
           };
         }
       }
@@ -623,6 +624,7 @@ export async function affiliatesRoutes(app: FastifyInstance) {
             free_shipping: item.shipping?.free_shipping || false,
             condition: item.condition,
             category_id: item.category_id,
+            coupon: null,
           };
         } catch (err: any) {
           console.warn('[Affiliate Generate] Erro ao buscar item:', err.message);

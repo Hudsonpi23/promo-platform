@@ -600,6 +600,7 @@ export function generateTweetText(offer: {
   installmentValue?: number;
   phraseMode?: 'generic' | 'brand';
   couponCode?: string;
+  autoCoupon?: { available: boolean; percentage: number | null; savings: number | null; isAutomatic: boolean } | null;
 }): string {
   const copies = generateCopies({
     title: offer.title,
@@ -616,6 +617,7 @@ export function generateTweetText(offer: {
     installmentValue: offer.installmentValue,
     phraseMode: offer.phraseMode,
     couponCode: offer.couponCode,
+    autoCoupon: offer.autoCoupon ?? null,
   });
 
   return copies.x;
@@ -634,13 +636,13 @@ export async function postOfferToTwitter(offer: {
   imageUrl?: string;
   images?: string[];
   siteUrl?: string;
-  /** Copy já gerada (ex: com flash hooks). Se fornecida, não regera. */
   preGeneratedCopy?: string;
   paymentMethod?: 'pix' | 'avista' | 'parcelado';
   installments?: number;
   installmentValue?: number;
   phraseMode?: 'generic' | 'brand';
   couponCode?: string;
+  autoCoupon?: { available: boolean; percentage: number | null; savings: number | null; isAutomatic: boolean } | null;
 }): Promise<TweetResponse> {
   const tweetText = offer.preGeneratedCopy ?? generateTweetText(offer);
 

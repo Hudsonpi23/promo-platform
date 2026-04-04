@@ -27,6 +27,12 @@ export interface CopyInputData {
   installmentValue?: number;
   phraseMode?: 'generic' | 'brand';
   couponCode?: string | null;
+  autoCoupon?: {
+    available: boolean;
+    percentage: number | null;
+    savings: number | null;
+    isAutomatic: boolean;
+  } | null;
 }
 
 export interface GeneratedCopies {
@@ -97,6 +103,43 @@ function buildCouponLine(input: CopyInputData): string {
   return `🏷️ Cupom: ${input.couponCode}`;
 }
 
+function buildAutoCouponLines(input: CopyInputData, compact = false): string[] {
+  const c = input.autoCoupon;
+  if (!c?.available) return [];
+
+  const lines: string[] = [];
+
+  if (c.percentage && c.percentage > 0) {
+    if (compact) {
+      lines.push(`🎟️ Cupom automático de ${c.percentage}% OFF no checkout!`);
+    } else {
+      lines.push(`🎟️ Cupom automático de ${c.percentage}% OFF no checkout — só clicar em Aplicar!`);
+      if (c.savings && c.savings > 0) {
+        const priceWithCoupon = input.price - c.savings;
+        const totalDiscount = input.oldPrice && input.oldPrice > 0
+          ? Math.round(((input.oldPrice - priceWithCoupon) / input.oldPrice) * 100)
+          : null;
+        lines.push(`💵 Com cupom: ${formatPrice(priceWithCoupon)}${totalDiscount ? ` (${totalDiscount}% OFF total)` : ''}`);
+      }
+    }
+  } else if (c.savings && c.savings > 0) {
+    if (compact) {
+      lines.push(`🎟️ Cupom automático de R$ ${c.savings.toFixed(0)} OFF no checkout!`);
+    } else {
+      lines.push(`🎟️ Cupom automático de R$ ${c.savings.toFixed(0)} OFF no checkout — só clicar em Aplicar!`);
+      const priceWithCoupon = input.price - c.savings;
+      if (priceWithCoupon > 0) {
+        const totalDiscount = input.oldPrice && input.oldPrice > 0
+          ? Math.round(((input.oldPrice - priceWithCoupon) / input.oldPrice) * 100)
+          : null;
+        lines.push(`💵 Com cupom: ${formatPrice(priceWithCoupon)}${totalDiscount ? ` (${totalDiscount}% OFF total)` : ''}`);
+      }
+    }
+  }
+
+  return lines;
+}
+
 function buildFlashLine(input: CopyInputData): string {
   if (!input.isFlash) return '';
   const hours = input.flashMinutes ? Math.round(input.flashMinutes / 60) : 3;
@@ -110,6 +153,7 @@ function generateTelegramCopy(input: CopyInputData): string {
   const priceLine = buildPriceLine(input);
   const paymentLine = buildPaymentLine(input);
   const couponLine = buildCouponLine(input);
+  const autoCouponLines = buildAutoCouponLines(input);
   const flashLine = buildFlashLine(input);
   const url = input.trackingUrl || '';
 
@@ -119,6 +163,7 @@ function generateTelegramCopy(input: CopyInputData): string {
   parts.push(priceLine);
   if (paymentLine) parts.push(paymentLine);
   if (couponLine) parts.push(couponLine);
+  if (autoCouponLines.length > 0) parts.push(...autoCouponLines);
   if (flashLine) parts.push(flashLine);
   if (input.storeName) parts.push(`🏪 ${input.storeName}`);
 
@@ -137,6 +182,7 @@ function generateSiteCopy(input: CopyInputData): string {
   const priceLine = buildPriceLine(input);
   const paymentLine = buildPaymentLine(input);
   const couponLine = buildCouponLine(input);
+  const autoCouponLines = buildAutoCouponLines(input);
   const flashLine = buildFlashLine(input);
 
   const parts: string[] = [];
@@ -145,6 +191,7 @@ function generateSiteCopy(input: CopyInputData): string {
   parts.push(priceLine);
   if (paymentLine) parts.push(paymentLine);
   if (couponLine) parts.push(couponLine);
+  if (autoCouponLines.length > 0) parts.push(...autoCouponLines);
   if (flashLine) parts.push(flashLine);
 
   return truncate(parts.join('\n'), CHAR_LIMITS.SITE);
@@ -174,14 +221,18 @@ function generateXCopy(input: CopyInputData): string {
     paymentLine = `💳 ${input.installments}x de ${formatPrice(perInstallment)} sem juros`;
   }
 
+  // ── Linha de cupom automático (compacta para X) ─────────────────────────
+  const autoCouponLines = buildAutoCouponLines(input, true);
+
   // ── Montar texto com cada info em sua própria linha ───────────────────────
   const parts: string[] = [];
   parts.push(`📦 ${shortTitle(input.title, titleMax)}`);
-  parts.push('');                      // linha em branco após o título
+  parts.push('');
   parts.push(priceLine);
   if (paymentLine) parts.push(paymentLine);
   if (input.couponCode) parts.push(`🏷️ Cupom: ${input.couponCode}`);
-  parts.push('');                      // linha em branco antes da URL
+  if (autoCouponLines.length > 0) parts.push(autoCouponLines[0]);
+  parts.push('');
   parts.push(`👉 ${url}`);
 
   let text = parts.join('\n');

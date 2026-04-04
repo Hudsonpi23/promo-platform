@@ -148,6 +148,7 @@ async function fetchMLProduct(url: string) {
         imageUrl: thumb,
         affiliateUrl,
         source: 'mercadolivre',
+        coupon: scraped.coupon || null,
       };
     }
   }

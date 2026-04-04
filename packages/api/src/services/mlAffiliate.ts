@@ -423,10 +423,18 @@ export async function extractProductImage(productUrl: string): Promise<string | 
  * Extrai preço, preço original e título da página do ML via HTTP GET + JSON-LD.
  * Funciona sem Playwright — usa a mesma URL que o usuário cola (com filtros).
  */
+export interface MLScrapedCoupon {
+  available: boolean;
+  percentage: number | null;
+  savings: number | null;
+  isAutomatic: boolean;
+}
+
 export interface MLScrapedPrice {
   price: number | null;
   originalPrice: number | null;
   title: string | null;
+  coupon: MLScrapedCoupon | null;
 }
 
 export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice> {
@@ -446,6 +454,7 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
     let price: number | null = null;
     let originalPrice: number | null = null;
     let title: string | null = null;
+    let coupon: MLScrapedCoupon | null = null;
 
     // 1. JSON-LD — fonte mais confiável
     const ldMatches = html.match(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi);
@@ -466,7 +475,6 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
     const origMatch = html.match(/ui-pdp-price__original-value[\s\S]*?andes-money-amount__fraction[^>]*>(\d[\d.]*)/i);
     if (origMatch) {
       originalPrice = parseFloat(origMatch[1].replace(/\./g, ''));
-      // Centavos
       const origCentsMatch = html.match(/ui-pdp-price__original-value[\s\S]*?andes-money-amount__cents[^>]*>(\d+)/i);
       if (origCentsMatch) {
         originalPrice += parseFloat(origCentsMatch[1]) / 100;
@@ -481,11 +489,70 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
       }
     }
 
-    console.log(`[ML-Price] price=${price}, originalPrice=${originalPrice}, title=${title?.substring(0, 50)}`);
-    return { price, originalPrice, title };
+    // 4. Extração de cupom automático via __PRELOADED_STATE__ (JSON embutido no HTML)
+    // O ML inclui dados de cupom no state pré-carregado da página
+    const couponJsonMatch = html.match(/"coupons":\s*\{"coupons":\s*\[([\s\S]*?)\]\}/);
+    if (couponJsonMatch) {
+      try {
+        const couponsArray = JSON.parse(`[${couponJsonMatch[1]}]`);
+        for (const c of couponsArray) {
+          if (c.amount && c.amount > 0) {
+            const isPercent = c.amount_type === 'percentage';
+            const pct = isPercent ? c.amount : null;
+            const savings = isPercent && price
+              ? Math.round(price * c.amount / 100 * 100) / 100
+              : (!isPercent ? c.amount : null);
+
+            coupon = {
+              available: true,
+              percentage: pct,
+              savings,
+              isAutomatic: true,
+            };
+            console.log(`[ML-Price] Cupom detectado via state: ${isPercent ? `${pct}%` : `R$${c.amount}`} OFF (label: ${c.label})`);
+            break;
+          }
+        }
+      } catch {
+        console.warn('[ML-Price] Falha ao parsear coupons do state');
+      }
+    }
+
+    // Fallback: busca na seção coupon_summary do HTML
+    if (!coupon) {
+      const couponSummaryMatch = html.match(/"coupon_summary"[\s\S]*?"awareness"[\s\S]*?"label"[\s\S]*?"text":"(\d+)%\s*OFF/i);
+      if (couponSummaryMatch) {
+        const pct = parseInt(couponSummaryMatch[1], 10);
+        coupon = {
+          available: true,
+          percentage: pct,
+          savings: price ? Math.round(price * pct / 100 * 100) / 100 : null,
+          isAutomatic: true,
+        };
+        console.log(`[ML-Price] Cupom detectado via coupon_summary: ${pct}% OFF`);
+      }
+    }
+
+    // Fallback 2: promotions array com "X% OFF"
+    if (!coupon) {
+      const promoMatch = html.match(/"promotions":\s*\[[\s\S]*?"payment_method":"(\d+)%\s*OFF[^"]*"/i);
+      if (promoMatch) {
+        const pct = parseInt(promoMatch[1], 10);
+        coupon = {
+          available: true,
+          percentage: pct,
+          savings: price ? Math.round(price * pct / 100 * 100) / 100 : null,
+          isAutomatic: true,
+        };
+        console.log(`[ML-Price] Cupom detectado via promotions: ${pct}% OFF`);
+      }
+    }
+
+    console.log(`[ML-Price] price=${price}, originalPrice=${originalPrice}, title=${title?.substring(0, 50)}, coupon=${coupon ? `${coupon.percentage}%` : 'nenhum'}`);
+    return { price, originalPrice, title, coupon };
   } catch (error: any) {
     console.error('[ML-Price] Erro:', error.message);
-    return { price: null, originalPrice: null, title: null };
+    return { price: null, originalPrice: null, title: null, coupon: null };
   }
 }
 
