@@ -604,13 +604,17 @@ export interface MLScrapedPrice {
 export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice> {
   try {
     console.log(`[ML-Price] Buscando preço de: ${productUrl.substring(0, 80)}...`);
+    const headers: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml',
+      'Accept-Language': 'pt-BR,pt;q=0.9',
+    };
+    if (_mlSessionCookie) {
+      headers['cookie'] = _mlSessionCookie;
+    }
     const resp = await axios.get(productUrl, {
       timeout: 15000,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'pt-BR,pt;q=0.9',
-      },
+      headers,
       maxRedirects: 5,
     });
 
@@ -1011,9 +1015,33 @@ export async function searchMLViaCookies(options: {
     const enrichLimit = Math.min(products.length, limit, 10);
     for (let i = 0; i < enrichLimit; i++) {
       const p = products[i];
-      if (!p.productUrl || p.productUrl.includes('click1.mercadolivre.com.br')) continue;
+      if (!p.productUrl) continue;
+
+      let urlToScrape = p.productUrl;
+      if (urlToScrape.includes('click1.mercadolivre.com.br')) {
+        try {
+          const redirectResp = await fetch(urlToScrape, {
+            method: 'HEAD',
+            redirect: 'follow',
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+              ..._mlSessionCookie ? { 'cookie': _mlSessionCookie } : {},
+            },
+          });
+          const resolvedUrl = redirectResp.url;
+          if (resolvedUrl && resolvedUrl.includes('mercadolivre.com.br/') && !resolvedUrl.includes('click1.')) {
+            p.productUrl = resolvedUrl.split('?')[0];
+            urlToScrape = p.productUrl;
+            console.log(`[ML-Browse] Redirect resolvido: ${urlToScrape.substring(0, 80)}`);
+          }
+        } catch {
+          console.log(`[ML-Browse] Falha ao resolver redirect, pulando enriquecimento`);
+          continue;
+        }
+      }
+
       try {
-        const detail = await scrapeMLPrice(p.productUrl);
+        const detail = await scrapeMLPrice(urlToScrape);
         if (detail.price) {
           p.price = detail.price;
           p.originalPrice = detail.originalPrice;
