@@ -686,7 +686,7 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
       }
     }
 
-    // Fallback: busca na seção coupon_summary do HTML
+    // Fallback: busca na seção coupon_summary do HTML (percentual)
     if (!coupon) {
       const couponSummaryMatch = html.match(/"coupon_summary"[\s\S]*?"awareness"[\s\S]*?"label"[\s\S]*?"text":"(\d+)%\s*OFF/i);
       if (couponSummaryMatch) {
@@ -701,7 +701,23 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
       }
     }
 
-    // Fallback 2: promotions array com "X% OFF"
+    // Fallback 2: busca cupom em R$ fixo no HTML ("R$ XX OFF" ou "Aplicar R$ XX")
+    if (!coupon) {
+      const fixedCouponMatch = html.match(/R\$\s*(\d+(?:[.,]\d+)?)\s*OFF/i)
+        || html.match(/Aplicar\s*R\$\s*(\d+(?:[.,]\d+)?)/i);
+      if (fixedCouponMatch) {
+        const amount = parseFloat(fixedCouponMatch[1].replace(',', '.'));
+        coupon = {
+          available: true,
+          percentage: null,
+          savings: amount,
+          isAutomatic: true,
+        };
+        console.log(`[ML-Price] Cupom fixo detectado: R$${amount} OFF`);
+      }
+    }
+
+    // Fallback 3: promotions array com "X% OFF"
     if (!coupon) {
       const promoMatch = html.match(/"promotions":\s*\[[\s\S]*?"payment_method":"(\d+)%\s*OFF[^"]*"/i);
       if (promoMatch) {
@@ -773,7 +789,10 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
       discountPercent = pix.discountPercent;
     }
 
-    console.log(`[ML-Price] price=${price}, originalPrice=${originalPrice}, discount=${discountPercent}%, pix=${pix ? `${pix.discountPercent}%` : 'N/A'}, installments=${installments ? `${installments.quantity}x R$${installments.amount}` : 'N/A'}, coupon=${coupon ? `${coupon.percentage}%` : 'nenhum'}`);
+    const couponLabel = coupon
+      ? (coupon.percentage ? `${coupon.percentage}%` : `R$${coupon.savings}`)
+      : 'nenhum';
+    console.log(`[ML-Price] price=${price}, originalPrice=${originalPrice}, discount=${discountPercent}%, pix=${pix ? `${pix.discountPercent}%` : 'N/A'}, installments=${installments ? `${installments.quantity}x R$${installments.amount}` : 'N/A'}, coupon=${couponLabel}`);
     return { price, originalPrice, title, coupon, pix, installments, discountPercent };
   } catch (error: any) {
     console.error('[ML-Price] Erro:', error.message);
@@ -1175,7 +1194,11 @@ export async function searchMLViaCookies(options: {
             p.installmentTotalPrice = detail.installments.totalPrice;
           }
           if (detail.coupon) {
-            p.couponText = `Cupom ${detail.coupon.percentage}% OFF`;
+            if (detail.coupon.percentage) {
+              p.couponText = `Cupom ${detail.coupon.percentage}% OFF`;
+            } else if (detail.coupon.savings) {
+              p.couponText = `Cupom R$${detail.coupon.savings.toFixed(0)} OFF`;
+            }
           }
         }
       } catch {
