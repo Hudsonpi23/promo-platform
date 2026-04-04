@@ -176,25 +176,52 @@ function generateOAuthHeaderForUpload(method: string, url: string, bodyParams: R
 /**
  * Baixa uma imagem de uma URL e retorna como base64
  */
-async function downloadImageAsBase64(imageUrl: string): Promise<string | null> {
-  try {
-    console.log('[Twitter] Baixando imagem:', imageUrl.substring(0, 50) + '...');
-    
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      console.error('[Twitter] Erro ao baixar imagem:', response.status);
-      return null;
-    }
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString('base64');
-    
-    console.log('[Twitter] Imagem baixada, tamanho:', Math.round(base64.length / 1024), 'KB');
-    return base64;
-  } catch (error: any) {
-    console.error('[Twitter] Erro ao baixar imagem:', error.message);
-    return null;
+function normalizeMLImageUrl(url: string): string {
+  let normalized = url;
+  if (normalized.includes('mlstatic.com')) {
+    normalized = normalized.replace(/\.webp(\?.*)?$/, '.jpg');
+    normalized = normalized.replace('D_Q_NP_2X_', 'D_NQ_NP_');
   }
+  return normalized;
+}
+
+async function downloadImageAsBase64(imageUrl: string): Promise<string | null> {
+  const urlsToTry = [imageUrl];
+  const normalized = normalizeMLImageUrl(imageUrl);
+  if (normalized !== imageUrl) urlsToTry.push(normalized);
+
+  for (const url of urlsToTry) {
+    try {
+      console.log('[Twitter] Baixando imagem:', url.substring(0, 80) + '...');
+
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36',
+          'Accept': 'image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+          'Referer': 'https://www.mercadolivre.com.br/',
+        },
+      });
+      if (!response.ok) {
+        console.error(`[Twitter] Erro ao baixar imagem (${url}):`, response.status);
+        continue;
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength < 1000) {
+        console.error(`[Twitter] Imagem muito pequena (${arrayBuffer.byteLength} bytes), pulando...`);
+        continue;
+      }
+
+      const base64 = Buffer.from(arrayBuffer).toString('base64');
+      console.log('[Twitter] Imagem baixada, tamanho:', Math.round(base64.length / 1024), 'KB');
+      return base64;
+    } catch (error: any) {
+      console.error(`[Twitter] Erro ao baixar imagem (${url}):`, error.message);
+    }
+  }
+
+  console.error('[Twitter] Todas as tentativas de download falharam');
+  return null;
 }
 
 /**
