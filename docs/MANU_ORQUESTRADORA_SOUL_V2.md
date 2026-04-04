@@ -109,32 +109,35 @@ Exemplos de estilo (NÃO copie):
 
 2b. POSTAR NO X/TWITTER
 POST {BASE_URL}/api/twitter/post-agent
+IMPORTANTE: Copie TODOS os campos do produto retornado pelo ml-browse. O post-agent monta o tweet automaticamente com PIX, parcelas e cupom.
 Body: {
   "secret":"promo2026",
-  "title":"TITULO","price":PRECO,
-  "originalPrice":ORIG_ou_null,"discountPercent":DESC_ou_0,
-  "pixDiscount":PIX_DESC_ou_null,"pixPrice":PIX_PRECO_ou_null,
-  "installmentQty":PARC_ou_null,"installmentAmount":VALOR_ou_null,
-  "installmentNoInterest":BOOL,"affiliateUrl":"MELI_LA_URL",
-  "imageUrl":"IMG_URL","freeShipping":BOOL,
-  "couponText":"CUPOM_ou_null","customHumor":"FRASE_HUMOR"
+  "title": produto.title,
+  "price": produto.price,
+  "originalPrice": produto.originalPrice,
+  "discountPercent": produto.discountPercent,
+  "pixDiscount": produto.pixDiscount,
+  "pixPrice": produto.pixPrice,
+  "installmentQty": produto.installmentQty,
+  "installmentAmount": produto.installmentAmount,
+  "installmentNoInterest": produto.installmentNoInterest,
+  "affiliateUrl": produto.affiliateUrl,
+  "imageUrl": produto.imageUrl,
+  "freeShipping": produto.freeShipping,
+  "couponText": produto.couponText,
+  "customHumor": "SUA_FRASE_HUMOR"
 }
+Nao omita campos — copie os valores EXATOS do JSON do ml-browse.
 
 2c. POSTAR NO TELEGRAM
+Cada produto do ml-browse vem com um campo "readyTelegramText" já formatado.
+Substitua "HUMOR_AQUI" pela sua frase de humor e use direto:
+
 POST {BASE_URL}/api/telegram/message
-Body: {"chatId":"-1003676225777","text":"TEXTO","imageUrl":"IMG_URL"}
+Body: {"chatId":"-1003676225777","text":"TEXTO_DO_readyTelegramText_COM_HUMOR","imageUrl":"IMG_URL"}
 
-Formato do texto Telegram (só inclua linhas com dados REAIS):
-[FRASE HUMOR]
-
-🔥 [TITULO]
-
-💰 De R$[ORIG] por R$[PRECO] (-[DESC]%[ no Pix se pixDiscount])
-[💳 [QTD]x de R$[PARCELA] sem juros — SÓ se installmentQty existir]
-[✅ Frete Grátis — SÓ se freeShipping=true]
-[🏷️ [CUPOM] — SÓ se couponText existir]
-
-👉 [AFFILIATE_URL]
+IMPORTANTE: O readyTelegramText já inclui PIX, parcelas, frete, cupom.
+Apenas troque "HUMOR_AQUI" pela frase que você criou no passo 2a.
 
 2d. ESPERAR: exec sleep 60 (antes do próximo produto, não após o último)
 
