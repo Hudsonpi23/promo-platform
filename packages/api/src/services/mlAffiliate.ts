@@ -823,6 +823,55 @@ export interface MLBrowseProduct {
   installmentAmount: number | null;
   installmentNoInterest: boolean;
   installmentTotalPrice: number | null;
+  affiliateUrl?: string;
+  officialLink?: { shortUrl: string; longUrl: string } | null;
+  readyPostAgent?: Record<string, unknown>;
+  readyTelegramText?: string;
+}
+
+export function buildReadyPostAgent(p: MLBrowseProduct, humor: string): Record<string, unknown> {
+  return {
+    secret: 'promo2026',
+    title: p.title,
+    price: p.price,
+    originalPrice: p.originalPrice,
+    discountPercent: p.discountPercent,
+    pixDiscount: p.pixDiscount || null,
+    pixPrice: p.pixPrice || null,
+    installmentQty: p.installmentQty || null,
+    installmentAmount: p.installmentAmount || null,
+    installmentNoInterest: p.installmentNoInterest || false,
+    affiliateUrl: p.affiliateUrl || '',
+    imageUrl: p.imageUrl,
+    freeShipping: p.freeShipping,
+    couponText: p.couponText || null,
+    customHumor: humor,
+  };
+}
+
+export function buildReadyTelegramText(p: MLBrowseProduct, humor: string): string {
+  const lines: string[] = [humor, ''];
+  lines.push(`🔥 ${p.title}`);
+  lines.push('');
+
+  if (p.originalPrice && p.price && p.originalPrice > p.price) {
+    const pct = p.pixDiscount || p.discountPercent;
+    const pixTag = p.pixDiscount ? ' no Pix' : '';
+    lines.push(`💰 De R$${p.originalPrice.toFixed(2)} por R$${p.price.toFixed(2)} (-${pct}%${pixTag})`);
+  } else if (p.price) {
+    lines.push(`💰 R$${p.price.toFixed(2)}`);
+  }
+
+  if (p.installmentQty && p.installmentAmount) {
+    const noInterest = p.installmentNoInterest ? ' sem juros' : '';
+    lines.push(`💳 ${p.installmentQty}x de R$${p.installmentAmount.toFixed(2)}${noInterest}`);
+  }
+  if (p.freeShipping) lines.push('✅ Frete Grátis');
+  if (p.couponText) lines.push(`🏷️ ${p.couponText}`);
+
+  lines.push('');
+  lines.push(`👉 ${p.affiliateUrl || ''}`);
+  return lines.join('\n');
 }
 
 export interface MLBrowseResult {
@@ -1190,4 +1239,6 @@ export default {
   closeBrowser,
   ML_CATEGORIES,
   AFFILIATE_TAG,
+  buildReadyPostAgent,
+  buildReadyTelegramText,
 };

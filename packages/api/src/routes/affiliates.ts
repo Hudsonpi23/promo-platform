@@ -13,7 +13,7 @@ import axios from 'axios';
 import { prisma } from '../lib/prisma.js';
 import { authGuard } from '../lib/auth.js';
 import { sendError, Errors } from '../lib/errors.js';
-import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, createOfficialAffiliateLink, isMLSessionConfigured, getMLSession, setMLSession, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice, searchMLViaCookies } from '../services/mlAffiliate.js';
+import { AFFILIATE_TAG, AFFILIATE_TOOL, generateAffiliateUrl, createOfficialAffiliateLink, isMLSessionConfigured, getMLSession, setMLSession, searchProducts, searchDeals, getHighQualityImageUrl, scrapeMLPrice, searchMLViaCookies, buildReadyTelegramText } from '../services/mlAffiliate.js';
 import { getMLToken } from './mlAuth.js';
 
 // ==================== SCHEMAS ====================
@@ -882,11 +882,13 @@ export async function affiliatesRoutes(app: FastifyInstance) {
           products.slice(0, 10).map(async (p) => {
             if (!p.productUrl) return { ...p, affiliateUrl: null };
             const official = await createOfficialAffiliateLink(p.productUrl);
-            return {
+            const enriched = {
               ...p,
               affiliateUrl: official?.shortUrl || generateAffiliateUrl(p.productUrl),
               officialLink: official ? { shortUrl: official.shortUrl, longUrl: official.longUrl } : null,
             };
+            enriched.readyTelegramText = buildReadyTelegramText(enriched, 'HUMOR_AQUI');
+            return enriched;
           })
         );
         products = withLinks as any;
