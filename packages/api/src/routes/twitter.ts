@@ -174,6 +174,12 @@ export async function twitterRoutes(app: FastifyInstance) {
       imageUrl: z.string().url().optional(),
       freeShipping: z.boolean().optional(),
       couponText: z.string().optional().nullable(),
+      pixDiscount: z.number().optional().nullable(),
+      pixPrice: z.number().optional().nullable(),
+      installmentQty: z.number().optional().nullable(),
+      installmentAmount: z.number().optional().nullable(),
+      installmentNoInterest: z.boolean().optional(),
+      installmentTotalPrice: z.number().optional().nullable(),
       customHumor: z.string().optional(),
     });
 
@@ -190,8 +196,8 @@ export async function twitterRoutes(app: FastifyInstance) {
 
       const humor = body.customHumor || pickHumorPhrase(body.title);
 
-      const titleShort = body.title.length > 70
-        ? body.title.substring(0, 67) + '...'
+      const titleShort = body.title.length > 65
+        ? body.title.substring(0, 62) + '...'
         : body.title;
 
       const parts: string[] = [];
@@ -199,10 +205,21 @@ export async function twitterRoutes(app: FastifyInstance) {
       parts.push('');
       parts.push(titleShort);
 
-      if (body.originalPrice && body.price && body.originalPrice > body.price && body.discountPercent) {
-        parts.push(`De R$${body.originalPrice.toFixed(2)} por R$${body.price.toFixed(2)} (-${Math.round(body.discountPercent)}%)`);
+      // Price line: "De R$629,80 por R$431,10 (-31% no Pix)"
+      if (body.originalPrice && body.price && body.originalPrice > body.price) {
+        const pct = body.pixDiscount || body.discountPercent || Math.round(((body.originalPrice - body.price) / body.originalPrice) * 100);
+        const pixSuffix = body.pixDiscount ? ' no Pix' : '';
+        parts.push(`De R$${body.originalPrice.toFixed(2)} por R$${body.price.toFixed(2)} (-${pct}%${pixSuffix})`);
+      } else if (body.pixDiscount && body.pixPrice && body.originalPrice) {
+        parts.push(`De R$${body.originalPrice.toFixed(2)} por R$${body.pixPrice.toFixed(2)} (-${body.pixDiscount}% no Pix)`);
       } else if (body.price) {
         parts.push(`Por R$${body.price.toFixed(2)}`);
+      }
+
+      // Installments line: "ou 9x de R$53,22 sem juros"
+      if (body.installmentQty && body.installmentAmount) {
+        const noInterest = body.installmentNoInterest ? ' sem juros' : '';
+        parts.push(`ou ${body.installmentQty}x de R$${body.installmentAmount.toFixed(2)}${noInterest}`);
       }
 
       if (body.freeShipping) parts.push('Frete Grátis ✅');
@@ -213,10 +230,18 @@ export async function twitterRoutes(app: FastifyInstance) {
 
       let tweetText = parts.join('\n');
 
+      // Compact fallback if too long
       if (tweetText.length > 280) {
-        const shorterTitle = body.title.substring(0, 45) + '...';
-        const compact: string[] = [humor, '', shorterTitle];
-        if (body.price) compact.push(`R$${body.price.toFixed(2)}${body.discountPercent ? ` (-${Math.round(body.discountPercent)}%)` : ''}`);
+        const compact: string[] = [humor, '', titleShort.substring(0, 50) + '...'];
+        if (body.price && body.originalPrice && body.originalPrice > body.price) {
+          const pct = body.pixDiscount || body.discountPercent || 0;
+          compact.push(`R$${body.price.toFixed(2)} (-${pct}%${body.pixDiscount ? ' Pix' : ''})`);
+        } else if (body.price) {
+          compact.push(`R$${body.price.toFixed(2)}`);
+        }
+        if (body.installmentQty && body.installmentAmount) {
+          compact.push(`${body.installmentQty}x R$${body.installmentAmount.toFixed(2)} s/ juros`);
+        }
         compact.push('', `👉 ${body.affiliateUrl}`);
         tweetText = compact.join('\n');
       }

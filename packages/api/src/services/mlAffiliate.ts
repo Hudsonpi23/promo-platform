@@ -579,11 +579,26 @@ export interface MLScrapedCoupon {
   isAutomatic: boolean;
 }
 
+export interface MLPixInfo {
+  discountPercent: number;
+  price: number | null;
+}
+
+export interface MLInstallmentInfo {
+  quantity: number;
+  amount: number;
+  noInterest: boolean;
+  totalPrice: number | null;
+}
+
 export interface MLScrapedPrice {
   price: number | null;
   originalPrice: number | null;
   title: string | null;
   coupon: MLScrapedCoupon | null;
+  pix: MLPixInfo | null;
+  installments: MLInstallmentInfo | null;
+  discountPercent: number;
 }
 
 export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice> {
@@ -697,11 +712,68 @@ export async function scrapeMLPrice(productUrl: string): Promise<MLScrapedPrice>
       }
     }
 
-    console.log(`[ML-Price] price=${price}, originalPrice=${originalPrice}, title=${title?.substring(0, 50)}, coupon=${coupon ? `${coupon.percentage}%` : 'nenhum'}`);
-    return { price, originalPrice, title, coupon };
+    // 5. PIX discount — "discount_label":{"text":"no Pix"..."value":31}
+    let pix: MLPixInfo | null = null;
+    const pixLabelMatch = html.match(/"discount_label":\{"text":"no Pix"[^}]*"value":(\d+)/);
+    if (pixLabelMatch) {
+      const pixPct = parseInt(pixLabelMatch[1], 10);
+      pix = {
+        discountPercent: pixPct,
+        price: price,
+      };
+      console.log(`[ML-Price] PIX: ${pixPct}% OFF (preço PIX = R$${price})`);
+    }
+
+    // Fallback PIX: "31% OFF" + "no Pix" in HTML class 
+    if (!pix) {
+      const pixHtmlMatch = html.match(/(\d+)%\s*OFF<\/span><span[^>]*>no Pix/i);
+      if (pixHtmlMatch) {
+        const pixPct = parseInt(pixHtmlMatch[1], 10);
+        pix = { discountPercent: pixPct, price: price };
+        console.log(`[ML-Price] PIX (HTML): ${pixPct}% OFF`);
+      }
+    }
+
+    // 6. Installments — 9x de R$ 53,22 sem juros
+    let installments: MLInstallmentInfo | null = null;
+
+    // From og:title meta: "R$ 479" = installment total price
+    const ogPriceMatch = html.match(/<meta\s+property="og:title"[^>]*R\$\s*([\d.,]+)/i);
+    const installmentTotalPrice = ogPriceMatch
+      ? parseFloat(ogPriceMatch[1].replace(/\./g, '').replace(',', '.'))
+      : null;
+
+    // From HTML money-amount fractions: find installment section
+    const installSectionMatch = html.match(/ui-pdp-price__subtitles[\s\S]*?(\d+)x[\s\S]*?andes-money-amount__fraction[^>]*>(\d[\d.]*)/i);
+    if (installSectionMatch) {
+      const qty = parseInt(installSectionMatch[1], 10);
+      const amt = parseFloat(installSectionMatch[2].replace(/\./g, ''));
+      const centsMatch = html.match(/ui-pdp-price__subtitles[\s\S]*?andes-money-amount__cents[^>]*>(\d+)/i);
+      const fullAmt = centsMatch ? amt + parseFloat(centsMatch[1]) / 100 : amt;
+      const noInterest = html.includes('sem juros');
+      installments = {
+        quantity: qty,
+        amount: fullAmt,
+        noInterest,
+        totalPrice: installmentTotalPrice || Math.round(qty * fullAmt * 100) / 100,
+      };
+      console.log(`[ML-Price] Parcelas: ${qty}x R$${fullAmt.toFixed(2)}${noInterest ? ' sem juros' : ''}`);
+    }
+
+    // 7. Discount percentage calculation
+    let discountPercent = 0;
+    if (originalPrice && price && originalPrice > price) {
+      discountPercent = Math.round(((originalPrice - price) / originalPrice) * 100);
+    }
+    if (pix && pix.discountPercent > discountPercent) {
+      discountPercent = pix.discountPercent;
+    }
+
+    console.log(`[ML-Price] price=${price}, originalPrice=${originalPrice}, discount=${discountPercent}%, pix=${pix ? `${pix.discountPercent}%` : 'N/A'}, installments=${installments ? `${installments.quantity}x R$${installments.amount}` : 'N/A'}, coupon=${coupon ? `${coupon.percentage}%` : 'nenhum'}`);
+    return { price, originalPrice, title, coupon, pix, installments, discountPercent };
   } catch (error: any) {
     console.error('[ML-Price] Erro:', error.message);
-    return { price: null, originalPrice: null, title: null, coupon: null };
+    return { price: null, originalPrice: null, title: null, coupon: null, pix: null, installments: null, discountPercent: 0 };
   }
 }
 
@@ -741,6 +813,12 @@ export interface MLBrowseProduct {
   productUrl: string;
   freeShipping: boolean;
   couponText: string | null;
+  pixDiscount: number | null;
+  pixPrice: number | null;
+  installmentQty: number | null;
+  installmentAmount: number | null;
+  installmentNoInterest: boolean;
+  installmentTotalPrice: number | null;
 }
 
 export interface MLBrowseResult {
@@ -880,6 +958,8 @@ export async function searchMLViaCookies(options: {
               productUrl: item.permalink || '',
               freeShipping: item.shipping?.free_shipping || false,
               couponText: null,
+              pixDiscount: null, pixPrice: null,
+              installmentQty: null, installmentAmount: null, installmentNoInterest: false, installmentTotalPrice: null,
             });
           }
           console.log(`[ML-Browse] Extraídos ${products.length} produtos do __PRELOADED_STATE__`);
@@ -909,6 +989,8 @@ export async function searchMLViaCookies(options: {
           productUrl: link.split('?')[0],
           freeShipping: false,
           couponText: null,
+          pixDiscount: null, pixPrice: null,
+          installmentQty: null, installmentAmount: null, installmentNoInterest: false, installmentTotalPrice: null,
         });
       }
       if (products.length > 0) {
@@ -922,6 +1004,37 @@ export async function searchMLViaCookies(options: {
     }
 
     console.log(`[ML-Browse] Total: ${products.length} produtos para "${searchTerm}"`);
+
+    // Enrich top products with detailed price info (PIX, installments, real discount)
+    const enrichLimit = Math.min(products.length, limit, 10);
+    for (let i = 0; i < enrichLimit; i++) {
+      const p = products[i];
+      if (!p.productUrl || p.productUrl.includes('click1.mercadolivre.com.br')) continue;
+      try {
+        const detail = await scrapeMLPrice(p.productUrl);
+        if (detail.price) {
+          p.price = detail.price;
+          p.originalPrice = detail.originalPrice;
+          p.discountPercent = detail.discountPercent;
+          if (detail.pix) {
+            p.pixDiscount = detail.pix.discountPercent;
+            p.pixPrice = detail.pix.price;
+          }
+          if (detail.installments) {
+            p.installmentQty = detail.installments.quantity;
+            p.installmentAmount = detail.installments.amount;
+            p.installmentNoInterest = detail.installments.noInterest;
+            p.installmentTotalPrice = detail.installments.totalPrice;
+          }
+          if (detail.coupon) {
+            p.couponText = `Cupom ${detail.coupon.percentage}% OFF`;
+          }
+        }
+      } catch {
+        // Skip enrichment errors
+      }
+    }
+
     return {
       success: true,
       query: searchTerm,
@@ -1002,6 +1115,12 @@ function parseProductCard($: cheerio.CheerioAPI, card: cheerio.Cheerio<any>): ML
       productUrl,
       freeShipping,
       couponText,
+      pixDiscount: null,
+      pixPrice: null,
+      installmentQty: null,
+      installmentAmount: null,
+      installmentNoInterest: false,
+      installmentTotalPrice: null,
     };
   } catch {
     return null;
