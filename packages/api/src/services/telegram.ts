@@ -4,6 +4,7 @@
  */
 
 import axios from 'axios';
+import FormData from 'form-data';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -126,179 +127,107 @@ export async function sendTelegramMessage(
 /**
  * Envia foto com caption para o canal
  */
+async function downloadImageBuffer(imageUrl: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+  try {
+    console.log('[Telegram] 📥 Baixando imagem:', imageUrl.substring(0, 100));
+    const resp = await axios.get(imageUrl, {
+      responseType: 'arraybuffer',
+      timeout: 15000,
+      maxRedirects: 5,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Referer': 'https://www.mercadolivre.com.br/',
+      },
+    });
+    const contentType = resp.headers['content-type'] || 'image/jpeg';
+    console.log('[Telegram] ✅ Imagem baixada:', resp.data.length, 'bytes, tipo:', contentType);
+    return { buffer: Buffer.from(resp.data), contentType };
+  } catch (err: any) {
+    console.error('[Telegram] ❌ Falha ao baixar imagem:', err.message);
+    return null;
+  }
+}
+
 export async function sendTelegramPhoto(photoUrl: string, caption: string, chatId?: string): Promise<{ success: boolean; messageId?: number; error?: string; sentTextOnly?: boolean; photoMessageId?: number }> {
   if (!isTelegramConfigured()) {
     return { success: false, error: 'Telegram não configurado' };
   }
 
-  // VALIDAÇÃO: Garantir que tem URL de foto válida
-  if (!photoUrl || !photoUrl.trim()) {
-    console.error('[Telegram] ❌ ERRO: URL da foto está vazia ou nula!');
-    console.error('[Telegram] photoUrl recebido:', photoUrl);
-    return { success: false, error: 'URL da foto está vazia ou nula' };
+  if (!photoUrl || !photoUrl.trim() || !photoUrl.startsWith('http')) {
+    console.error('[Telegram] ❌ URL da foto inválida:', photoUrl);
+    return { success: false, error: 'URL da foto inválida' };
   }
-  
-  if (!photoUrl.startsWith('http')) {
-    console.error('[Telegram] ❌ ERRO: URL da foto não começa com http!', photoUrl);
-    return { success: false, error: 'URL da foto está inválida (não começa com http)' };
-  }
-  
-  // VALIDAÇÃO: Verificar se a URL parece ser uma imagem válida
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-  const hasImageExtension = imageExtensions.some(ext => photoUrl.toLowerCase().includes(ext));
-  const isImageUrl = hasImageExtension || photoUrl.includes('image') || photoUrl.includes('photo');
-  
-  if (!isImageUrl && !photoUrl.includes('http')) {
-    console.warn('[Telegram] ⚠️ URL pode não ser uma imagem válida:', photoUrl.substring(0, 100));
-  }
-  
-  console.log('[Telegram] ✅ URL da foto validada:', photoUrl.substring(0, 100));
 
-  // VALIDAÇÃO: Garantir que tem caption
   if (!caption || caption.trim().length === 0) {
-    console.error('[Telegram] ERRO: Tentando enviar foto sem caption!');
+    console.error('[Telegram] ❌ Caption vazio!');
     return { success: false, error: 'Caption da foto está vazio' };
   }
 
+  let finalCaption = caption;
+  if (caption.length > 1024) {
+    finalCaption = caption.substring(0, 1021) + '...';
+  }
+  finalCaption = finalCaption.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
+
+  const apiUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
+  const targetChatId = chatId || TELEGRAM_CHAT_ID;
+
   try {
-    console.log('[Telegram] 📷 Enviando foto com caption');
-    console.log('[Telegram] URL da foto:', photoUrl.substring(0, 100));
-    console.log('[Telegram] Caption (primeiros 150 chars):', caption.substring(0, 150));
-    console.log('[Telegram] Tamanho do caption:', caption.length, 'caracteres');
-    
-    // Telegram tem limite de 1024 caracteres para caption
-    let finalCaption = caption;
-    if (caption.length > 1024) {
-      console.warn('[Telegram] Caption muito longo, truncando para 1024 caracteres');
-      finalCaption = caption.substring(0, 1021) + '...';
+    // Estratégia: baixar a imagem no servidor e enviar como upload multipart
+    const img = await downloadImageBuffer(photoUrl);
+
+    if (img) {
+      const ext = photoUrl.includes('.webp') ? 'webp' : photoUrl.includes('.png') ? 'png' : 'jpg';
+      const form = new FormData();
+      form.append('chat_id', targetChatId!);
+      form.append('caption', finalCaption);
+      form.append('photo', img.buffer, { filename: `product.${ext}`, contentType: img.contentType });
+
+      console.log('[Telegram] 📤 Enviando foto via upload multipart...');
+      const response = await axios.post(apiUrl, form, {
+        headers: form.getHeaders(),
+        timeout: 30000,
+      });
+
+      const data = response.data as TelegramResponse;
+      if (data.ok) {
+        console.log('[Telegram] ✅ Foto enviada com sucesso via upload! ID:', data.result?.message_id);
+        return { success: true, messageId: data.result?.message_id, sentTextOnly: false };
+      }
+      console.error('[Telegram] ❌ Upload falhou:', data.description);
     }
-    
-    // VALIDAÇÃO CRÍTICA: Garantir que o caption não está vazio após processamento
-    if (!finalCaption || finalCaption.trim().length === 0) {
-      console.error('[Telegram] ❌ ERRO CRÍTICO: Caption ficou vazio após processamento!');
-      console.error('[Telegram] Caption original:', caption.substring(0, 200));
-      return { success: false, error: 'Caption está vazio após processamento' };
-    }
-    
-    // VALIDAÇÃO: Verificar se há caracteres problemáticos
-    const problematicChars = /[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/;
-    if (problematicChars.test(finalCaption)) {
-      console.warn('[Telegram] ⚠️ Caption contém caracteres de controle, removendo...');
-      finalCaption = finalCaption.replace(/[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]/g, '');
-    }
-    
-    console.log('[Telegram] ✅ Caption validado e pronto para envio');
-    console.log('[Telegram] Tamanho final do caption:', finalCaption.length, 'caracteres');
-    console.log('[Telegram] Preview do caption completo:', finalCaption);
-    
-    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`;
-    
-    // IMPORTANTE: Telegram pode rejeitar caption se houver problemas
-    // Vamos garantir que o caption está em formato válido
-    // SEM parse_mode - texto simples (Telegram processa melhor assim)
-    
-    const payload = {
-      chat_id: chatId || TELEGRAM_CHAT_ID,
+
+    // Fallback 1: tentar enviar pela URL diretamente
+    console.log('[Telegram] 🔄 Tentando enviar foto por URL direta...');
+    const urlResp = await axios.post(apiUrl, {
+      chat_id: targetChatId,
       photo: photoUrl,
       caption: finalCaption,
-      // SEM parse_mode - texto simples em MAIÚSCULAS
+    }, { timeout: 30000 });
+
+    const urlData = urlResp.data as TelegramResponse;
+    if (urlData.ok) {
+      console.log('[Telegram] ✅ Foto enviada por URL! ID:', urlData.result?.message_id);
+      return { success: true, messageId: urlData.result?.message_id, sentTextOnly: false };
+    }
+    console.error('[Telegram] ❌ URL direta falhou:', urlData.description);
+
+    // Fallback 2: enviar só texto
+    console.log('[Telegram] 🔄 Enviando apenas texto como fallback...');
+    const textResult = await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
+    return {
+      success: textResult.success,
+      messageId: textResult.messageId,
+      sentTextOnly: true,
+      error: textResult.success ? undefined : textResult.error,
     };
-    
-    console.log('[Telegram] 📤 Payload sendo enviado (sem photo URL):', {
-      chat_id: payload.chat_id,
-      caption_length: payload.caption.length,
-      caption_preview: payload.caption.substring(0, 100),
-    });
-    
-    const response = await axios.post(url, payload, {
-      timeout: 30000, // 30 segundos
-      maxRedirects: 5,
-    });
-
-    const data = response.data as TelegramResponse;
-
-    if (!data.ok) {
-      console.error('[Telegram] ❌ Erro ao enviar foto:', data.description);
-      console.error('[Telegram] Resposta completa da API:', JSON.stringify(data, null, 2));
-      
-      // SEMPRE tentar enviar só texto se foto falhar
-      console.log('[Telegram] Foto falhou, enviando apenas texto...');
-      const textResult = await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
-      
-      // Retornar SUCESSO se conseguiu enviar o texto
-      return {
-        success: textResult.success,
-        messageId: textResult.messageId,
-        sentTextOnly: true,
-        error: textResult.success ? undefined : textResult.error,
-      };
-    }
-
-    // VALIDAÇÃO CRÍTICA: Verificar se o caption foi realmente enviado
-    const sentCaption = data.result?.caption || '';
-    
-    if (!sentCaption || sentCaption.trim().length === 0) {
-      console.error('[Telegram] ⚠️ PROBLEMA: Foto enviada mas CAPTION ESTÁ VAZIO na resposta!');
-      console.error('[Telegram] Caption que tentamos enviar:', finalCaption.substring(0, 300));
-      
-      // VALIDAÇÃO: Verificar se o caption que tentamos enviar tem conteúdo além do link
-      const captionLines = finalCaption.split('\n').filter(line => line.trim().length > 0);
-      console.log('[Telegram] Linhas do caption enviado:', captionLines.length);
-      console.log('[Telegram] Primeira linha (link):', captionLines[0]?.substring(0, 80));
-      console.log('[Telegram] Resto do caption:', captionLines.slice(1).join(' | ').substring(0, 200));
-      
-      if (captionLines.length <= 1) {
-        console.error('[Telegram] ❌ ERRO CRÍTICO: O caption que tentamos enviar tinha apenas o link!');
-        console.error('[Telegram] Caption completo:', JSON.stringify(finalCaption));
-        // Não enviar mensagem separada se o caption já estava vazio - problema na geração
-        return { 
-          success: true, 
-          messageId: data.result?.message_id, 
-          sentTextOnly: false,
-          error: 'Caption estava vazio (apenas link) - problema na geração do texto'
-        };
-      }
-      
-      // Só enviar mensagem separada se o caption tinha conteúdo mas não foi incluído
-      console.log('[Telegram] 🔄 Caption tinha conteúdo mas não foi incluído, enviando mensagem separada...');
-      try {
-        const textResult = await sendTelegramMessage({ 
-          text: finalCaption, 
-          disableWebPagePreview: false 
-        });
-        
-        if (textResult.success) {
-          console.log('[Telegram] ✅ Mensagem de texto enviada como fallback!');
-          return { 
-            success: true, 
-            messageId: textResult.messageId, 
-            sentTextOnly: true,
-            photoMessageId: data.result?.message_id,
-            error: 'Caption não foi incluído na foto, enviado como mensagem separada'
-          };
-        }
-      } catch (fallbackError: any) {
-        console.error('[Telegram] ❌ Erro ao enviar texto separado:', fallbackError.message);
-      }
-    } else {
-      console.log('[Telegram] ✅ Foto enviada com sucesso e caption incluído!');
-      console.log('[Telegram] Message ID:', data.result?.message_id);
-      console.log('[Telegram] Caption (primeiros 150 chars):', sentCaption.substring(0, 150));
-      console.log('[Telegram] Tamanho do caption recebido:', sentCaption.length, 'caracteres');
-    }
-    
-    return { success: true, messageId: data.result?.message_id, sentTextOnly: false };
 
   } catch (error: any) {
-    console.error('[Telegram] Erro ao enviar foto:', error.response?.data || error.message);
-    
-    // Se der erro de rede ou API, tentar enviar só texto
-    console.log('[Telegram] Erro capturado, tentando enviar apenas texto...');
-    
+    console.error('[Telegram] ❌ Erro ao enviar foto:', error.response?.data || error.message);
+
     try {
       const textResult = await sendTelegramMessage({ text: caption, disableWebPagePreview: false });
-      
-      // Retornar SUCESSO se conseguiu enviar o texto
       return {
         success: textResult.success,
         messageId: textResult.messageId,
@@ -306,9 +235,9 @@ export async function sendTelegramPhoto(photoUrl: string, caption: string, chatI
         error: textResult.success ? undefined : textResult.error,
       };
     } catch (fallbackError: any) {
-      console.error('[Telegram] Falha total:', fallbackError.message);
-      return { 
-        success: false, 
+      console.error('[Telegram] ❌ Falha total:', fallbackError.message);
+      return {
+        success: false,
         error: `Foto e texto falharam: ${error.response?.data?.description || error.message}`,
         sentTextOnly: false,
       };
