@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { authGuard } from '../lib/auth.js';
+import { z } from 'zod';
 import { 
   isTelegramConfigured, 
   testTelegramConnection, 
@@ -7,6 +8,7 @@ import {
   formatTelegramPost 
 } from '../services/telegram.js';
 import { uploadFromUrl } from '../services/cloudinary.js';
+import { createOfficialAffiliateLink, generateAffiliateUrl } from '../services/mlAffiliate.js';
 import { prisma } from '../lib/prisma.js';
 import { nanoid } from 'nanoid';
 
@@ -271,8 +273,29 @@ export async function telegramRoutes(app: FastifyInstance) {
       return reply.status(400).send({ success: false, error: 'Texto obrigatório' });
     }
 
+    let finalText = text.trim();
+
+    const rawMLUrlPattern = /https?:\/\/(?:www\.)?mercadolivre\.com\.br\/[^\s]+/gi;
+    const rawMLUrls = finalText.match(rawMLUrlPattern);
+    if (rawMLUrls && rawMLUrls.length > 0) {
+      for (const rawUrl of rawMLUrls) {
+        const cleanUrl = rawUrl.split('?')[0];
+        try {
+          console.log('[Telegram /message] Detectada URL crua ML, convertendo para afiliado:', cleanUrl.substring(0, 80));
+          const official = await createOfficialAffiliateLink(cleanUrl);
+          const affiliateUrl = official?.shortUrl || generateAffiliateUrl(cleanUrl);
+          if (affiliateUrl && affiliateUrl !== cleanUrl) {
+            finalText = finalText.replace(rawUrl, affiliateUrl);
+            console.log('[Telegram /message] URL substituída por:', affiliateUrl);
+          }
+        } catch (err: any) {
+          console.error('[Telegram /message] Falha ao converter URL:', err.message);
+        }
+      }
+    }
+
     const result = await sendTelegramMessage({ 
-      text: text.trim(), 
+      text: finalText, 
       imageUrl: imageUrl?.trim() || undefined,
       chatId: chatId?.trim() || undefined
     });
