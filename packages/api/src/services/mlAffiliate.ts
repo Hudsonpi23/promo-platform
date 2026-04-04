@@ -937,8 +937,28 @@ export async function searchMLViaCookies(options: {
 
 function parseProductCard($: cheerio.CheerioAPI, card: cheerio.Cheerio<any>): MLBrowseProduct | null {
   try {
+    // Prioriza links com URL real do produto (não tracking redirects)
+    let productUrl = '';
+    const allLinks = card.find('a[href]');
+    allLinks.each((_i, a) => {
+      const href = $(a).attr('href') || '';
+      if (productUrl) return;
+      if (
+        (href.includes('mercadolivre.com.br/') || href.includes('produto.mercadolivre.com.br/'))
+        && !href.includes('click1.mercadolivre.com.br')
+        && !href.includes('/mclics/')
+        && (href.includes('/p/MLB') || href.includes('/up/MLB') || href.match(/MLB[- ]\d+/))
+      ) {
+        productUrl = href.split('#')[0].split('?')[0];
+      }
+    });
+
+    if (!productUrl) {
+      const linkEl = card.find('a[href*="mercadolivre.com.br"]').first();
+      productUrl = (linkEl.attr('href') || '').split('#')[0].split('?')[0];
+    }
+
     const linkEl = card.find('a[href*="mercadolivre.com.br"]').first();
-    const productUrl = (linkEl.attr('href') || '').split('#')[0].split('?')[0];
 
     const titleEl = card.find('h2, h3, [class*="title"], [class*="item__title"]').first();
     const title = titleEl.text().trim() || linkEl.attr('title') || '';
