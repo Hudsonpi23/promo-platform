@@ -23,6 +23,7 @@ import {
   simplifyTitle,
   createOfficialAffiliateLink,
   generateAffiliateUrl,
+  scrapeMLPrice,
   type MLBrowseProduct,
 } from '../services/mlAffiliate.js';
 
@@ -784,6 +785,224 @@ export async function autoPublishRoutes(app: FastifyInstance) {
     } catch (err: any) {
       console.error('[AutoPublish/scrape] Erro:', err.message);
       return reply.status(500).send({ error: `Falha ao acessar o produto: ${err.message}` });
+    }
+  });
+
+  // ==================== POST-URL — Manu escolhe o produto, servidor faz o resto ====================
+
+  /**
+   * POST /api/auto-publish/post-url
+   * Manu envia a URL do produto do Mercado Livre.
+   * O servidor: extrai dados, gera link afiliado, gera humor, posta no X e Telegram.
+   *
+   * Body: { secret, url, humor? }
+   */
+  app.post('/post-url', async (request, reply) => {
+    const schema = z.object({
+      secret: z.string(),
+      url: z.string().min(1),
+      humor: z.string().optional(),
+    });
+
+    try {
+      const body = schema.parse(request.body);
+
+      if (body.secret !== 'promo2026') {
+        return reply.status(403).send({ success: false, error: 'Invalid secret' });
+      }
+
+      let productUrl = body.url.trim();
+
+      console.log(`[Post-URL] Recebido: ${productUrl.substring(0, 80)}`);
+
+      // Resolver redirecionamentos (meli.la, mercadolivre short links, etc)
+      try {
+        const headResp = await axios.head(productUrl, {
+          maxRedirects: 5,
+          timeout: 10000,
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+        });
+        if (headResp.request?.res?.responseUrl) {
+          productUrl = headResp.request.res.responseUrl;
+        }
+      } catch {
+        try {
+          const getResp = await axios.get(productUrl, {
+            maxRedirects: 5,
+            timeout: 10000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          });
+          if (getResp.request?.res?.responseUrl) {
+            productUrl = getResp.request.res.responseUrl;
+          }
+        } catch { /* use original url */ }
+      }
+
+      const cleanUrl = productUrl.split('?')[0];
+      console.log(`[Post-URL] URL resolvida: ${cleanUrl.substring(0, 80)}`);
+
+      // 1. Extrair dados do produto
+      const detail = await scrapeMLPrice(cleanUrl);
+
+      if (!detail.title || !detail.price) {
+        return reply.status(422).send({
+          success: false,
+          error: 'Não foi possível extrair dados do produto. Verifique a URL.',
+          url: cleanUrl,
+        });
+      }
+
+      // 2. Gerar link de afiliado
+      let affiliateUrl: string;
+      try {
+        const official = await createOfficialAffiliateLink(cleanUrl);
+        affiliateUrl = official?.shortUrl || generateAffiliateUrl(cleanUrl);
+      } catch {
+        affiliateUrl = generateAffiliateUrl(cleanUrl);
+      }
+
+      if (!affiliateUrl || !affiliateUrl.includes('meli.la')) {
+        affiliateUrl = generateAffiliateUrl(cleanUrl);
+      }
+
+      // 3. Extrair imagem do HTML
+      let imageUrl = '';
+      try {
+        const pageResp = await axios.get(cleanUrl, {
+          timeout: 15000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept-Language': 'pt-BR,pt;q=0.9',
+          },
+        });
+        const imgMatch = pageResp.data.match(/"pictures":\s*\[\s*\{"url":"([^"]+)"/);
+        if (imgMatch) {
+          imageUrl = imgMatch[1].replace('http://', 'https://');
+        } else {
+          const ogMatch = pageResp.data.match(/property="og:image"\s+content="([^"]+)"/);
+          if (ogMatch) {
+            imageUrl = ogMatch[1].replace('http://', 'https://');
+          }
+        }
+      } catch { /* sem imagem */ }
+
+      // 4. Montar couponText
+      let couponText: string | null = null;
+      if (detail.coupon) {
+        if (detail.coupon.percentage) {
+          couponText = `Cupom ${detail.coupon.percentage}% OFF`;
+        } else if (detail.coupon.savings) {
+          couponText = `Cupom R$${detail.coupon.savings.toFixed(0)} OFF`;
+        }
+      }
+
+      // 5. Montar o produto como MLBrowseProduct
+      const product: MLBrowseProduct = {
+        title: detail.title,
+        price: detail.price,
+        originalPrice: detail.originalPrice,
+        discountPercent: detail.discountPercent,
+        imageUrl,
+        productUrl: cleanUrl,
+        freeShipping: false, // scrapeMLPrice não extrai isso
+        couponText,
+        pixDiscount: detail.pix?.discountPercent || null,
+        pixPrice: detail.pix?.price || null,
+        installmentQty: detail.installments?.quantity || null,
+        installmentAmount: detail.installments?.amount || null,
+        installmentNoInterest: detail.installments?.noInterest || false,
+        installmentTotalPrice: detail.installments?.totalPrice || null,
+        affiliateUrl,
+      };
+
+      // Anti-repetição
+      if (isDuplicate(product)) {
+        return reply.status(409).send({
+          success: false,
+          error: 'Este produto já foi postado hoje',
+          title: simplifyTitle(product.title),
+        });
+      }
+
+      // 6. Gerar humor
+      const humor = body.humor || pickHumor(product.title);
+
+      console.log(`[Post-URL] Postando: "${simplifyTitle(product.title)}" (${product.discountPercent}% OFF) | Humor: ${humor}`);
+
+      // 7. Postar no X/Twitter
+      let twitterResult: { success: boolean; error?: string; tweetId?: string } = { success: false, error: 'Twitter não configurado' };
+      if (isTwitterConfigured()) {
+        try {
+          const titleShort = simplifyTitle(product.title);
+          const parts: string[] = [humor, ''];
+          parts.push(titleShort);
+
+          if (product.originalPrice && product.price && product.originalPrice > product.price) {
+            const pct = product.pixDiscount || product.discountPercent;
+            const pixSuffix = product.pixDiscount ? ' no Pix' : '';
+            parts.push(`De R$${product.originalPrice.toFixed(2)} por R$${product.price.toFixed(2)} (-${pct}%${pixSuffix})`);
+          } else if (product.price) {
+            parts.push(`Por R$${product.price.toFixed(2)}`);
+          }
+
+          if (product.installmentQty && product.installmentAmount) {
+            const noInterest = product.installmentNoInterest ? ' sem juros' : '';
+            parts.push(`ou ${product.installmentQty}x de R$${product.installmentAmount.toFixed(2)}${noInterest}`);
+          }
+
+          if (product.freeShipping) parts.push('Frete Grátis ✅');
+          if (product.couponText) parts.push(`🏷️ ${product.couponText}`);
+
+          parts.push('');
+          parts.push(`👉 ${product.affiliateUrl}`);
+
+          let tweetText = parts.join('\n');
+          if (tweetText.length > 280) {
+            tweetText = tweetText.substring(0, 277) + '...';
+          }
+
+          const res = imageUrl
+            ? await postTweetWithImage(tweetText, imageUrl)
+            : { success: false, error: 'Sem imagem' };
+
+          twitterResult = { success: res.success, error: res.error, tweetId: (res as any).tweetId };
+        } catch (e: any) {
+          twitterResult = { success: false, error: e.message };
+        }
+      }
+
+      // 8. Postar no Telegram
+      let telegramResult: { success: boolean; error?: string; messageId?: number } = { success: false, error: 'Telegram não configurado' };
+      if (isTelegramConfigured()) {
+        try {
+          const telegramText = buildReadyTelegramText(product, humor);
+          const res = await sendTelegramPhoto(imageUrl, telegramText);
+          telegramResult = { success: res.success, error: res.error, messageId: res.messageId || res.photoMessageId };
+        } catch (e: any) {
+          telegramResult = { success: false, error: e.message };
+        }
+      }
+
+      markAsPosted(product);
+
+      return reply.send({
+        success: true,
+        title: simplifyTitle(product.title),
+        price: product.price,
+        originalPrice: product.originalPrice,
+        discountPercent: product.discountPercent,
+        affiliateUrl,
+        humor,
+        couponText,
+        twitter: twitterResult,
+        telegram: telegramResult,
+      });
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return reply.status(400).send({ success: false, error: 'Dados inválidos', details: error.errors });
+      }
+      console.error('[Post-URL] Erro:', error);
+      return reply.status(500).send({ success: false, error: error.message });
     }
   });
 
