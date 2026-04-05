@@ -1035,90 +1035,92 @@ export async function autoPublishRoutes(app: FastifyInstance) {
       }
 
       cleanupPostedToday();
-
-      // Determinar modo e parâmetro de busca
-      let searchMode: 'niche' | 'query';
-      let searchNiche: string | undefined;
-      let searchQuery: string | undefined;
-
-      if (body.mode === 'auto') {
-        searchMode = burstState.lastMode === 'niche' ? 'query' : 'niche';
-      } else {
-        searchMode = body.mode;
-      }
-
-      if (searchMode === 'niche') {
-        searchNiche = body.niche || NICHES_ROTATION[burstState.nicheIndex % NICHES_ROTATION.length];
-        burstState.nicheIndex = (burstState.nicheIndex + 1) % NICHES_ROTATION.length;
-      } else {
-        searchQuery = body.query || QUERIES_ROTATION[burstState.queryIndex % QUERIES_ROTATION.length];
-        burstState.queryIndex = (burstState.queryIndex + 1) % QUERIES_ROTATION.length;
-      }
-
-      burstState.lastMode = searchMode;
       burstState.burstCountToday++;
 
-      console.log(`[Burst] #${burstState.burstCountToday} | Modo: ${searchMode} | ${searchMode === 'niche' ? `Nicho: ${searchNiche}` : `Query: ${searchQuery}`} | Count: ${body.count}`);
+      const count = body.count;
 
-      // 1. Buscar produtos
-      const browseResult = await searchMLViaCookies({
-        query: searchQuery,
-        niche: searchNiche,
-        dealsOnly: true,
-        limit: 10,
-      });
+      console.log(`[Burst] #${burstState.burstCountToday} | Buscando ${count} produto(s) de nichos DIFERENTES`);
 
-      if (!browseResult.success || browseResult.products.length === 0) {
-        return reply.send({
-          success: false,
-          error: 'Nenhum produto encontrado',
-          mode: searchMode,
-          searchParam: searchNiche || searchQuery,
-          burstNumber: burstState.burstCountToday,
-        });
-      }
+      // Cada produto vem de uma busca SEPARADA (nicho ou query diferente)
+      const candidates: MLBrowseProduct[] = [];
+      const searchesUsed: string[] = [];
 
-      // 1b. Gerar links de afiliado para os produtos
-      const productsWithLinks = await Promise.all(
-        browseResult.products.map(async (p) => {
-          if (!p.productUrl) return p;
-          try {
-            const official = await createOfficialAffiliateLink(p.productUrl);
-            return {
-              ...p,
-              affiliateUrl: official?.shortUrl || generateAffiliateUrl(p.productUrl),
-              officialLink: official ? { shortUrl: official.shortUrl, longUrl: official.longUrl } : null,
-            };
-          } catch {
-            return { ...p, affiliateUrl: generateAffiliateUrl(p.productUrl) };
+      for (let slot = 0; slot < count; slot++) {
+        // Alternar entre niche e query para cada slot
+        const useNiche = (slot % 2 === 0);
+        let searchParam: string;
+        let browseOptions: { query?: string; niche?: string; dealsOnly: boolean; limit: number };
+
+        if (useNiche) {
+          searchParam = NICHES_ROTATION[burstState.nicheIndex % NICHES_ROTATION.length];
+          burstState.nicheIndex = (burstState.nicheIndex + 1) % NICHES_ROTATION.length;
+          browseOptions = { niche: searchParam, dealsOnly: true, limit: 5 };
+        } else {
+          searchParam = QUERIES_ROTATION[burstState.queryIndex % QUERIES_ROTATION.length];
+          burstState.queryIndex = (burstState.queryIndex + 1) % QUERIES_ROTATION.length;
+          browseOptions = { query: searchParam, dealsOnly: true, limit: 5 };
+        }
+
+        console.log(`[Burst] Slot ${slot + 1}: ${useNiche ? 'Nicho' : 'Query'} = "${searchParam}"`);
+
+        try {
+          const browseResult = await searchMLViaCookies(browseOptions);
+
+          if (!browseResult.success || browseResult.products.length === 0) {
+            console.log(`[Burst] Slot ${slot + 1}: Nenhum produto para "${searchParam}", pulando`);
+            continue;
           }
-        })
-      );
 
-      // 2. Filtrar duplicados e selecionar os melhores
-      const candidates = productsWithLinks
-        .filter(p => !isDuplicate(p))
-        .filter(p => p.affiliateUrl && p.affiliateUrl.includes('meli.la'))
-        .filter(p => p.imageUrl)
-        .sort((a, b) => b.discountPercent - a.discountPercent)
-        .slice(0, body.count);
+          // Gerar links de afiliado
+          const withLinks = await Promise.all(
+            browseResult.products.slice(0, 5).map(async (p) => {
+              if (!p.productUrl) return p;
+              try {
+                const official = await createOfficialAffiliateLink(p.productUrl);
+                return {
+                  ...p,
+                  affiliateUrl: official?.shortUrl || generateAffiliateUrl(p.productUrl),
+                };
+              } catch {
+                return { ...p, affiliateUrl: generateAffiliateUrl(p.productUrl) };
+              }
+            })
+          );
+
+          // Pegar o melhor produto não-duplicado desta busca
+          const best = withLinks
+            .filter(p => !isDuplicate(p))
+            .filter(p => p.affiliateUrl && p.affiliateUrl.includes('meli.la'))
+            .filter(p => p.imageUrl)
+            .sort((a, b) => b.discountPercent - a.discountPercent)[0];
+
+          if (best) {
+            candidates.push(best);
+            searchesUsed.push(searchParam);
+            markAsPosted(best);
+            console.log(`[Burst] Slot ${slot + 1}: Selecionado "${simplifyTitle(best.title)}" (${best.discountPercent}% OFF)`);
+          } else {
+            console.log(`[Burst] Slot ${slot + 1}: Todos duplicados para "${searchParam}"`);
+          }
+        } catch (err: any) {
+          console.error(`[Burst] Slot ${slot + 1}: Erro na busca "${searchParam}":`, err.message);
+        }
+      }
 
       if (candidates.length === 0) {
         return reply.send({
           success: false,
-          error: 'Todos os produtos já foram postados hoje (duplicados)',
-          mode: searchMode,
-          searchParam: searchNiche || searchQuery,
-          totalFound: browseResult.products.length,
+          error: 'Nenhum produto válido encontrado em nenhum nicho',
           burstNumber: burstState.burstCountToday,
         });
       }
 
-      console.log(`[Burst] ${candidates.length} produto(s) selecionados de ${browseResult.products.length} encontrados`);
+      console.log(`[Burst] ${candidates.length} produto(s) de nichos diferentes: [${searchesUsed.join(', ')}]`);
 
       // 3. Postar cada produto
       const results: Array<{
         title: string;
+        niche: string;
         affiliateUrl: string;
         humor: string;
         discountPercent: number;
@@ -1187,10 +1189,9 @@ export async function autoPublishRoutes(app: FastifyInstance) {
           }
         }
 
-        markAsPosted(product);
-
         results.push({
           title: simplifyTitle(product.title),
+          niche: searchesUsed[i] || 'unknown',
           affiliateUrl: product.affiliateUrl || '',
           humor,
           discountPercent: product.discountPercent,
@@ -1208,18 +1209,12 @@ export async function autoPublishRoutes(app: FastifyInstance) {
 
       const successCount = results.filter(r => r.twitter.success || r.telegram.success).length;
 
-      console.log(`[Burst] Rajada #${burstState.burstCountToday} concluída: ${successCount}/${results.length} produtos postados`);
+      console.log(`[Burst] Rajada #${burstState.burstCountToday} concluída: ${successCount}/${results.length} produtos de nichos diferentes`);
 
       return reply.send({
         success: true,
         burstNumber: burstState.burstCountToday,
-        mode: searchMode,
-        searchParam: searchNiche || searchQuery,
-        nextMode: searchMode === 'niche' ? 'query' : 'niche',
-        nextParam: searchMode === 'niche'
-          ? QUERIES_ROTATION[burstState.queryIndex % QUERIES_ROTATION.length]
-          : NICHES_ROTATION[burstState.nicheIndex % NICHES_ROTATION.length],
-        productsFound: browseResult.products.length,
+        nichesUsed: searchesUsed,
         productsPosted: results.length,
         results,
         postedTodayTotal: postedToday.length,
